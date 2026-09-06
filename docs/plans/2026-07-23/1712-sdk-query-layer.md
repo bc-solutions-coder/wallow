@@ -1,3 +1,5 @@
+> Historical plan. Failure-handling passages link to the current spec and their original Git revision.
+
 # SDK Query Layer + Frontend State Boundary Implementation Plan
 
 **status: active** (2026-07-23) — phases 1–3 landed; Zustand adoption + Query-vs-Zustand docs page remain.
@@ -454,7 +456,7 @@ export * from "./auth";
 
 **Step 6:** Commit: `git commit -m "feat(sdk): expose query layer via ./query subpath"`
 
-**IMPORTANT — do NOT re-export `./query` from the `.` barrel** (`src/index.ts`): the core browser entry stays react-query-free so non-React consumers never pay for it. Also never import from `../server/index.ts` in query code — server-only (`h3`/`openid-client`/`node:*`) must not leak (the `WallowError` type, if needed, is imported from `../server/errors` FILE directly, per the existing `auth-client.ts:30-35` pattern).
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-07-23/1712-sdk-query-layer.md).
 
 ---
 

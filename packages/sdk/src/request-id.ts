@@ -4,16 +4,16 @@
  * Every request through the BFF tunnel carries an `x-request-id`: the caller's
  * when it supplied one, a freshly generated one when it did not. The id goes
  * upstream to the API, comes back on the BFF's own response, and rides on every
- * {@link WallowError} the tunnel raises — so an error a user reports in the
+ * `ApiFailure` the tunnel raises — so an error a user reports in the
  * browser names the exact request that produced it. Pairing that id with the
  * `traceId` the API's problem details already carry is what turns a frontend
  * error into a backend OTel trace; the workflow is written up in
  * `docs/operations/request-correlation.md`.
  *
- * This module lives beside `errors.ts` rather than under `server/` for the same
- * reason that one does: the browser reads the header off a response and the BFF
- * writes it onto a request, and the two must agree on the name and on what
- * counts as a usable id. It is dependency-free and runs in either runtime.
+ * This module lives at the package root rather than under `server/` because
+ * the browser reads the header off a response and the BFF writes it onto a
+ * request, and the two must agree on the name and on what counts as a usable
+ * id. It is dependency-free and runs in either runtime.
  */
 
 /** The correlation header carried on every request through the BFF tunnel. */

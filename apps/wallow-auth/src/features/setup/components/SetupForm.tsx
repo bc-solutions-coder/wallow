@@ -22,7 +22,7 @@ import { passwordStrength, type PasswordStrength } from "@shared/lib/password-st
  * `POST /v1/identity/setup/admin`.
  *
  * Unlike the register screen this form rides `useAppForm`'s `mutation:` path:
- * the setup endpoint speaks RFC 7807, so `splitServerError` lands field errors
+ * the setup endpoint speaks RFC 7807, so `splitSubmitFailure` lands field errors
  * next to their fields and everything else (a 409 from a setup raced to
  * completion elsewhere included) in the banner — no hand-rolled rejection
  * mapping. The zod rules run for the same reason: there is no ordered

@@ -5,8 +5,30 @@ Consumer-facing docs (authoring, testid derivation, error model, escape hatches)
 
 ## Layering — one direction
 
-`styles → ui → forms → apps`. `ui` must never import this package. The only
-`@bc-solutions-coder/sdk` import is `isWallowError` (`core/server-error.ts`).
+`styles → ui → forms → apps`. `ui` must never import this package. Source imports
+`@bc-solutions-coder/api-errors` runtime values only from `core/server-error.ts`
+(`toApiFailure` and `splitFieldErrors`);
+`form/use-app-form.ts` takes only types from it. The banner sentence comes from `ui`'s
+`useFailureMessage`, never from a resolver call here, so the app registry reaches forms.
+Source never imports `@bc-solutions-coder/sdk` — the SDK is a devDependency that specs use to
+drive the real client.
+
+## The failure path
+
+Mechanics are in `docs/development/forms.md` § The error model; the invariants:
+
+- **Never a joined string.** `splitSubmitFailure` (core) lands messages on the form's
+  `defaultValues` keys and preserves `unmatched` in server order alongside the original
+  `ApiFailure`. The resolver shows the first nonblank unmatched sentence for a 4xx
+  `Validation.Failed`, after explicit form/app messages and before generic detail or fallback.
+  Other failures keep their normal message rules. Hidden fields are not needed for this.
+- **Resolve in the hook body, not the mutation callback.** `useAppForm` keeps the submit
+  failure and unmatched context in one state value and reads `useFailureMessage` where the
+  `FailureMessagesProvider` context is reachable. Retry/reset clears both together; a
+  callback is not inside React.
+- **Every mutation the hook creates carries `handledFailure(meta)`** over the caller's own
+  `meta`, so the client's `onUnhandledFailure` never fires for a form. Specs build the client
+  with `createQueryClient({ onUnhandledFailure })` and assert it.
 
 **Never name `@tanstack/react-query`.** react-query arrives through the
 `@bc-solutions-coder/query` facade so `useAppForm`'s `useMutation` and the host's

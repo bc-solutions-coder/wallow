@@ -18,4 +18,10 @@
  */
 export * from "@tanstack/react-query";
 
-export { createQueryClient } from "./query-client";
+export {
+  createQueryClient,
+  type CreateQueryClientOptions,
+  handledFailure,
+  toastedFailure,
+  type UnhandledFailure,
+} from "./query-client";

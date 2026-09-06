@@ -7,6 +7,8 @@ using Microsoft.Extensions.Logging;
 using Wallow.Identity.Api.Controllers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Errors;
+using Wallow.Shared.Api.Problems;
 using Wallow.Shared.Contracts.Identity.Events;
 using Wolverine;
 
@@ -78,13 +80,13 @@ public class MfaControllerTests
         IActionResult result = await _controller.ConfirmEnrollment(
             new MfaConfirmRequest("secret", "000000"), CancellationToken.None);
 
-        BadRequestObjectResult bad = result.Should().BeOfType<BadRequestObjectResult>().Subject;
-        string json = System.Text.Json.JsonSerializer.Serialize(bad.Value);
-        json.Should().Contain("invalid_code");
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problem.Code.Should().Be(IdentityErrors.MfaCodeInvalid.Code);
     }
 
     [Fact]
-    public async Task ConfirmEnrollment_WithUserNotFound_ReturnsBadRequest()
+    public async Task ConfirmEnrollment_WithUserNotFound_AnswersUserNotFound()
     {
         _mfaService.ValidateTotpAsync("secret", "123456", Arg.Any<CancellationToken>())
             .Returns(true);
@@ -93,13 +95,13 @@ public class MfaControllerTests
         IActionResult result = await _controller.ConfirmEnrollment(
             new MfaConfirmRequest("secret", "123456"), CancellationToken.None);
 
-        BadRequestObjectResult bad = result.Should().BeOfType<BadRequestObjectResult>().Subject;
-        string json = System.Text.Json.JsonSerializer.Serialize(bad.Value);
-        json.Should().Contain("user_not_found");
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status404NotFound);
+        problem.Code.Should().Be(IdentityErrors.UserNotFound.Code);
     }
 
     [Fact]
-    public async Task ConfirmEnrollment_WithUpdateFailure_ReturnsBadRequest()
+    public async Task ConfirmEnrollment_WithUpdateFailure_AnswersUpdateFailed()
     {
         _mfaService.ValidateTotpAsync("secret", "123456", Arg.Any<CancellationToken>())
             .Returns(true);
@@ -113,9 +115,9 @@ public class MfaControllerTests
         IActionResult result = await _controller.ConfirmEnrollment(
             new MfaConfirmRequest("secret", "123456"), CancellationToken.None);
 
-        BadRequestObjectResult bad = result.Should().BeOfType<BadRequestObjectResult>().Subject;
-        string json = System.Text.Json.JsonSerializer.Serialize(bad.Value);
-        json.Should().Contain("update_failed");
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status500InternalServerError);
+        problem.Code.Should().Be(IdentityErrors.MfaUpdateFailed.Code);
     }
 
     [Fact]
@@ -153,9 +155,9 @@ public class MfaControllerTests
 
         IActionResult result = await _controller.EnrollTotp(CancellationToken.None);
 
-        UnauthorizedObjectResult unauthorized = result.Should().BeOfType<UnauthorizedObjectResult>().Subject;
-        string json = System.Text.Json.JsonSerializer.Serialize(unauthorized.Value);
-        json.Should().Contain("no_auth_session");
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+        problem.Code.Should().Be(IdentityErrors.MfaSessionMissing.Code);
     }
 
     #endregion
@@ -173,9 +175,9 @@ public class MfaControllerTests
         IActionResult result = await _controller.Disable(
             new MfaDisableRequest("wrong-password"), CancellationToken.None);
 
-        BadRequestObjectResult bad = result.Should().BeOfType<BadRequestObjectResult>().Subject;
-        string json = System.Text.Json.JsonSerializer.Serialize(bad.Value);
-        json.Should().Contain("invalid_password");
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problem.Code.Should().Be(IdentityErrors.MfaPasswordInvalid.Code);
     }
 
     [Fact]
@@ -188,9 +190,9 @@ public class MfaControllerTests
         IActionResult result = await _controller.Disable(
             new MfaDisableRequest("correct-password"), CancellationToken.None);
 
-        BadRequestObjectResult bad = result.Should().BeOfType<BadRequestObjectResult>().Subject;
-        string json = System.Text.Json.JsonSerializer.Serialize(bad.Value);
-        json.Should().Contain("mfa_not_enabled");
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problem.Code.Should().Be(IdentityErrors.MfaNotEnabled.Code);
     }
 
     [Fact]
@@ -224,9 +226,9 @@ public class MfaControllerTests
         IActionResult result = await _controller.RegenerateBackupCodes(
             new MfaRegenerateBackupCodesRequest("wrong-password"), CancellationToken.None);
 
-        BadRequestObjectResult bad = result.Should().BeOfType<BadRequestObjectResult>().Subject;
-        string json = System.Text.Json.JsonSerializer.Serialize(bad.Value);
-        json.Should().Contain("invalid_password");
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problem.Code.Should().Be(IdentityErrors.MfaPasswordInvalid.Code);
     }
 
     [Fact]
@@ -253,14 +255,16 @@ public class MfaControllerTests
     #region AdminDisableMfa
 
     [Fact]
-    public async Task AdminDisableMfa_WhenUserNotFound_ReturnsNotFound()
+    public async Task AdminDisableMfa_WhenUserNotFound_AnswersUserNotFound()
     {
         string targetUserId = Guid.NewGuid().ToString();
         _userManager.FindByIdAsync(targetUserId).Returns((WallowUser?)null);
 
         IActionResult result = await _controller.AdminDisableMfa(targetUserId, CancellationToken.None);
 
-        result.Should().BeOfType<NotFoundObjectResult>();
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status404NotFound);
+        problem.Code.Should().Be(IdentityErrors.UserNotFound.Code);
     }
 
     [Fact]
@@ -330,14 +334,16 @@ public class MfaControllerTests
     }
 
     [Fact]
-    public async Task AdminClearLockout_WhenUserNotFound_ReturnsNotFoundWithoutCallingResetAsync()
+    public async Task AdminClearLockout_WhenUserNotFound_AnswersUserNotFoundWithoutCallingResetAsync()
     {
         string targetUserId = Guid.NewGuid().ToString();
         _userManager.FindByIdAsync(targetUserId).Returns((WallowUser?)null);
 
         IActionResult result = await _controller.AdminClearLockout(targetUserId, CancellationToken.None);
 
-        result.Should().BeOfType<NotFoundObjectResult>();
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status404NotFound);
+        problem.Code.Should().Be(IdentityErrors.UserNotFound.Code);
         await _mfaLockoutService.DidNotReceive().ResetAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 

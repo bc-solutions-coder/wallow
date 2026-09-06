@@ -523,6 +523,9 @@ function ScopePicker(props: {
 function ScopesStep(props: Stepper) {
   const { kind, form } = props;
   const { sdk } = useRouteContext({ from: "__root__" });
+  // Silent by design: a failed catalog read degrades to the login scopes only,
+  // said in place by `-scopes-catalog-error` rather than as a banner, because
+  // the registration is still completable without the catalog.
   const { data, isError } = useQuery(scopesListOptions({ client: sdk.client }));
   return (
     <form.AppField name="scopes">

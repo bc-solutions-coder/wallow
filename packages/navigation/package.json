@@ -4,7 +4,8 @@
   "private": true,
   "description": "Wallow shared application shell — collapsible rail, mobile drawer, and the nav store behind them",
   "files": [
-    "dist"
+    "dist",
+    "source.css"
   ],
   "type": "module",
   "sideEffects": false,
@@ -15,14 +16,16 @@
     ".": {
       "types": "./src/index.ts",
       "import": "./src/index.ts"
-    }
+    },
+    "./source.css": "./source.css"
   },
   "publishConfig": {
     "exports": {
       ".": {
         "types": "./dist/index.d.ts",
         "import": "./dist/index.js"
-      }
+      },
+      "./source.css": "./source.css"
     }
   },
   "scripts": {

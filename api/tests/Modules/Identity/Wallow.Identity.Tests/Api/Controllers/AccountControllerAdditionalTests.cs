@@ -12,10 +12,13 @@ using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 using Wallow.Identity.Api.Contracts.Requests;
 using Wallow.Identity.Api.Controllers;
-using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Errors;
+using Wallow.Shared.Api.Problems;
 using Wallow.Shared.Contracts.Identity.Events;
+using Wallow.Shared.Kernel.Errors;
+using Wallow.Shared.Kernel.Results;
 using Wolverine;
 
 namespace Wallow.Identity.Tests.Api.Controllers;
@@ -81,7 +84,8 @@ public class AccountControllerAdditionalTests
             Substitute.For<IMfaLockoutService>(),
             redisMultiplexer,
             Substitute.For<ILogger<AccountController>>(),
-            TimeProvider.System);
+            TimeProvider.System,
+            Substitute.For<IEmailChangeRateLimiter>());
 
         DefaultHttpContext httpContext = CreateHttpContextWithAuth();
         _controller.ControllerContext = new ControllerContext
@@ -120,7 +124,7 @@ public class AccountControllerAdditionalTests
     #region Register - DuplicateUserName
 
     [Fact]
-    public async Task Register_WithDuplicateUserName_ReturnsBadRequestWithEmailTaken()
+    public async Task Register_WithDuplicateUserName_AnswersEmailTaken()
     {
         _userManager.CreateAsync(Arg.Any<WallowUser>(), "Password1!")
             .Returns(IdentityResult.Failed(new IdentityError { Code = "DuplicateUserName", Description = "Username taken" }));
@@ -128,13 +132,13 @@ public class AccountControllerAdditionalTests
         IActionResult result = await _controller.Register(
             new AccountRegisterRequest("test@test.com", "Password1!", "Password1!"));
 
-        BadRequestObjectResult bad = result.Should().BeOfType<BadRequestObjectResult>().Subject;
-        string json = System.Text.Json.JsonSerializer.Serialize(bad.Value);
-        json.Should().Contain("email_taken");
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status409Conflict);
+        problem.Code.Should().Be(IdentityErrors.AuthEmailTaken.Code);
     }
 
     [Fact]
-    public async Task Register_WithOtherError_ReturnsBadRequestWithDescription()
+    public async Task Register_WithPasswordPolicyError_AnswersValidationFailedWithThePolicySentence()
     {
         _userManager.CreateAsync(Arg.Any<WallowUser>(), "weak")
             .Returns(IdentityResult.Failed(new IdentityError { Code = "PasswordTooShort", Description = "Password too short" }));
@@ -142,9 +146,29 @@ public class AccountControllerAdditionalTests
         IActionResult result = await _controller.Register(
             new AccountRegisterRequest("test@test.com", "weak", "weak"));
 
-        BadRequestObjectResult bad = result.Should().BeOfType<BadRequestObjectResult>().Subject;
-        string json = System.Text.Json.JsonSerializer.Serialize(bad.Value);
-        json.Should().Contain("Password too short");
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problem.Code.Should().Be(SharedErrors.ValidationFailed.Code);
+        problem.Detail.Should().Be("Password too short");
+    }
+
+    [Fact]
+    public async Task Register_WithAnotherIdentityError_AnswersValidationFailedWithoutEchoingTheInput()
+    {
+        _userManager.CreateAsync(Arg.Any<WallowUser>(), "Password1!")
+            .Returns(IdentityResult.Failed(new IdentityError
+            {
+                Code = "InvalidUserName",
+                Description = "Username 'o'neil@test.com' is invalid, can only contain letters or digits."
+            }));
+
+        IActionResult result = await _controller.Register(
+            new AccountRegisterRequest("o'neil@test.com", "Password1!", "Password1!"));
+
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problem.Code.Should().Be(SharedErrors.ValidationFailed.Code);
+        problem.Detail.Should().Be(SharedErrors.ValidationFailed.DefaultMessage);
     }
 
     #endregion
@@ -213,7 +237,7 @@ public class AccountControllerAdditionalTests
     }
 
     [Fact]
-    public async Task ExchangeTicket_WithValidTicketButUserNotFound_ReturnsBadRequest()
+    public async Task ExchangeTicket_WithValidTicketButUserNotFound_AnswersTicketInvalid()
     {
         WallowUser loginUser = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         _userManager.FindByEmailAsync("test@test.com").Returns(loginUser);
@@ -232,7 +256,9 @@ public class AccountControllerAdditionalTests
 
         IActionResult result = await _controller.ExchangeTicket(ticket, null);
 
-        result.Should().BeOfType<BadRequestObjectResult>();
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+        problem.Code.Should().Be(IdentityErrors.AuthTicketInvalid.Code);
     }
 
     [Fact]
@@ -257,11 +283,13 @@ public class AccountControllerAdditionalTests
     }
 
     [Fact]
-    public async Task ExchangeTicket_WithFormatException_ReturnsBadRequest()
+    public async Task ExchangeTicket_WithFormatException_AnswersTicketInvalid()
     {
         IActionResult result = await _controller.ExchangeTicket("not-base64-!@#$", null);
 
-        result.Should().BeOfType<BadRequestObjectResult>();
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+        problem.Code.Should().Be(IdentityErrors.AuthTicketInvalid.Code);
     }
 
     #endregion
@@ -711,21 +739,21 @@ public class AccountControllerAdditionalTests
     #region ResetPassword - Event publishing
 
     [Fact]
-    public async Task ResetPassword_UserNotFound_ReturnsBadRequestWithInvalidToken()
+    public async Task ResetPassword_UserNotFound_AnswersTokenInvalid()
     {
         _userManager.FindByEmailAsync("missing@test.com").Returns((WallowUser?)null);
 
         IActionResult result = await _controller.ResetPassword(
             new AccountResetPasswordRequest("missing@test.com", "token", "NewPass1!"));
 
-        BadRequestObjectResult bad = result.Should().BeOfType<BadRequestObjectResult>().Subject;
-        string json = System.Text.Json.JsonSerializer.Serialize(bad.Value);
-        json.Should().Contain("invalid_token");
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problem.Code.Should().Be(IdentityErrors.AuthTokenInvalid.Code);
         await _messageBus.DidNotReceive().PublishAsync(Arg.Any<PasswordChangedEvent>());
     }
 
     [Fact]
-    public async Task ResetPassword_InvalidToken_ReturnsBadRequestAndDoesNotPublish()
+    public async Task ResetPassword_InvalidToken_AnswersTokenInvalidAndDoesNotPublish()
     {
         WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         _userManager.FindByEmailAsync("test@test.com").Returns(user);
@@ -735,7 +763,27 @@ public class AccountControllerAdditionalTests
         IActionResult result = await _controller.ResetPassword(
             new AccountResetPasswordRequest("test@test.com", "bad-token", "NewPass1!"));
 
-        result.Should().BeOfType<BadRequestObjectResult>();
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problem.Code.Should().Be(IdentityErrors.AuthTokenInvalid.Code);
+        await _messageBus.DidNotReceive().PublishAsync(Arg.Any<PasswordChangedEvent>());
+    }
+
+    [Fact]
+    public async Task ResetPassword_WeakPassword_AnswersValidationFailedWithThePolicySentence()
+    {
+        WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
+        _userManager.FindByEmailAsync("test@test.com").Returns(user);
+        _userManager.ResetPasswordAsync(user, "valid-token", "password")
+            .Returns(IdentityResult.Failed(new IdentityError { Code = "PasswordRequiresDigit", Description = "Passwords must have at least one digit ('0'-'9')." }));
+
+        IActionResult result = await _controller.ResetPassword(
+            new AccountResetPasswordRequest("test@test.com", "valid-token", "password"));
+
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problem.Code.Should().Be(SharedErrors.ValidationFailed.Code);
+        problem.Detail.Should().Be("Passwords must have at least one digit ('0'-'9').");
         await _messageBus.DidNotReceive().PublishAsync(Arg.Any<PasswordChangedEvent>());
     }
 
@@ -762,20 +810,20 @@ public class AccountControllerAdditionalTests
     #region VerifyEmail - Event publishing
 
     [Fact]
-    public async Task VerifyEmail_UserNotFound_ReturnsBadRequestWithInvalidToken()
+    public async Task VerifyEmail_UserNotFound_AnswersTokenInvalid()
     {
         _userManager.FindByEmailAsync("nobody@test.com").Returns((WallowUser?)null);
 
         IActionResult result = await _controller.VerifyEmail("nobody@test.com", "token");
 
-        BadRequestObjectResult bad = result.Should().BeOfType<BadRequestObjectResult>().Subject;
-        string json = System.Text.Json.JsonSerializer.Serialize(bad.Value);
-        json.Should().Contain("invalid_token");
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problem.Code.Should().Be(IdentityErrors.AuthTokenInvalid.Code);
         await _messageBus.DidNotReceive().PublishAsync(Arg.Any<EmailVerifiedEvent>());
     }
 
     [Fact]
-    public async Task VerifyEmail_InvalidToken_ReturnsBadRequestAndDoesNotPublish()
+    public async Task VerifyEmail_InvalidToken_AnswersTokenInvalidAndDoesNotPublish()
     {
         WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         _userManager.FindByEmailAsync("test@test.com").Returns(user);
@@ -784,7 +832,9 @@ public class AccountControllerAdditionalTests
 
         IActionResult result = await _controller.VerifyEmail("test@test.com", "bad-token");
 
-        result.Should().BeOfType<BadRequestObjectResult>();
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problem.Code.Should().Be(IdentityErrors.AuthTokenInvalid.Code);
         await _messageBus.DidNotReceive().PublishAsync(Arg.Any<EmailVerifiedEvent>());
     }
 
@@ -811,14 +861,16 @@ public class AccountControllerAdditionalTests
     #region GetClientTenant
 
     [Fact]
-    public async Task GetClientTenant_NotFound_ReturnsNotFound()
+    public async Task GetClientTenant_NotFound_AnswersNotFoundProblem()
     {
         _clientTenantResolver.ResolveAsync("unknown-client", Arg.Any<CancellationToken>())
             .Returns((ClientTenantInfo?)null);
 
         IActionResult result = await _controller.GetClientTenant("unknown-client");
 
-        result.Should().BeOfType<NotFoundResult>();
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status404NotFound);
+        problem.Code.Should().Be(SharedErrors.NotFound.Code);
     }
 
     [Fact]
@@ -841,24 +893,25 @@ public class AccountControllerAdditionalTests
     #region SendMagicLink
 
     [Fact]
-    public async Task SendMagicLink_Failure_ReturnsBadRequest()
+    public async Task SendMagicLink_Throttled_AnswersRateLimitProblemWithRetryAfter()
     {
         _passwordlessService.SendMagicLinkAsync("test@test.com", Arg.Any<CancellationToken>(), Arg.Any<string?>(), Arg.Any<string?>())
-            .Returns(new PasswordlessResult(false, null, "user_not_found"));
+            .Returns(Result.Failure(new Error(SharedErrors.RateLimitExceeded, retryAfter: TimeSpan.FromMinutes(15))));
 
         IActionResult result = await _controller.SendMagicLink(
             new SendMagicLinkRequest("test@test.com"), CancellationToken.None);
 
-        BadRequestObjectResult bad = result.Should().BeOfType<BadRequestObjectResult>().Subject;
-        string json = System.Text.Json.JsonSerializer.Serialize(bad.Value);
-        json.Should().Contain("user_not_found");
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status429TooManyRequests);
+        problem.Code.Should().Be(SharedErrors.RateLimitExceeded.Code);
+        problem.RetryAfter.Should().Be(TimeSpan.FromMinutes(15));
     }
 
     [Fact]
     public async Task SendMagicLink_Success_ReturnsOk()
     {
         _passwordlessService.SendMagicLinkAsync("test@test.com", Arg.Any<CancellationToken>(), Arg.Any<string?>(), Arg.Any<string?>())
-            .Returns(new PasswordlessResult(true, "test@test.com", null));
+            .Returns(Result.Success());
 
         IActionResult result = await _controller.SendMagicLink(
             new SendMagicLinkRequest("test@test.com"), CancellationToken.None);
@@ -873,23 +926,24 @@ public class AccountControllerAdditionalTests
     #region VerifyMagicLink
 
     [Fact]
-    public async Task VerifyMagicLink_Failure_ReturnsUnauthorized()
+    public async Task VerifyMagicLink_Failure_AnswersTheServiceError()
     {
         _passwordlessService.ValidateMagicLinkAsync("invalid-token", Arg.Any<CancellationToken>())
-            .Returns(new PasswordlessResult(false, null, "invalid_or_expired_token"));
+            .Returns(Result.Failure<string>(IdentityErrors.AuthTokenExpired));
 
         IActionResult result = await _controller.VerifyMagicLink("invalid-token", false, CancellationToken.None);
 
-        UnauthorizedObjectResult unauthorized = result.Should().BeOfType<UnauthorizedObjectResult>().Subject;
-        string json = System.Text.Json.JsonSerializer.Serialize(unauthorized.Value);
-        json.Should().Contain("invalid_or_expired_token");
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problem.Code.Should().Be(IdentityErrors.AuthTokenExpired.Code);
+        problem.Detail.Should().Be(IdentityErrors.AuthTokenExpired.DefaultMessage);
     }
 
     [Fact]
     public async Task VerifyMagicLink_Success_ReturnsOkWithEmail()
     {
         _passwordlessService.ValidateMagicLinkAsync("valid-token", Arg.Any<CancellationToken>())
-            .Returns(new PasswordlessResult(true, "test@test.com", null));
+            .Returns(Result.Success("test@test.com"));
 
         IActionResult result = await _controller.VerifyMagicLink("valid-token", false, CancellationToken.None);
 
@@ -903,24 +957,25 @@ public class AccountControllerAdditionalTests
     #region SendOtp
 
     [Fact]
-    public async Task SendOtp_Failure_ReturnsBadRequest()
+    public async Task SendOtp_Throttled_AnswersRateLimitProblemWithRetryAfter()
     {
         _passwordlessService.SendOtpAsync("test@test.com", Arg.Any<CancellationToken>())
-            .Returns(new PasswordlessResult(false, null, "user_not_found"));
+            .Returns(Result.Failure(new Error(SharedErrors.RateLimitExceeded, retryAfter: TimeSpan.FromSeconds(42))));
 
         IActionResult result = await _controller.SendOtp(
             new SendOtpRequest("test@test.com"), CancellationToken.None);
 
-        BadRequestObjectResult bad = result.Should().BeOfType<BadRequestObjectResult>().Subject;
-        string json = System.Text.Json.JsonSerializer.Serialize(bad.Value);
-        json.Should().Contain("user_not_found");
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status429TooManyRequests);
+        problem.Code.Should().Be(SharedErrors.RateLimitExceeded.Code);
+        problem.RetryAfter.Should().Be(TimeSpan.FromSeconds(42));
     }
 
     [Fact]
     public async Task SendOtp_Success_ReturnsOk()
     {
         _passwordlessService.SendOtpAsync("test@test.com", Arg.Any<CancellationToken>())
-            .Returns(new PasswordlessResult(true, "test@test.com", null));
+            .Returns(Result.Success());
 
         IActionResult result = await _controller.SendOtp(
             new SendOtpRequest("test@test.com"), CancellationToken.None);
@@ -935,24 +990,24 @@ public class AccountControllerAdditionalTests
     #region VerifyOtp
 
     [Fact]
-    public async Task VerifyOtp_Failure_ReturnsUnauthorized()
+    public async Task VerifyOtp_Failure_AnswersOtpInvalid()
     {
         _passwordlessService.ValidateOtpAsync("test@test.com", "000000", Arg.Any<CancellationToken>())
-            .Returns(new PasswordlessResult(false, null, "invalid_code"));
+            .Returns(Result.Failure<string>(IdentityErrors.AuthOtpInvalid));
 
         IActionResult result = await _controller.VerifyOtp(
             new VerifyOtpRequest("test@test.com", "000000"), CancellationToken.None);
 
-        UnauthorizedObjectResult unauthorized = result.Should().BeOfType<UnauthorizedObjectResult>().Subject;
-        string json = System.Text.Json.JsonSerializer.Serialize(unauthorized.Value);
-        json.Should().Contain("invalid_code");
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+        problem.Code.Should().Be(IdentityErrors.AuthOtpInvalid.Code);
     }
 
     [Fact]
     public async Task VerifyOtp_Success_ReturnsOkWithEmail()
     {
         _passwordlessService.ValidateOtpAsync("test@test.com", "123456", Arg.Any<CancellationToken>())
-            .Returns(new PasswordlessResult(true, "test@test.com", null));
+            .Returns(Result.Success("test@test.com"));
 
         IActionResult result = await _controller.VerifyOtp(
             new VerifyOtpRequest("test@test.com", "123456"), CancellationToken.None);
@@ -967,11 +1022,13 @@ public class AccountControllerAdditionalTests
     #region ExchangeTicket - Invalid ticket additional
 
     [Fact]
-    public async Task ExchangeTicket_WithEmptyTicket_ReturnsBadRequest()
+    public async Task ExchangeTicket_WithEmptyTicket_AnswersTicketInvalid()
     {
         IActionResult result = await _controller.ExchangeTicket("", null);
 
-        result.Should().BeOfType<BadRequestObjectResult>();
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+        problem.Code.Should().Be(IdentityErrors.AuthTicketInvalid.Code);
     }
 
     #endregion

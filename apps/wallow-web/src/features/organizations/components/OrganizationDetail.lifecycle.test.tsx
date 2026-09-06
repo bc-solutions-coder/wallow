@@ -5,6 +5,8 @@ import {
   type SdkHarness,
 } from "@bc-solutions-coder/testing/sdk-harness";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+import { isApiFailure } from "@bc-solutions-coder/api-errors";
+import type { UnhandledFailure } from "@bc-solutions-coder/query";
 
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -111,21 +113,32 @@ describe("OrganizationDetail client lifecycle", () => {
       .toBe(true);
   });
 
-  it("shows why a suspension was refused", async () => {
+  it("leaves a refused suspension to the toast rather than an inline message", async () => {
     seed([application], {
       "POST /v1/identity/organizations/o1/clients/app-acme-portal/suspend": failsWith(
-        { title: "The client is already suspended.", status: 422 },
+        {
+          code: "Identity.ClientAlreadySuspended",
+          detail: "The client is already suspended.",
+          status: 422,
+        },
         422,
       ),
     });
 
-    renderWithWallow(<OrganizationDetail orgId="o1" />, { harness });
+    const unhandled: UnhandledFailure[] = [];
+
+    renderWithWallow(<OrganizationDetail orgId="o1" />, {
+      harness,
+      onUnhandledFailure: (failure) => {
+        unhandled.push(failure);
+      },
+    });
     await expect.element(page.getByTestId(`${ROW}-item`)).toBeInTheDocument();
     await userEvent.click(page.getByTestId(`${ROW}-suspend`));
 
-    await expect
-      .element(page.getByTestId(`${ROW}-lifecycle-error`))
-      .toHaveTextContent("The client is already suspended.");
+    await expect.poll(() => unhandled.length).toBe(1);
+    expect(isApiFailure(unhandled[0]?.error) && unhandled[0].error.status).toBe(422);
+    expect(page.getByTestId(`${ROW}-lifecycle-error`).elements()).toHaveLength(0);
   });
 
   it("only arms the delete once the client id has been typed back", async () => {
@@ -155,12 +168,24 @@ describe("OrganizationDetail client lifecycle", () => {
   it("keeps the delete dialog open and shows the error when deletion fails", async () => {
     seed([application], {
       "DELETE /v1/identity/organizations/o1/clients/app-acme-portal": failsWith(
-        { title: "Deletion is not allowed right now.", status: 409 },
+        {
+          code: "Identity.ClientDeleteRefused",
+          detail: "Deletion is not allowed right now.",
+          status: 409,
+        },
         409,
       ),
     });
 
-    renderWithWallow(<OrganizationDetail orgId="o1" />, { harness });
+    // The dialog shows the failure itself, so the toast must NOT also raise it.
+    const unhandled: UnhandledFailure[] = [];
+
+    renderWithWallow(<OrganizationDetail orgId="o1" />, {
+      harness,
+      onUnhandledFailure: (failure) => {
+        unhandled.push(failure);
+      },
+    });
     await openDeleteDialog();
     await userEvent.fill(page.getByTestId(`${ROW}-delete-input`), "app-acme-portal");
     await userEvent.click(page.getByTestId(`${ROW}-delete-confirm`));
@@ -169,6 +194,7 @@ describe("OrganizationDetail client lifecycle", () => {
       .element(page.getByTestId(`${ROW}-delete-error`))
       .toHaveTextContent("Deletion is not allowed right now.");
     await expect.element(page.getByTestId(`${ROW}-delete-popup`)).toBeInTheDocument();
+    expect(unhandled).toHaveLength(0);
   });
 
   it("cancelling the delete forgets what was typed", async () => {

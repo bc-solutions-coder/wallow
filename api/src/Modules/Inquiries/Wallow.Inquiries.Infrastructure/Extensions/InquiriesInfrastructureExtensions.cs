@@ -8,6 +8,7 @@ using Wallow.Inquiries.Infrastructure.Persistence;
 using Wallow.Inquiries.Infrastructure.Persistence.Repositories;
 using Wallow.Inquiries.Infrastructure.Services;
 using Wallow.Shared.Infrastructure.Core.Extensions;
+using Wallow.Shared.Infrastructure.RateLimiting;
 using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Inquiries.Infrastructure.Extensions;
@@ -48,7 +49,8 @@ public static class InquiriesInfrastructureExtensions
 
         services.AddScoped<IInquiryRepository, InquiryRepository>();
         services.AddScoped<IInquiryCommentRepository, InquiryCommentRepository>();
-        services.AddSingleton<IRateLimitService, ValkeyRateLimitService>();
+        services.AddFixedWindowCounter();
+        services.AddSingleton<IRateLimitService, InquiryRateLimitService>();
 
         return services;
     }

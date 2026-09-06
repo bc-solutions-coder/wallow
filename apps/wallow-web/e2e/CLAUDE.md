@@ -31,6 +31,16 @@ E2E_BASE_URL=http://localhost:5053 pnpm --filter ./apps/wallow-web test:e2e:cros
 pnpm --filter ./apps/wallow-web test:e2e:cross-app
 ```
 
+**`failure-surfaces.spec.ts`** — the failure model's five surfaces on a real session: network
+down (read banner with retry, mutation toast), a 429's wait-seconds copy, a validation 400's
+field errors, a 401's "Sign in" action returning to the current path, and a loader 404's
+not-found page. Every scenario but the 404 injects its failure with `page.route` at the
+browser's own `/api/...` call, answering with the problem body the API or BFF actually writes
+(a body without a `code` is an unrecognised response, not the failure under test). A banner's
+actions derive their testids from the banner's own (`<banner>-retry`, `<banner>-sign-in`), the
+same `{page}-{element}` rule as every other composite. The sign-in round trip every journey starts
+from is `sign-in.ts`'s `signInAndLandOn`.
+
 **`external-origin-login.spec.ts`** — the external relying-party acceptance journey, a
 `test.describe.serial` suite (anonymous service-account contact, branded-consent sign-in +
 typed API call + back-channel logout proof, then org-surface suspension — which poisons the

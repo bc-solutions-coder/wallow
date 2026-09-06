@@ -3,13 +3,16 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
-using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Errors;
 using Wallow.Identity.Infrastructure.Options;
 using Wallow.Identity.Infrastructure.Services;
 using Wallow.Shared.Contracts.Identity.Events;
+using Wallow.Shared.Infrastructure.RateLimiting;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
+using Wallow.Shared.Kernel.Results;
 using Wolverine;
 
 namespace Wallow.Identity.Tests.Infrastructure;
@@ -20,6 +23,7 @@ public sealed class PasswordlessServiceTests
     private readonly IMessageBus _messageBus;
     private readonly UserManager<WallowUser> _userManager;
     private readonly PasswordlessService _sut;
+    private readonly PasswordlessOptions _options;
     private readonly Guid _tenantId = Guid.NewGuid();
 
     public PasswordlessServiceTests()
@@ -32,17 +36,65 @@ public sealed class PasswordlessServiceTests
             Substitute.For<IUserStore<WallowUser>>(), null, null, null, null, null, null, null, null);
         TenantContext tc = new(); tc.SetTenant(new TenantId(_tenantId));
         IDataProtectionProvider dp = DataProtectionProvider.Create("test");
-        PasswordlessOptions opts = new() { RateLimitMaxRequests = 3, RateLimitWindow = TimeSpan.FromMinutes(15), MagicLinkTtl = TimeSpan.FromMinutes(10), OtpTtl = TimeSpan.FromMinutes(5) };
-        _sut = new PasswordlessService(mux, _messageBus, _userManager, dp, Options.Create(opts), NullLogger<PasswordlessService>.Instance);
+        _options = new() { RateLimitMaxRequests = 3, RateLimitWindow = TimeSpan.FromMinutes(15), MagicLinkTtl = TimeSpan.FromMinutes(10), OtpTtl = TimeSpan.FromMinutes(5) };
+        _sut = new PasswordlessService(mux, _messageBus, _userManager, dp, Options.Create(_options), NullLogger<PasswordlessService>.Instance, new RedisFixedWindowCounter(mux));
+    }
+
+
+    [Theory]
+    [InlineData(2, true)]
+    [InlineData(3, false)]
+    public async Task SendOtp_UsesConfiguredCap(long count, bool allowed)
+    {
+        _options.RateLimitMaxRequests = 2;
+        _options.RateLimitWindow = TimeSpan.FromMinutes(9);
+        _redis.StringIncrementAsync("pwdless:rate:r@t.com", 1, CommandFlags.None).Returns(count);
+
+        Result result = await _sut.SendOtpAsync("r@t.com", CancellationToken.None);
+
+        result.IsSuccess.Should().Be(allowed);
+        if (!allowed)
+        {
+            result.Error.Code.Should().Be("RateLimit.Exceeded");
+            result.Error.RetryAfter.Should().Be(TimeSpan.FromMinutes(9));
+        }
+    }
+
+    [Theory]
+    [InlineData(41, 41)]
+    [InlineData(null, 900)]
+    [InlineData(0, 900)]
+    [InlineData(-1, 900)]
+    public async Task SendMagicLink_UsesRemainingDelay(int? ttlSeconds, int expectedSeconds)
+    {
+        _redis.StringIncrementAsync("pwdless:rate:r@t.com", 1, CommandFlags.None).Returns(4L);
+        _redis.KeyTimeToLiveAsync("pwdless:rate:r@t.com").Returns(ttlSeconds is { } seconds ? TimeSpan.FromSeconds(seconds) : null);
+
+        Result result = await _sut.SendMagicLinkAsync("r@t.com", CancellationToken.None);
+
+        result.Error.Code.Should().Be("RateLimit.Exceeded");
+        result.Error.RetryAfter.Should().Be(TimeSpan.FromSeconds(expectedSeconds));
+    }
+
+    [Fact]
+    public async Task SendOtp_FirstAttemptUsesConfiguredWindow()
+    {
+        _options.RateLimitWindow = TimeSpan.FromMinutes(9);
+        _redis.StringIncrementAsync("pwdless:rate:r@t.com", 1, CommandFlags.None).Returns(1L);
+
+        (await _sut.SendOtpAsync("r@t.com", CancellationToken.None)).IsSuccess.Should().BeTrue();
+
+        await _redis.Received().KeyExpireAsync("pwdless:rate:r@t.com", TimeSpan.FromMinutes(9), ExpireWhen.Always, CommandFlags.None);
     }
 
     [Fact]
     public async Task SendMagicLink_RateLimited_Fails()
     {
         _redis.StringIncrementAsync(Arg.Any<RedisKey>(), Arg.Any<long>(), Arg.Any<CommandFlags>()).Returns(4L);
-        PasswordlessResult r = await _sut.SendMagicLinkAsync("r@t.com", CancellationToken.None);
-        r.Succeeded.Should().BeFalse();
-        r.Error.Should().Contain("Rate limit");
+        Result r = await _sut.SendMagicLinkAsync("r@t.com", CancellationToken.None);
+        r.IsFailure.Should().BeTrue();
+        r.Error.Code.Should().Be(SharedErrors.RateLimitExceeded.Code);
+        r.Error.RetryAfter.Should().Be(TimeSpan.FromMinutes(15));
     }
 
     [Fact]
@@ -50,8 +102,8 @@ public sealed class PasswordlessServiceTests
     {
         _redis.StringIncrementAsync(Arg.Any<RedisKey>(), Arg.Any<long>(), Arg.Any<CommandFlags>()).Returns(1L);
         _userManager.FindByEmailAsync("no@t.com").Returns((WallowUser?)null);
-        PasswordlessResult r = await _sut.SendMagicLinkAsync("no@t.com", CancellationToken.None);
-        r.Succeeded.Should().BeTrue();
+        Result r = await _sut.SendMagicLinkAsync("no@t.com", CancellationToken.None);
+        r.IsSuccess.Should().BeTrue();
     }
 
     [Fact]
@@ -60,33 +112,35 @@ public sealed class PasswordlessServiceTests
         _redis.StringIncrementAsync(Arg.Any<RedisKey>(), Arg.Any<long>(), Arg.Any<CommandFlags>()).Returns(1L);
         WallowUser user = WallowUser.Create("A", "B", "f@t.com", TimeProvider.System);
         _userManager.FindByEmailAsync("f@t.com").Returns(user);
-        PasswordlessResult r = await _sut.SendMagicLinkAsync("f@t.com", CancellationToken.None);
-        r.Succeeded.Should().BeTrue();
+        Result r = await _sut.SendMagicLinkAsync("f@t.com", CancellationToken.None);
+        r.IsSuccess.Should().BeTrue();
         await _messageBus.Received(1).PublishAsync(Arg.Any<object>());
     }
 
     [Fact]
     public async Task ValidateMagicLink_BadFormat_Fails()
     {
-        PasswordlessResult r = await _sut.ValidateMagicLinkAsync("nodots", CancellationToken.None);
-        r.Succeeded.Should().BeFalse();
-        r.Error.Should().Be("Invalid token format.");
+        Result<string> r = await _sut.ValidateMagicLinkAsync("nodots", CancellationToken.None);
+        r.IsFailure.Should().BeTrue();
+        r.Error.Code.Should().Be(IdentityErrors.AuthTokenInvalid.Code);
     }
 
     [Fact]
     public async Task ValidateMagicLink_BadSignature_Fails()
     {
-        PasswordlessResult r = await _sut.ValidateMagicLinkAsync("raw.badsig", CancellationToken.None);
-        r.Succeeded.Should().BeFalse();
-        r.Error.Should().Be("Invalid token.");
+        Result<string> r = await _sut.ValidateMagicLinkAsync("raw.badsig", CancellationToken.None);
+        r.IsFailure.Should().BeTrue();
+        r.Error.Code.Should().Be(IdentityErrors.AuthTokenInvalid.Code);
     }
 
     [Fact]
     public async Task SendOtp_RateLimited_Fails()
     {
         _redis.StringIncrementAsync(Arg.Any<RedisKey>(), Arg.Any<long>(), Arg.Any<CommandFlags>()).Returns(4L);
-        PasswordlessResult r = await _sut.SendOtpAsync("o@t.com", CancellationToken.None);
-        r.Succeeded.Should().BeFalse();
+        Result r = await _sut.SendOtpAsync("o@t.com", CancellationToken.None);
+        r.IsFailure.Should().BeTrue();
+        r.Error.Code.Should().Be(SharedErrors.RateLimitExceeded.Code);
+        r.Error.RetryAfter.Should().Be(TimeSpan.FromMinutes(15));
     }
 
     [Fact]
@@ -94,8 +148,8 @@ public sealed class PasswordlessServiceTests
     {
         _redis.StringIncrementAsync(Arg.Any<RedisKey>(), Arg.Any<long>(), Arg.Any<CommandFlags>()).Returns(1L);
         _userManager.FindByEmailAsync("no@t.com").Returns((WallowUser?)null);
-        PasswordlessResult r = await _sut.SendOtpAsync("no@t.com", CancellationToken.None);
-        r.Succeeded.Should().BeTrue();
+        Result r = await _sut.SendOtpAsync("no@t.com", CancellationToken.None);
+        r.IsSuccess.Should().BeTrue();
     }
 
     [Fact]
@@ -104,8 +158,8 @@ public sealed class PasswordlessServiceTests
         _redis.StringIncrementAsync(Arg.Any<RedisKey>(), Arg.Any<long>(), Arg.Any<CommandFlags>()).Returns(1L);
         WallowUser user = WallowUser.Create("A", "B", "o@t.com", TimeProvider.System);
         _userManager.FindByEmailAsync("o@t.com").Returns(user);
-        PasswordlessResult r = await _sut.SendOtpAsync("o@t.com", CancellationToken.None);
-        r.Succeeded.Should().BeTrue();
+        Result r = await _sut.SendOtpAsync("o@t.com", CancellationToken.None);
+        r.IsSuccess.Should().BeTrue();
         await _messageBus.Received(1).PublishAsync(Arg.Any<object>());
     }
 
@@ -113,25 +167,26 @@ public sealed class PasswordlessServiceTests
     public async Task ValidateOtp_Expired_Fails()
     {
         _redis.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>()).Returns(RedisValue.Null);
-        PasswordlessResult r = await _sut.ValidateOtpAsync("u@t.com", "123456", CancellationToken.None);
-        r.Succeeded.Should().BeFalse();
+        Result<string> r = await _sut.ValidateOtpAsync("u@t.com", "123456", CancellationToken.None);
+        r.IsFailure.Should().BeTrue();
+        r.Error.Code.Should().Be(IdentityErrors.AuthOtpInvalid.Code);
     }
 
     [Fact]
     public async Task ValidateOtp_WrongCode_Fails()
     {
         _redis.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>()).Returns(new RedisValue("999999"));
-        PasswordlessResult r = await _sut.ValidateOtpAsync("u@t.com", "123456", CancellationToken.None);
-        r.Succeeded.Should().BeFalse();
-        r.Error.Should().Be("Invalid code.");
+        Result<string> r = await _sut.ValidateOtpAsync("u@t.com", "123456", CancellationToken.None);
+        r.IsFailure.Should().BeTrue();
+        r.Error.Code.Should().Be(IdentityErrors.AuthOtpInvalid.Code);
     }
 
     [Fact]
     public async Task ValidateOtp_ValidCode_Succeeds()
     {
         _redis.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>()).Returns(new RedisValue("123456"));
-        PasswordlessResult r = await _sut.ValidateOtpAsync("u@t.com", "123456", CancellationToken.None);
-        r.Succeeded.Should().BeTrue();
+        Result<string> r = await _sut.ValidateOtpAsync("u@t.com", "123456", CancellationToken.None);
+        r.IsSuccess.Should().BeTrue();
         await _redis.Received(1).KeyDeleteAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>());
     }
 
@@ -157,15 +212,15 @@ public sealed class PasswordlessServiceTests
         WallowUser user = WallowUser.Create("A", "B", "scoped@t.com", TimeProvider.System);
 
         PasswordlessService sendScope = CreateService(sharedProvider, redis, sendBus, user);
-        PasswordlessResult sendResult = await sendScope.SendMagicLinkAsync("scoped@t.com", CancellationToken.None);
-        sendResult.Succeeded.Should().BeTrue();
+        Result sendResult = await sendScope.SendMagicLinkAsync("scoped@t.com", CancellationToken.None);
+        sendResult.IsSuccess.Should().BeTrue();
         published.Should().NotBeNull();
 
         PasswordlessService verifyScope = CreateService(sharedProvider, redis, Substitute.For<IMessageBus>(), user);
-        PasswordlessResult verifyResult = await verifyScope.ValidateMagicLinkAsync(published!.Token, CancellationToken.None);
+        Result<string> verifyResult = await verifyScope.ValidateMagicLinkAsync(published!.Token, CancellationToken.None);
 
-        verifyResult.Succeeded.Should().BeTrue();
-        verifyResult.Email.Should().Be("scoped@t.com");
+        verifyResult.IsSuccess.Should().BeTrue();
+        verifyResult.Value.Should().Be("scoped@t.com");
     }
 
     private PasswordlessService CreateService(
@@ -182,6 +237,6 @@ public sealed class PasswordlessServiceTests
         TenantContext tc = new();
         tc.SetTenant(new TenantId(_tenantId));
         PasswordlessOptions opts = new() { RateLimitMaxRequests = 3, RateLimitWindow = TimeSpan.FromMinutes(15), MagicLinkTtl = TimeSpan.FromMinutes(10), OtpTtl = TimeSpan.FromMinutes(5) };
-        return new PasswordlessService(mux, messageBus, userManager, dataProtectionProvider, Options.Create(opts), NullLogger<PasswordlessService>.Instance);
+        return new PasswordlessService(mux, messageBus, userManager, dataProtectionProvider, Options.Create(opts), NullLogger<PasswordlessService>.Instance, new RedisFixedWindowCounter(mux));
     }
 }

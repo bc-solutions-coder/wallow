@@ -2,7 +2,7 @@
 
 import { type Client, type ClientMeta, formDataBodySerializer, type Options as Options2, type RequestResult, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import type { AccountChangeEmailData, AccountChangeEmailResponses, AccountCompleteExternalRegistrationData, AccountConfirmEmailChangeData, AccountConfirmEmailChangeResponses, AccountExchangeTicketData, AccountExternalLoginCallbackData, AccountExternalLoginData, AccountForgotPasswordData, AccountForgotPasswordResponses, AccountGetClientTenantData, AccountGetClientTenantResponses, AccountGetExternalProvidersData, AccountGetExternalProvidersResponses, AccountLoginData, AccountLoginResponses, AccountRegisterData, AccountRegisterResponses, AccountResetPasswordData, AccountResetPasswordResponses, AccountSendMagicLinkData, AccountSendMagicLinkResponses, AccountSendOtpData, AccountSendOtpResponses, AccountSignOutData, AccountValidateRedirectUriData, AccountValidateRedirectUriResponses, AccountVerifyEmailData, AccountVerifyEmailResponses, AccountVerifyMagicLinkData, AccountVerifyMagicLinkResponses, AccountVerifyMfaChallengeData, AccountVerifyMfaChallengeResponses, AccountVerifyOtpData, AccountVerifyOtpResponses, AdminAnnouncementsArchiveAnnouncementData, AdminAnnouncementsArchiveAnnouncementErrors, AdminAnnouncementsArchiveAnnouncementResponses, AdminAnnouncementsCreateAnnouncementData, AdminAnnouncementsCreateAnnouncementErrors, AdminAnnouncementsCreateAnnouncementResponses, AdminAnnouncementsGetAllAnnouncementsData, AdminAnnouncementsGetAllAnnouncementsResponses, AdminAnnouncementsPublishAnnouncementData, AdminAnnouncementsPublishAnnouncementErrors, AdminAnnouncementsPublishAnnouncementResponses, AdminAnnouncementsUpdateAnnouncementData, AdminAnnouncementsUpdateAnnouncementErrors, AdminAnnouncementsUpdateAnnouncementResponses, AdminChangelogCreateChangelogEntryData, AdminChangelogCreateChangelogEntryErrors, AdminChangelogCreateChangelogEntryResponses, AdminChangelogPublishChangelogEntryData, AdminChangelogPublishChangelogEntryErrors, AdminChangelogPublishChangelogEntryResponses, AnnouncementsDismissAnnouncementData, AnnouncementsDismissAnnouncementErrors, AnnouncementsDismissAnnouncementResponses, AnnouncementsGetAnnouncementsData, AnnouncementsGetAnnouncementsErrors, AnnouncementsGetAnnouncementsResponses, ApiKeysCreateApiKeyData, ApiKeysCreateApiKeyErrors, ApiKeysCreateApiKeyResponses, ApiKeysListApiKeysData, ApiKeysListApiKeysResponses, ApiKeysRevokeApiKeyData, ApiKeysRevokeApiKeyErrors, ApiKeysRevokeApiKeyResponses, AuthorizeContextGetData, AuthorizeContextGetErrors, AuthorizeContextGetResponses, ChangelogGetChangelogByVersionData, ChangelogGetChangelogByVersionErrors, ChangelogGetChangelogByVersionResponses, ChangelogGetChangelogData, ChangelogGetChangelogResponses, ChangelogGetLatestChangelogData, ChangelogGetLatestChangelogErrors, ChangelogGetLatestChangelogResponses, ClientsCreateData, ClientsCreateErrors, ClientsCreateResponses, ClientsDeleteData, ClientsDeleteErrors, ClientsDeleteResponses, ClientsGetAllData, ClientsGetAllResponses, ClientsGetByIdData, ClientsGetByIdErrors, ClientsGetByIdResponses, ClientsRotateSecretData, ClientsRotateSecretErrors, ClientsRotateSecretResponses, ClientsUpdateData, ClientsUpdateErrors, ClientsUpdateResponses, IdentitySettingsDeleteTenantSettingData, IdentitySettingsDeleteTenantSettingErrors, IdentitySettingsDeleteTenantSettingResponses, IdentitySettingsDeleteUserSettingData, IdentitySettingsDeleteUserSettingErrors, IdentitySettingsDeleteUserSettingResponses, IdentitySettingsGetConfigData, IdentitySettingsGetConfigResponses, IdentitySettingsGetTenantSettingsData, IdentitySettingsGetTenantSettingsResponses, IdentitySettingsGetUserSettingsData, IdentitySettingsGetUserSettingsResponses, IdentitySettingsUpsertTenantSettingData, IdentitySettingsUpsertTenantSettingErrors, IdentitySettingsUpsertTenantSettingResponses, IdentitySettingsUpsertUserSettingData, IdentitySettingsUpsertUserSettingErrors, IdentitySettingsUpsertUserSettingResponses, InquiriesAddCommentData, InquiriesAddCommentErrors, InquiriesAddCommentResponses, InquiriesGetAllData, InquiriesGetAllResponses, InquiriesGetByIdData, InquiriesGetByIdErrors, InquiriesGetByIdResponses, InquiriesGetCommentsData, InquiriesGetCommentsErrors, InquiriesGetCommentsResponses, InquiriesGetSubmittedData, InquiriesGetSubmittedResponses, InquiriesSubmitData, InquiriesSubmitErrors, InquiriesSubmitResponses, InquiriesUpdateStatusData, InquiriesUpdateStatusErrors, InquiriesUpdateStatusResponses, InvitationsAcceptData, InvitationsAcceptErrors, InvitationsAcceptResponses, InvitationsCreateData, InvitationsCreateResponses, InvitationsGetByTenantData, InvitationsGetByTenantResponses, InvitationsRevokeData, InvitationsRevokeErrors, InvitationsRevokeResponses, InvitationsVerifyData, InvitationsVerifyErrors, InvitationsVerifyResponses, MeAuthorizationsListConnectedApplicationsData, MeAuthorizationsListConnectedApplicationsResponses, MeAuthorizationsWithdrawConsentData, MeAuthorizationsWithdrawConsentErrors, MeAuthorizationsWithdrawConsentResponses, MeGetOrganizationsData, MeGetOrganizationsResponses, MfaAdminClearLockoutData, MfaAdminClearLockoutResponses, MfaAdminDisableMfaData, MfaAdminDisableMfaResponses, MfaConfirmEnrollmentData, MfaConfirmEnrollmentResponses, MfaDisableData, MfaDisableResponses, MfaEnrollTotpData, MfaEnrollTotpResponses, MfaExchangeEnrollmentTokenData, MfaExchangeEnrollmentTokenResponses, MfaGetStatusData, MfaGetStatusResponses, MfaIssueEnrollmentTokenData, MfaIssueEnrollmentTokenResponses, MfaRegenerateBackupCodesData, MfaRegenerateBackupCodesResponses, NotificationsGetNotificationsData, NotificationsGetNotificationsErrors, NotificationsGetNotificationsResponses, NotificationsGetUnreadCountData, NotificationsGetUnreadCountErrors, NotificationsGetUnreadCountResponses, NotificationsMarkAllAsReadData, NotificationsMarkAllAsReadErrors, NotificationsMarkAllAsReadResponses, NotificationsMarkAsReadData, NotificationsMarkAsReadErrors, NotificationsMarkAsReadResponses, OrganizationClientBrandingDeleteLogoData, OrganizationClientBrandingDeleteLogoErrors, OrganizationClientBrandingDeleteLogoResponses, OrganizationClientBrandingGetBrandingData, OrganizationClientBrandingGetBrandingErrors, OrganizationClientBrandingGetBrandingResponses, OrganizationClientBrandingUpsertBrandingData, OrganizationClientBrandingUpsertBrandingErrors, OrganizationClientBrandingUpsertBrandingResponses, OrganizationClientsDeleteData, OrganizationClientsDeleteErrors, OrganizationClientsDeleteResponses, OrganizationClientsGetByIdData, OrganizationClientsGetByIdErrors, OrganizationClientsGetByIdResponses, OrganizationClientsLiftPlatformSuspensionData, OrganizationClientsLiftPlatformSuspensionErrors, OrganizationClientsLiftPlatformSuspensionResponses, OrganizationClientsListData, OrganizationClientsListErrors, OrganizationClientsListResponses, OrganizationClientsPlacePlatformSuspensionData, OrganizationClientsPlacePlatformSuspensionErrors, OrganizationClientsPlacePlatformSuspensionResponses, OrganizationClientsRegisterData, OrganizationClientsRegisterErrors, OrganizationClientsRegisterResponses, OrganizationClientsReinstateData, OrganizationClientsReinstateErrors, OrganizationClientsReinstateResponses, OrganizationClientsRotateSecretData, OrganizationClientsRotateSecretErrors, OrganizationClientsRotateSecretResponses, OrganizationClientsSuspendData, OrganizationClientsSuspendErrors, OrganizationClientsSuspendResponses, OrganizationClientsUpdateData, OrganizationClientsUpdateErrors, OrganizationClientsUpdateResponses, OrganizationsAddMemberData, OrganizationsAddMemberErrors, OrganizationsAddMemberResponses, OrganizationsApproveMemberData, OrganizationsApproveMemberErrors, OrganizationsApproveMemberResponses, OrganizationsArchiveData, OrganizationsArchiveErrors, OrganizationsArchiveResponses, OrganizationsClearDenialData, OrganizationsClearDenialErrors, OrganizationsClearDenialResponses, OrganizationsCreateData, OrganizationsCreateResponses, OrganizationsDeleteData, OrganizationsDeleteErrors, OrganizationsDeleteResponses, OrganizationsDenyMemberData, OrganizationsDenyMemberErrors, OrganizationsDenyMemberResponses, OrganizationsGetAllData, OrganizationsGetAllResponses, OrganizationsGetBrandingData, OrganizationsGetBrandingResponses, OrganizationsGetByIdData, OrganizationsGetByIdResponses, OrganizationsGetDeniedMembersData, OrganizationsGetDeniedMembersErrors, OrganizationsGetMembersData, OrganizationsGetMembersResponses, OrganizationsGetPendingMembersData, OrganizationsGetPendingMembersErrors, OrganizationsGetSettingsData, OrganizationsGetSettingsResponses, OrganizationsGetSuspendedMembersData, OrganizationsGetSuspendedMembersErrors, OrganizationsLeaveData, OrganizationsLeaveErrors, OrganizationsLeaveResponses, OrganizationsLiftPlatformSuspensionData, OrganizationsLiftPlatformSuspensionErrors, OrganizationsLiftPlatformSuspensionResponses, OrganizationsPlacePlatformSuspensionData, OrganizationsPlacePlatformSuspensionErrors, OrganizationsPlacePlatformSuspensionResponses, OrganizationsReactivateData, OrganizationsReactivateErrors, OrganizationsReactivateResponses, OrganizationsReinstateMemberData, OrganizationsReinstateMemberErrors, OrganizationsReinstateMemberResponses, OrganizationsRemoveMemberData, OrganizationsRemoveMemberErrors, OrganizationsRemoveMemberResponses, OrganizationsSuspendMemberData, OrganizationsSuspendMemberErrors, OrganizationsSuspendMemberResponses, OrganizationsUpdateBrandingData, OrganizationsUpdateBrandingResponses, OrganizationsUpdateEnrollmentData, OrganizationsUpdateEnrollmentErrors, OrganizationsUpdateEnrollmentResponses, OrganizationsUpdateSettingsData, OrganizationsUpdateSettingsErrors, OrganizationsUpdateSettingsResponses, OrganizationsUploadBrandingLogoData, OrganizationsUploadBrandingLogoErrors, OrganizationsUploadBrandingLogoResponses, PushConfigurationGetTenantPushConfigData, PushConfigurationGetTenantPushConfigResponses, PushConfigurationRemoveTenantPushConfigData, PushConfigurationRemoveTenantPushConfigResponses, PushConfigurationSetTenantPushEnabledData, PushConfigurationSetTenantPushEnabledErrors, PushConfigurationSetTenantPushEnabledResponses, PushConfigurationUpsertTenantPushConfigData, PushConfigurationUpsertTenantPushConfigErrors, PushConfigurationUpsertTenantPushConfigResponses, PushDevicesDeregisterDeviceData, PushDevicesDeregisterDeviceErrors, PushDevicesDeregisterDeviceResponses, PushDevicesGetUserDevicesData, PushDevicesGetUserDevicesErrors, PushDevicesGetUserDevicesResponses, PushDevicesRegisterDeviceData, PushDevicesRegisterDeviceErrors, PushDevicesRegisterDeviceResponses, PushDevicesSendPushData, PushDevicesSendPushErrors, PushDevicesSendPushResponses, RolesGetRolePermissionsData, RolesGetRolePermissionsResponses, RolesGetRolesData, RolesGetRolesResponses, ScopesListData, ScopesListResponses, SessionListSessionsData, SessionListSessionsResponses, SessionRevokeSessionData, SessionRevokeSessionResponses, SetupCreateAdminData, SetupCreateAdminErrors, SetupCreateAdminResponses, SetupGetStatusData, SetupGetStatusResponses, StorageCompletePresignedUploadData, StorageCompletePresignedUploadErrors, StorageCompletePresignedUploadResponses, StorageCreateBucketData, StorageCreateBucketErrors, StorageCreateBucketResponses, StorageDeleteBucketData, StorageDeleteBucketErrors, StorageDeleteBucketResponses, StorageDeleteData, StorageDeleteErrors, StorageDeleteResponses, StorageDownloadData, StorageDownloadErrors, StorageGetBucketData, StorageGetBucketErrors, StorageGetBucketResponses, StorageGetFileData, StorageGetFileErrors, StorageGetFileResponses, StorageGetPresignedDownloadUrlData, StorageGetPresignedDownloadUrlErrors, StorageGetPresignedDownloadUrlResponses, StorageGetPresignedUploadUrlData, StorageGetPresignedUploadUrlErrors, StorageGetPresignedUploadUrlResponses, StorageListFilesData, StorageListFilesErrors, StorageListFilesResponses, StorageSettingsDeleteTenantSettingData, StorageSettingsDeleteTenantSettingErrors, StorageSettingsDeleteTenantSettingResponses, StorageSettingsDeleteUserSettingData, StorageSettingsDeleteUserSettingErrors, StorageSettingsDeleteUserSettingResponses, StorageSettingsGetConfigData, StorageSettingsGetConfigResponses, StorageSettingsGetTenantSettingsData, StorageSettingsGetTenantSettingsResponses, StorageSettingsGetUserSettingsData, StorageSettingsGetUserSettingsResponses, StorageSettingsUpsertTenantSettingData, StorageSettingsUpsertTenantSettingErrors, StorageSettingsUpsertTenantSettingResponses, StorageSettingsUpsertUserSettingData, StorageSettingsUpsertUserSettingErrors, StorageSettingsUpsertUserSettingResponses, StorageUploadData, StorageUploadErrors, StorageUploadResponses, UserNotificationSettingsGetUserNotificationSettingsData, UserNotificationSettingsGetUserNotificationSettingsErrors, UserNotificationSettingsGetUserNotificationSettingsResponses, UserNotificationSettingsSetChannelEnabledData, UserNotificationSettingsSetChannelEnabledErrors, UserNotificationSettingsSetChannelEnabledResponses, UserNotificationSettingsSetNotificationTypeEnabledData, UserNotificationSettingsSetNotificationTypeEnabledErrors, UserNotificationSettingsSetNotificationTypeEnabledResponses, UsersActivateUserData, UsersActivateUserErrors, UsersActivateUserResponses, UsersAssignRoleData, UsersAssignRoleErrors, UsersCreateUserData, UsersCreateUserResponses, UsersDeactivateUserData, UsersDeactivateUserErrors, UsersDeactivateUserResponses, UsersGetCurrentUserData, UsersGetCurrentUserResponses, UsersGetUserByIdData, UsersGetUserByIdResponses, UsersGetUsersData, UsersGetUsersResponses, UsersRemoveRoleData, UsersRemoveRoleErrors, UsersRemoveRoleResponses } from './types.gen';
+import type { AccountChangeEmailData, AccountChangeEmailErrors, AccountChangeEmailResponses, AccountCompleteExternalRegistrationData, AccountCompleteExternalRegistrationErrors, AccountConfirmEmailChangeData, AccountConfirmEmailChangeErrors, AccountConfirmEmailChangeResponses, AccountExchangeTicketData, AccountExchangeTicketErrors, AccountExternalLoginCallbackData, AccountExternalLoginCallbackErrors, AccountExternalLoginData, AccountExternalLoginErrors, AccountForgotPasswordData, AccountForgotPasswordErrors, AccountForgotPasswordResponses, AccountGetClientTenantData, AccountGetClientTenantErrors, AccountGetClientTenantResponses, AccountGetExternalProvidersData, AccountGetExternalProvidersErrors, AccountGetExternalProvidersResponses, AccountLoginData, AccountLoginErrors, AccountLoginResponses, AccountRegisterData, AccountRegisterErrors, AccountRegisterResponses, AccountResetPasswordData, AccountResetPasswordErrors, AccountResetPasswordResponses, AccountSendMagicLinkData, AccountSendMagicLinkErrors, AccountSendMagicLinkResponses, AccountSendOtpData, AccountSendOtpErrors, AccountSendOtpResponses, AccountSignOutData, AccountSignOutErrors, AccountValidateRedirectUriData, AccountValidateRedirectUriErrors, AccountValidateRedirectUriResponses, AccountVerifyEmailData, AccountVerifyEmailErrors, AccountVerifyEmailResponses, AccountVerifyMagicLinkData, AccountVerifyMagicLinkErrors, AccountVerifyMagicLinkResponses, AccountVerifyMfaChallengeData, AccountVerifyMfaChallengeErrors, AccountVerifyMfaChallengeResponses, AccountVerifyOtpData, AccountVerifyOtpErrors, AccountVerifyOtpResponses, AdminAnnouncementsArchiveAnnouncementData, AdminAnnouncementsArchiveAnnouncementErrors, AdminAnnouncementsArchiveAnnouncementResponses, AdminAnnouncementsCreateAnnouncementData, AdminAnnouncementsCreateAnnouncementErrors, AdminAnnouncementsCreateAnnouncementResponses, AdminAnnouncementsGetAllAnnouncementsData, AdminAnnouncementsGetAllAnnouncementsErrors, AdminAnnouncementsGetAllAnnouncementsResponses, AdminAnnouncementsPublishAnnouncementData, AdminAnnouncementsPublishAnnouncementErrors, AdminAnnouncementsPublishAnnouncementResponses, AdminAnnouncementsUpdateAnnouncementData, AdminAnnouncementsUpdateAnnouncementErrors, AdminAnnouncementsUpdateAnnouncementResponses, AdminChangelogCreateChangelogEntryData, AdminChangelogCreateChangelogEntryErrors, AdminChangelogCreateChangelogEntryResponses, AdminChangelogPublishChangelogEntryData, AdminChangelogPublishChangelogEntryErrors, AdminChangelogPublishChangelogEntryResponses, AnnouncementsDismissAnnouncementData, AnnouncementsDismissAnnouncementErrors, AnnouncementsDismissAnnouncementResponses, AnnouncementsGetAnnouncementsData, AnnouncementsGetAnnouncementsErrors, AnnouncementsGetAnnouncementsResponses, ApiKeysCreateApiKeyData, ApiKeysCreateApiKeyErrors, ApiKeysCreateApiKeyResponses, ApiKeysListApiKeysData, ApiKeysListApiKeysErrors, ApiKeysListApiKeysResponses, ApiKeysRevokeApiKeyData, ApiKeysRevokeApiKeyErrors, ApiKeysRevokeApiKeyResponses, AuthorizeContextGetData, AuthorizeContextGetErrors, AuthorizeContextGetResponses, ChangelogGetChangelogByVersionData, ChangelogGetChangelogByVersionErrors, ChangelogGetChangelogByVersionResponses, ChangelogGetChangelogData, ChangelogGetChangelogErrors, ChangelogGetChangelogResponses, ChangelogGetLatestChangelogData, ChangelogGetLatestChangelogErrors, ChangelogGetLatestChangelogResponses, ClientsCreateData, ClientsCreateErrors, ClientsCreateResponses, ClientsDeleteData, ClientsDeleteErrors, ClientsDeleteResponses, ClientsGetAllData, ClientsGetAllErrors, ClientsGetAllResponses, ClientsGetByIdData, ClientsGetByIdErrors, ClientsGetByIdResponses, ClientsRotateSecretData, ClientsRotateSecretErrors, ClientsRotateSecretResponses, ClientsUpdateData, ClientsUpdateErrors, ClientsUpdateResponses, IdentitySettingsDeleteTenantSettingData, IdentitySettingsDeleteTenantSettingErrors, IdentitySettingsDeleteTenantSettingResponses, IdentitySettingsDeleteUserSettingData, IdentitySettingsDeleteUserSettingErrors, IdentitySettingsDeleteUserSettingResponses, IdentitySettingsGetConfigData, IdentitySettingsGetConfigErrors, IdentitySettingsGetConfigResponses, IdentitySettingsGetTenantSettingsData, IdentitySettingsGetTenantSettingsErrors, IdentitySettingsGetTenantSettingsResponses, IdentitySettingsGetUserSettingsData, IdentitySettingsGetUserSettingsErrors, IdentitySettingsGetUserSettingsResponses, IdentitySettingsUpsertTenantSettingData, IdentitySettingsUpsertTenantSettingErrors, IdentitySettingsUpsertTenantSettingResponses, IdentitySettingsUpsertUserSettingData, IdentitySettingsUpsertUserSettingErrors, IdentitySettingsUpsertUserSettingResponses, InquiriesAddCommentData, InquiriesAddCommentErrors, InquiriesAddCommentResponses, InquiriesGetAllData, InquiriesGetAllErrors, InquiriesGetAllResponses, InquiriesGetByIdData, InquiriesGetByIdErrors, InquiriesGetByIdResponses, InquiriesGetCommentsData, InquiriesGetCommentsErrors, InquiriesGetCommentsResponses, InquiriesGetSubmittedData, InquiriesGetSubmittedErrors, InquiriesGetSubmittedResponses, InquiriesSubmitData, InquiriesSubmitErrors, InquiriesSubmitResponses, InquiriesUpdateStatusData, InquiriesUpdateStatusErrors, InquiriesUpdateStatusResponses, InvitationsAcceptData, InvitationsAcceptErrors, InvitationsAcceptResponses, InvitationsCreateData, InvitationsCreateErrors, InvitationsCreateResponses, InvitationsGetByTenantData, InvitationsGetByTenantErrors, InvitationsGetByTenantResponses, InvitationsRevokeData, InvitationsRevokeErrors, InvitationsRevokeResponses, InvitationsVerifyData, InvitationsVerifyErrors, InvitationsVerifyResponses, MeAuthorizationsListConnectedApplicationsData, MeAuthorizationsListConnectedApplicationsErrors, MeAuthorizationsListConnectedApplicationsResponses, MeAuthorizationsWithdrawConsentData, MeAuthorizationsWithdrawConsentErrors, MeAuthorizationsWithdrawConsentResponses, MeGetOrganizationsData, MeGetOrganizationsErrors, MeGetOrganizationsResponses, MfaAdminClearLockoutData, MfaAdminClearLockoutErrors, MfaAdminClearLockoutResponses, MfaAdminDisableMfaData, MfaAdminDisableMfaErrors, MfaAdminDisableMfaResponses, MfaConfirmEnrollmentData, MfaConfirmEnrollmentErrors, MfaConfirmEnrollmentResponses, MfaDisableData, MfaDisableErrors, MfaDisableResponses, MfaEnrollTotpData, MfaEnrollTotpErrors, MfaEnrollTotpResponses, MfaExchangeEnrollmentTokenData, MfaExchangeEnrollmentTokenErrors, MfaExchangeEnrollmentTokenResponses, MfaGetStatusData, MfaGetStatusErrors, MfaGetStatusResponses, MfaIssueEnrollmentTokenData, MfaIssueEnrollmentTokenErrors, MfaIssueEnrollmentTokenResponses, MfaRegenerateBackupCodesData, MfaRegenerateBackupCodesErrors, MfaRegenerateBackupCodesResponses, NotificationsGetNotificationsData, NotificationsGetNotificationsErrors, NotificationsGetNotificationsResponses, NotificationsGetUnreadCountData, NotificationsGetUnreadCountErrors, NotificationsGetUnreadCountResponses, NotificationsMarkAllAsReadData, NotificationsMarkAllAsReadErrors, NotificationsMarkAllAsReadResponses, NotificationsMarkAsReadData, NotificationsMarkAsReadErrors, NotificationsMarkAsReadResponses, OrganizationClientBrandingDeleteLogoData, OrganizationClientBrandingDeleteLogoErrors, OrganizationClientBrandingDeleteLogoResponses, OrganizationClientBrandingGetBrandingData, OrganizationClientBrandingGetBrandingErrors, OrganizationClientBrandingGetBrandingResponses, OrganizationClientBrandingUpsertBrandingData, OrganizationClientBrandingUpsertBrandingErrors, OrganizationClientBrandingUpsertBrandingResponses, OrganizationClientsDeleteData, OrganizationClientsDeleteErrors, OrganizationClientsDeleteResponses, OrganizationClientsGetByIdData, OrganizationClientsGetByIdErrors, OrganizationClientsGetByIdResponses, OrganizationClientsLiftPlatformSuspensionData, OrganizationClientsLiftPlatformSuspensionErrors, OrganizationClientsLiftPlatformSuspensionResponses, OrganizationClientsListData, OrganizationClientsListErrors, OrganizationClientsListResponses, OrganizationClientsPlacePlatformSuspensionData, OrganizationClientsPlacePlatformSuspensionErrors, OrganizationClientsPlacePlatformSuspensionResponses, OrganizationClientsRegisterData, OrganizationClientsRegisterErrors, OrganizationClientsRegisterResponses, OrganizationClientsReinstateData, OrganizationClientsReinstateErrors, OrganizationClientsReinstateResponses, OrganizationClientsRotateSecretData, OrganizationClientsRotateSecretErrors, OrganizationClientsRotateSecretResponses, OrganizationClientsSuspendData, OrganizationClientsSuspendErrors, OrganizationClientsSuspendResponses, OrganizationClientsUpdateData, OrganizationClientsUpdateErrors, OrganizationClientsUpdateResponses, OrganizationsAddMemberData, OrganizationsAddMemberErrors, OrganizationsAddMemberResponses, OrganizationsApproveMemberData, OrganizationsApproveMemberErrors, OrganizationsApproveMemberResponses, OrganizationsArchiveData, OrganizationsArchiveErrors, OrganizationsArchiveResponses, OrganizationsClearDenialData, OrganizationsClearDenialErrors, OrganizationsClearDenialResponses, OrganizationsCreateData, OrganizationsCreateErrors, OrganizationsCreateResponses, OrganizationsDeleteData, OrganizationsDeleteErrors, OrganizationsDeleteResponses, OrganizationsDenyMemberData, OrganizationsDenyMemberErrors, OrganizationsDenyMemberResponses, OrganizationsGetAllData, OrganizationsGetAllErrors, OrganizationsGetAllResponses, OrganizationsGetBrandingData, OrganizationsGetBrandingErrors, OrganizationsGetBrandingResponses, OrganizationsGetByIdData, OrganizationsGetByIdErrors, OrganizationsGetByIdResponses, OrganizationsGetDeniedMembersData, OrganizationsGetDeniedMembersErrors, OrganizationsGetMembersData, OrganizationsGetMembersErrors, OrganizationsGetMembersResponses, OrganizationsGetPendingMembersData, OrganizationsGetPendingMembersErrors, OrganizationsGetSettingsData, OrganizationsGetSettingsErrors, OrganizationsGetSettingsResponses, OrganizationsGetSuspendedMembersData, OrganizationsGetSuspendedMembersErrors, OrganizationsLeaveData, OrganizationsLeaveErrors, OrganizationsLeaveResponses, OrganizationsLiftPlatformSuspensionData, OrganizationsLiftPlatformSuspensionErrors, OrganizationsLiftPlatformSuspensionResponses, OrganizationsPlacePlatformSuspensionData, OrganizationsPlacePlatformSuspensionErrors, OrganizationsPlacePlatformSuspensionResponses, OrganizationsReactivateData, OrganizationsReactivateErrors, OrganizationsReactivateResponses, OrganizationsReinstateMemberData, OrganizationsReinstateMemberErrors, OrganizationsReinstateMemberResponses, OrganizationsRemoveMemberData, OrganizationsRemoveMemberErrors, OrganizationsRemoveMemberResponses, OrganizationsSuspendMemberData, OrganizationsSuspendMemberErrors, OrganizationsSuspendMemberResponses, OrganizationsUpdateBrandingData, OrganizationsUpdateBrandingErrors, OrganizationsUpdateBrandingResponses, OrganizationsUpdateEnrollmentData, OrganizationsUpdateEnrollmentErrors, OrganizationsUpdateEnrollmentResponses, OrganizationsUpdateSettingsData, OrganizationsUpdateSettingsErrors, OrganizationsUpdateSettingsResponses, OrganizationsUploadBrandingLogoData, OrganizationsUploadBrandingLogoErrors, OrganizationsUploadBrandingLogoResponses, PushConfigurationGetTenantPushConfigData, PushConfigurationGetTenantPushConfigErrors, PushConfigurationGetTenantPushConfigResponses, PushConfigurationRemoveTenantPushConfigData, PushConfigurationRemoveTenantPushConfigErrors, PushConfigurationRemoveTenantPushConfigResponses, PushConfigurationSetTenantPushEnabledData, PushConfigurationSetTenantPushEnabledErrors, PushConfigurationSetTenantPushEnabledResponses, PushConfigurationUpsertTenantPushConfigData, PushConfigurationUpsertTenantPushConfigErrors, PushConfigurationUpsertTenantPushConfigResponses, PushDevicesDeregisterDeviceData, PushDevicesDeregisterDeviceErrors, PushDevicesDeregisterDeviceResponses, PushDevicesGetUserDevicesData, PushDevicesGetUserDevicesErrors, PushDevicesGetUserDevicesResponses, PushDevicesRegisterDeviceData, PushDevicesRegisterDeviceErrors, PushDevicesRegisterDeviceResponses, PushDevicesSendPushData, PushDevicesSendPushErrors, PushDevicesSendPushResponses, RolesGetRolePermissionsData, RolesGetRolePermissionsErrors, RolesGetRolePermissionsResponses, RolesGetRolesData, RolesGetRolesErrors, RolesGetRolesResponses, ScopesListData, ScopesListErrors, ScopesListResponses, SessionListSessionsData, SessionListSessionsErrors, SessionListSessionsResponses, SessionRevokeSessionData, SessionRevokeSessionErrors, SessionRevokeSessionResponses, SetupCreateAdminData, SetupCreateAdminErrors, SetupCreateAdminResponses, SetupGetStatusData, SetupGetStatusErrors, SetupGetStatusResponses, StorageCompletePresignedUploadData, StorageCompletePresignedUploadErrors, StorageCompletePresignedUploadResponses, StorageCreateBucketData, StorageCreateBucketErrors, StorageCreateBucketResponses, StorageDeleteBucketData, StorageDeleteBucketErrors, StorageDeleteBucketResponses, StorageDeleteData, StorageDeleteErrors, StorageDeleteResponses, StorageDownloadData, StorageDownloadErrors, StorageGetBucketData, StorageGetBucketErrors, StorageGetBucketResponses, StorageGetFileData, StorageGetFileErrors, StorageGetFileResponses, StorageGetPresignedDownloadUrlData, StorageGetPresignedDownloadUrlErrors, StorageGetPresignedDownloadUrlResponses, StorageGetPresignedUploadUrlData, StorageGetPresignedUploadUrlErrors, StorageGetPresignedUploadUrlResponses, StorageListFilesData, StorageListFilesErrors, StorageListFilesResponses, StorageSettingsDeleteTenantSettingData, StorageSettingsDeleteTenantSettingErrors, StorageSettingsDeleteTenantSettingResponses, StorageSettingsDeleteUserSettingData, StorageSettingsDeleteUserSettingErrors, StorageSettingsDeleteUserSettingResponses, StorageSettingsGetConfigData, StorageSettingsGetConfigErrors, StorageSettingsGetConfigResponses, StorageSettingsGetTenantSettingsData, StorageSettingsGetTenantSettingsErrors, StorageSettingsGetTenantSettingsResponses, StorageSettingsGetUserSettingsData, StorageSettingsGetUserSettingsErrors, StorageSettingsGetUserSettingsResponses, StorageSettingsUpsertTenantSettingData, StorageSettingsUpsertTenantSettingErrors, StorageSettingsUpsertTenantSettingResponses, StorageSettingsUpsertUserSettingData, StorageSettingsUpsertUserSettingErrors, StorageSettingsUpsertUserSettingResponses, StorageUploadData, StorageUploadErrors, StorageUploadResponses, UserNotificationSettingsGetUserNotificationSettingsData, UserNotificationSettingsGetUserNotificationSettingsErrors, UserNotificationSettingsGetUserNotificationSettingsResponses, UserNotificationSettingsSetChannelEnabledData, UserNotificationSettingsSetChannelEnabledErrors, UserNotificationSettingsSetChannelEnabledResponses, UserNotificationSettingsSetNotificationTypeEnabledData, UserNotificationSettingsSetNotificationTypeEnabledErrors, UserNotificationSettingsSetNotificationTypeEnabledResponses, UsersActivateUserData, UsersActivateUserErrors, UsersActivateUserResponses, UsersAssignRoleData, UsersAssignRoleErrors, UsersAssignRoleResponses, UsersCreateUserData, UsersCreateUserErrors, UsersCreateUserResponses, UsersDeactivateUserData, UsersDeactivateUserErrors, UsersDeactivateUserResponses, UsersGetCurrentUserData, UsersGetCurrentUserErrors, UsersGetCurrentUserResponses, UsersGetUserByIdData, UsersGetUserByIdErrors, UsersGetUserByIdResponses, UsersGetUsersData, UsersGetUsersErrors, UsersGetUsersResponses, UsersRemoveRoleData, UsersRemoveRoleErrors, UsersRemoveRoleResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -18,7 +18,7 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
     meta?: keyof ClientMeta extends never ? Record<string, unknown> : ClientMeta;
 };
 
-export const adminAnnouncementsGetAllAnnouncements = <ThrowOnError extends boolean = true>(options?: Options<AdminAnnouncementsGetAllAnnouncementsData, ThrowOnError>): RequestResult<AdminAnnouncementsGetAllAnnouncementsResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<AdminAnnouncementsGetAllAnnouncementsResponses, unknown, ThrowOnError, 'data'>({
+export const adminAnnouncementsGetAllAnnouncements = <ThrowOnError extends boolean = true>(options?: Options<AdminAnnouncementsGetAllAnnouncementsData, ThrowOnError>): RequestResult<AdminAnnouncementsGetAllAnnouncementsResponses, AdminAnnouncementsGetAllAnnouncementsErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<AdminAnnouncementsGetAllAnnouncementsResponses, AdminAnnouncementsGetAllAnnouncementsErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/admin/announcements',
@@ -93,7 +93,7 @@ export const announcementsDismissAnnouncement = <ThrowOnError extends boolean = 
     ...options
 });
 
-export const changelogGetChangelog = <ThrowOnError extends boolean = true>(options?: Options<ChangelogGetChangelogData, ThrowOnError>): RequestResult<ChangelogGetChangelogResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<ChangelogGetChangelogResponses, unknown, ThrowOnError, 'data'>({
+export const changelogGetChangelog = <ThrowOnError extends boolean = true>(options?: Options<ChangelogGetChangelogData, ThrowOnError>): RequestResult<ChangelogGetChangelogResponses, ChangelogGetChangelogErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<ChangelogGetChangelogResponses, ChangelogGetChangelogErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/changelog',
@@ -120,7 +120,7 @@ export const changelogGetLatestChangelog = <ThrowOnError extends boolean = true>
  * Returns metadata for all API keys belonging to the authenticated user.
  * The actual key values are not returned - only the prefix for identification.
  */
-export const apiKeysListApiKeys = <ThrowOnError extends boolean = true>(options?: Options<ApiKeysListApiKeysData, ThrowOnError>): RequestResult<ApiKeysListApiKeysResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<ApiKeysListApiKeysResponses, unknown, ThrowOnError, 'data'>({
+export const apiKeysListApiKeys = <ThrowOnError extends boolean = true>(options?: Options<ApiKeysListApiKeysData, ThrowOnError>): RequestResult<ApiKeysListApiKeysResponses, ApiKeysListApiKeysErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<ApiKeysListApiKeysResponses, ApiKeysListApiKeysErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/auth/keys',
@@ -208,14 +208,14 @@ export const organizationClientBrandingDeleteLogo = <ThrowOnError extends boolea
     ...options
 });
 
-export const accountGetExternalProviders = <ThrowOnError extends boolean = true>(options?: Options<AccountGetExternalProvidersData, ThrowOnError>): RequestResult<AccountGetExternalProvidersResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<AccountGetExternalProvidersResponses, unknown, ThrowOnError, 'data'>({
+export const accountGetExternalProviders = <ThrowOnError extends boolean = true>(options?: Options<AccountGetExternalProvidersData, ThrowOnError>): RequestResult<AccountGetExternalProvidersResponses, AccountGetExternalProvidersErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<AccountGetExternalProvidersResponses, AccountGetExternalProvidersErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/auth/external-providers',
     ...options
 });
 
-export const accountLogin = <ThrowOnError extends boolean = true>(options: Options<AccountLoginData, ThrowOnError>): RequestResult<AccountLoginResponses, unknown, ThrowOnError, 'data'> => (options.client ?? client).post<AccountLoginResponses, unknown, ThrowOnError, 'data'>({
+export const accountLogin = <ThrowOnError extends boolean = true>(options: Options<AccountLoginData, ThrowOnError>): RequestResult<AccountLoginResponses, AccountLoginErrors, ThrowOnError, 'data'> => (options.client ?? client).post<AccountLoginResponses, AccountLoginErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/auth/login',
@@ -226,7 +226,7 @@ export const accountLogin = <ThrowOnError extends boolean = true>(options: Optio
     }
 });
 
-export const accountVerifyMfaChallenge = <ThrowOnError extends boolean = true>(options: Options<AccountVerifyMfaChallengeData, ThrowOnError>): RequestResult<AccountVerifyMfaChallengeResponses, unknown, ThrowOnError, 'data'> => (options.client ?? client).post<AccountVerifyMfaChallengeResponses, unknown, ThrowOnError, 'data'>({
+export const accountVerifyMfaChallenge = <ThrowOnError extends boolean = true>(options: Options<AccountVerifyMfaChallengeData, ThrowOnError>): RequestResult<AccountVerifyMfaChallengeResponses, AccountVerifyMfaChallengeErrors, ThrowOnError, 'data'> => (options.client ?? client).post<AccountVerifyMfaChallengeResponses, AccountVerifyMfaChallengeErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/auth/mfa/verify',
@@ -237,42 +237,42 @@ export const accountVerifyMfaChallenge = <ThrowOnError extends boolean = true>(o
     }
 });
 
-export const accountExternalLogin = <ThrowOnError extends boolean = true>(options?: Options<AccountExternalLoginData, ThrowOnError>): RequestResult<unknown, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<unknown, unknown, ThrowOnError, 'data'>({
+export const accountExternalLogin = <ThrowOnError extends boolean = true>(options?: Options<AccountExternalLoginData, ThrowOnError>): RequestResult<unknown, AccountExternalLoginErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<unknown, AccountExternalLoginErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/auth/external-login',
     ...options
 });
 
-export const accountExternalLoginCallback = <ThrowOnError extends boolean = true>(options?: Options<AccountExternalLoginCallbackData, ThrowOnError>): RequestResult<unknown, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<unknown, unknown, ThrowOnError, 'data'>({
+export const accountExternalLoginCallback = <ThrowOnError extends boolean = true>(options?: Options<AccountExternalLoginCallbackData, ThrowOnError>): RequestResult<unknown, AccountExternalLoginCallbackErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<unknown, AccountExternalLoginCallbackErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/auth/external-login-callback',
     ...options
 });
 
-export const accountCompleteExternalRegistration = <ThrowOnError extends boolean = true>(options?: Options<AccountCompleteExternalRegistrationData, ThrowOnError>): RequestResult<unknown, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<unknown, unknown, ThrowOnError, 'data'>({
+export const accountCompleteExternalRegistration = <ThrowOnError extends boolean = true>(options?: Options<AccountCompleteExternalRegistrationData, ThrowOnError>): RequestResult<unknown, AccountCompleteExternalRegistrationErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<unknown, AccountCompleteExternalRegistrationErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/auth/complete-external-registration',
     ...options
 });
 
-export const accountExchangeTicket = <ThrowOnError extends boolean = true>(options?: Options<AccountExchangeTicketData, ThrowOnError>): RequestResult<unknown, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<unknown, unknown, ThrowOnError, 'data'>({
+export const accountExchangeTicket = <ThrowOnError extends boolean = true>(options?: Options<AccountExchangeTicketData, ThrowOnError>): RequestResult<unknown, AccountExchangeTicketErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<unknown, AccountExchangeTicketErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/auth/exchange-ticket',
     ...options
 });
 
-export const accountValidateRedirectUri = <ThrowOnError extends boolean = true>(options?: Options<AccountValidateRedirectUriData, ThrowOnError>): RequestResult<AccountValidateRedirectUriResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<AccountValidateRedirectUriResponses, unknown, ThrowOnError, 'data'>({
+export const accountValidateRedirectUri = <ThrowOnError extends boolean = true>(options?: Options<AccountValidateRedirectUriData, ThrowOnError>): RequestResult<AccountValidateRedirectUriResponses, AccountValidateRedirectUriErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<AccountValidateRedirectUriResponses, AccountValidateRedirectUriErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/auth/redirect-uri/validate',
     ...options
 });
 
-export const accountSignOut = <ThrowOnError extends boolean = true>(options: Options<AccountSignOutData, ThrowOnError>): RequestResult<unknown, unknown, ThrowOnError, 'data'> => (options.client ?? client).post<unknown, unknown, ThrowOnError, 'data'>({
+export const accountSignOut = <ThrowOnError extends boolean = true>(options: Options<AccountSignOutData, ThrowOnError>): RequestResult<unknown, AccountSignOutErrors, ThrowOnError, 'data'> => (options.client ?? client).post<unknown, AccountSignOutErrors, ThrowOnError, 'data'>({
     ...urlSearchParamsBodySerializer,
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -284,7 +284,7 @@ export const accountSignOut = <ThrowOnError extends boolean = true>(options: Opt
     }
 });
 
-export const accountRegister = <ThrowOnError extends boolean = true>(options: Options<AccountRegisterData, ThrowOnError>): RequestResult<AccountRegisterResponses, unknown, ThrowOnError, 'data'> => (options.client ?? client).post<AccountRegisterResponses, unknown, ThrowOnError, 'data'>({
+export const accountRegister = <ThrowOnError extends boolean = true>(options: Options<AccountRegisterData, ThrowOnError>): RequestResult<AccountRegisterResponses, AccountRegisterErrors, ThrowOnError, 'data'> => (options.client ?? client).post<AccountRegisterResponses, AccountRegisterErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/auth/register',
@@ -295,14 +295,14 @@ export const accountRegister = <ThrowOnError extends boolean = true>(options: Op
     }
 });
 
-export const accountGetClientTenant = <ThrowOnError extends boolean = true>(options: Options<AccountGetClientTenantData, ThrowOnError>): RequestResult<AccountGetClientTenantResponses, unknown, ThrowOnError, 'data'> => (options.client ?? client).get<AccountGetClientTenantResponses, unknown, ThrowOnError, 'data'>({
+export const accountGetClientTenant = <ThrowOnError extends boolean = true>(options: Options<AccountGetClientTenantData, ThrowOnError>): RequestResult<AccountGetClientTenantResponses, AccountGetClientTenantErrors, ThrowOnError, 'data'> => (options.client ?? client).get<AccountGetClientTenantResponses, AccountGetClientTenantErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/auth/client-tenant/{clientId}',
     ...options
 });
 
-export const accountForgotPassword = <ThrowOnError extends boolean = true>(options: Options<AccountForgotPasswordData, ThrowOnError>): RequestResult<AccountForgotPasswordResponses, unknown, ThrowOnError, 'data'> => (options.client ?? client).post<AccountForgotPasswordResponses, unknown, ThrowOnError, 'data'>({
+export const accountForgotPassword = <ThrowOnError extends boolean = true>(options: Options<AccountForgotPasswordData, ThrowOnError>): RequestResult<AccountForgotPasswordResponses, AccountForgotPasswordErrors, ThrowOnError, 'data'> => (options.client ?? client).post<AccountForgotPasswordResponses, AccountForgotPasswordErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/auth/forgot-password',
@@ -313,7 +313,7 @@ export const accountForgotPassword = <ThrowOnError extends boolean = true>(optio
     }
 });
 
-export const accountResetPassword = <ThrowOnError extends boolean = true>(options: Options<AccountResetPasswordData, ThrowOnError>): RequestResult<AccountResetPasswordResponses, unknown, ThrowOnError, 'data'> => (options.client ?? client).post<AccountResetPasswordResponses, unknown, ThrowOnError, 'data'>({
+export const accountResetPassword = <ThrowOnError extends boolean = true>(options: Options<AccountResetPasswordData, ThrowOnError>): RequestResult<AccountResetPasswordResponses, AccountResetPasswordErrors, ThrowOnError, 'data'> => (options.client ?? client).post<AccountResetPasswordResponses, AccountResetPasswordErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/auth/reset-password',
@@ -324,14 +324,14 @@ export const accountResetPassword = <ThrowOnError extends boolean = true>(option
     }
 });
 
-export const accountVerifyEmail = <ThrowOnError extends boolean = true>(options?: Options<AccountVerifyEmailData, ThrowOnError>): RequestResult<AccountVerifyEmailResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<AccountVerifyEmailResponses, unknown, ThrowOnError, 'data'>({
+export const accountVerifyEmail = <ThrowOnError extends boolean = true>(options?: Options<AccountVerifyEmailData, ThrowOnError>): RequestResult<AccountVerifyEmailResponses, AccountVerifyEmailErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<AccountVerifyEmailResponses, AccountVerifyEmailErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/auth/verify-email',
     ...options
 });
 
-export const accountSendMagicLink = <ThrowOnError extends boolean = true>(options: Options<AccountSendMagicLinkData, ThrowOnError>): RequestResult<AccountSendMagicLinkResponses, unknown, ThrowOnError, 'data'> => (options.client ?? client).post<AccountSendMagicLinkResponses, unknown, ThrowOnError, 'data'>({
+export const accountSendMagicLink = <ThrowOnError extends boolean = true>(options: Options<AccountSendMagicLinkData, ThrowOnError>): RequestResult<AccountSendMagicLinkResponses, AccountSendMagicLinkErrors, ThrowOnError, 'data'> => (options.client ?? client).post<AccountSendMagicLinkResponses, AccountSendMagicLinkErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/auth/passwordless/magic-link',
@@ -342,14 +342,14 @@ export const accountSendMagicLink = <ThrowOnError extends boolean = true>(option
     }
 });
 
-export const accountVerifyMagicLink = <ThrowOnError extends boolean = true>(options?: Options<AccountVerifyMagicLinkData, ThrowOnError>): RequestResult<AccountVerifyMagicLinkResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<AccountVerifyMagicLinkResponses, unknown, ThrowOnError, 'data'>({
+export const accountVerifyMagicLink = <ThrowOnError extends boolean = true>(options?: Options<AccountVerifyMagicLinkData, ThrowOnError>): RequestResult<AccountVerifyMagicLinkResponses, AccountVerifyMagicLinkErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<AccountVerifyMagicLinkResponses, AccountVerifyMagicLinkErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/auth/passwordless/magic-link/verify',
     ...options
 });
 
-export const accountSendOtp = <ThrowOnError extends boolean = true>(options: Options<AccountSendOtpData, ThrowOnError>): RequestResult<AccountSendOtpResponses, unknown, ThrowOnError, 'data'> => (options.client ?? client).post<AccountSendOtpResponses, unknown, ThrowOnError, 'data'>({
+export const accountSendOtp = <ThrowOnError extends boolean = true>(options: Options<AccountSendOtpData, ThrowOnError>): RequestResult<AccountSendOtpResponses, AccountSendOtpErrors, ThrowOnError, 'data'> => (options.client ?? client).post<AccountSendOtpResponses, AccountSendOtpErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/auth/passwordless/otp',
@@ -360,7 +360,7 @@ export const accountSendOtp = <ThrowOnError extends boolean = true>(options: Opt
     }
 });
 
-export const accountVerifyOtp = <ThrowOnError extends boolean = true>(options: Options<AccountVerifyOtpData, ThrowOnError>): RequestResult<AccountVerifyOtpResponses, unknown, ThrowOnError, 'data'> => (options.client ?? client).post<AccountVerifyOtpResponses, unknown, ThrowOnError, 'data'>({
+export const accountVerifyOtp = <ThrowOnError extends boolean = true>(options: Options<AccountVerifyOtpData, ThrowOnError>): RequestResult<AccountVerifyOtpResponses, AccountVerifyOtpErrors, ThrowOnError, 'data'> => (options.client ?? client).post<AccountVerifyOtpResponses, AccountVerifyOtpErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/auth/passwordless/otp/verify',
@@ -371,7 +371,7 @@ export const accountVerifyOtp = <ThrowOnError extends boolean = true>(options: O
     }
 });
 
-export const accountChangeEmail = <ThrowOnError extends boolean = true>(options: Options<AccountChangeEmailData, ThrowOnError>): RequestResult<AccountChangeEmailResponses, unknown, ThrowOnError, 'data'> => (options.client ?? client).post<AccountChangeEmailResponses, unknown, ThrowOnError, 'data'>({
+export const accountChangeEmail = <ThrowOnError extends boolean = true>(options: Options<AccountChangeEmailData, ThrowOnError>): RequestResult<AccountChangeEmailResponses, AccountChangeEmailErrors, ThrowOnError, 'data'> => (options.client ?? client).post<AccountChangeEmailResponses, AccountChangeEmailErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/auth/change-email',
@@ -382,7 +382,7 @@ export const accountChangeEmail = <ThrowOnError extends boolean = true>(options:
     }
 });
 
-export const accountConfirmEmailChange = <ThrowOnError extends boolean = true>(options?: Options<AccountConfirmEmailChangeData, ThrowOnError>): RequestResult<AccountConfirmEmailChangeResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<AccountConfirmEmailChangeResponses, unknown, ThrowOnError, 'data'>({
+export const accountConfirmEmailChange = <ThrowOnError extends boolean = true>(options?: Options<AccountConfirmEmailChangeData, ThrowOnError>): RequestResult<AccountConfirmEmailChangeResponses, AccountConfirmEmailChangeErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<AccountConfirmEmailChangeResponses, AccountConfirmEmailChangeErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/auth/confirm-email-change',
@@ -396,7 +396,7 @@ export const authorizeContextGet = <ThrowOnError extends boolean = true>(options
     ...options
 });
 
-export const clientsGetAll = <ThrowOnError extends boolean = true>(options?: Options<ClientsGetAllData, ThrowOnError>): RequestResult<ClientsGetAllResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<ClientsGetAllResponses, unknown, ThrowOnError, 'data'>({
+export const clientsGetAll = <ThrowOnError extends boolean = true>(options?: Options<ClientsGetAllData, ThrowOnError>): RequestResult<ClientsGetAllResponses, ClientsGetAllErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<ClientsGetAllResponses, ClientsGetAllErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/clients',
@@ -446,7 +446,7 @@ export const clientsRotateSecret = <ThrowOnError extends boolean = true>(options
     ...options
 });
 
-export const identitySettingsGetConfig = <ThrowOnError extends boolean = true>(options?: Options<IdentitySettingsGetConfigData, ThrowOnError>): RequestResult<IdentitySettingsGetConfigResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<IdentitySettingsGetConfigResponses, unknown, ThrowOnError, 'data'>({
+export const identitySettingsGetConfig = <ThrowOnError extends boolean = true>(options?: Options<IdentitySettingsGetConfigData, ThrowOnError>): RequestResult<IdentitySettingsGetConfigResponses, IdentitySettingsGetConfigErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<IdentitySettingsGetConfigResponses, IdentitySettingsGetConfigErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/config',
@@ -460,7 +460,7 @@ export const identitySettingsDeleteTenantSetting = <ThrowOnError extends boolean
     ...options
 });
 
-export const identitySettingsGetTenantSettings = <ThrowOnError extends boolean = true>(options?: Options<IdentitySettingsGetTenantSettingsData, ThrowOnError>): RequestResult<IdentitySettingsGetTenantSettingsResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<IdentitySettingsGetTenantSettingsResponses, unknown, ThrowOnError, 'data'>({
+export const identitySettingsGetTenantSettings = <ThrowOnError extends boolean = true>(options?: Options<IdentitySettingsGetTenantSettingsData, ThrowOnError>): RequestResult<IdentitySettingsGetTenantSettingsResponses, IdentitySettingsGetTenantSettingsErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<IdentitySettingsGetTenantSettingsResponses, IdentitySettingsGetTenantSettingsErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/settings/tenant',
@@ -485,7 +485,7 @@ export const identitySettingsDeleteUserSetting = <ThrowOnError extends boolean =
     ...options
 });
 
-export const identitySettingsGetUserSettings = <ThrowOnError extends boolean = true>(options?: Options<IdentitySettingsGetUserSettingsData, ThrowOnError>): RequestResult<IdentitySettingsGetUserSettingsResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<IdentitySettingsGetUserSettingsResponses, unknown, ThrowOnError, 'data'>({
+export const identitySettingsGetUserSettings = <ThrowOnError extends boolean = true>(options?: Options<IdentitySettingsGetUserSettingsData, ThrowOnError>): RequestResult<IdentitySettingsGetUserSettingsResponses, IdentitySettingsGetUserSettingsErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<IdentitySettingsGetUserSettingsResponses, IdentitySettingsGetUserSettingsErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/settings/user',
@@ -503,14 +503,14 @@ export const identitySettingsUpsertUserSetting = <ThrowOnError extends boolean =
     }
 });
 
-export const invitationsGetByTenant = <ThrowOnError extends boolean = true>(options?: Options<InvitationsGetByTenantData, ThrowOnError>): RequestResult<InvitationsGetByTenantResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<InvitationsGetByTenantResponses, unknown, ThrowOnError, 'data'>({
+export const invitationsGetByTenant = <ThrowOnError extends boolean = true>(options?: Options<InvitationsGetByTenantData, ThrowOnError>): RequestResult<InvitationsGetByTenantResponses, InvitationsGetByTenantErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<InvitationsGetByTenantResponses, InvitationsGetByTenantErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/invitations',
     ...options
 });
 
-export const invitationsCreate = <ThrowOnError extends boolean = true>(options: Options<InvitationsCreateData, ThrowOnError>): RequestResult<InvitationsCreateResponses, unknown, ThrowOnError, 'data'> => (options.client ?? client).post<InvitationsCreateResponses, unknown, ThrowOnError, 'data'>({
+export const invitationsCreate = <ThrowOnError extends boolean = true>(options: Options<InvitationsCreateData, ThrowOnError>): RequestResult<InvitationsCreateResponses, InvitationsCreateErrors, ThrowOnError, 'data'> => (options.client ?? client).post<InvitationsCreateResponses, InvitationsCreateErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/invitations',
@@ -553,7 +553,7 @@ export const invitationsAccept = <ThrowOnError extends boolean = true>(options: 
  * to. First-party sign-ins never appear here — their authorizations are session bookkeeping,
  * not consent.
  */
-export const meAuthorizationsListConnectedApplications = <ThrowOnError extends boolean = true>(options?: Options<MeAuthorizationsListConnectedApplicationsData, ThrowOnError>): RequestResult<MeAuthorizationsListConnectedApplicationsResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<MeAuthorizationsListConnectedApplicationsResponses, unknown, ThrowOnError, 'data'>({
+export const meAuthorizationsListConnectedApplications = <ThrowOnError extends boolean = true>(options?: Options<MeAuthorizationsListConnectedApplicationsData, ThrowOnError>): RequestResult<MeAuthorizationsListConnectedApplicationsResponses, MeAuthorizationsListConnectedApplicationsErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<MeAuthorizationsListConnectedApplicationsResponses, MeAuthorizationsListConnectedApplicationsErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/me/authorizations',
@@ -586,28 +586,28 @@ export const meAuthorizationsWithdrawConsent = <ThrowOnError extends boolean = t
  * Asks for no permission — the answer is about the caller, and demanding one would hide
  * every organization but the one their token is scoped to, which is the question.
  */
-export const meGetOrganizations = <ThrowOnError extends boolean = true>(options?: Options<MeGetOrganizationsData, ThrowOnError>): RequestResult<MeGetOrganizationsResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<MeGetOrganizationsResponses, unknown, ThrowOnError, 'data'>({
+export const meGetOrganizations = <ThrowOnError extends boolean = true>(options?: Options<MeGetOrganizationsData, ThrowOnError>): RequestResult<MeGetOrganizationsResponses, MeGetOrganizationsErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<MeGetOrganizationsResponses, MeGetOrganizationsErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/me/organizations',
     ...options
 });
 
-export const mfaGetStatus = <ThrowOnError extends boolean = true>(options?: Options<MfaGetStatusData, ThrowOnError>): RequestResult<MfaGetStatusResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<MfaGetStatusResponses, unknown, ThrowOnError, 'data'>({
+export const mfaGetStatus = <ThrowOnError extends boolean = true>(options?: Options<MfaGetStatusData, ThrowOnError>): RequestResult<MfaGetStatusResponses, MfaGetStatusErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<MfaGetStatusResponses, MfaGetStatusErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/mfa/status',
     ...options
 });
 
-export const mfaEnrollTotp = <ThrowOnError extends boolean = true>(options?: Options<MfaEnrollTotpData, ThrowOnError>): RequestResult<MfaEnrollTotpResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).post<MfaEnrollTotpResponses, unknown, ThrowOnError, 'data'>({
+export const mfaEnrollTotp = <ThrowOnError extends boolean = true>(options?: Options<MfaEnrollTotpData, ThrowOnError>): RequestResult<MfaEnrollTotpResponses, MfaEnrollTotpErrors, ThrowOnError, 'data'> => (options?.client ?? client).post<MfaEnrollTotpResponses, MfaEnrollTotpErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/mfa/enroll/totp',
     ...options
 });
 
-export const mfaConfirmEnrollment = <ThrowOnError extends boolean = true>(options: Options<MfaConfirmEnrollmentData, ThrowOnError>): RequestResult<MfaConfirmEnrollmentResponses, unknown, ThrowOnError, 'data'> => (options.client ?? client).post<MfaConfirmEnrollmentResponses, unknown, ThrowOnError, 'data'>({
+export const mfaConfirmEnrollment = <ThrowOnError extends boolean = true>(options: Options<MfaConfirmEnrollmentData, ThrowOnError>): RequestResult<MfaConfirmEnrollmentResponses, MfaConfirmEnrollmentErrors, ThrowOnError, 'data'> => (options.client ?? client).post<MfaConfirmEnrollmentResponses, MfaConfirmEnrollmentErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/mfa/enroll/confirm',
@@ -618,7 +618,7 @@ export const mfaConfirmEnrollment = <ThrowOnError extends boolean = true>(option
     }
 });
 
-export const mfaDisable = <ThrowOnError extends boolean = true>(options: Options<MfaDisableData, ThrowOnError>): RequestResult<MfaDisableResponses, unknown, ThrowOnError, 'data'> => (options.client ?? client).post<MfaDisableResponses, unknown, ThrowOnError, 'data'>({
+export const mfaDisable = <ThrowOnError extends boolean = true>(options: Options<MfaDisableData, ThrowOnError>): RequestResult<MfaDisableResponses, MfaDisableErrors, ThrowOnError, 'data'> => (options.client ?? client).post<MfaDisableResponses, MfaDisableErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/mfa/disable',
@@ -629,7 +629,7 @@ export const mfaDisable = <ThrowOnError extends boolean = true>(options: Options
     }
 });
 
-export const mfaRegenerateBackupCodes = <ThrowOnError extends boolean = true>(options: Options<MfaRegenerateBackupCodesData, ThrowOnError>): RequestResult<MfaRegenerateBackupCodesResponses, unknown, ThrowOnError, 'data'> => (options.client ?? client).post<MfaRegenerateBackupCodesResponses, unknown, ThrowOnError, 'data'>({
+export const mfaRegenerateBackupCodes = <ThrowOnError extends boolean = true>(options: Options<MfaRegenerateBackupCodesData, ThrowOnError>): RequestResult<MfaRegenerateBackupCodesResponses, MfaRegenerateBackupCodesErrors, ThrowOnError, 'data'> => (options.client ?? client).post<MfaRegenerateBackupCodesResponses, MfaRegenerateBackupCodesErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/mfa/backup-codes/regenerate',
@@ -640,14 +640,14 @@ export const mfaRegenerateBackupCodes = <ThrowOnError extends boolean = true>(op
     }
 });
 
-export const mfaAdminDisableMfa = <ThrowOnError extends boolean = true>(options: Options<MfaAdminDisableMfaData, ThrowOnError>): RequestResult<MfaAdminDisableMfaResponses, unknown, ThrowOnError, 'data'> => (options.client ?? client).post<MfaAdminDisableMfaResponses, unknown, ThrowOnError, 'data'>({
+export const mfaAdminDisableMfa = <ThrowOnError extends boolean = true>(options: Options<MfaAdminDisableMfaData, ThrowOnError>): RequestResult<MfaAdminDisableMfaResponses, MfaAdminDisableMfaErrors, ThrowOnError, 'data'> => (options.client ?? client).post<MfaAdminDisableMfaResponses, MfaAdminDisableMfaErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/mfa/admin/{userId}/disable',
     ...options
 });
 
-export const mfaAdminClearLockout = <ThrowOnError extends boolean = true>(options: Options<MfaAdminClearLockoutData, ThrowOnError>): RequestResult<MfaAdminClearLockoutResponses, unknown, ThrowOnError, 'data'> => (options.client ?? client).post<MfaAdminClearLockoutResponses, unknown, ThrowOnError, 'data'>({
+export const mfaAdminClearLockout = <ThrowOnError extends boolean = true>(options: Options<MfaAdminClearLockoutData, ThrowOnError>): RequestResult<MfaAdminClearLockoutResponses, MfaAdminClearLockoutErrors, ThrowOnError, 'data'> => (options.client ?? client).post<MfaAdminClearLockoutResponses, MfaAdminClearLockoutErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/mfa/admin/{userId}/clear-lockout',
@@ -660,7 +660,7 @@ export const mfaAdminClearLockout = <ThrowOnError extends boolean = true>(option
  * Auth app's /mfa/enroll page, which exchanges it for an Identity.MfaPartial cookie
  * so the enrollment API calls can authenticate the user.
  */
-export const mfaIssueEnrollmentToken = <ThrowOnError extends boolean = true>(options?: Options<MfaIssueEnrollmentTokenData, ThrowOnError>): RequestResult<MfaIssueEnrollmentTokenResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).post<MfaIssueEnrollmentTokenResponses, unknown, ThrowOnError, 'data'>({
+export const mfaIssueEnrollmentToken = <ThrowOnError extends boolean = true>(options?: Options<MfaIssueEnrollmentTokenData, ThrowOnError>): RequestResult<MfaIssueEnrollmentTokenResponses, MfaIssueEnrollmentTokenErrors, ThrowOnError, 'data'> => (options?.client ?? client).post<MfaIssueEnrollmentTokenResponses, MfaIssueEnrollmentTokenErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/mfa/enroll/issue-token',
@@ -672,7 +672,7 @@ export const mfaIssueEnrollmentToken = <ThrowOnError extends boolean = true>(opt
  * Called during Auth app prerender so the CookieForwardingHandler relays the
  * partial cookie to the browser, enabling subsequent enrollment API calls.
  */
-export const mfaExchangeEnrollmentToken = <ThrowOnError extends boolean = true>(options?: Options<MfaExchangeEnrollmentTokenData, ThrowOnError>): RequestResult<MfaExchangeEnrollmentTokenResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).post<MfaExchangeEnrollmentTokenResponses, unknown, ThrowOnError, 'data'>({
+export const mfaExchangeEnrollmentToken = <ThrowOnError extends boolean = true>(options?: Options<MfaExchangeEnrollmentTokenData, ThrowOnError>): RequestResult<MfaExchangeEnrollmentTokenResponses, MfaExchangeEnrollmentTokenErrors, ThrowOnError, 'data'> => (options?.client ?? client).post<MfaExchangeEnrollmentTokenResponses, MfaExchangeEnrollmentTokenErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/mfa/enroll/exchange-token',
@@ -807,7 +807,7 @@ export const organizationClientsPlacePlatformSuspension = <ThrowOnError extends 
 /**
  * Get all organizations with optional search filtering and pagination.
  */
-export const organizationsGetAll = <ThrowOnError extends boolean = true>(options?: Options<OrganizationsGetAllData, ThrowOnError>): RequestResult<OrganizationsGetAllResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<OrganizationsGetAllResponses, unknown, ThrowOnError, 'data'>({
+export const organizationsGetAll = <ThrowOnError extends boolean = true>(options?: Options<OrganizationsGetAllData, ThrowOnError>): RequestResult<OrganizationsGetAllResponses, OrganizationsGetAllErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<OrganizationsGetAllResponses, OrganizationsGetAllErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/organizations',
@@ -821,7 +821,7 @@ export const organizationsGetAll = <ThrowOnError extends boolean = true>(options
  * permission and answers an organization-less token: a permission would have to be
  * granted by an organization the caller does not yet have.
  */
-export const organizationsCreate = <ThrowOnError extends boolean = true>(options: Options<OrganizationsCreateData, ThrowOnError>): RequestResult<OrganizationsCreateResponses, unknown, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationsCreateResponses, unknown, ThrowOnError, 'data'>({
+export const organizationsCreate = <ThrowOnError extends boolean = true>(options: Options<OrganizationsCreateData, ThrowOnError>): RequestResult<OrganizationsCreateResponses, OrganizationsCreateErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationsCreateResponses, OrganizationsCreateErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/organizations',
@@ -849,7 +849,7 @@ export const organizationsDelete = <ThrowOnError extends boolean = true>(options
 /**
  * Get a specific organization by ID.
  */
-export const organizationsGetById = <ThrowOnError extends boolean = true>(options: Options<OrganizationsGetByIdData, ThrowOnError>): RequestResult<OrganizationsGetByIdResponses, unknown, ThrowOnError, 'data'> => (options.client ?? client).get<OrganizationsGetByIdResponses, unknown, ThrowOnError, 'data'>({
+export const organizationsGetById = <ThrowOnError extends boolean = true>(options: Options<OrganizationsGetByIdData, ThrowOnError>): RequestResult<OrganizationsGetByIdResponses, OrganizationsGetByIdErrors, ThrowOnError, 'data'> => (options.client ?? client).get<OrganizationsGetByIdResponses, OrganizationsGetByIdErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/organizations/{id}',
@@ -859,7 +859,7 @@ export const organizationsGetById = <ThrowOnError extends boolean = true>(option
 /**
  * Get all members of a specific organization.
  */
-export const organizationsGetMembers = <ThrowOnError extends boolean = true>(options: Options<OrganizationsGetMembersData, ThrowOnError>): RequestResult<OrganizationsGetMembersResponses, unknown, ThrowOnError, 'data'> => (options.client ?? client).get<OrganizationsGetMembersResponses, unknown, ThrowOnError, 'data'>({
+export const organizationsGetMembers = <ThrowOnError extends boolean = true>(options: Options<OrganizationsGetMembersData, ThrowOnError>): RequestResult<OrganizationsGetMembersResponses, OrganizationsGetMembersErrors, ThrowOnError, 'data'> => (options.client ?? client).get<OrganizationsGetMembersResponses, OrganizationsGetMembersErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/organizations/{id}/members',
@@ -1038,7 +1038,7 @@ export const organizationsPlacePlatformSuspension = <ThrowOnError extends boolea
 /**
  * Get organization branding.
  */
-export const organizationsGetBranding = <ThrowOnError extends boolean = true>(options: Options<OrganizationsGetBrandingData, ThrowOnError>): RequestResult<OrganizationsGetBrandingResponses, unknown, ThrowOnError, 'data'> => (options.client ?? client).get<OrganizationsGetBrandingResponses, unknown, ThrowOnError, 'data'>({
+export const organizationsGetBranding = <ThrowOnError extends boolean = true>(options: Options<OrganizationsGetBrandingData, ThrowOnError>): RequestResult<OrganizationsGetBrandingResponses, OrganizationsGetBrandingErrors, ThrowOnError, 'data'> => (options.client ?? client).get<OrganizationsGetBrandingResponses, OrganizationsGetBrandingErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/organizations/{id}/branding',
@@ -1048,7 +1048,7 @@ export const organizationsGetBranding = <ThrowOnError extends boolean = true>(op
 /**
  * Update organization branding.
  */
-export const organizationsUpdateBranding = <ThrowOnError extends boolean = true>(options: Options<OrganizationsUpdateBrandingData, ThrowOnError>): RequestResult<OrganizationsUpdateBrandingResponses, unknown, ThrowOnError, 'data'> => (options.client ?? client).put<OrganizationsUpdateBrandingResponses, unknown, ThrowOnError, 'data'>({
+export const organizationsUpdateBranding = <ThrowOnError extends boolean = true>(options: Options<OrganizationsUpdateBrandingData, ThrowOnError>): RequestResult<OrganizationsUpdateBrandingResponses, OrganizationsUpdateBrandingErrors, ThrowOnError, 'data'> => (options.client ?? client).put<OrganizationsUpdateBrandingResponses, OrganizationsUpdateBrandingErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/organizations/{id}/branding',
@@ -1077,7 +1077,7 @@ export const organizationsUploadBrandingLogo = <ThrowOnError extends boolean = t
 /**
  * Get organization settings.
  */
-export const organizationsGetSettings = <ThrowOnError extends boolean = true>(options: Options<OrganizationsGetSettingsData, ThrowOnError>): RequestResult<OrganizationsGetSettingsResponses, unknown, ThrowOnError, 'data'> => (options.client ?? client).get<OrganizationsGetSettingsResponses, unknown, ThrowOnError, 'data'>({
+export const organizationsGetSettings = <ThrowOnError extends boolean = true>(options: Options<OrganizationsGetSettingsData, ThrowOnError>): RequestResult<OrganizationsGetSettingsResponses, OrganizationsGetSettingsErrors, ThrowOnError, 'data'> => (options.client ?? client).get<OrganizationsGetSettingsResponses, OrganizationsGetSettingsErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/organizations/{id}/settings',
@@ -1118,7 +1118,7 @@ export const organizationsUpdateEnrollment = <ThrowOnError extends boolean = tru
 /**
  * Get all available roles in the system.
  */
-export const rolesGetRoles = <ThrowOnError extends boolean = true>(options?: Options<RolesGetRolesData, ThrowOnError>): RequestResult<RolesGetRolesResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<RolesGetRolesResponses, unknown, ThrowOnError, 'data'>({
+export const rolesGetRoles = <ThrowOnError extends boolean = true>(options?: Options<RolesGetRolesData, ThrowOnError>): RequestResult<RolesGetRolesResponses, RolesGetRolesErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<RolesGetRolesResponses, RolesGetRolesErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/roles',
@@ -1128,7 +1128,7 @@ export const rolesGetRoles = <ThrowOnError extends boolean = true>(options?: Opt
 /**
  * Get the permissions associated with a specific role.
  */
-export const rolesGetRolePermissions = <ThrowOnError extends boolean = true>(options: Options<RolesGetRolePermissionsData, ThrowOnError>): RequestResult<RolesGetRolePermissionsResponses, unknown, ThrowOnError, 'data'> => (options.client ?? client).get<RolesGetRolePermissionsResponses, unknown, ThrowOnError, 'data'>({
+export const rolesGetRolePermissions = <ThrowOnError extends boolean = true>(options: Options<RolesGetRolePermissionsData, ThrowOnError>): RequestResult<RolesGetRolePermissionsResponses, RolesGetRolePermissionsErrors, ThrowOnError, 'data'> => (options.client ?? client).get<RolesGetRolePermissionsResponses, RolesGetRolePermissionsErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/roles/{roleName}/permissions',
@@ -1138,28 +1138,28 @@ export const rolesGetRolePermissions = <ThrowOnError extends boolean = true>(opt
 /**
  * List available API scopes with optional category filter.
  */
-export const scopesList = <ThrowOnError extends boolean = true>(options?: Options<ScopesListData, ThrowOnError>): RequestResult<ScopesListResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<ScopesListResponses, unknown, ThrowOnError, 'data'>({
+export const scopesList = <ThrowOnError extends boolean = true>(options?: Options<ScopesListData, ThrowOnError>): RequestResult<ScopesListResponses, ScopesListErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<ScopesListResponses, ScopesListErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/scopes',
     ...options
 });
 
-export const sessionListSessions = <ThrowOnError extends boolean = true>(options?: Options<SessionListSessionsData, ThrowOnError>): RequestResult<SessionListSessionsResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<SessionListSessionsResponses, unknown, ThrowOnError, 'data'>({
+export const sessionListSessions = <ThrowOnError extends boolean = true>(options?: Options<SessionListSessionsData, ThrowOnError>): RequestResult<SessionListSessionsResponses, SessionListSessionsErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<SessionListSessionsResponses, SessionListSessionsErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/sessions',
     ...options
 });
 
-export const sessionRevokeSession = <ThrowOnError extends boolean = true>(options: Options<SessionRevokeSessionData, ThrowOnError>): RequestResult<SessionRevokeSessionResponses, unknown, ThrowOnError, 'data'> => (options.client ?? client).delete<SessionRevokeSessionResponses, unknown, ThrowOnError, 'data'>({
+export const sessionRevokeSession = <ThrowOnError extends boolean = true>(options: Options<SessionRevokeSessionData, ThrowOnError>): RequestResult<SessionRevokeSessionResponses, SessionRevokeSessionErrors, ThrowOnError, 'data'> => (options.client ?? client).delete<SessionRevokeSessionResponses, SessionRevokeSessionErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/sessions/{sessionId}',
     ...options
 });
 
-export const setupGetStatus = <ThrowOnError extends boolean = true>(options?: Options<SetupGetStatusData, ThrowOnError>): RequestResult<SetupGetStatusResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<SetupGetStatusResponses, unknown, ThrowOnError, 'data'>({
+export const setupGetStatus = <ThrowOnError extends boolean = true>(options?: Options<SetupGetStatusData, ThrowOnError>): RequestResult<SetupGetStatusResponses, SetupGetStatusErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<SetupGetStatusResponses, SetupGetStatusErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/setup/status',
@@ -1180,7 +1180,7 @@ export const setupCreateAdmin = <ThrowOnError extends boolean = true>(options: O
 /**
  * Get a paginated list of users with optional search filtering.
  */
-export const usersGetUsers = <ThrowOnError extends boolean = true>(options?: Options<UsersGetUsersData, ThrowOnError>): RequestResult<UsersGetUsersResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<UsersGetUsersResponses, unknown, ThrowOnError, 'data'>({
+export const usersGetUsers = <ThrowOnError extends boolean = true>(options?: Options<UsersGetUsersData, ThrowOnError>): RequestResult<UsersGetUsersResponses, UsersGetUsersErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<UsersGetUsersResponses, UsersGetUsersErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/users',
@@ -1190,7 +1190,7 @@ export const usersGetUsers = <ThrowOnError extends boolean = true>(options?: Opt
 /**
  * Create a new user account.
  */
-export const usersCreateUser = <ThrowOnError extends boolean = true>(options: Options<UsersCreateUserData, ThrowOnError>): RequestResult<UsersCreateUserResponses, unknown, ThrowOnError, 'data'> => (options.client ?? client).post<UsersCreateUserResponses, unknown, ThrowOnError, 'data'>({
+export const usersCreateUser = <ThrowOnError extends boolean = true>(options: Options<UsersCreateUserData, ThrowOnError>): RequestResult<UsersCreateUserResponses, UsersCreateUserErrors, ThrowOnError, 'data'> => (options.client ?? client).post<UsersCreateUserResponses, UsersCreateUserErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/users',
@@ -1204,7 +1204,7 @@ export const usersCreateUser = <ThrowOnError extends boolean = true>(options: Op
 /**
  * Get a specific user by their ID.
  */
-export const usersGetUserById = <ThrowOnError extends boolean = true>(options: Options<UsersGetUserByIdData, ThrowOnError>): RequestResult<UsersGetUserByIdResponses, unknown, ThrowOnError, 'data'> => (options.client ?? client).get<UsersGetUserByIdResponses, unknown, ThrowOnError, 'data'>({
+export const usersGetUserById = <ThrowOnError extends boolean = true>(options: Options<UsersGetUserByIdData, ThrowOnError>): RequestResult<UsersGetUserByIdResponses, UsersGetUserByIdErrors, ThrowOnError, 'data'> => (options.client ?? client).get<UsersGetUserByIdResponses, UsersGetUserByIdErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/users/{id}',
@@ -1214,7 +1214,7 @@ export const usersGetUserById = <ThrowOnError extends boolean = true>(options: O
 /**
  * Get the currently authenticated user's profile, roles, and permissions.
  */
-export const usersGetCurrentUser = <ThrowOnError extends boolean = true>(options?: Options<UsersGetCurrentUserData, ThrowOnError>): RequestResult<UsersGetCurrentUserResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<UsersGetCurrentUserResponses, unknown, ThrowOnError, 'data'>({
+export const usersGetCurrentUser = <ThrowOnError extends boolean = true>(options?: Options<UsersGetCurrentUserData, ThrowOnError>): RequestResult<UsersGetCurrentUserResponses, UsersGetCurrentUserErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<UsersGetCurrentUserResponses, UsersGetCurrentUserErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/users/me',
@@ -1248,7 +1248,7 @@ export const usersActivateUser = <ThrowOnError extends boolean = true>(options: 
  * and confers nothing in any other. The reserved global-administrator name is rejected:
  * global admin is a seeded claim, never a role, so it cannot be granted from inside a tenant.
  */
-export const usersAssignRole = <ThrowOnError extends boolean = true>(options: Options<UsersAssignRoleData, ThrowOnError>): RequestResult<unknown, UsersAssignRoleErrors, ThrowOnError, 'data'> => (options.client ?? client).post<unknown, UsersAssignRoleErrors, ThrowOnError, 'data'>({
+export const usersAssignRole = <ThrowOnError extends boolean = true>(options: Options<UsersAssignRoleData, ThrowOnError>): RequestResult<UsersAssignRoleResponses, UsersAssignRoleErrors, ThrowOnError, 'data'> => (options.client ?? client).post<UsersAssignRoleResponses, UsersAssignRoleErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/identity/users/{userId}/roles',
@@ -1270,7 +1270,7 @@ export const usersRemoveRole = <ThrowOnError extends boolean = true>(options: Op
     ...options
 });
 
-export const inquiriesGetAll = <ThrowOnError extends boolean = true>(options?: Options<InquiriesGetAllData, ThrowOnError>): RequestResult<InquiriesGetAllResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<InquiriesGetAllResponses, unknown, ThrowOnError, 'data'>({
+export const inquiriesGetAll = <ThrowOnError extends boolean = true>(options?: Options<InquiriesGetAllData, ThrowOnError>): RequestResult<InquiriesGetAllResponses, InquiriesGetAllErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<InquiriesGetAllResponses, InquiriesGetAllErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/inquiries',
@@ -1288,7 +1288,7 @@ export const inquiriesSubmit = <ThrowOnError extends boolean = true>(options: Op
     }
 });
 
-export const inquiriesGetSubmitted = <ThrowOnError extends boolean = true>(options?: Options<InquiriesGetSubmittedData, ThrowOnError>): RequestResult<InquiriesGetSubmittedResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<InquiriesGetSubmittedResponses, unknown, ThrowOnError, 'data'>({
+export const inquiriesGetSubmitted = <ThrowOnError extends boolean = true>(options?: Options<InquiriesGetSubmittedData, ThrowOnError>): RequestResult<InquiriesGetSubmittedResponses, InquiriesGetSubmittedErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<InquiriesGetSubmittedResponses, InquiriesGetSubmittedErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/inquiries/submitted',
@@ -1371,7 +1371,7 @@ export const notificationsMarkAllAsRead = <ThrowOnError extends boolean = true>(
     ...options
 });
 
-export const pushConfigurationGetTenantPushConfig = <ThrowOnError extends boolean = true>(options?: Options<PushConfigurationGetTenantPushConfigData, ThrowOnError>): RequestResult<PushConfigurationGetTenantPushConfigResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<PushConfigurationGetTenantPushConfigResponses, unknown, ThrowOnError, 'data'>({
+export const pushConfigurationGetTenantPushConfig = <ThrowOnError extends boolean = true>(options?: Options<PushConfigurationGetTenantPushConfigData, ThrowOnError>): RequestResult<PushConfigurationGetTenantPushConfigResponses, PushConfigurationGetTenantPushConfigErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<PushConfigurationGetTenantPushConfigResponses, PushConfigurationGetTenantPushConfigErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/admin/push/config',
@@ -1400,7 +1400,7 @@ export const pushConfigurationSetTenantPushEnabled = <ThrowOnError extends boole
     }
 });
 
-export const pushConfigurationRemoveTenantPushConfig = <ThrowOnError extends boolean = true>(options: Options<PushConfigurationRemoveTenantPushConfigData, ThrowOnError>): RequestResult<PushConfigurationRemoveTenantPushConfigResponses, unknown, ThrowOnError, 'data'> => (options.client ?? client).delete<PushConfigurationRemoveTenantPushConfigResponses, unknown, ThrowOnError, 'data'>({
+export const pushConfigurationRemoveTenantPushConfig = <ThrowOnError extends boolean = true>(options: Options<PushConfigurationRemoveTenantPushConfigData, ThrowOnError>): RequestResult<PushConfigurationRemoveTenantPushConfigResponses, PushConfigurationRemoveTenantPushConfigErrors, ThrowOnError, 'data'> => (options.client ?? client).delete<PushConfigurationRemoveTenantPushConfigResponses, PushConfigurationRemoveTenantPushConfigErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/admin/push/config/{platform}',
@@ -1596,7 +1596,7 @@ export const storageGetPresignedDownloadUrl = <ThrowOnError extends boolean = tr
     ...options
 });
 
-export const storageSettingsGetConfig = <ThrowOnError extends boolean = true>(options?: Options<StorageSettingsGetConfigData, ThrowOnError>): RequestResult<StorageSettingsGetConfigResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<StorageSettingsGetConfigResponses, unknown, ThrowOnError, 'data'>({
+export const storageSettingsGetConfig = <ThrowOnError extends boolean = true>(options?: Options<StorageSettingsGetConfigData, ThrowOnError>): RequestResult<StorageSettingsGetConfigResponses, StorageSettingsGetConfigErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<StorageSettingsGetConfigResponses, StorageSettingsGetConfigErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/storage/config',
@@ -1610,7 +1610,7 @@ export const storageSettingsDeleteTenantSetting = <ThrowOnError extends boolean 
     ...options
 });
 
-export const storageSettingsGetTenantSettings = <ThrowOnError extends boolean = true>(options?: Options<StorageSettingsGetTenantSettingsData, ThrowOnError>): RequestResult<StorageSettingsGetTenantSettingsResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<StorageSettingsGetTenantSettingsResponses, unknown, ThrowOnError, 'data'>({
+export const storageSettingsGetTenantSettings = <ThrowOnError extends boolean = true>(options?: Options<StorageSettingsGetTenantSettingsData, ThrowOnError>): RequestResult<StorageSettingsGetTenantSettingsResponses, StorageSettingsGetTenantSettingsErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<StorageSettingsGetTenantSettingsResponses, StorageSettingsGetTenantSettingsErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/storage/settings/tenant',
@@ -1635,7 +1635,7 @@ export const storageSettingsDeleteUserSetting = <ThrowOnError extends boolean = 
     ...options
 });
 
-export const storageSettingsGetUserSettings = <ThrowOnError extends boolean = true>(options?: Options<StorageSettingsGetUserSettingsData, ThrowOnError>): RequestResult<StorageSettingsGetUserSettingsResponses, unknown, ThrowOnError, 'data'> => (options?.client ?? client).get<StorageSettingsGetUserSettingsResponses, unknown, ThrowOnError, 'data'>({
+export const storageSettingsGetUserSettings = <ThrowOnError extends boolean = true>(options?: Options<StorageSettingsGetUserSettingsData, ThrowOnError>): RequestResult<StorageSettingsGetUserSettingsResponses, StorageSettingsGetUserSettingsErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<StorageSettingsGetUserSettingsResponses, StorageSettingsGetUserSettingsErrors, ThrowOnError, 'data'>({
     responseStyle: 'data',
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/storage/settings/user',

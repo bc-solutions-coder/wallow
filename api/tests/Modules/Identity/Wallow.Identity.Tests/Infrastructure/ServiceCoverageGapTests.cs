@@ -1,3 +1,5 @@
+using Wallow.Shared.Infrastructure.RateLimiting;
+
 #pragma warning disable CA2012 // Use ValueTasks correctly - NSubstitute requires ValueTask in Returns()
 
 using System.Text.Json;
@@ -9,14 +11,15 @@ using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using OpenIddict.Abstractions;
 using StackExchange.Redis;
-using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Errors;
 using Wallow.Identity.Infrastructure.Options;
 using Wallow.Identity.Infrastructure.Persistence;
 using Wallow.Identity.Infrastructure.Services;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
+using Wallow.Shared.Kernel.Results;
 using Wolverine;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
@@ -412,7 +415,7 @@ public sealed class PasswordlessServiceAdditionalGapTests
             MagicLinkTtl = TimeSpan.FromMinutes(10),
             OtpTtl = TimeSpan.FromMinutes(5)
         };
-        _sut = new PasswordlessService(mux, _messageBus, _userManager, dp, Options.Create(opts), NullLogger<PasswordlessService>.Instance);
+        _sut = new PasswordlessService(mux, _messageBus, _userManager, dp, Options.Create(opts), NullLogger<PasswordlessService>.Instance, new RedisFixedWindowCounter(mux));
     }
 
     [Fact]
@@ -470,10 +473,10 @@ public sealed class PasswordlessServiceAdditionalGapTests
             // Token exists but Redis returns empty (expired)
             _redis.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>()).Returns(RedisValue.Null);
 
-            PasswordlessResult result = await _sut.ValidateMagicLinkAsync(capturedToken, CancellationToken.None);
+            Result<string> result = await _sut.ValidateMagicLinkAsync(capturedToken, CancellationToken.None);
 
-            result.Succeeded.Should().BeFalse();
-            result.Error.Should().Be("Token expired or already used.");
+            result.IsFailure.Should().BeTrue();
+            result.Error.Code.Should().Be(IdentityErrors.AuthTokenExpired.Code);
         }
     }
 

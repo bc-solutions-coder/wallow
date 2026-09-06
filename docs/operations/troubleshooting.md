@@ -186,8 +186,9 @@ For production with TLS:
 
 #### Symptom
 On a fresh deployment, nearly every request answers `503 Service Unavailable` as
-`application/problem+json` titled "First-run setup is required." — even though every container is
-healthy. Only `/v1/identity/setup`, `/health`, `/.well-known`, `/connect`, `/openapi`, and
+`application/problem+json` whose `code` is `Setup.Required` — even though every container is
+healthy. The `title` and `detail` are the generic 5xx wording; only the `code` distinguishes the
+setup lock from a real outage. Only `/v1/identity/setup`, `/health`, `/.well-known`, `/connect`, `/openapi`, and
 `/scalar` respond normally.
 
 #### Cause
@@ -286,10 +287,12 @@ that carry no per-client value — see the
 ```
 403 Forbidden
 {
-  "type": "https://tools.ietf.org/html/rfc7231#section-6.5.3",
+  "type": "about:blank",
   "title": "Forbidden",
   "status": 403,
-  "detail": "User does not have required permission: Announcements.AnnouncementsCreate"
+  "detail": "The authenticated identity lacks the permission this resource requires.",
+  "code": "Auth.Forbidden",
+  "traceId": "00-abc123def456...-01"
 }
 ```
 

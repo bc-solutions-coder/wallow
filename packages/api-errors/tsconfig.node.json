@@ -1,0 +1,11 @@
+{
+  // The Node-flavoured half of `pnpm typecheck`: the specs and the build and
+  // generator configs, which reach @bc-solutions-coder/config and
+  // @hey-api/openapi-ts. None of these is in `exports`, so letting them see
+  // Node costs the charter nothing.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["src/**/*.test.ts", "openapi-ts.config.ts", "vite.config.ts", "vitest.config.ts"]
+}

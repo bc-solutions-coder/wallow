@@ -1,9 +1,16 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "ignore": ["packages/lint/fixtures/**", "packages/sdk/src/generated/**", "scripts/fork-smoke/**"],
+  "ignore": [
+    ".agents/skills/**",
+    "packages/api-errors/src/generated/**",
+    "packages/lint/fixtures/**",
+    "packages/sdk/src/generated/**",
+    "scripts/fork-smoke/**"
+  ],
   "workspaces": {
     ".": {
-      "ignoreDependencies": ["@arethetypeswrong/cli", "publint"]
+      "ignoreDependencies": ["@arethetypeswrong/cli", "publint"],
+      "entry": ["scripts/external-consumer.mjs"]
     },
     "apps/*": {
       "entry": [

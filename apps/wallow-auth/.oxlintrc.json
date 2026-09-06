@@ -115,7 +115,7 @@
                   "unwrap",
                   "wireSsrCookieInterceptor"
                 ],
-                "message": "Deleted with the module-global client. Build a per-request instance with createWallowSdk({ baseUrl }) and pass { client: sdk.client } to the generated operations; errors already arrive as WallowError, so nothing needs unwrapping."
+                "message": "Deleted with the module-global client. Build a per-request instance with createWallowSdk({ baseUrl }) and pass { client: sdk.client } to the generated operations; errors already arrive as ApiFailure, so nothing needs unwrapping."
               },
               {
                 "name": "@tanstack/react-query",

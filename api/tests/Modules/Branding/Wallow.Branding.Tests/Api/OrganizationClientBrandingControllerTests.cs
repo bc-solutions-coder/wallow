@@ -181,7 +181,7 @@ public sealed class OrganizationClientBrandingControllerTests
         ActionResult<ClientBrandingDto> result = await _sut.UpsertBranding(
             _orgId, ClientId, Request(displayName: "  "), null, CancellationToken.None);
 
-        result.Result.Should().BeOfType<ObjectResult>()
+        result.Result.Should().BeAssignableTo<ObjectResult>()
             .Which.Value.Should().BeOfType<ValidationProblemDetails>();
     }
 
@@ -194,7 +194,7 @@ public sealed class OrganizationClientBrandingControllerTests
         ActionResult<ClientBrandingDto> result = await _sut.UpsertBranding(
             _orgId, ClientId, Request(displayName: displayName), null, CancellationToken.None);
 
-        ValidationProblemDetails problem = result.Result.Should().BeOfType<ObjectResult>()
+        ValidationProblemDetails problem = result.Result.Should().BeAssignableTo<ObjectResult>()
             .Which.Value.Should().BeOfType<ValidationProblemDetails>().Subject;
         problem.Errors.Should().ContainKey("DisplayName");
         _repository.DidNotReceive().Add(Arg.Any<ClientBranding>());
@@ -208,7 +208,7 @@ public sealed class OrganizationClientBrandingControllerTests
         ActionResult<ClientBrandingDto> result = await _sut.UpsertBranding(
             _orgId, ClientId, Request(), logo, CancellationToken.None);
 
-        result.Result.Should().BeOfType<ObjectResult>()
+        result.Result.Should().BeAssignableTo<ObjectResult>()
             .Which.Value.Should().BeOfType<ValidationProblemDetails>()
             .Which.Errors.Should().ContainKey("logo");
     }
@@ -221,7 +221,7 @@ public sealed class OrganizationClientBrandingControllerTests
         ActionResult<ClientBrandingDto> result = await _sut.UpsertBranding(
             _orgId, ClientId, Request(), logo, CancellationToken.None);
 
-        result.Result.Should().BeOfType<ObjectResult>()
+        result.Result.Should().BeAssignableTo<ObjectResult>()
             .Which.Value.Should().BeOfType<ValidationProblemDetails>()
             .Which.Errors.Should().ContainKey("logo");
     }
@@ -238,7 +238,7 @@ public sealed class OrganizationClientBrandingControllerTests
         ActionResult<ClientBrandingDto> result = await _sut.UpsertBranding(
             _orgId, ClientId, Request(), logo, CancellationToken.None);
 
-        result.Result.Should().BeOfType<ObjectResult>()
+        result.Result.Should().BeAssignableTo<ObjectResult>()
             .Which.Value.Should().BeOfType<ValidationProblemDetails>()
             .Which.Errors.Should().ContainKey("logo");
     }
@@ -254,7 +254,7 @@ public sealed class OrganizationClientBrandingControllerTests
         ActionResult<ClientBrandingDto> result = await _sut.UpsertBranding(
             _orgId, ClientId, Request(themeJson: themeJson), null, CancellationToken.None);
 
-        result.Result.Should().BeOfType<ObjectResult>()
+        result.Result.Should().BeAssignableTo<ObjectResult>()
             .Which.Value.Should().BeOfType<ValidationProblemDetails>()
             .Which.Errors.Should().ContainKey("ThemeJson");
     }

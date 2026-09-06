@@ -19,14 +19,14 @@
  * `organization-member-remove` (per-row remove).
  */
 import { asString } from "@bc-solutions-coder/utils/guards";
-import { AppForm, errorText, FormError, SubmitButton, useAppForm } from "@bc-solutions-coder/forms";
+import { AppForm, FormError, SubmitButton, useAppForm } from "@bc-solutions-coder/forms";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@bc-solutions-coder/query";
 import type { UserDto, WallowSdk } from "@bc-solutions-coder/sdk";
 import {
   Autocomplete,
   Button,
   EmptyState,
-  ErrorBanner,
+  FailureBanner,
   Field,
   ListCard,
   ListRow,
@@ -90,9 +90,10 @@ export function MemberList(props: { orgId: string }) {
   const { orgId } = props;
   const { sdk } = useRouteContext({ from: "__root__" });
   const queryClient = useQueryClient();
-  const { data, isPending, isError, error } = useQuery(
+  const { data, isPending, isError, error, refetch } = useQuery(
     organizationsGetMembersOptions({ client: sdk.client, path: { id: orgId } }),
   );
+  // A refused removal is the toast's to show; the table carries no surface for it.
   const removeMember = useMutation({
     ...organizationsRemoveMemberMutation({ client: sdk.client }),
     onSuccess: (): void => {
@@ -120,6 +121,7 @@ export function MemberList(props: { orgId: string }) {
         isPending={isPending}
         isError={isError}
         error={error}
+        onRetry={refetch}
         onRemove={(userId) => {
           removeMember.mutate({ path: { id: orgId, userId } });
         }}
@@ -138,9 +140,10 @@ function MembersRegion(props: {
   isPending: boolean;
   isError: boolean;
   error: unknown;
+  onRetry: () => void;
   onRemove: (userId: string) => void;
 }): ReactNode {
-  const { members, isPending, isError, error, onRemove } = props;
+  const { members, isPending, isError, error, onRetry, onRemove } = props;
 
   if (isPending) {
     return (
@@ -154,9 +157,7 @@ function MembersRegion(props: {
   // background refetch would replace a real membership list with a banner.
   if (isError && members === undefined) {
     return (
-      <ErrorBanner data-testid="organization-members-error">
-        {errorText(error, "Could not load the members.")}
-      </ErrorBanner>
+      <FailureBanner data-testid="organization-members-error" error={error} onRetry={onRetry} />
     );
   }
 

@@ -1,5 +1,6 @@
 import { expectNavigationEscape } from "@bc-solutions-coder/testing/navigation-escape";
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+import { FailureMessagesProvider } from "@bc-solutions-coder/ui";
 import {
   createPassthroughHarness,
   PASSTHROUGH_HARNESS_BASE_URL,
@@ -11,6 +12,7 @@ import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Route as mfaEnrollRoute } from "@app/routes/mfa/enroll";
+import { failureMessages } from "@shared/lib/failure-messages";
 import { MfaEnrollForm } from "./MfaEnrollForm";
 
 /**
@@ -51,6 +53,7 @@ const EXCHANGE_ENDPOINT = "/v1/identity/mfa/enroll/exchange-token";
 
 const OK = 200;
 const BAD_REQUEST = 400;
+const NOT_FOUND = 404;
 const UNAUTHORIZED = 401;
 const SERVER_ERROR = 500;
 
@@ -69,16 +72,44 @@ const okConfirm: EndpointResponder = () =>
 const okExchange: EndpointResponder = () => Response.json({ succeeded: true }, { status: OK });
 
 /**
- * A failure carrying NO reason at all, only the status — what binds the STATUS fallback, which
- * must survive because `.code` is not a guaranteed-stable token.
+ * A failure carrying NO problem body at all, only the status — what the model reads as
+ * `Client.UnrecognizedResponse` and words as the server's fault, whatever the status.
  */
 function failWithStatus(status: number): EndpointResponder {
   return () => Response.json({}, { status });
 }
 
-/** A failure in the shape the endpoint really writes: a bare body whose `error` is the token. */
-function failWithCode(status: number, code: string): EndpointResponder {
-  return () => Response.json({ succeeded: false, error: code }, { status });
+/**
+ * A refusal as the endpoints write it: RFC 7807 problem details with the catalog code under
+ * `code` and its user-safe sentence under `detail`. `title` stays "Unknown error" so a screen
+ * echoing the reason phrase is caught.
+ */
+function failWithCode(status: number, code: string, detail?: string): EndpointResponder {
+  return () =>
+    Response.json(
+      {
+        type: "about:blank",
+        title: "Unknown error",
+        status,
+        code,
+        ...(detail === undefined ? {} : { detail }),
+      },
+      { status },
+    );
+}
+
+/** 401 `Mfa.SessionMissing`, as both `enroll/totp` and `enroll/confirm` write it. */
+function failWithoutSession(status: number): EndpointResponder {
+  return failWithCode(
+    status,
+    "Mfa.SessionMissing",
+    "Start signing in again to continue with multi-factor authentication.",
+  );
+}
+
+/** 400 `Mfa.CodeInvalid`: the code was wrong. */
+function failWithBadCode(): EndpointResponder {
+  return failWithCode(BAD_REQUEST, "Mfa.CodeInvalid", "The verification code is incorrect.");
 }
 
 /** Answer `first` once, then `rest` forever. */
@@ -149,7 +180,12 @@ function relative(url: URL): string {
 let harness: SdkHarness;
 
 function renderWithClient(ui: ReactElement) {
-  return renderWithWallow(ui, { harness });
+  return renderWithWallow(ui, { harness, wrap: withRegistry });
+}
+
+/** The app registry the root mounts, so the expired hand-off link reads its sentence. */
+function withRegistry(tree: ReactElement): ReactElement {
+  return <FailureMessagesProvider registry={failureMessages}>{tree}</FailureMessagesProvider>;
 }
 
 function renderForm(props: { returnUrl?: string; enrollToken?: string } = {}) {
@@ -332,11 +368,13 @@ describe("MfaEnrollForm — when enrollment cannot start", () => {
   });
 
   it("says the session is gone rather than telling the user to retry", async () => {
-    // `enroll/totp` has exactly one 401, `no_auth_session`, so the status is unambiguous.
-    program({ totp: failWithCode(UNAUTHORIZED, "no_auth_session") });
+    // `enroll/totp` has exactly one 401, `Mfa.SessionMissing`, and its detail is the copy.
+    program({ totp: failWithoutSession(UNAUTHORIZED) });
     renderForm();
 
-    await expect.element(page.getByTestId("mfa-enroll-error")).toHaveTextContent(/sign in/iu);
+    await expect
+      .element(page.getByTestId("mfa-enroll-error"))
+      .toHaveTextContent(/signing in again/iu);
   });
 
   it("offers begin-setup as the way back", async () => {
@@ -523,8 +561,9 @@ describe("MfaEnrollForm — a confirmed code", () => {
 });
 
 describe("MfaEnrollForm — a rejected code", () => {
-  it("tells the user the verification code was wrong on a 400", async () => {
-    // Reached by STATUS: this failure carries no reason token at all, which binds the fallback.
+  it("does not blame the code on a 400 that carries no problem body", async () => {
+    // Nothing to read: the model calls a body it cannot parse `Client.UnrecognizedResponse`
+    // and words it as the server's fault. The screen must not guess the code was wrong.
     program({ confirm: failWithStatus(BAD_REQUEST) });
     const user = userEvent.setup();
     renderForm();
@@ -532,25 +571,27 @@ describe("MfaEnrollForm — a rejected code", () => {
 
     await submitCode(user);
 
-    await expect
-      .element(page.getByTestId("mfa-enroll-error"))
-      .toHaveTextContent(/invalid verification code/iu);
+    const error = page.getByTestId("mfa-enroll-error");
+    await expect.element(error).toHaveTextContent(/something went wrong on our side/iu);
+    await expect.element(error).not.toHaveTextContent(/incorrect/iu);
   });
 
-  it("says the session is gone on a 401 rather than blaming the code", async () => {
-    // `no_auth_session` is the ONLY 401 `enroll/confirm` emits, so telling this user their code
-    // was invalid sends them to retype a code that can never work.
-    program({ confirm: failWithStatus(UNAUTHORIZED) });
+  it("says the session is gone on Mfa.SessionMissing rather than blaming the code", async () => {
+    // `Mfa.SessionMissing` is the ONLY 401 `enroll/confirm` emits, so telling this user their
+    // code was invalid sends them to retype a code that can never work.
+    program({ confirm: failWithoutSession(UNAUTHORIZED) });
     const user = userEvent.setup();
     renderForm();
     await waitForSecret();
 
     await submitCode(user);
 
-    await expect.element(page.getByTestId("mfa-enroll-error")).toHaveTextContent(/sign in/iu);
+    const error = page.getByTestId("mfa-enroll-error");
+    await expect.element(error).toHaveTextContent(/signing in again/iu);
+    await expect.element(error).not.toHaveTextContent(/incorrect/iu);
   });
 
-  it("falls back to the generic message on an unrecognised status", async () => {
+  it("reads the model's server-fault copy on a 5xx", async () => {
     program({ confirm: failWithStatus(SERVER_ERROR) });
     const user = userEvent.setup();
     renderForm();
@@ -558,16 +599,14 @@ describe("MfaEnrollForm — a rejected code", () => {
 
     await submitCode(user);
 
-    await expect.element(page.getByTestId("mfa-enroll-error")).toHaveTextContent(/try again/iu);
-    await expect
-      .element(page.getByTestId("mfa-enroll-error"))
-      .not.toHaveTextContent(/invalid verification code/iu);
+    const error = page.getByTestId("mfa-enroll-error");
+    await expect.element(error).toHaveTextContent(/something went wrong on our side/iu);
+    await expect.element(error).not.toHaveTextContent(/incorrect/iu);
   });
 
-  it("falls back to the generic message when the failure names no status", async () => {
+  it("tells the user the server is unreachable when the request never lands", async () => {
     // The transport throws before a response exists, so there is no status anywhere. Narrowing
-    // has to be STRUCTURAL — a screen may not `instanceof WallowError`, since it need not
-    // import the SDK.
+    // is STRUCTURAL — a screen matches on the wire shape, never `instanceof ApiFailure`.
     program({
       confirm: () => {
         throw new TypeError("Failed to fetch");
@@ -579,12 +618,13 @@ describe("MfaEnrollForm — a rejected code", () => {
 
     await submitCode(user);
 
-    await expect.element(page.getByTestId("mfa-enroll-error")).toHaveTextContent(/try again/iu);
+    await expect
+      .element(page.getByTestId("mfa-enroll-error"))
+      .toHaveTextContent(/unable to reach the server/iu);
   });
 
-  it("never leaks a raw rejection or a machine reason token into the page", async () => {
-    // The screen holds the API's machine token; none of them is a message for a human.
-    program({ confirm: failWithCode(BAD_REQUEST, "invalid_code") });
+  it("never leaks the reason phrase or a machine code into the page", async () => {
+    program({ confirm: failWithBadCode() });
     const user = userEvent.setup();
     renderForm();
     await waitForSecret();
@@ -595,14 +635,14 @@ describe("MfaEnrollForm — a rejected code", () => {
     await expect.element(error).toBeInTheDocument();
     await expect
       .element(error)
-      .not.toHaveTextContent(/invalid_code|no_auth_session|update_failed/u);
+      .not.toHaveTextContent(/Mfa\.(?:CodeInvalid|SessionMissing|UpdateFailed)/u);
     await expect.element(error).not.toHaveTextContent(/UNKNOWN|Unknown error/u);
   });
 
   it("leaves the form up so the user can retype the code", async () => {
     // The TOTP window rolls every 30 seconds, so the common cause of a rejected code is a
     // stale one and the next attempt succeeds.
-    program({ confirm: failWithCode(BAD_REQUEST, "invalid_code") });
+    program({ confirm: failWithBadCode() });
     const user = userEvent.setup();
     renderForm();
     await waitForSecret();
@@ -618,7 +658,7 @@ describe("MfaEnrollForm — a rejected code", () => {
   it("keeps the same secret across a retry", async () => {
     // The QR the user already scanned is bound to THIS secret. Re-enrolling behind
     // their back would silently invalidate the authenticator entry they just made.
-    program({ confirm: once(failWithCode(BAD_REQUEST, "invalid_code"), okConfirm) });
+    program({ confirm: once(failWithBadCode(), okConfirm) });
     const user = userEvent.setup();
     renderForm();
     await waitForSecret();
@@ -636,7 +676,7 @@ describe("MfaEnrollForm — a rejected code", () => {
   });
 
   it("clears the error once a later attempt succeeds", async () => {
-    program({ confirm: once(failWithCode(BAD_REQUEST, "invalid_code"), okConfirm) });
+    program({ confirm: once(failWithBadCode(), okConfirm) });
     const user = userEvent.setup();
     renderForm();
     await waitForSecret();
@@ -651,14 +691,14 @@ describe("MfaEnrollForm — a rejected code", () => {
 });
 
 /**
- * The token-keyed half of the error mapping, which the status-only fixtures above cannot reach:
- * `user_not_found` and `update_failed` are server-side write failures sharing their 400 with
- * `invalid_code`, so the status alone can only tell a user whose account write failed to retype
- * a code that was already correct. An unrecognised token still falls through to the status rule.
+ * The code-keyed half of the copy, which the body-less fixtures above cannot reach:
+ * `Mfa.UpdateFailed` and `Identity.UserNotFound` are server-side write failures, and telling
+ * that user to retype a code that was already correct is a loop they cannot escape. Each code's
+ * sentence comes from the catalog's `detail` or the app registry, never from this screen.
  */
-describe("MfaEnrollForm — the reason token the API sends", () => {
-  it("blames the code when the API says invalid_code", async () => {
-    program({ confirm: failWithCode(BAD_REQUEST, "invalid_code") });
+describe("MfaEnrollForm — the catalog code the API sends", () => {
+  it("blames the code when the API says Mfa.CodeInvalid", async () => {
+    program({ confirm: failWithBadCode() });
     const user = userEvent.setup();
     renderForm();
     await waitForSecret();
@@ -667,12 +707,14 @@ describe("MfaEnrollForm — the reason token the API sends", () => {
 
     await expect
       .element(page.getByTestId("mfa-enroll-error"))
-      .toHaveTextContent(/invalid verification code/iu);
+      .toHaveTextContent(/verification code is incorrect/iu);
   });
 
   it("does NOT blame the code when the write failed rather than the code", async () => {
-    // The user's code was fine, so telling them to retype it is a loop they cannot escape.
-    program({ confirm: failWithCode(BAD_REQUEST, "update_failed") });
+    // The user's code was fine; the settings write fell over on the server.
+    program({
+      confirm: failWithCode(SERVER_ERROR, "Mfa.UpdateFailed", "The settings could not be saved."),
+    });
     const user = userEvent.setup();
     renderForm();
     await waitForSecret();
@@ -680,13 +722,13 @@ describe("MfaEnrollForm — the reason token the API sends", () => {
     await submitCode(user);
 
     const error = page.getByTestId("mfa-enroll-error");
-    await expect.element(error).toHaveTextContent(/try again/iu);
-    await expect.element(error).not.toHaveTextContent(/invalid verification code/iu);
+    await expect.element(error).toHaveTextContent(/something went wrong on our side/iu);
+    await expect.element(error).not.toHaveTextContent(/incorrect/iu);
   });
 
   it("does NOT blame the code when the user vanished mid-flow", async () => {
-    // The other should-never-happen 400.
-    program({ confirm: failWithCode(BAD_REQUEST, "user_not_found") });
+    // The other should-never-happen refusal: the catalog's own sentence stands.
+    program({ confirm: failWithCode(NOT_FOUND, "Identity.UserNotFound", "User not found.") });
     const user = userEvent.setup();
     renderForm();
     await waitForSecret();
@@ -694,36 +736,47 @@ describe("MfaEnrollForm — the reason token the API sends", () => {
     await submitCode(user);
 
     const error = page.getByTestId("mfa-enroll-error");
-    await expect.element(error).toHaveTextContent(/try again/iu);
-    await expect.element(error).not.toHaveTextContent(/invalid verification code/iu);
+    await expect.element(error).toHaveTextContent(/user not found/iu);
+    await expect.element(error).not.toHaveTextContent(/incorrect/iu);
   });
 
-  it("names the session on no_auth_session even when no status rides along", async () => {
-    // Keyed on the TOKEN, not the status: every response over a real transport has one, so the
-    // way to isolate the token is a status whose fallback says something ELSE. A 400 maps to
-    // "invalid verification code" on status alone, so only the token yields this message.
-    program({ confirm: failWithCode(BAD_REQUEST, "no_auth_session") });
+  it("names the session on Mfa.SessionMissing whatever status rides along", async () => {
+    // Keyed on the CODE, not the status: a 400 with no body is worded as a server fault,
+    // so only the code can yield the session sentence here.
+    program({ confirm: failWithoutSession(BAD_REQUEST) });
     const user = userEvent.setup();
     renderForm();
     await waitForSecret();
 
     await submitCode(user);
 
-    await expect.element(page.getByTestId("mfa-enroll-error")).toHaveTextContent(/sign in/iu);
+    await expect
+      .element(page.getByTestId("mfa-enroll-error"))
+      .toHaveTextContent(/signing in again/iu);
   });
 
   it("names the expired LINK, not the session, when the token exchange is refused", async () => {
     // The user's fix is to start setup again from the app that linked them here, which a
-    // generic "try again" would not tell them.
-    program({ exchange: failWithCode(BAD_REQUEST, "invalid_or_expired_token") });
+    // generic "try again" would not tell them. The sentence is the app registry's.
+    program({
+      exchange: failWithCode(
+        BAD_REQUEST,
+        "Mfa.EnrollmentTokenInvalid",
+        "The enrollment token is invalid or has expired.",
+      ),
+    });
     renderForm({ enrollToken: ENROLL_TOKEN });
 
-    await expect.element(page.getByTestId("mfa-enroll-error")).toHaveTextContent(/expired/iu);
+    await expect
+      .element(page.getByTestId("mfa-enroll-error"))
+      .toHaveTextContent(/enrollment link has expired/iu);
     expect(callsTo(TOTP_ENDPOINT)).toHaveLength(0);
   });
 
-  it("still never renders the raw token, whatever the API sends", async () => {
-    program({ confirm: failWithCode(BAD_REQUEST, "update_failed") });
+  it("still never renders the machine code, whatever the API sends", async () => {
+    program({
+      confirm: failWithCode(SERVER_ERROR, "Mfa.UpdateFailed", "The settings could not be saved."),
+    });
     const user = userEvent.setup();
     renderForm();
     await waitForSecret();
@@ -735,7 +788,7 @@ describe("MfaEnrollForm — the reason token the API sends", () => {
     await expect
       .element(error)
       .not.toHaveTextContent(
-        /invalid_code|no_auth_session|update_failed|user_not_found|invalid_or_expired_token/u,
+        /Mfa\.(?:CodeInvalid|SessionMissing|UpdateFailed|EnrollmentTokenInvalid)|Identity\.UserNotFound/u,
       );
   });
 });

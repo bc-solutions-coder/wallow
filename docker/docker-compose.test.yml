@@ -176,6 +176,13 @@ services:
       ServiceUrls__ApiUrl: "http://localhost:${E2E_API_PORT:-5050}"
       # Fix OIDC issuer so browser-facing tokens match the authority clients expect (localhost)
       OpenIddict__Issuer: "http://localhost:${E2E_API_PORT:-5050}"
+      # appsettings.Development.json lifts the passwordless throttle to 1000 sends per
+      # window so local dev never trips it; the auth suite's failure-copy spec has to
+      # trip it, and 1000 sends per test is not a test. The spec loops to the first 429
+      # rather than to this number, so the cap only has to be small; ten leaves the
+      # otp-login and magic-link specs, which each send once to the seeded admin, room
+      # for several reruns against a kept stack inside one fifteen-minute window.
+      Passwordless__RateLimitMaxRequests: "10"
     tmpfs:
       - /tmp
       - /app/App_Data

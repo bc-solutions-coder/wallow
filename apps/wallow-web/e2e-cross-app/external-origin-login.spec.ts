@@ -1,5 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 
+import { ADMIN_EMAIL, fillLoginForm } from "./sign-in";
+
 /** What the external origin's own `/bff/user` answers once its BFF session is gone. */
 const UNAUTHENTICATED_STATUS = 401;
 /** What `POST /contact` answers when the service-account inquiry landed. */
@@ -18,9 +20,6 @@ const ERROR_PAGE_SETTLE_MS = 1000;
  * specifically.
  */
 const BFF_EXAMPLE_ORIGIN = process.env.E2E_BFF_EXAMPLE_URL ?? "http://localhost:3003";
-
-const ADMIN_EMAIL = process.env.E2E_USER ?? "admin@wallow.dev";
-const ADMIN_PASSWORD = process.env.E2E_PASSWORD ?? "Admin123!";
 
 /**
  * BACKEND + CROSS-APP dependent (issue #151 — the acceptance journey for the external-RP
@@ -45,13 +44,6 @@ const ADMIN_PASSWORD = process.env.E2E_PASSWORD ?? "Admin123!";
  * is a third-party client bound to the Wallow organization, so the API routes it through
  * wallow-auth's interactive consent screen with real, seeded scope descriptions.
  */
-async function fillLoginForm(page: Page): Promise<void> {
-  await expect(page.locator("[data-app-ready='true']")).toBeAttached({ timeout: 20_000 });
-  await page.getByTestId("login-email").fill(ADMIN_EMAIL);
-  await page.getByTestId("login-password").fill(ADMIN_PASSWORD);
-  await page.getByTestId("login-submit").click();
-}
-
 /**
  * Drive the external origin's sign-in end to end: minimal-app's `/bff/login` with
  * `returnTo=/` (the home page carries the `bff-*` testids), wallow-auth's login form, the

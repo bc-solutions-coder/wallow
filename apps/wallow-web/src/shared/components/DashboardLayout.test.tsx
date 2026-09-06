@@ -95,6 +95,41 @@ describe.each(modes)("DashboardLayout — $name", (mode: NavMode) => {
     await page.viewport(...mode.viewport);
   });
 
+  it("renders the sidebar at its intended width", async () => {
+    await render(<DashboardLayout />);
+    const nav = page.getByTestId(mode.isMobileNavOpen ? "dashboard-nav-drawer" : "dashboard-nav");
+    await expect
+      .poll(() => nav.element().getBoundingClientRect().width)
+      .toBe(mode.isNavCollapsed ? 64 : 256);
+  });
+
+  it("keeps bottom controls inside the sidebar with space around the separator", async () => {
+    await render(<DashboardLayout />);
+    const nav = page
+      .getByTestId(mode.isMobileNavOpen ? "dashboard-nav-drawer" : "dashboard-nav")
+      .element()
+      .getBoundingClientRect();
+    const theme = page.getByTestId("theme-toggle").element().getBoundingClientRect();
+    const logout = page.getByRole("button", { name: "Sign Out" }).element();
+    const footer = logout.parentElement?.parentElement;
+    if (footer === null || footer === undefined) {
+      throw new Error("Missing footer");
+    }
+    const separator = footer.getBoundingClientRect();
+    const action = logout.getBoundingClientRect();
+    expect(theme.left).toBeGreaterThanOrEqual(nav.left);
+    expect(theme.right).toBeLessThanOrEqual(nav.right);
+    expect(action.right).toBeLessThanOrEqual(nav.right);
+    expect(separator.left).toBe(nav.left);
+    expect(separator.width).toBe(nav.width);
+    expect(separator.top - theme.bottom).toBe(16);
+    expect(action.top - separator.top).toBe(17);
+    if (mode.isNavCollapsed) {
+      expect(theme.left + theme.width / 2).toBe(nav.left + nav.width / 2);
+      expect(action.left + action.width / 2).toBe(nav.left + nav.width / 2);
+    }
+  });
+
   it("reaches every destination by its accessible name", async () => {
     await render(<DashboardLayout />);
 
@@ -177,5 +212,23 @@ describe("DashboardLayout composition", () => {
       outlet.closest('[data-testid="dashboard-nav"]'),
       "the routed content must not be inside the rail",
     ).toBeNull();
+  });
+});
+
+describe("Dashboard sidebar resizing", () => {
+  it("expands again after collapsing without moving over the content", async () => {
+    await page.viewport(...DESKTOP_VIEWPORT);
+    useNavStore.setState({ isNavCollapsed: false, isMobileNavOpen: false });
+    await render(<DashboardLayout />);
+    const nav = page.getByTestId("dashboard-nav");
+    const toggle = page.getByTestId("dashboard-nav-toggle");
+    await expect.poll(() => nav.element().getBoundingClientRect().width).toBe(256);
+    await toggle.click();
+    await expect.poll(() => nav.element().getBoundingClientRect().width).toBe(64);
+    await toggle.click();
+    await expect.poll(() => nav.element().getBoundingClientRect().width).toBe(256);
+    expect(page.getByRole("main").element().getBoundingClientRect().left).toBe(
+      nav.element().getBoundingClientRect().right,
+    );
   });
 });

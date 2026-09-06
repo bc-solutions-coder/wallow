@@ -4,13 +4,12 @@
  * and renders four states: loading, errored, empty, and a list of `inquiry-item`
  * rows, each showing the inquiry's status via `inquiry-item-status`.
  */
-import { errorText } from "@bc-solutions-coder/forms";
 import { useQuery } from "@bc-solutions-coder/query";
 import type { InquiryResponse } from "@bc-solutions-coder/sdk";
 import {
   Badge,
   EmptyState,
-  ErrorBanner,
+  FailureBanner,
   ListCard,
   ListRow,
   MutedText,
@@ -82,7 +81,7 @@ function InquiriesEmptyState() {
 
 export function InquiryList() {
   const { sdk } = useRouteContext({ from: "__root__" });
-  const { data, isPending, isError, error } = useQuery(
+  const { data, isPending, isError, error, refetch } = useQuery(
     inquiriesGetAllOptions({ client: sdk.client }),
   );
 
@@ -97,11 +96,7 @@ export function InquiryList() {
   // The same branch the sibling `InquiryDetail` already ships: error only when
   // there is no cached list, so "we could not ask" never reads as "none yet".
   if (isError && data === undefined) {
-    return (
-      <ErrorBanner data-testid="inquiries-error">
-        {errorText(error, "Could not load inquiries.")}
-      </ErrorBanner>
-    );
+    return <FailureBanner data-testid="inquiries-error" error={error} onRetry={refetch} />;
   }
 
   // No narrowing cast: under `responseStyle: "data"` the generated operation

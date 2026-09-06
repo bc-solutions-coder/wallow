@@ -128,6 +128,7 @@ describe("CreateOrganizationForm on @bc-solutions-coder/forms", () => {
       {
         type: "https://httpstatuses.io/400",
         title: "One or more validation errors occurred.",
+        code: "Validation.Failed",
         status: 400,
         errors: { Name: ["Name must be 3 characters or more."] },
       },
@@ -151,6 +152,7 @@ describe("CreateOrganizationForm on @bc-solutions-coder/forms", () => {
       {
         type: "https://httpstatuses.io/400",
         title: "One or more validation errors occurred.",
+        code: "Validation.Failed",
         status: 400,
         errors: { Name: ["Name must be 3 characters or more."] },
       },

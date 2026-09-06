@@ -1,18 +1,18 @@
 /**
- * Specs for the shared `renderWithWallow` seam (Wallow-pu6a.5.1).
- *
- * BROWSER project — this is the one part of `@bc-solutions-coder/testing` that
- * mounts a real component tree, so it runs in headless Chromium like every other
- * `*.test.tsx` in the repo (`.claude/rules/TESTING.md`: never jsdom).
- *
- * Nothing here mocks anything. The SDK is the real one, built by the harness
- * over a fake transport; the router and query client are real. Assertions are
- * kept off the `{ data, error }` shape of a generated call so Wallow-pu6a.5.2's
- * `throwOnError` flip cannot break this seam's contract.
+ * The shared `renderWithWallow` seam. BROWSER project — the one part of
+ * `@bc-solutions-coder/testing` that mounts a real component tree, so it runs in
+ * headless Chromium like every other `*.test.tsx`. Nothing here mocks anything:
+ * the SDK is the real one over a fake transport; the router and query client
+ * are real. Assertions stay off the `{ data, error }` shape of a generated call.
  */
-import { QueryClient, useQuery } from "@bc-solutions-coder/query";
+import {
+  QueryClient,
+  type UnhandledFailure,
+  useMutation,
+  useQuery,
+} from "@bc-solutions-coder/query";
 import { createRootRoute, createRoute, useRouter } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { createContext, useContext, useEffect } from "react";
 import { page } from "vitest/browser";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -57,6 +57,27 @@ function SdkProbe(): React.ReactElement {
   return <span data-testid="sdk-probe">sent</span>;
 }
 
+/** Fires a mutation that always rejects, carrying whatever meta the spec hands it. */
+function FailingMutationProbe(props: { meta?: Record<string, unknown> }): React.ReactElement {
+  const failing = useMutation({
+    mutationFn: () => Promise.reject(new Error("nope")),
+    ...(props.meta === undefined ? {} : { meta: props.meta }),
+  });
+  useEffect(() => {
+    failing.mutate();
+    // The mutation object is a new reference each render; firing once is the point.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return <span data-testid="mutation-probe">{failing.status}</span>;
+}
+
+const GreetingContext = createContext("unwrapped");
+
+/** Renders whatever a `wrap`-supplied provider put on the context. */
+function WrapProbe(): React.ReactElement {
+  return <span data-testid="wrap-probe">{useContext(GreetingContext)}</span>;
+}
+
 describe("createTestQueryClient", () => {
   it("returns a QueryClient with retries disabled", () => {
     const client = createTestQueryClient();
@@ -70,6 +91,23 @@ describe("createTestQueryClient", () => {
 
   it("returns a fresh client per call so caches never leak between specs", () => {
     expect(createTestQueryClient()).not.toBe(createTestQueryClient());
+  });
+
+  it("reports failures nothing claimed to the caller's onUnhandledFailure", async () => {
+    // The production client's caches, not a bare `QueryClient`: a spec that
+    // leaves a mutation to the toast asserts it here, and one that marks a
+    // mutation handled asserts the callback stays quiet.
+    const unhandled: UnhandledFailure[] = [];
+    const queryClient = createTestQueryClient({
+      onUnhandledFailure: (failure) => {
+        unhandled.push(failure);
+      },
+    });
+
+    renderWithWallow(<FailingMutationProbe />, { harness: createSdkHarness(), queryClient });
+
+    await expect.poll(() => unhandled.length).toBe(1);
+    expect(unhandled[0]?.kind).toBe("mutation");
   });
 });
 
@@ -141,6 +179,33 @@ describe("renderWithWallow", () => {
     await expect.element(page.getByTestId("hello")).toBeInTheDocument();
     expect(result.harness.sdk).toBeDefined();
     expect(result.harness).not.toBe(harness);
+  });
+
+  it("hands unclaimed failures to onUnhandledFailure and leaves handled ones alone", async () => {
+    const unhandled: UnhandledFailure[] = [];
+    const onUnhandledFailure = (failure: UnhandledFailure): void => {
+      unhandled.push(failure);
+    };
+
+    renderWithWallow(<FailingMutationProbe meta={{ failureHandled: true }} />, {
+      harness,
+      onUnhandledFailure,
+    });
+
+    await expect.element(page.getByTestId("mutation-probe")).toHaveTextContent("error");
+    expect(unhandled).toHaveLength(0);
+  });
+
+  it("wraps the tree in caller-supplied providers", async () => {
+    // A registry provider, a theme — anything a screen reads off context that
+    // the seam does not own. It sits inside the query client so the wrapped
+    // tree still sees the cache.
+    renderWithWallow(<WrapProbe />, {
+      harness,
+      wrap: (tree) => <GreetingContext.Provider value="wrapped">{tree}</GreetingContext.Provider>,
+    });
+
+    await expect.element(page.getByTestId("wrap-probe")).toHaveTextContent("wrapped");
   });
 
   it("mounts caller-supplied routes under its throwaway root", async () => {

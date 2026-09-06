@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Infrastructure.Options;
+using Wallow.Shared.Contracts.RateLimiting;
 
 namespace Wallow.Identity.Infrastructure.Services;
 
@@ -14,6 +15,7 @@ namespace Wallow.Identity.Infrastructure.Services;
 /// </summary>
 public sealed partial class InvalidClientLockout(
     IConnectionMultiplexer connectionMultiplexer,
+    IFixedWindowCounter counter,
     IOptions<InvalidClientLockoutOptions> options,
     ILogger<InvalidClientLockout> logger) : IInvalidClientLockout
 {
@@ -26,12 +28,8 @@ public sealed partial class InvalidClientLockout(
         try
         {
             IDatabase redis = connectionMultiplexer.GetDatabase();
-            RedisKey failuresKey = $"{FailuresKeyPrefix}{clientId}";
-            long failures = await redis.StringIncrementAsync(failuresKey);
-            if (failures == 1)
-            {
-                await redis.KeyExpireAsync(failuresKey, TimeSpan.FromMinutes(lockout.WindowMinutes));
-            }
+            string failuresKey = $"{FailuresKeyPrefix}{clientId}";
+            long failures = await counter.IncrementAsync(failuresKey, TimeSpan.FromMinutes(lockout.WindowMinutes));
 
             if (failures >= lockout.FailureThreshold)
             {

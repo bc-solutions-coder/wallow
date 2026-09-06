@@ -1,3 +1,5 @@
+> Historical plan. Failure-handling passages link to the current spec and their original Git revision.
+
 # Testing Guards and Scenario Presets Implementation Plan
 
 **status: completed**
@@ -485,11 +487,8 @@ follow whatever the actual precedent is.)
 
 In the existing spec file's style:
 
-1. `harness.rejectProblem({ fieldErrors: { emailAddress: ["Required"] } })`, then drive a real
-   generated mutation (pick any POST operation the spec file already uses) and catch: the error
-   satisfies `isWallowError`, `status` is 400, and `fieldErrors` carries the key
-   **`EmailAddress`** — PascalCased exactly as FluentValidation emits, so the forms layer's
-   camelCase fold is exercised for real downstream.
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-08-03/1148-testing-guards-implementation.md).
+
 2. `status: 422` and `detail: "No."` come through.
 3. The standalone `problemDetails({...})` builder returns the same body shape, usable inside
    `routeHarness` via `failsWith(problemDetails({...}), 400)`.

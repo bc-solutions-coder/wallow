@@ -153,7 +153,14 @@ describe("OrganizationDetail secret rotation", () => {
   it("keeps the dialog open and shows the error when rotation fails", async () => {
     seed(
       [serviceAccount],
-      failsWith({ title: "Rotation is not allowed right now.", status: 409 }, 409),
+      failsWith(
+        {
+          code: "Identity.ClientRotationRefused",
+          detail: "Rotation is not allowed right now.",
+          status: 409,
+        },
+        409,
+      ),
     );
 
     renderWithWallow(<OrganizationDetail orgId="o1" />, { harness });

@@ -23,6 +23,7 @@ using Wallow.Storage.Application.Queries.GetPresignedUrl;
 using Wallow.Storage.Application.Queries.GetUploadPresignedUrl;
 using Wallow.Storage.Domain.Enums;
 using Wallow.Storage.Domain.Errors;
+using Wallow.Tests.Common.Helpers;
 using Wolverine;
 
 namespace Wallow.Storage.Tests.Api.Controllers;
@@ -51,7 +52,7 @@ public class StorageControllerTests
         ], "TestAuth"));
         _controller.ControllerContext = new ControllerContext
         {
-            HttpContext = new DefaultHttpContext { User = user }
+            HttpContext = new DefaultHttpContext { User = user, RequestServices = ProblemTestServices.Build() }
         };
     }
 
@@ -210,7 +211,7 @@ public class StorageControllerTests
 
         IActionResult result = await _controller.CreateBucket(request, CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status409Conflict);
     }
 
@@ -270,7 +271,7 @@ public class StorageControllerTests
 
         IActionResult result = await _controller.GetBucket("missing-bucket", CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 
@@ -311,7 +312,7 @@ public class StorageControllerTests
 
         IActionResult result = await _controller.DeleteBucket("missing-bucket", cancellationToken: CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 
@@ -349,7 +350,7 @@ public class StorageControllerTests
 
         IActionResult result = await _controller.DeleteBucket("test-bucket", cancellationToken: CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
     }
 
@@ -385,8 +386,9 @@ public class StorageControllerTests
         IActionResult result = await _controller.Upload(file, "test-bucket", cancellationToken: CancellationToken.None);
 
         BadRequestObjectResult badRequest = result.Should().BeOfType<BadRequestObjectResult>().Subject;
-        ProblemDetails problem = badRequest.Value.Should().BeOfType<ProblemDetails>().Subject;
-        problem.Detail.Should().Be("File is empty");
+        ValidationProblemDetails problem = badRequest.Value.Should().BeOfType<ValidationProblemDetails>().Subject;
+        problem.Errors.Should().ContainKey("file")
+            .WhoseValue.Should().ContainSingle().Which.Should().Be("The uploaded file is empty.");
     }
 
     [Fact]
@@ -458,7 +460,7 @@ public class StorageControllerTests
 
         IActionResult result = await _controller.Upload(file, "test-bucket", cancellationToken: CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 
@@ -470,7 +472,7 @@ public class StorageControllerTests
 
         IActionResult result = await _controller.Upload(file, "test-bucket", cancellationToken: CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
     }
 
@@ -509,7 +511,7 @@ public class StorageControllerTests
 
         IActionResult result = await _controller.Upload(file, "test-bucket", cancellationToken: CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
     }
 
@@ -550,7 +552,7 @@ public class StorageControllerTests
 
         IActionResult result = await _controller.GetFile(fileId, CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 
@@ -597,7 +599,7 @@ public class StorageControllerTests
 
         IActionResult result = await _controller.Download(fileId, CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 
@@ -641,7 +643,7 @@ public class StorageControllerTests
 
         IActionResult result = await _controller.Delete(fileId, CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 
@@ -736,7 +738,7 @@ public class StorageControllerTests
 
         IActionResult result = await _controller.ListFiles("missing", cancellationToken: CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 
@@ -830,7 +832,7 @@ public class StorageControllerTests
 
         IActionResult result = await _controller.GetPresignedUploadUrl(request, CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 
@@ -894,7 +896,7 @@ public class StorageControllerTests
 
         IActionResult result = await _controller.GetPresignedDownloadUrl(fileId, cancellationToken: CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 

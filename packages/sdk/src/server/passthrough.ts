@@ -18,8 +18,18 @@
  * It ships from its OWN subpath (`@bc-solutions-coder/sdk/server/passthrough`)
  * so a passthrough-only app never pulls `openid-client` into its server bundle.
  * Nothing in this module may import the BFF handler/proxy graph.
+ *
+ * The two answers it writes itself — a path outside the allowlist, an upstream
+ * it could not reach — are originated problems through the shared
+ * {@link problemResponse}, so the browser reads them like any API failure.
+ * There is deliberately no forward timeout here: the upstream's own timing is
+ * the upstream's business, and a hung request is the host's to bound.
  */
 
+import { ClientErrorCode, ErrorCode } from "@bc-solutions-coder/api-errors";
+
+import { resolveRequestId } from "../request-id";
+import { redact } from "./errors";
 import {
   applyForwardedHeaders,
   resolveClientAddress,
@@ -27,6 +37,7 @@ import {
   type PeerRequest,
   type TrustedProxies,
 } from "./forwarded";
+import { problemResponse } from "./problem";
 
 /**
  * The request shape a host hands {@link ApiPassthrough.handle}: a WHATWG
@@ -118,6 +129,9 @@ export interface ApiPassthrough {
 /** Status answered for a path outside the prefix allowlist. */
 const NOT_FOUND_STATUS = 404;
 
+/** Status answered when the upstream could not be reached. */
+const NETWORK_FAILURE_STATUS = 503;
+
 /** Path separator, also the shortest possible normalized prefix. */
 const ROOT_PATH: string = "/";
 
@@ -165,6 +179,11 @@ function pathMatchesPrefix(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}${ROOT_PATH}`);
 }
 
+/** The message of a thrown value, when it is an `Error` at all. */
+function errorMessage(value: unknown): string | undefined {
+  return value instanceof Error ? value.message : undefined;
+}
+
 /**
  * Build the reverse-proxy passthrough.
  *
@@ -192,7 +211,9 @@ export function createApiPassthrough(options: ApiPassthroughOptions = {}): ApiPa
     handle: async (request: PeerRequest): Promise<Response> => {
       const incoming: URL = new URL(request.url);
       if (!matches(incoming.pathname)) {
-        return new Response(null, { status: NOT_FOUND_STATUS });
+        return problemResponse(NOT_FOUND_STATUS, ErrorCode.HTTP_NOT_FOUND, {
+          requestId: resolveRequestId(request.headers),
+        });
       }
 
       const headers: Headers = new Headers(request.headers);
@@ -213,7 +234,28 @@ export function createApiPassthrough(options: ApiPassthroughOptions = {}): ApiPa
         ...(hasBody ? { body: await request.arrayBuffer() } : {}),
       };
 
-      return fetch(`${apiInternalUrl}${incoming.pathname}${incoming.search}`, init);
+      try {
+        return await fetch(`${apiInternalUrl}${incoming.pathname}${incoming.search}`, init);
+      } catch (error: unknown) {
+        // The transport's message (undici's `fetch failed`, its cause) is for
+        // the log; the browser gets fixed wording under a code it already
+        // knows how to render. The record names the upstream base, not the
+        // request path or query: `/v1/**` carries one-time tokens in both.
+        const requestId: string = resolveRequestId(request.headers);
+        console.warn(
+          "wallow-passthrough: forward failed",
+          redact({
+            upstream: apiInternalUrl,
+            method: request.method,
+            requestId,
+            detail: errorMessage(error),
+            cause: error instanceof Error ? errorMessage(error.cause) : undefined,
+          }),
+        );
+        return problemResponse(NETWORK_FAILURE_STATUS, ClientErrorCode.TRANSPORT_NETWORK_ERROR, {
+          requestId,
+        });
+      }
     },
   };
 }

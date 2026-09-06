@@ -1,5 +1,8 @@
 **status: active**
 
+> Historical plan. Failure-handling passages link to the current spec and their original Git revision.
+
+
 # @bc-solutions-coder/forms Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
@@ -95,8 +98,8 @@ e2e run is the proof both plans compose. Finally remove the worktree
   `{ form: Record<string, StandardSchemaV1Issue[]>, fields: Record<string, StandardSchemaV1Issue[]> }`
   (`FormApi.d.ts:516-517`). **Verify the exact literal accepted by `setErrorMap` against that
   .d.ts before writing Task 8's code** — it is the one API this plan did not exercise.
-- `WallowError` (`packages/sdk/src/errors.ts`) has `status/code/title/detail` only — NO field
-  errors dict. Task 2 adds it.
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-07-29/1030-forms-package-implementation.md).
+
 - Workspace versions to pin against: react `^19.2.7`, `@types/react` `^19.2.17`, vite `^8.1.4`,
   vitest `^4.1.10`, typescript `^5.6.0`, `@vitest/browser-playwright` `^4.1.10`,
   `vitest-browser-react` `^2.2.0`.
@@ -232,18 +235,12 @@ git commit -m "feat(forms): scaffold @bc-solutions-coder/forms package"
 
 ---
 
-## Task 2: SDK — expose RFC 7807 field errors on `WallowError`
-
-The API's validation failures (ASP.NET `ValidationProblemDetails` / FluentValidation) carry an
-`errors` member: `Record<string, string[]>` keyed by property name. `WallowError` drops it today;
-forms needs it for field-level server errors.
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-07-29/1030-forms-package-implementation.md).
 
 **Files:**
 - Modify: `packages/sdk/src/errors.ts`
-- Modify: wherever `new WallowError(` is constructed from a response body — find with
-  `grep -rn "new WallowError" packages/sdk/src` (expect the browser interceptor in
-  `create-sdk.ts` and the server-side `parseProblemDetails` in `src/server/errors.ts`; update
-  every constructor site that has a problem-details body in hand)
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-07-29/1030-forms-package-implementation.md).
+
 - Test: `packages/sdk/src/errors.test.ts` (extend) and the interceptor's existing spec
   (`error-contract.test.ts` — read it first; extend, don't restructure)
 
@@ -251,29 +248,10 @@ forms needs it for field-level server errors.
 
 In `errors.test.ts` — construction carries the dict through:
 
-```ts
-it("carries RFC 7807 validation errors when provided", () => {
-  const error = new WallowError({
-    status: 400,
-    code: "VALIDATION_ERROR",
-    title: "One or more validation errors occurred.",
-    fieldErrors: { Name: ["'Name' must not be empty."], Email: ["Invalid email."] },
-  });
-  expect(error.fieldErrors).toEqual({
-    Name: ["'Name' must not be empty."],
-    Email: ["Invalid email."],
-  });
-});
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-07-29/1030-forms-package-implementation.md).
 
-it("leaves fieldErrors undefined when the problem details had none", () => {
-  const error = new WallowError({ status: 500, code: "UNKNOWN", title: "boom" });
-  expect(error.fieldErrors).toBeUndefined();
-});
-```
 
-In the interceptor spec: feed a problem-details body containing
-`"errors": { "Name": ["'Name' must not be empty."] }` and assert the rejected `WallowError` has
-`fieldErrors.Name`. Mirror however that spec already fakes responses.
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-07-29/1030-forms-package-implementation.md).
 
 **Step 2: Run to verify they fail**
 
@@ -292,9 +270,7 @@ In `errors.ts`, add to the class and the constructor init (keep the existing doc
 readonly fieldErrors?: Readonly<Record<string, readonly string[]>>;
 ```
 
-At each constructor site that parses a problem-details body, pass `errors` through when it is an
-object of string arrays (validate shape defensively — never trust the body). Follow the sdk's
-existing parsing conventions (see the `extensions.code` note in `packages/sdk/CLAUDE.md`).
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-07-29/1030-forms-package-implementation.md).
 
 **Step 4: Run tests, typecheck, rebuild**
 
@@ -757,56 +733,10 @@ git commit -m "feat(forms): add appform shell, submitbutton, formerror"
 
 **Step 1: Failing tests**
 
-`server-error.test.ts` — mapping a `WallowError` (import the real class from
-`@bc-solutions-coder/sdk`; never a hand-rolled duck):
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-07-29/1030-forms-package-implementation.md).
 
-```ts
-import { WallowError } from "@bc-solutions-coder/sdk";
-import { describe, expect, it } from "vitest";
 
-import { splitServerError } from "./server-error";
-
-const KNOWN_FIELDS = ["name", "email"];
-
-describe("splitServerError", () => {
-  it("maps matching field errors (PascalCase from FluentValidation → camelCase field names)", () => {
-    const error = new WallowError({
-      status: 400, code: "VALIDATION_ERROR", title: "Validation failed",
-      fieldErrors: { Name: ["'Name' must not be empty."] },
-    });
-    const result = splitServerError(error, KNOWN_FIELDS, "fallback");
-    expect(result.fieldErrors).toEqual({ name: ["'Name' must not be empty."] });
-    expect(result.formError).toBeNull();
-  });
-
-  it("routes unmatched field names to the form-level error instead of dropping them", () => {
-    const error = new WallowError({
-      status: 400, code: "VALIDATION_ERROR", title: "Validation failed",
-      fieldErrors: { Surprise: ["Nope."] },
-    });
-    const result = splitServerError(error, KNOWN_FIELDS, "fallback");
-    expect(result.fieldErrors).toEqual({});
-    expect(result.formError).toBe("Nope.");
-  });
-
-  it("uses detail for a WallowError without field errors", () => {
-    const error = new WallowError({ status: 409, code: "CONFLICT", title: "Conflict", detail: "Name taken." });
-    expect(splitServerError(error, KNOWN_FIELDS, "fallback").formError).toBe("Name taken.");
-  });
-
-  it("falls back for non-wallow errors", () => {
-    expect(splitServerError(new Error(""), KNOWN_FIELDS, "fallback").formError).toBe("fallback");
-  });
-});
-```
-
-`use-app-form.test.tsx` — a harness component using the real hook + shell (no catalog fields yet;
-submit through the shell). Cover: (a) zod `onSubmit` validation blocks the submit callback;
-(b) a passing submit calls the mutation exactly once with `{ body: values }` (default
-`toVariables`); (c) the no-mutation `onSubmit` path still reports `pending` while the promise is
-in flight; (d) a rejecting mutationFn whose error is a `WallowError` with `detail` surfaces it
-via `FormError`. Use a locally-constructed `QueryClientProvider` (real `@tanstack/react-query`,
-never mocked) around the harness.
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-07-29/1030-forms-package-implementation.md).
 
 **Step 2: Run to verify failure.**
 
@@ -814,50 +744,8 @@ never mocked) around the harness.
 
 `core/server-error.ts`:
 
-```ts
-import { isWallowError } from "@bc-solutions-coder/sdk";
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-07-29/1030-forms-package-implementation.md).
 
-export interface SplitServerError {
-  /** camelCase field name → messages, only for names the form actually has. */
-  readonly fieldErrors: Readonly<Record<string, readonly string[]>>;
-  /** The banner text, or null when everything mapped onto fields. */
-  readonly formError: string | null;
-}
-
-const camel = (name: string): string => name.charAt(0).toLowerCase() + name.slice(1);
-
-/**
- * Splits a failed submit into field-level and form-level surfaces (design §3).
- * Field names arrive as the API's property names (typically PascalCase from
- * FluentValidation); they match the form's camelCase values by case-insensitive
- * first-letter fold. Unmatched entries join the form-level banner rather than
- * vanishing; a WallowError without field errors contributes its RFC 7807 detail;
- * anything unrecognized contributes `fallback`.
- */
-export function splitServerError(
-  error: unknown,
-  knownFields: readonly string[],
-  fallback: string,
-): SplitServerError {
-  if (!isWallowError(error)) {
-    const message = error instanceof Error && error.message !== "" ? error.message : fallback;
-    return { fieldErrors: {}, formError: message };
-  }
-  const matched: Record<string, readonly string[]> = {};
-  const unmatched: string[] = [];
-  for (const [name, messages] of Object.entries(error.fieldErrors ?? {})) {
-    const field = camel(name);
-    if (knownFields.includes(field)) {
-      matched[field] = messages;
-    } else {
-      unmatched.push(...messages);
-    }
-  }
-  const formError =
-    unmatched.length > 0 ? unmatched.join(" ") : Object.keys(matched).length > 0 ? null : (error.detail ?? fallback);
-  return { fieldErrors: matched, formError };
-}
-```
 
 `core/form-hook.tsx`:
 
@@ -881,28 +769,8 @@ export const { useAppForm: useTanstackAppForm, withForm } = createFormHook({
 `form/use-app-form.ts` — the public hook. Shape (fill in the generics against the real
 `UseMutationOptions` and zod types while implementing; keep explicit types per CONVENTIONS):
 
-```ts
-import { useMutation, type UseMutationOptions } from "@tanstack/react-query";
-import { useState } from "react";
-import type { z } from "zod";
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-07-29/1030-forms-package-implementation.md).
 
-import { splitServerError } from "../core/server-error";
-import { useTanstackAppForm } from "../core/form-hook";
-
-export interface UseAppFormOptions<TSchema extends z.ZodType, TVariables, TData> {
-  readonly schema: TSchema;
-  readonly defaultValues: z.input<TSchema>;
-  /** Generated SDK mutation options ({op}Mutation({ client })). Omit for the plain-onSubmit escape hatch. */
-  readonly mutation?: UseMutationOptions<TData, unknown, TVariables>;
-  /** Values → mutation variables. Default: (values) => ({ body: values }). */
-  readonly toVariables?: (values: z.output<TSchema>) => TVariables;
-  /** No-mutation escape hatch (e.g. ForgotPassword's anti-enumeration swallow). Runs through an internal useMutation so pending still works. */
-  readonly onSubmit?: (values: z.output<TSchema>) => Promise<void> | void;
-  readonly onSuccess?: (data: TData) => void;
-  /** Banner text when a failure carries no usable message. */
-  readonly fallbackError?: string;
-}
-```
 
 Implementation outline (all inside the hook, in this order):
 
@@ -913,11 +781,8 @@ Implementation outline (all inside the hook, in this order):
    `options.mutation` is set; identity otherwise) and calls `mutation.mutate(vars, { onSuccess, onError })`
    — fire-and-observe with `mutate`, NEVER awaited `mutateAsync` (the repo's established rule;
    see `CreateInquiryFormFields`' comment).
-3. `onError`: `const split = splitServerError(error, Object.keys(options.defaultValues), fallback)`;
-   store `split.formError` in a `useState`; when `split.fieldErrors` is non-empty, push them onto
-   the form via `form.setErrorMap({ onServer: ... })` — **check the exact accepted literal against
-   `@tanstack/form-core` FormApi.d.ts:496/516** and wrap messages as `[{ message }]` issues.
-   Clear the stored formError at the start of the next submit.
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-07-29/1030-forms-package-implementation.md).
+
 4. Return `Object.assign(form, { wallow: { pending: mutation.isPending, serverError, reset: mutation.reset } })` —
    augmenting the instance is the library's own createFormHook pattern. Type the return as the
    tanstack form type intersected with `{ wallow: WallowFormExtras }`.
@@ -1081,9 +946,7 @@ After the last field: `pnpm --filter @bc-solutions-coder/forms build` and commit
 - Test: `packages/forms/src/index.test.ts` (node — pin the public surface, mirroring ui's
   `PUBLIC_RUNTIME_EXPORTS` pattern in `packages/ui/src/index.test.ts`)
 
-Barrel exports: `useAppForm`, `AppForm`, `SubmitButton`, `FormError`, `withForm`, every catalog
-field component + its props type, `fieldTestId`/`fieldErrorTestId`, `splitServerError`, and the
-option/context types. NOT the raw contexts (`fieldContext` etc.) — internals stay internal.
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-07-29/1030-forms-package-implementation.md).
 
 TDD the surface-pin test, implement the barrel, then:
 

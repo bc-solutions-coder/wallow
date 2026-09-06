@@ -24,12 +24,7 @@
   --bs-secondary-color: oklch(0.25 0.03 45);
   --bs-tertiary-bg: oklch(0.93 0.008 70);
   --bs-tertiary-color: oklch(0.50 0.02 55);
-  --bs-code-color: oklch(0.88 0.035 75);
-  --bs-navbar-brand-color: oklch(0.22 0.035 45);
-  --bs-navbar-brand-hover-color: oklch(0.22 0.035 45);
-  --bs-navbar-color: oklch(0.22 0.035 45);
-  --bs-navbar-hover-color: oklch(0.22 0.035 45);
-  --bs-navbar-active-color: oklch(0.22 0.035 45);
+  --bs-code-color: oklch(0.22 0.035 45);
 }
 
 [data-bs-theme="dark"] {
@@ -53,16 +48,16 @@
   --bs-secondary-color: oklch(0.88 0.015 70);
   --bs-tertiary-bg: oklch(0.28 0.025 45);
   --bs-tertiary-color: oklch(0.60 0.02 55);
-  --bs-code-color: oklch(0.32 0.035 50);
-  --bs-navbar-brand-color: oklch(0.18 0.03 45);
-  --bs-navbar-brand-hover-color: oklch(0.18 0.03 45);
-  --bs-navbar-color: oklch(0.18 0.03 45);
-  --bs-navbar-hover-color: oklch(0.18 0.03 45);
-  --bs-navbar-active-color: oklch(0.18 0.03 45);
+  --bs-code-color: oklch(0.88 0.015 70);
 }
 
 /* Navbar */
 .navbar {
+  --bs-navbar-brand-color: oklch(0.92 0.012 70);
+  --bs-navbar-brand-hover-color: oklch(0.92 0.012 70);
+  --bs-navbar-color: oklch(0.92 0.012 70);
+  --bs-navbar-hover-color: oklch(0.92 0.012 70);
+  --bs-navbar-active-color: oklch(0.92 0.012 70);
   background-color: oklch(0.24 0.04 45) !important;
 }
 
@@ -71,15 +66,18 @@
   letter-spacing: 0.05em;
 }
 
-/* Sidebar active link */
-.nav-link.active,
-.nav-link:hover {
-  color: oklch(0.72 0.15 85) !important;
+.navbar .btn.dropdown-toggle {
+  --bs-btn-color: var(--bs-navbar-color);
+  --bs-btn-hover-color: var(--bs-navbar-hover-color);
+  --bs-btn-active-color: var(--bs-navbar-active-color);
 }
 
-[data-bs-theme="dark"] .nav-link.active,
-[data-bs-theme="dark"] .nav-link:hover {
-  color: oklch(0.72 0.15 85) !important;
+.navbar .dropdown-menu {
+  --bs-dropdown-link-color: var(--bs-body-color);
+  --bs-dropdown-link-hover-color: var(--bs-body-color);
+  --bs-dropdown-link-hover-bg: var(--bs-secondary-bg);
+  --bs-dropdown-link-active-color: var(--bs-body-bg);
+  --bs-dropdown-link-active-bg: var(--bs-body-color);
 }
 
 /* Code blocks */

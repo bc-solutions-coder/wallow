@@ -7,7 +7,11 @@
  * only the transport (a recording `fetch`) standing in.
  */
 
-import { QueryClient, QueryClientProvider } from "@bc-solutions-coder/query";
+import {
+  createQueryClient,
+  QueryClientProvider,
+  type UnhandledFailure,
+} from "@bc-solutions-coder/query";
 import { createWallowSdk, type WallowSdk } from "@bc-solutions-coder/sdk";
 import {
   organizationClientsRegisterMutation,
@@ -23,10 +27,6 @@ import { AppForm } from "./app-form";
 import { FormError } from "./form-error";
 import { SubmitButton } from "./submit-button";
 import { useAppForm } from "./use-app-form";
-
-/* ------------------------------------------------------------------ *
- * The transport: the one stand-in in this file.
- * ------------------------------------------------------------------ */
 
 /** What the SDK actually put on the wire for one submit. */
 interface SentRequest {
@@ -82,19 +82,11 @@ function createSdk(transport: Transport): WallowSdk {
   return createWallowSdk({ baseUrl: "/api", fetch: transport.fetch });
 }
 
-/* ------------------------------------------------------------------ *
- * Harnesses: two forms, two generated factories, two `TError` types.
- * ------------------------------------------------------------------ */
-
 const organizationSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
 });
 
-/**
- * The create-organization shape (`organizationsCreateMutation`, `TError =
- * DefaultError`), built exactly the way a migrated screen builds one — this is
- * the form Wallow-ov6w.4.1 had to write with a workaround.
- */
+/** The create-organization factory uses DefaultError, unlike the registration factory. */
 function CreateOrganizationHarness(props: {
   readonly sdk: WallowSdk;
   readonly onCreated: (organizationId: string) => void;
@@ -166,17 +158,19 @@ function RegisterAppHarness(props: {
   );
 }
 
-/* ------------------------------------------------------------------ *
- * Rendering helpers.
- * ------------------------------------------------------------------ */
+/**
+ * Each case gets its own client so no mutation state leaks between them. It is
+ * the real `createQueryClient` with the callback an app toasts from, so the
+ * failure cases can pin that a form never reaches it.
+ */
+async function renderWithClient(children: ReactNode) {
+  const onUnhandledFailure = vi.fn<(failure: UnhandledFailure) => void>();
+  const client = createQueryClient({ onUnhandledFailure });
+  const screen = await render(
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>,
+  );
 
-/** Each case gets its own client so no mutation state leaks between them. */
-function renderWithClient(children: ReactNode) {
-  const client = new QueryClient({
-    defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
-  });
-
-  return render(<QueryClientProvider client={client}>{children}</QueryClientProvider>);
+  return { ...screen, onUnhandledFailure };
 }
 
 function byTestId(container: HTMLElement, id: string): HTMLElement {
@@ -275,21 +269,17 @@ describe("useAppForm with a generated SDK mutation", () => {
     });
 
     it("splits the API's RFC 7807 failure across the field and the banner", async () => {
-      // A real 400 problem details body: the SDK's own error interceptor turns
-      // it into a `WallowError`, `splitServerError` folds `Name` onto the
-      // form's `name`, and `Scopes` — which this form has no field for — joins
-      // the banner instead of vanishing.
       const transport = createTransport(400, {
         status: 400,
         title: "Validation failed",
         detail: "One or more validation errors occurred.",
         errors: {
           Name: ["'Name' must not be empty."],
-          Scopes: ["At least one scope is required."],
+          Scopes: ["At least one scope is required.", "Choose a supported scope."],
         },
-        extensions: { code: "VALIDATION_ERROR" },
+        code: "Validation.Failed",
       });
-      const { container } = await renderWithClient(
+      const { container, onUnhandledFailure } = await renderWithClient(
         <RegisterAppHarness sdk={createSdk(transport)} onRegistered={vi.fn()} />,
       );
 
@@ -302,6 +292,30 @@ describe("useAppForm with a generated SDK mutation", () => {
       expect(byTestId(container, "app-register-error").textContent).toBe(
         "At least one scope is required.",
       );
+      // The form handled it, so the app's toast callback never hears of it.
+      expect(onUnhandledFailure).not.toHaveBeenCalled();
+    });
+
+    it("shows the shipped network sentence when the transport fails, and no toast", async () => {
+      // `fetch` rejecting the way an unreachable server makes it reject. The
+      // SDK classifies it as a transport failure; the banner must show the
+      // shipped sentence for the code, never "Failed to fetch".
+      const sdk = createWallowSdk({
+        baseUrl: "/api",
+        fetch: () => Promise.reject(new TypeError("Failed to fetch")),
+      });
+      const { container, onUnhandledFailure } = await renderWithClient(
+        <RegisterAppHarness sdk={sdk} onRegistered={vi.fn()} />,
+      );
+
+      await userEvent.fill(byTestId(container, "app-register-name"), "Dashboard");
+      await userEvent.click(byTestId(container, "app-register-submit"));
+
+      await expect
+        .poll(() => queryTestId(container, "app-register-error")?.textContent)
+        .toBe("Unable to reach the server. Check your connection and try again.");
+      expect(queryTestId(container, "app-register-name-error")).toBeNull();
+      expect(onUnhandledFailure).not.toHaveBeenCalled();
     });
   });
 });

@@ -138,6 +138,7 @@ function validationFailure(errors: Record<string, string[]>): unknown {
     {
       type: "https://httpstatuses.io/400",
       title: "One or more validation errors occurred.",
+      code: "Validation.Failed",
       status: 400,
       errors,
     },
@@ -269,8 +270,7 @@ describe("OrganizationDetail register-application stepper on @bc-solutions-coder
     await expect.element(page.getByTestId("organization-detail-register-name")).toBeVisible();
   });
 
-  it("keeps a message for a property the form has no field for in the banner", async () => {
-    // Without the banner fallback the API's own sentence never reaches the screen.
+  it("shows the validation message for a property the form has no field for", async () => {
     seedLoadedOrg(validationFailure({ Kind: ["Only applications can be registered here."] }));
 
     renderWithWallow(<OrganizationDetail orgId="o1" />, { harness });
@@ -289,6 +289,7 @@ describe("OrganizationDetail register-application stepper on @bc-solutions-coder
         {
           type: "https://httpstatuses.io/403",
           title: "Forbidden",
+          code: "Identity.ClientLimitReached",
           status: 403,
           detail: "This organization has reached its client limit.",
         },

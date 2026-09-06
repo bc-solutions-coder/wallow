@@ -33,6 +33,8 @@
     <!-- Logging -->
     <PackageReference Include="Serilog.AspNetCore" />
 
+    <PackageReference Include="StackExchange.Redis" />
+
     <!-- HTML Sanitization -->
     <PackageReference Include="HtmlSanitizer" />
 

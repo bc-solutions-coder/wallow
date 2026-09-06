@@ -177,7 +177,7 @@ public class InquiriesInfrastructureExtensionsTests
 
         ServiceDescriptor? descriptor = services.FirstOrDefault(s => s.ServiceType == typeof(IRateLimitService));
         descriptor.Should().NotBeNull();
-        descriptor!.ImplementationType.Should().Be<ValkeyRateLimitService>();
+        descriptor!.ImplementationType.Should().Be<InquiryRateLimitService>();
     }
 
     [Fact]

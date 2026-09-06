@@ -174,7 +174,7 @@ and silently stops checking `features/` and `shared/`.
 | --- | --- |
 | `wallow-web` | all ten above, plus `forms` |
 | `wallow-auth` | the same minus `navigation` — its screens sit in its own `auth-layout.tsx`, so `wallow-web` is `navigation`'s only consumer today |
-| `minimal-app` | `sdk` only — it is the [external relying-party example](../integrations/typescript-sdk.md), built the way a consumer outside this repository would build it, so it deliberately takes none of the private packages |
+| `minimal-app` | the SDK and `api-errors` only — it is the [external relying-party example](../integrations/typescript-sdk.md), built the way a consumer outside this repository would build it, so it deliberately takes none of the private packages |
 
 The floor for a new **in-repo** app is the six core packages the steps below wire in
 (`env`, `query`, `sdk`, `styles`, `testing`, `ui`); do not copy `minimal-app` as a

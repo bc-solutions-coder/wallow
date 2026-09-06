@@ -14,8 +14,13 @@ import { MfaSettingsSection } from "./MfaSettingsSection";
  * `settings-mfa-error`, which the E2E page object binds to the confirm panel.
  */
 
-/** An RFC 7807 body the SDK's error interceptor brands as a `WallowError`. */
-const PROBLEM = { status: 500, title: "Internal Server Error", detail: "MFA status unavailable." };
+/** An RFC 7807 body the SDK's error interceptor parses into an `ApiFailure`. */
+const PROBLEM = {
+  status: 500,
+  code: "Server.Error",
+  title: "Internal Server Error",
+  detail: "MFA status unavailable.",
+};
 
 /** The transport backing each render, rebuilt per test. */
 let harness: SdkHarness;
@@ -25,14 +30,14 @@ describe("MfaSettingsSection — status query error state", () => {
     harness = createSdkHarness();
   });
 
-  it("renders the ProblemDetails detail when the status query errors", async () => {
+  it("renders the server-failure copy, not the 500's detail, when the status query errors", async () => {
     harness.rejectJson(PROBLEM, 500);
 
     renderWithWallow(<MfaSettingsSection />, { harness });
 
     await expect
       .element(page.getByTestId("settings-mfa-status-error"))
-      .toHaveTextContent("MFA status unavailable.");
+      .toHaveTextContent("Something went wrong on our side. Please try again later.");
   });
 
   it("does not claim MFA is disabled when the status query errors", async () => {

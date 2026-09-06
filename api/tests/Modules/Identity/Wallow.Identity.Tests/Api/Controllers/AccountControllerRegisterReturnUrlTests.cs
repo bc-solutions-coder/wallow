@@ -82,7 +82,8 @@ public class AccountControllerRegisterReturnUrlTests
             Substitute.For<IMfaLockoutService>(),
             redis,
             Substitute.For<ILogger<AccountController>>(),
-            TimeProvider.System);
+            TimeProvider.System,
+            Substitute.For<IEmailChangeRateLimiter>());
 
         DefaultHttpContext httpContext = new();
         _controller.ControllerContext = new ControllerContext { HttpContext = httpContext };

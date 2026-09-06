@@ -4,53 +4,10 @@ import { describe, expect, it } from "vitest";
 import { Progress } from "./progress";
 
 /*
- * Wallow-m5aq.4.4 — Progress. Same spec shape as the Wave-1 exemplar
- * (Wallow-m5aq.2.1) and the Wave-2 exemplar (Wallow-m5aq.3.1): browser vitest
- * project, nothing mocked, the recipes asserted THROUGH the component, class
- * assertions as an order-free set.
- *
- * Progress is a VALUE-DISPLAY component, not an overlay and not interactive:
- * nothing is portalled, nothing opens or closes, and there is no keyboard
- * contract, so every query goes through render()'s `container` and none of the
- * Wave-2 popup gotchas apply. There is correspondingly nothing to poll for —
- * every assertion below is a synchronous read of a single render.
- *
- * ANATOMY, measured against the installed Base UI 1.6.0 rather than read off the
- * docs (a throwaway probe spec, since deleted):
- *
- *   <div role="progressbar" data-progressing aria-valuemin="0" aria-valuemax="100"
- *        aria-valuenow="40" aria-valuetext="40%" aria-labelledby="…">     <- Root
- *     <span role="presentation" id="…" data-progressing>                  <- Label
- *     <span aria-hidden="true" data-progressing>40%</span>                <- Value
- *     <div data-progressing>                                              <- Track
- *       <div data-progressing style="…; width: 40%">                      <- Indicator
- *     <span role="presentation" style="clip-path: inset(50%); …">x</span> <- Base UI's own
- *
- * Five measurements are worth stating, because each is easy to assume wrong:
- *   - the STATUS is three MUTUALLY EXCLUSIVE BARE attributes — `data-indeterminate`
- *     (value === null), `data-progressing`, `data-complete` (value === max) — and
- *     NOT a `data-status="…"` value attribute. They land on ALL FIVE parts, not
- *     just the root, so a recipe on any part may key off them.
- *   - the INDICATOR IS SIZED BY AN INLINE STYLE, not by a class: Base UI writes
- *     `insetInlineStart: 0; height: inherit; width: <percent>%` computed from
- *     value/min/max. The recipe therefore paints only — any width utility in it
- *     is dead weight in the determinate case. While INDETERMINATE the inline
- *     style is empty `{}`, which is the one case a `data-[indeterminate]:` width
- *     utility can win, and why the indicator recipe carries one.
- *   - `Progress.Value`'s text is the RAW VALUE formatted as a percent, NOT its
- *     position in the range: at value=5 min=0 max=20 the Value reads "5%" while
- *     the Indicator is 25% wide. (Meter does the opposite — it formats the
- *     position. The two components genuinely disagree; do not "fix" one to match.)
- *   - `Progress.Root` ALWAYS appends a visually-hidden `<span>x</span>` of its own
- *     after the caller's children, so `root.textContent` has a trailing "x" and
- *     `root.children` has one more entry than the JSX shows. Assert on parts, not
- *     on the root's text or child count.
- *   - `Progress.Value` is `aria-hidden="true"`; the announced readout is the
- *     root's `aria-valuetext`. A spec that reads the Value for accessibility
- *     would be testing the wrong element.
- *
- * Base UI stamps NO class of its own on any of the five parts (probed), so every
- * class set below is pure recipe and is asserted with no spread-in extras.
+ * Progress composition, range values, and indicator geometry in Chromium.
+ * The indicator width and displayed percentage use the configured min/max range.
+ * The root owns the accessible value text; Progress.Value is aria-hidden.
+ * Base UI appends a hidden child, so queries target named parts.
  */
 
 /** Every utility `Progress.Root` must render. Single source of truth. */
@@ -238,12 +195,10 @@ describe("Progress", () => {
     });
 
     it("measures the percentage against min/max, not against the raw value", async () => {
-      // value=5 of 0..20 is 25% of the range. The Value part reads "5%" for the
-      // same render — that divergence is Base UI's, and both halves are pinned.
       const { container } = await renderProgress({ value: 5, min: 0, max: 20 });
 
       expect(indicatorWidth(container)).toBe("25%");
-      expect(part(container, "value").textContent).toBe("5%");
+      expect(part(container, "value").textContent).toBe("25%");
     });
 
     it("carries no inline width at all while indeterminate", async () => {

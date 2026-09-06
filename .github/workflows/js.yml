@@ -153,6 +153,12 @@ jobs:
       - name: Lint environment documentation
         run: pnpm lint:env
 
+      # scripts/check-generated.sh: regenerates the SDK client and the api-errors
+      # catalogue from the committed OpenAPI snapshot and fails on a diff. Pure
+      # codegen from a checked-in file — no API build, no Docker.
+      - name: Check generated output
+        run: pnpm check:generated
+
       - name: Check formatting
         run: pnpm format:check
 
@@ -191,6 +197,17 @@ jobs:
       - name: Test
         run: pnpm test
 
+      - name: Upload browser failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-failures-${{ github.run_attempt }}
+          path: |
+            packages/**/__screenshots__/**
+            apps/**/__screenshots__/**
+          if-no-files-found: ignore
+          retention-days: 7
+
       # publint + @arethetypeswrong/cli over the built packages: the manifest's
       # exports map and every entrypoint's type resolution, checked against the
       # packed tarball rather than against the working tree. Stays outside turbo
@@ -198,3 +215,6 @@ jobs:
       # cannot express.
       - name: Check package export surface
         run: pnpm check:exports
+
+      - name: Verify external package consumer
+        run: pnpm check:external-consumer

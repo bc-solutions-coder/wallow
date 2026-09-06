@@ -42,4 +42,8 @@ public static class StorageErrors
 
     public static readonly ErrorCatalogEntry QuotaExceeded = new(
         "Storage.QuotaExceeded", ErrorKind.Validation, "The upload would exceed the tenant storage quota");
+
+    /// <summary>A signed local-storage URL whose signature is missing, expired, or for another request.</summary>
+    public static readonly ErrorCatalogEntry SignatureInvalid = new(
+        "File.SignatureInvalid", ErrorKind.Forbidden, "The URL's signature is missing, expired, or does not authorize this request.");
 }

@@ -163,6 +163,7 @@
   "scripts": {
     "build": "vite build && tsc -p tsconfig.build.json",
     "test": "vitest run",
+    "test:docfx": "node --test scripts/docfx-contrast.mjs",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },

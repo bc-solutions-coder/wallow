@@ -2,10 +2,12 @@
 
 The runnable **external relying-party example**: a TanStack Start app on its own
 origin that consumes Wallow the way a fork's customer would — through the
-published `@bc-solutions-coder/sdk` alone, over OIDC and the BFF pattern, with
-no other workspace package at runtime.
+published `@bc-solutions-coder/sdk` over OIDC and the BFF pattern, with
+`@bc-solutions-coder/api-errors` for failure parsing and message resolution.
 
-The full walk-through this app is the runnable form of is the quickstart:
+For another repository, start with
+[Connect an external app](../../docs/integrations/external-app.md).
+The detailed SDK quickstart is:
 [`docs/integrations/typescript-sdk.md`](../../docs/integrations/typescript-sdk.md).
 The pattern it demonstrates is
 [`docs/integrations/bff-pattern.md`](../../docs/integrations/bff-pattern.md).
@@ -58,9 +60,10 @@ All commands from the repo root. Node 24 (`.nvmrc`), pnpm via `packageManager`.
    pnpm --filter @bc-solutions-coder/example-minimal-app dev   # http://localhost:3010
    ```
 
-   `vite dev` does not read `.env` files by itself in this setup — export the
-   variables into the environment (`set -a; source apps/minimal-app/.env; set +a`)
-   or use the Docker image below, which takes them as container env.
+   Load the variables into the server process before running the dev command.
+   Use an environment-file loader that accepts unquoted spaces in `OIDC_SCOPES`;
+   do not source the reveal directly as a shell script. The Docker image below
+   accepts the file with `docker run --env-file apps/minimal-app/.env`.
 
 There is no `routes:generate` step: the `tanstackStart()` Vite plugin
 regenerates `src/routeTree.gen.ts` as a side effect of `vite dev`/`vite build`.

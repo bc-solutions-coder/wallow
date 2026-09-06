@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using Microsoft.OpenApi;
+using Wallow.Shared.Api.Problems;
 using Wallow.Shared.Kernel.Errors;
 using ApiServiceCollectionExtensions = Wallow.Api.Extensions.ServiceCollectionExtensions;
 
@@ -92,6 +93,88 @@ public class ErrorCodeSchemaTests
         codeReference.Reference.Id.Should().Be(ApiServiceCollectionExtensions.ErrorCodeSchemaName);
     }
 
+    [Theory]
+    [InlineData("ProblemDetails")]
+    [InlineData("HttpValidationProblemDetails")]
+    public async Task TransformDocumentErrorCodes_RequiresTheAlwaysPresentMembers(string schemaName)
+    {
+        OpenApiDocument document = DocumentWithProblemSchema(schemaName);
+
+        await ApiServiceCollectionExtensions.TransformDocumentErrorCodes(document, _catalog);
+
+        OpenApiSchema problemDetails = document.Components!.Schemas![schemaName]
+            .Should().BeOfType<OpenApiSchema>().Subject;
+        problemDetails.Required.Should().BeEquivalentTo(ProblemContract.AlwaysPresentMembers);
+        problemDetails.Properties![ProblemContract.TraceIdMember]
+            .Should().BeOfType<OpenApiSchema>().Which.Type.Should().Be(JsonSchemaType.String);
+    }
+
+    [Fact]
+    public async Task TransformDocumentErrorCodes_DropsTheInstanceMember()
+    {
+        OpenApiDocument document = DocumentWithProblemSchema("ProblemDetails");
+
+        await ApiServiceCollectionExtensions.TransformDocumentErrorCodes(document, _catalog);
+
+        OpenApiSchema problemDetails = document.Components!.Schemas!["ProblemDetails"]
+            .Should().BeOfType<OpenApiSchema>().Subject;
+        problemDetails.Properties.Should().NotContainKey("instance");
+        problemDetails.Properties.Should().ContainKey("title", "the other standard members stay");
+    }
+
+    [Fact]
+    public async Task TransformDocumentErrorCodes_IsIdempotent()
+    {
+        OpenApiDocument document = DocumentWithProblemSchema("ProblemDetails");
+
+        await ApiServiceCollectionExtensions.TransformDocumentErrorCodes(document, _catalog);
+        await ApiServiceCollectionExtensions.TransformDocumentErrorCodes(document, _catalog);
+
+        OpenApiSchema problemDetails = document.Components!.Schemas!["ProblemDetails"]
+            .Should().BeOfType<OpenApiSchema>().Subject;
+        problemDetails.Required.Should().HaveCount(ProblemContract.AlwaysPresentMembers.Count);
+    }
+
+    [Fact]
+    public async Task TransformDocumentProblemContentTypes_ServesProblemBodiesAsProblemJson()
+    {
+        OpenApiDocument document = DocumentWithProblemSchema("ProblemDetails");
+        OpenApiMediaType problemBody = new() { Schema = new OpenApiSchemaReference("ProblemDetails", document) };
+        OpenApiMediaType okBody = new() { Schema = new OpenApiSchema { Type = JsonSchemaType.Object } };
+        OpenApiOperation operation = new()
+        {
+            Responses = new OpenApiResponses
+            {
+                ["200"] = new OpenApiResponse
+                {
+                    Content = new Dictionary<string, OpenApiMediaType> { ["application/json"] = okBody }
+                },
+                ["404"] = new OpenApiResponse
+                {
+                    Content = new Dictionary<string, OpenApiMediaType>
+                    {
+                        ["application/json"] = problemBody,
+                        ["text/json"] = problemBody,
+                        ["text/plain"] = problemBody
+                    }
+                }
+            }
+        };
+        document.Paths = new OpenApiPaths
+        {
+            ["/things"] = new OpenApiPathItem
+            {
+                Operations = new Dictionary<HttpMethod, OpenApiOperation> { [HttpMethod.Get] = operation }
+            }
+        };
+
+        await ApiServiceCollectionExtensions.TransformDocumentProblemContentTypes(document);
+
+        operation.Responses["404"].Content.Should().HaveCount(1)
+            .And.ContainKey(ProblemContract.ContentType).WhoseValue.Should().BeSameAs(problemBody);
+        operation.Responses["200"].Content.Should().ContainKey("application/json", "successes are untouched");
+    }
+
     [Fact]
     public async Task TransformDocumentErrorCodes_LeavesOtherSchemasAlone()
     {
@@ -113,6 +196,25 @@ public class ErrorCodeSchemaTests
         unrelated.Properties.Should().BeEmpty();
         document.Components!.Schemas.Should().ContainKey(ApiServiceCollectionExtensions.ErrorCodeSchemaName);
     }
+
+    private static OpenApiDocument DocumentWithProblemSchema(string schemaName) => new()
+    {
+        Components = new OpenApiComponents
+        {
+            Schemas = new Dictionary<string, IOpenApiSchema>
+            {
+                [schemaName] = new OpenApiSchema
+                {
+                    Type = JsonSchemaType.Object,
+                    Properties = new Dictionary<string, IOpenApiSchema>
+                    {
+                        ["title"] = new OpenApiSchema { Type = JsonSchemaType.String },
+                        ["instance"] = new OpenApiSchema { Type = JsonSchemaType.String }
+                    }
+                }
+            }
+        }
+    };
 
     private static OpenApiSchema GetErrorCodeSchema(OpenApiDocument document)
     {

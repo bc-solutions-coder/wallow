@@ -13,7 +13,6 @@ import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 
 import { accountVerifyMagicLinkQueryKey } from "../api";
-import { MAGIC_LINK_EXPIRED_MESSAGE, MAGIC_LINK_VERIFY_FAILED_MESSAGE } from "../magic-link-result";
 import { MagicLinkLoginForm } from "./MagicLinkLoginForm";
 
 /**
@@ -45,26 +44,34 @@ const VERIFIED_BODY = {
 /** The 401 status every verify failure arrives with. */
 const UNAUTHORIZED_STATUS = 401;
 
-/** A spent-link token — maps to the expired copy. */
-const SPENT_TOKEN = "Token expired or already used.";
-
-/** A token this screen's map does not know — the generic tail on the same 401. */
-const UNKNOWN_TOKEN = "some_new_token";
+/** A spent link's problem code. */
+const SPENT_CODE = "Auth.TokenExpired";
 
 let harness: SdkHarness;
 let onAuthResult: Mock<(body: unknown) => void>;
 let onError: Mock<(message: string | null) => void>;
+let onFailure: Mock<(failure: unknown) => void>;
 
 beforeEach(() => {
   harness = createPassthroughHarness();
   onAuthResult = vi.fn<(body: unknown) => void>();
   onError = vi.fn<(message: string | null) => void>();
+  onFailure = vi.fn<(failure: unknown) => void>();
   harness.resolveJson(VERIFIED_BODY);
 });
 
-/** Answer every subsequent request with the bare `{ succeeded, error }` 401 body. */
-function rejectVerify(token: string): void {
-  harness.rejectJson({ succeeded: false, error: token }, UNAUTHORIZED_STATUS);
+/** Answer every subsequent request with a 401 problem carrying `code`. */
+function rejectVerify(code: string): void {
+  harness.rejectJson(
+    {
+      type: "about:blank",
+      title: "Unauthorized",
+      status: UNAUTHORIZED_STATUS,
+      code,
+      detail: "The token has expired.",
+    },
+    UNAUTHORIZED_STATUS,
+  );
 }
 
 /** Every recorded request to the verify endpoint, in order. */
@@ -109,6 +116,9 @@ function VerifyHarness(props: { readonly token: string }): ReactNode {
         onError={(message: string | null) => {
           onError(message);
         }}
+        onFailure={(failure: unknown) => {
+          onFailure(failure);
+        }}
       />
     </div>
   );
@@ -143,14 +153,14 @@ describe("the magic-link redemption reaches the API through the query cache", ()
   it("records a refused redemption in the cache as an error rather than as data", async () => {
     // A 401 must leave the cache entry in `error`, never populated with a half-body
     // a later read could mistake for a sign-in.
-    rejectVerify(SPENT_TOKEN);
+    rejectVerify(SPENT_CODE);
 
     const queryClient: QueryClient = createTestQueryClient();
 
     await renderPanel(queryClient);
 
     await vi.waitFor(() => {
-      expect(onError).toHaveBeenCalledWith(MAGIC_LINK_EXPIRED_MESSAGE);
+      expect(onFailure).toHaveBeenCalledTimes(1);
     });
 
     expect(queryClient.getQueryState(verifyQueryKey())?.status).toBe("error");
@@ -198,19 +208,23 @@ describe("the magic-link redemption reaches the API through the query cache", ()
     expect(onError.mock.calls[0]).toEqual([null]);
   });
 
-  it("reports the generic copy for an unrecognised token on the same 401", async () => {
-    // Binds the code map against a blanket `401 -> expired` rule: this endpoint's
-    // 401 carries three tokens with two meanings. The rejection path is also where
+  it("hands the refusal up as a failure the shell words, never as a sentence", async () => {
+    // The panel does not own the copy: it passes the raw rejection through
+    // `onFailure` and the shell resolves it. The rejection path is also where
     // `fetchQuery` differs most from `mutate()` — it throws rather than calling a
     // callback.
-    rejectVerify(UNKNOWN_TOKEN);
+    rejectVerify(SPENT_CODE);
 
     await renderPanel(createTestQueryClient());
 
     await vi.waitFor(() => {
-      expect(onError).toHaveBeenCalledWith(MAGIC_LINK_VERIFY_FAILED_MESSAGE);
+      expect(onFailure).toHaveBeenCalledTimes(1);
     });
 
+    expect(onFailure).toHaveBeenCalledWith(
+      expect.objectContaining({ code: SPENT_CODE, status: UNAUTHORIZED_STATUS }),
+    );
+    expect(onError).not.toHaveBeenCalledWith(expect.any(String));
     expect(onAuthResult).not.toHaveBeenCalled();
   });
 });

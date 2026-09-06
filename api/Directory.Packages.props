@@ -50,7 +50,7 @@
     <!-- ======================================
          Background Jobs (Hangfire)
          ====================================== -->
-    <PackageVersion Include="Hangfire.Core" Version="1.8.24" />
+    <PackageVersion Include="Hangfire.Core" Version="1.8.25" />
     <PackageVersion Include="Hangfire.AspNetCore" Version="1.8.23" />
     <PackageVersion Include="Hangfire.PostgreSql" Version="1.21.1" />
     <!-- ======================================
@@ -111,7 +111,7 @@
     <!-- ======================================
          Cloud Storage (AWS S3)
          ====================================== -->
-    <PackageVersion Include="AWSSDK.S3" Version="4.0.101.7" />
+    <PackageVersion Include="AWSSDK.S3" Version="4.0.102.4" />
     <!-- ======================================
          Microsoft.Extensions.*
          ====================================== -->
@@ -139,7 +139,7 @@
          (NU1902, mXSS via annotation-xml integration-point bypass in AngleSharp 0.17.1,
          which 9.0.x exact-pins). No stable HtmlSanitizer release targets AngleSharp >=1.5
          yet; tracked for promotion to stable once upstream ships one (Wallow-c6nd). -->
-    <PackageVersion Include="HtmlSanitizer" Version="9.1.968-beta" />
+    <PackageVersion Include="HtmlSanitizer" Version="9.2.1039" />
     <PackageVersion Include="Humanizer.Core" Version="3.0.10" />
     <!-- ======================================
          Reverse Proxy (YARP)
@@ -155,7 +155,7 @@
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />
     <PackageVersion Include="Bogus" Version="35.6.5" />
-    <PackageVersion Include="AwesomeAssertions" Version="9.4.0" />
+    <PackageVersion Include="AwesomeAssertions" Version="9.6.0" />
     <PackageVersion Include="NSubstitute" Version="5.3.0" />
     <PackageVersion Include="Testcontainers" Version="4.14.0" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.14.0" />

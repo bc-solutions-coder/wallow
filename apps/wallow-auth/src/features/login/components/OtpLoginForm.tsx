@@ -5,13 +5,7 @@ import { type ReactElement, type ReactNode, useState } from "react";
 import { z } from "zod";
 import { accountSendOtpMutation, accountVerifyOtpMutation } from "../api";
 import { GENERIC_MESSAGE } from "../auth-result";
-import {
-  OTP_BLANK_CODE_MESSAGE,
-  OTP_BLANK_EMAIL_MESSAGE,
-  otpWasSent,
-  sendOtpFailureMessage,
-  verifyOtpFailureMessage,
-} from "../otp-result";
+import { OTP_BLANK_CODE_MESSAGE, OTP_BLANK_EMAIL_MESSAGE, otpWasSent } from "../otp-result";
 import type { LoginPanelProps } from "../panel";
 
 /**
@@ -21,8 +15,8 @@ import type { LoginPanelProps } from "../panel";
  * :139-186, :430-462, :464-500).
  *
  * Per the contract Wallow-vec7.3.11 left on the bead, this panel owns ONLY what the
- * oracle keeps per-tab — its own fields, its own mutations, its own error copy —
- * and NEVER navigates. On a verify response it calls `onAuthResult` with the RAW
+ * oracle keeps per-tab — its own fields, its own mutations, its own guard copy —
+ * and NEVER navigates or words a rejection (that goes up through `onFailure`). On a verify response it calls `onAuthResult` with the RAW
  * body and stops: the shell's single `authDispositionOf` (`../auth-result`) owns
  * the MFA branches, the open-redirect guard and the ticket exchange. Three panels
  * re-deriving that table would be three chances to disagree about where a
@@ -32,7 +26,8 @@ import type { LoginPanelProps } from "../panel";
  * `login-otp-sent`, `login-otp-code`, `login-otp-verify-submit`. The ONE exception is
  * `login-otp-remember-me`, which has no oracle counterpart because the oracle never
  * renders a box on this tab — see `VerifyFields` below (Wallow-98st). Errors go to
- * the shell's ONE shared `login-error` banner via `onError`.
+ * the shell's ONE shared `login-error` banner via `onError` (guards) and
+ * `onFailure` (rejections).
  *
  * ── THE TWO HALVES OF THIS TAB ARE TWO FORMS ─────────────────────────────────
  *
@@ -65,13 +60,10 @@ import type { LoginPanelProps } from "../panel";
  * ── WHY BOTH FORMS RUN THE FORMS PACKAGE "SIDEWAYS" ──────────────────────────
  *
  * Both take the plain-`onSubmit` escape hatch rather than handing `useAppForm` a
- * generated mutation, for `MfaChallengeForm`'s two reasons: `splitServerError`
- * reads RFC 7807 members and these endpoints answer with a bare
- * `{ succeeded, error }` body, so only `../otp-result` can tell their rejections
- * apart; and each blank-input guard reports into the SHELL's banner, which a zod
- * rule could not do — it would abort `handleSubmit` before the callback ran. Both
- * schemas below are therefore rule-free, and this panel renders no `FormError`: it
- * has no banner of its own to render one in.
+ * generated mutation: each blank-input guard and each rejection reports into the
+ * SHELL's banner, which the `mutation` option could not do — it would keep the
+ * failure on this form. Both schemas below are therefore rule-free, and this
+ * panel renders no `FormError`: it has no banner of its own to render one in.
  */
 
 /** RULE-FREE on purpose — see the header. Here for the value type alone. */
@@ -163,7 +155,7 @@ function VerifyFields({ form }: { readonly form: AppFormApi<VerifyValues> }): Re
 
 export type OtpLoginFormProps = LoginPanelProps;
 
-export function OtpLoginForm({ onAuthResult, onError }: OtpLoginFormProps): ReactNode {
+export function OtpLoginForm({ onAuthResult, onError, onFailure }: OtpLoginFormProps): ReactNode {
   const { sdk } = useRouteContext({ from: "__root__" });
   /**
    * The oracle's `_otpSent`, which flips the email form to the code form. The
@@ -203,7 +195,7 @@ export function OtpLoginForm({ onAuthResult, onError }: OtpLoginFormProps): Reac
       } catch (error: unknown) {
         // The form deliberately stays up — the user's address may simply have been
         // mistyped, and they need somewhere to fix it.
-        onError(sendOtpFailureMessage(error));
+        onFailure(error);
         return;
       }
 
@@ -253,7 +245,7 @@ export function OtpLoginForm({ onAuthResult, onError }: OtpLoginFormProps): Reac
           },
         });
       } catch (error: unknown) {
-        onError(verifyOtpFailureMessage(error));
+        onFailure(error);
         return;
       }
 

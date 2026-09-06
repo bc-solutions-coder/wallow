@@ -1,3 +1,5 @@
+> Historical plan. Failure-handling passages link to the current spec and their original Git revision.
+
 # Shared packages and app zones — design
 
 **status: active**
@@ -39,9 +41,7 @@ so the second consumer is designed for before it lands.
 **Cross-cutting** — three-zone app restructure (`app/`, `features/`, `shared/`),
 three path aliases, oxlint DAG rules, feature barrels.
 
-**Explicitly not doing** — no `errors` package (`error-text.ts` rehomes into
-`forms`; `WallowError` stays in `sdk`), no `flags` package (no backend flag store,
-zero call sites), no shared build-config package (see *Alias map ownership*).
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-07-30/1201-shared-packages-and-app-zones-design.md).
 
 ## Dependency graph
 

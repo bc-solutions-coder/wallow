@@ -7,8 +7,8 @@ namespace Wallow.Identity.Domain.Errors;
 /// </summary>
 /// <remarks>
 /// The <c>Auth.*</c> and <c>Mfa.*</c> entries name the outcomes of the sign-in, MFA and account
-/// endpoints. They are catalogued here so the aggregated <c>ErrorCode</c> enum is complete; the
-/// endpoints themselves still answer with their legacy shape until they are migrated to problems.
+/// endpoints. Their <see cref="ErrorCatalogEntry.DefaultMessage"/> is the user-safe
+/// <c>detail</c> the endpoints answer with, so it must read as copy a screen can show verbatim.
 /// </remarks>
 public static class IdentityErrors
 {
@@ -175,7 +175,7 @@ public static class IdentityErrors
         "Auth.InvalidCredentials", ErrorKind.Unauthenticated, "The email address or password is incorrect.");
 
     public static readonly ErrorCatalogEntry AuthLockedOut = new(
-        "Auth.LockedOut", ErrorKind.Forbidden, "This account is locked. Try again later.");
+        "Auth.LockedOut", ErrorKind.Locked, "This account is locked. Try again later.");
 
     public static readonly ErrorCatalogEntry AuthEmailNotConfirmed = new(
         "Auth.EmailNotConfirmed", ErrorKind.Forbidden, "Confirm your email address before signing in.");
@@ -207,6 +207,9 @@ public static class IdentityErrors
     public static readonly ErrorCatalogEntry AuthTokenExpired = new(
         "Auth.TokenExpired", ErrorKind.Validation, "The token has expired.");
 
+    public static readonly ErrorCatalogEntry AuthOtpInvalid = new(
+        "Auth.OtpInvalid", ErrorKind.Unauthenticated, "The code is invalid or has expired.");
+
     public static readonly ErrorCatalogEntry AuthEmailUnchanged = new(
         "Auth.EmailUnchanged", ErrorKind.Validation, "The new email address is the same as the current one.");
 
@@ -219,8 +222,11 @@ public static class IdentityErrors
     public static readonly ErrorCatalogEntry MfaCodeInvalid = new(
         "Mfa.CodeInvalid", ErrorKind.Validation, "The verification code is incorrect.");
 
+    public static readonly ErrorCatalogEntry MfaPasswordInvalid = new(
+        "Mfa.PasswordInvalid", ErrorKind.Validation, "The password is incorrect.");
+
     public static readonly ErrorCatalogEntry MfaLockedOut = new(
-        "Mfa.LockedOut", ErrorKind.Forbidden, "Too many failed verification attempts. Try again later.");
+        "Mfa.LockedOut", ErrorKind.Locked, "Too many failed verification attempts. Try again later.");
 
     public static readonly ErrorCatalogEntry MfaNotEnabled = new(
         "Mfa.NotEnabled", ErrorKind.Validation, "Multi-factor authentication is not enabled for this account.");

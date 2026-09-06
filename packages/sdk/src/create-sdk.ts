@@ -18,7 +18,7 @@
 import { wireCsrfInterceptor } from "./csrf";
 import { type Client, createClient, createConfig } from "./generated/client";
 import type { ClientOptions } from "./generated/types.gen";
-import { wireWallowErrorInterceptor } from "./runtime-config";
+import { wireApiFailureInterceptor } from "./runtime-config";
 
 /** Options for {@link createWallowSdk}. */
 export interface CreateWallowSdkOptions {
@@ -125,7 +125,7 @@ export function createWallowSdk(options: CreateWallowSdkOptions): WallowSdk {
   // D14: the error interceptor is DEFINED in `runtime-config.ts` but registered
   // per instance here. `createClientConfig` cannot do it — it returns a config,
   // and no client exists yet to hang an interceptor on.
-  wireWallowErrorInterceptor(client);
+  wireApiFailureInterceptor(client);
 
   return { client };
 }

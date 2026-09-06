@@ -1,3 +1,4 @@
+import type { FailureMessageRegistry } from "@bc-solutions-coder/api-errors";
 import { formatLongDate } from "@bc-solutions-coder/utils/format";
 import { buildExchangeTicketUrl } from "@bc-solutions-coder/sdk";
 import { MutedText, NoticeBanner, Tabs, Text } from "@bc-solutions-coder/ui";
@@ -10,6 +11,8 @@ import {
   errorParamMessage,
   isPasswordResetMessage,
 } from "../auth-result";
+import { MAGIC_LINK_FAILURE_MESSAGES } from "../magic-link-result";
+import { OTP_FAILURE_MESSAGES } from "../otp-result";
 import type { LoginTab } from "../panel";
 import { ExternalProviders } from "./ExternalProviders";
 import { MagicLinkLoginForm } from "./MagicLinkLoginForm";
@@ -130,6 +133,17 @@ function SignedInBanner() {
 }
 
 /** The oracle's `BbCardHeader`. */
+/**
+ * The tabs' own sentences, merged for the one banner they share. The two tables
+ * key different codes (`Auth.Token*` for the emailed link, `Auth.OtpInvalid` for
+ * the code), so the spread cannot shadow anything; every other code reads the
+ * app registry or the catalog's `detail`.
+ */
+const LOGIN_FAILURE_MESSAGES: FailureMessageRegistry = {
+  ...OTP_FAILURE_MESSAGES,
+  ...MAGIC_LINK_FAILURE_MESSAGES,
+};
+
 const TITLE = "Sign in to your account";
 const DESCRIPTION = "Enter your credentials to continue";
 
@@ -186,8 +200,18 @@ function LoginTabs(props: {
   readonly onSelect: (tab: LoginTab) => void;
   readonly onAuthResult: (body: unknown) => void;
   readonly onError: (message: string | null) => void;
+  readonly onFailure: (cause: unknown) => void;
 }) {
-  const { activeTab, magicLinkToken, returnUrl, clientId, onSelect, onAuthResult, onError } = props;
+  const {
+    activeTab,
+    magicLinkToken,
+    returnUrl,
+    clientId,
+    onSelect,
+    onAuthResult,
+    onError,
+    onFailure,
+  } = props;
 
   return (
     <Tabs.Root
@@ -212,7 +236,7 @@ function LoginTabs(props: {
         <Tabs.Indicator />
       </Tabs.List>
       <Tabs.Panel value="password">
-        <PasswordLoginForm onAuthResult={onAuthResult} onError={onError} />
+        <PasswordLoginForm onAuthResult={onAuthResult} onError={onError} onFailure={onFailure} />
       </Tabs.Panel>
       <Tabs.Panel value="magic-link">
         {/*
@@ -227,6 +251,7 @@ function LoginTabs(props: {
           clientId={clientId}
           onAuthResult={onAuthResult}
           onError={onError}
+          onFailure={onFailure}
         />
       </Tabs.Panel>
       <Tabs.Panel value="otp">
@@ -238,7 +263,7 @@ function LoginTabs(props: {
          * the user types. Like the magic-link panel it never navigates: it reports
          * the RAW body up and the shell's one `authDispositionOf` decides.
          */}
-        <OtpLoginForm onAuthResult={onAuthResult} onError={onError} />
+        <OtpLoginForm onAuthResult={onAuthResult} onError={onError} onFailure={onFailure} />
       </Tabs.Panel>
     </Tabs.Root>
   );
@@ -336,6 +361,11 @@ export function LoginScreen({
   );
   // The oracle's `OnInitialized` seeds the banner from the `Error` query param.
   const [errorMessage, setErrorMessage] = useState<string | null>(() => errorParamMessage(error));
+  // The last REJECTED call, as thrown. The banner words it through
+  // `useFailureMessage` (inside `AuthScreen`), so the tabs hand up the failure
+  // itself and no panel carries a code-to-copy map. It and `errorMessage` are
+  // one banner: setting either clears the other.
+  const [failure, setFailure] = useState<unknown>(null);
   const [signedIn, setSignedIn] = useState(false);
   const [graceDeadline, setGraceDeadline] = useState<string | null>(null);
 
@@ -388,12 +418,23 @@ export function LoginScreen({
     }
   };
 
+  const handleError = (nextMessage: string | null): void => {
+    setFailure(null);
+    setErrorMessage(nextMessage);
+  };
+
+  const handleFailure = (cause: unknown): void => {
+    setErrorMessage(null);
+    setFailure(cause);
+  };
+
   const handleSwitchTab = (tab: LoginTab): void => {
     setActiveTab(tab);
     // The oracle's `SwitchTab` resets `_errorMessage`: one banner is shared by all
     // three tabs, so a password failure must not follow the user into the
     // magic-link tab and blame it for something it did not do.
     setErrorMessage(null);
+    setFailure(null);
   };
 
   return (
@@ -406,6 +447,8 @@ export function LoginScreen({
       // informational, and an actionable failure buried under a success
       // acknowledgment is one the user reads second.
       error={errorMessage}
+      failure={failure}
+      messages={LOGIN_FAILURE_MESSAGES}
       errorTestId="login-error"
       footer={<RegisterPrompt href={registerHref(clientId, returnUrl)} />}
     >
@@ -425,7 +468,8 @@ export function LoginScreen({
           clientId={clientId}
           onSelect={handleSwitchTab}
           onAuthResult={handleAuthResult}
-          onError={setErrorMessage}
+          onError={handleError}
+          onFailure={handleFailure}
         />
       )}
       {/*

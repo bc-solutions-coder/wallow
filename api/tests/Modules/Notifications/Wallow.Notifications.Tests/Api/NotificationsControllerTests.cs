@@ -55,7 +55,7 @@ public class NotificationsControllerTests
 
         IActionResult response = await _controller.GetNotifications(1, 20, CancellationToken.None);
 
-        ObjectResult problemResult = response.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult problemResult = response.Should().BeAssignableTo<ObjectResult>().Subject;
         problemResult.StatusCode.Should().Be(401);
     }
 
@@ -80,7 +80,7 @@ public class NotificationsControllerTests
 
         IActionResult response = await _controller.GetUnreadCount(CancellationToken.None);
 
-        ObjectResult problemResult = response.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult problemResult = response.Should().BeAssignableTo<ObjectResult>().Subject;
         problemResult.StatusCode.Should().Be(401);
     }
 
@@ -91,7 +91,7 @@ public class NotificationsControllerTests
 
         IActionResult response = await _controller.MarkAsRead(Guid.NewGuid(), CancellationToken.None);
 
-        ObjectResult problemResult = response.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult problemResult = response.Should().BeAssignableTo<ObjectResult>().Subject;
         problemResult.StatusCode.Should().Be(401);
     }
 
@@ -130,7 +130,7 @@ public class NotificationsControllerTests
 
         IActionResult response = await _controller.MarkAllAsRead(CancellationToken.None);
 
-        ObjectResult problemResult = response.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult problemResult = response.Should().BeAssignableTo<ObjectResult>().Subject;
         problemResult.StatusCode.Should().Be(401);
     }
 
@@ -148,7 +148,7 @@ public class NotificationsControllerTests
 
         IActionResult response = await _controller.MarkAsRead(notificationId, CancellationToken.None);
 
-        ObjectResult problemResult = response.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult problemResult = response.Should().BeAssignableTo<ObjectResult>().Subject;
         problemResult.StatusCode.Should().Be(404);
     }
 
@@ -165,7 +165,7 @@ public class NotificationsControllerTests
 
         IActionResult response = await _controller.MarkAllAsRead(CancellationToken.None);
 
-        ObjectResult problemResult = response.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult problemResult = response.Should().BeAssignableTo<ObjectResult>().Subject;
         problemResult.StatusCode.Should().Be(400);
     }
 
@@ -184,7 +184,7 @@ public class NotificationsControllerTests
 
         IActionResult response = await _controller.GetNotifications(0, 20, CancellationToken.None);
 
-        ObjectResult problemResult = response.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult problemResult = response.Should().BeAssignableTo<ObjectResult>().Subject;
         problemResult.StatusCode.Should().Be(400);
     }
 
@@ -203,7 +203,7 @@ public class NotificationsControllerTests
 
         IActionResult response = await _controller.GetUnreadCount(CancellationToken.None);
 
-        ObjectResult problemResult = response.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult problemResult = response.Should().BeAssignableTo<ObjectResult>().Subject;
         problemResult.StatusCode.Should().Be(400);
     }
 }

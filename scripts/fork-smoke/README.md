@@ -2,8 +2,9 @@
 
 The scratch TanStack Start app `../fork-smoke.sh` builds. It is a **template**,
 never built where it sits: the script copies it outside the repo, drops the
-packed `@bc-solutions-coder/sdk` and `@bc-solutions-coder/styles` tarballs into
-`vendor/`, and installs from there — so the app consumes the packages the way a
+packed `@bc-solutions-coder/sdk` and `@bc-solutions-coder/styles` tarballs
+(plus `api-errors` and `env`, which those two depend on) into `vendor/`, and
+installs from there — so the app consumes the packages the way a
 fork consumes the published ones, not through a workspace symlink.
 
 Run it with `./scripts/fork-smoke.sh`; the script's header comment explains the
@@ -23,7 +24,9 @@ declare, so a broken `exports` map fails the build:
 | `vite.config.ts`        | `.../styles/vite` (and `./assets` through it) |
 | `src/styles.css`        | `.../styles/styles.css`                       |
 
-Keep this app dependent on those two packages only. Reaching for
+Keep this app dependent on those two packages only; the workspace packages
+they depend on are pinned to their tarballs by `pnpm-workspace.yaml`
+overrides, not listed here. Reaching for
 `@bc-solutions-coder/ui`, `query` or `testing` would mean packing them too,
 and the smoke stops being about the SDK surface.
 

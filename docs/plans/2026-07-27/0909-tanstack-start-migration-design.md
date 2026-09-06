@@ -1,3 +1,5 @@
+> Historical plan. Failure-handling passages link to the current spec and their original Git revision.
+
 # Design: Migrate the frontend workspace to TanStack Start
 
 **status: active**
@@ -194,9 +196,8 @@ sequence with this migration. Analysis for the merge:
    minimal-app migrates and are consumed via server routes + request middleware; each
    subsequent app reuses them. Their item 18 (claim helpers) slots naturally into the
    wallow-web step (dashboard route guards).
-5. **SDK Phase 2 remainder (query-core plugin, `responseStyle: 'data'`, `WallowError`
-   unification, auth-client deletion) — after the migration**, when app shells are
-   stable and only feature files churn.
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-07-27/0909-tanstack-start-migration-design.md).
+
 6. **SDK Phase 4 (build-time OpenAPI emit, auto-regen loop) — orthogonal; anytime.**
    Their item 19 (credential/transport split for future React Native) is also
    independent of Start and can be scheduled on its own merits.

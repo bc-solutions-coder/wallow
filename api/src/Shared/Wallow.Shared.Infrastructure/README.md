@@ -17,6 +17,13 @@ Provides the settings framework for tenant- and user-scoped configuration, and s
 - `SettingsModelBuilderExtensions` - EF Core model builder configuration helpers
 - `SettingsServiceExtensions` - DI registration extensions
 
+### Fixed-window counting (`RateLimiting/`)
+
+`AddFixedWindowCounter` registers `IFixedWindowCounter` with a Redis implementation.
+`IncrementAsync` starts the expiry on the first attempt and leaves it unchanged on later
+attempts. `GetRetryAfterAsync` returns the positive remaining TTL or the caller's window.
+Callers supply a positive window and retain their own thresholds and storage-failure policy.
+
 ## Dependencies
 
 **Internal:**

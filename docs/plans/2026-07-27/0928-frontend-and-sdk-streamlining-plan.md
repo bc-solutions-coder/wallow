@@ -1,5 +1,8 @@
 **status: active**
 
+> Historical plan. Failure-handling passages link to the current spec and their original Git revision.
+
+
 # Streamlining Plan — SDK, Codegen, and the TanStack Start Migration
 
 Companion to `0908-sdk-review.md` (the findings record). This document is the **plan**: what to
@@ -160,8 +163,8 @@ From `0908-sdk-review.md`. Nothing here depends on the Start decision; none of i
     149 operations instead of the 21 wrapped today; deletes ~410 lines and unblocks Vue/Svelte/Solid.
     Decision: take the generated flat query keys, keep a small curated module for the few places
     needing hierarchical prefix invalidation.
-14. Set `responseStyle: 'data'` + `throwOnError: true`; unify both apps on `WallowError`; delete
-    both `unwrap` implementations and the `MfaUnwrap` seam.
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-07-27/0928-frontend-and-sdk-streamlining-plan.md).
+
 15. Reduce `auth-client.ts` to a ~70-line `auth-extras.ts` keeping only the three real quirks:
     `getCurrentUser`'s 401-softening, the space-joined `scopes` shaping, the `clientId` key-omission guard.
 16. Replace the module-global client with `createWallowSdk(options)` constructed per call. Fixes

@@ -8,6 +8,7 @@ using Wallow.Shared.Contracts.ApiKeys;
 using Wallow.Shared.Contracts.Identity;
 using Wallow.Shared.Kernel.Identity.Authorization;
 using Wallow.Shared.Kernel.MultiTenancy;
+using Wallow.Tests.Common.Helpers;
 
 namespace Wallow.ApiKeys.Tests.Controllers;
 
@@ -49,7 +50,7 @@ public class ApiKeysControllerScopeValidationTests
         }, "TestAuth"));
         _controller.ControllerContext = new ControllerContext
         {
-            HttpContext = new DefaultHttpContext { User = user }
+            HttpContext = new DefaultHttpContext { User = user, RequestServices = ProblemTestServices.Build() }
         };
 
         apiKeyService.CreateApiKeyAsync(
@@ -67,10 +68,11 @@ public class ApiKeysControllerScopeValidationTests
         IActionResult result = await _controller.CreateApiKey(request, CancellationToken.None);
 
         BadRequestObjectResult badRequest = result.Should().BeOfType<BadRequestObjectResult>().Subject;
-        ProblemDetails problem = badRequest.Value.Should().BeOfType<ProblemDetails>().Subject;
-        problem.Title.Should().Be("Invalid scopes");
-        problem.Detail.Should().Contain("invalid.scope");
-        problem.Detail.Should().Contain("also.bad");
+        ValidationProblemDetails problem = badRequest.Value.Should().BeOfType<ValidationProblemDetails>().Subject;
+        string message = problem.Errors.Should().ContainKey("scopes")
+            .WhoseValue.Should().ContainSingle().Subject;
+        message.Should().Contain("invalid.scope");
+        message.Should().Contain("also.bad");
     }
 
     [Fact]
@@ -82,9 +84,11 @@ public class ApiKeysControllerScopeValidationTests
         IActionResult result = await _controller.CreateApiKey(request, CancellationToken.None);
 
         BadRequestObjectResult badRequest = result.Should().BeOfType<BadRequestObjectResult>().Subject;
-        ProblemDetails problem = badRequest.Value.Should().BeOfType<ProblemDetails>().Subject;
-        problem.Detail.Should().Contain("bad.scope");
-        problem.Detail.Should().NotContain("storage.read");
+        ValidationProblemDetails problem = badRequest.Value.Should().BeOfType<ValidationProblemDetails>().Subject;
+        string message = problem.Errors.Should().ContainKey("scopes")
+            .WhoseValue.Should().ContainSingle().Subject;
+        message.Should().Contain("bad.scope");
+        message.Should().NotContain("storage.read");
     }
 
     [Fact]
@@ -135,14 +139,14 @@ public class ApiKeysControllerScopeValidationTests
         }, "TestAuth"));
         _controller.ControllerContext = new ControllerContext
         {
-            HttpContext = new DefaultHttpContext { User = user }
+            HttpContext = new DefaultHttpContext { User = user, RequestServices = ProblemTestServices.Build() }
         };
 
         CreateApiKeyRequest request = new("Test Key", ["storage.write"]);
 
         IActionResult result = await _controller.CreateApiKey(request, CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(403);
         ProblemDetails problem = objectResult.Value.Should().BeOfType<ProblemDetails>().Subject;
         problem.Detail.Should().Contain("storage.write");
@@ -159,7 +163,7 @@ public class ApiKeysControllerScopeValidationTests
         }, "TestAuth"));
         _controller.ControllerContext = new ControllerContext
         {
-            HttpContext = new DefaultHttpContext { User = user }
+            HttpContext = new DefaultHttpContext { User = user, RequestServices = ProblemTestServices.Build() }
         };
 
         CreateApiKeyRequest request = new("Test Key", ["configuration.manage", "storage.read"]);

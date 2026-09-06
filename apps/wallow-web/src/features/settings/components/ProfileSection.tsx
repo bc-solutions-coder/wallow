@@ -13,9 +13,8 @@
  * optional in the OpenAPI document, which is what the "Not set" fallbacks below
  * cover.
  */
-import { errorText } from "@bc-solutions-coder/forms";
 import { useQuery } from "@bc-solutions-coder/query";
-import { Badge, Card, CardTitle, ErrorBanner, MutedText, Text } from "@bc-solutions-coder/ui";
+import { Badge, Card, CardTitle, FailureBanner, MutedText, Text } from "@bc-solutions-coder/ui";
 import { useRouteContext } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
@@ -53,7 +52,7 @@ function RoleChips(props: { roles: readonly string[] }) {
 
 export function ProfileSection() {
   const { sdk } = useRouteContext({ from: "__root__" });
-  const { data, isPending, isError, error } = useQuery(
+  const { data, isPending, isError, error, refetch } = useQuery(
     usersGetCurrentUserOptions({ client: sdk.client }),
   );
 
@@ -69,11 +68,7 @@ export function ProfileSection() {
   // set" values, presenting a failed read as a fact about the account. A cached
   // profile still wins, so a failed background refetch keeps the real values.
   if (isError && data === undefined) {
-    return (
-      <ErrorBanner data-testid="settings-profile-error">
-        {errorText(error, "Could not load your profile.")}
-      </ErrorBanner>
-    );
+    return <FailureBanner data-testid="settings-profile-error" error={error} onRetry={refetch} />;
   }
 
   const profile = data ?? {};

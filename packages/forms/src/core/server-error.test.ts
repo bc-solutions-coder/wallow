@@ -1,112 +1,86 @@
-import { WallowError } from "@bc-solutions-coder/sdk";
+import { ApiFailure, ClientErrorCode } from "@bc-solutions-coder/api-errors";
 import { describe, expect, it } from "vitest";
 
-import { splitServerError } from "./server-error";
+import { splitSubmitFailure } from "./server-error";
 
 /*
- * The failure-splitting contract, in the node project (pure logic, no DOM).
- *
- * The real `WallowError` is constructed here rather than a look-alike object:
- * `isWallowError` is a brand check on a global symbol the class sets in its
- * constructor (packages/sdk/src/errors.ts), so a hand-rolled duck type would be
- * rejected by the implementation and the spec would prove nothing.
- *
- * What each case pins:
- *
- *   1. The PascalCase -> camelCase fold. The API's property names come from
- *      FluentValidation/`ValidationProblemDetails` ("Name"), the form's values
- *      are camelCase ("name"), and nothing renders next to an input until the
- *      two are reconciled.
- *   2. The nested-path fold. A stepper that flattens a nested request object
- *      holds `branding.displayName` as `brandingDisplayName`; the wire key must
- *      land on that field or the message never reaches its step.
- *   3. Unmatched names are ROUTED, not dropped. A message keyed by a property
- *      the form does not hold (a computed one) would otherwise disappear,
- *      leaving a form that failed with no visible reason.
- *   4. A non-validation `WallowError` contributes its RFC 7807 `detail`.
- *   5./6. Anything else contributes the caller's fallback, except that a plain
- *      `Error` carrying a message contributes that message.
+ * The field split preserves unmatched messages and the original branded
+ * failure. Unclassified exceptions become transport failures.
  */
 
-/** The camelCase names a form built from `{ name, email }` values would report. */
+/** Uses real branded failures to cover the field split and transport classification. */
 const KNOWN_FIELDS: readonly string[] = ["name", "email"];
 
-const FALLBACK = "Something went wrong.";
-
-describe("splitServerError", () => {
-  it("maps matching field errors, folding the API's PascalCase onto camelCase names", () => {
-    const error = new WallowError({
+describe("splitSubmitFailure", () => {
+  it("keeps the failure for the banner when a matched field carries no message", () => {
+    const error = new ApiFailure({
       status: 400,
-      code: "VALIDATION_ERROR",
-      title: "Validation failed",
-      fieldErrors: { Name: ["'Name' must not be empty."] },
+      code: "Validation.Failed",
+      title: "Bad Request",
+      fieldErrors: { Name: [] },
     });
 
-    const result = splitServerError(error, KNOWN_FIELDS, FALLBACK);
+    const split = splitSubmitFailure(error, KNOWN_FIELDS);
 
-    expect(result.fieldErrors).toEqual({ name: ["'Name' must not be empty."] });
-    // Everything landed on a field, so there is nothing left for the banner.
-    expect(result.formError).toBeNull();
+    expect(split.fieldErrors).toEqual({ name: [] });
+    expect(split.bannerFailure).toBe(error);
   });
 
-  it("folds a nested wire path onto the flattened field a stepper holds it as", () => {
-    const error = new WallowError({
+  it("lands matching field errors on the form's names and leaves no banner", () => {
+    const error = new ApiFailure({
       status: 400,
-      code: "VALIDATION_ERROR",
+      code: "Validation.Failed",
       title: "Validation failed",
-      fieldErrors: { "branding.displayName": ["'Wallow' is reserved for the platform itself."] },
+      detail: "One or more validation errors occurred.",
+      fieldErrors: { Name: ["'Name' must not be empty."], "branding.displayName": ["Reserved."] },
     });
 
-    const result = splitServerError(error, ["name", "brandingDisplayName"], FALLBACK);
+    const result = splitSubmitFailure(error, ["name", "brandingDisplayName"]);
 
     expect(result.fieldErrors).toEqual({
-      brandingDisplayName: ["'Wallow' is reserved for the platform itself."],
+      name: ["'Name' must not be empty."],
+      brandingDisplayName: ["Reserved."],
     });
-    expect(result.formError).toBeNull();
+    // Everything landed on a field, so a banner would only repeat the inputs.
+    expect(result.bannerFailure).toBeNull();
+    expect(result.unmatched).toEqual([]);
   });
 
-  it("routes unmatched field names to the form-level error instead of dropping them", () => {
-    const error = new WallowError({
+  it("keeps the failure for the banner when a message matched no field", () => {
+    const error = new ApiFailure({
       status: 400,
-      code: "VALIDATION_ERROR",
+      code: "Validation.Failed",
       title: "Validation failed",
-      fieldErrors: { Surprise: ["Nope."] },
+      fieldErrors: {
+        Name: ["'Name' must not be empty."],
+        Surprise: ["Nope.", "Another rule failed."],
+        Captcha: ["Try the captcha again."],
+      },
     });
 
-    const result = splitServerError(error, KNOWN_FIELDS, FALLBACK);
+    const result = splitSubmitFailure(error, KNOWN_FIELDS);
 
-    expect(result.fieldErrors).toEqual({});
-    expect(result.formError).toBe("Nope.");
+    expect(result.fieldErrors).toEqual({ name: ["'Name' must not be empty."] });
+    expect(result.unmatched).toEqual(["Nope.", "Another rule failed.", "Try the captcha again."]);
+    expect(result.bannerFailure).toBe(error);
   });
 
-  it("uses the RFC 7807 detail for a WallowError carrying no field errors", () => {
-    // The 409-conflict shape: a real, specific reason that is not about one
-    // field, so it belongs in the banner rather than being replaced by the
-    // generic fallback.
-    const error = new WallowError({
-      status: 409,
-      code: "CONFLICT",
-      title: "Conflict",
-      detail: "Name taken.",
-    });
+  it("hands a failure without field errors to the banner unchanged", () => {
+    const error = new ApiFailure({ status: 409, code: "Orders.Closed", title: "Conflict" });
 
-    const result = splitServerError(error, KNOWN_FIELDS, FALLBACK);
+    const result = splitSubmitFailure(error, KNOWN_FIELDS);
 
     expect(result.fieldErrors).toEqual({});
-    expect(result.formError).toBe("Name taken.");
+    expect(result.bannerFailure).toBe(error);
   });
 
-  it("falls back for an error that carries no message at all", () => {
-    const result = splitServerError(new Error(""), KNOWN_FIELDS, FALLBACK);
+  it("classifies a thrown Error as a transport failure instead of echoing it", () => {
+    const result = splitSubmitFailure(new TypeError("Failed to fetch"), KNOWN_FIELDS);
 
     expect(result.fieldErrors).toEqual({});
-    expect(result.formError).toBe(FALLBACK);
-  });
-
-  it("uses a non-Wallow error's own message when it has one", () => {
-    const result = splitServerError(new Error("The network dropped."), KNOWN_FIELDS, FALLBACK);
-
-    expect(result.fieldErrors).toEqual({});
-    expect(result.formError).toBe("The network dropped.");
+    expect(result.bannerFailure?.code).toBe(ClientErrorCode.TRANSPORT_NETWORK_ERROR);
+    // The message never carries the transport text; the resolver shows the
+    // shipped network sentence for the code instead.
+    expect(result.bannerFailure?.detail).toBeUndefined();
   });
 });

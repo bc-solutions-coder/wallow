@@ -71,7 +71,19 @@ workspace**. It has a single browser-safe entry, `.`, exporting two things:
 - **`createQueryClient()`** — the shared client factory every app wires into its router context
   and its `__root` `QueryClientProvider`. Its policy is the contract: `retry: false` (no silent
   backoff, deterministic tests) and a fresh client per call, so one SSR request never shares a
-  cache with another.
+  cache with another. Its one option, `onUnhandledFailure`, is the failure model's root hook:
+  every mutation whose `meta` lacks `handledFailure()` reports each failure, and every query
+  whose `meta` carries `toastedFailure()` reports once per failure streak. wallow-web passes
+  `reportUnhandledFailure` (`src/shared/lib/unhandled-failure.ts`), which resolves the sentence
+  through the app registry (`src/shared/lib/failure-messages.ts`), toasts it with the quotable
+  reference, and logs one `query.failure.unhandled` warning; the registry provider and
+  `FailureToaster` mount once in `__root.tsx` inside the theme provider, and the root error
+  boundary renders `FailureBanner` for an API failure (a 404 takes the not-found screen). The
+  same boundary is the router's `defaultErrorComponent`, because SSR renders an error at the
+  failing match rather than throwing to the root; it paints the public shell only when no
+  rendering layout route sits above that match. `start.ts` registers a serialization adapter
+  for `ApiFailure`, so a loader failure reaches the browser branded, with status and code,
+  instead of as a bare `Error`.
 
 **Import react-query symbols from `@bc-solutions-coder/query`, never `@tanstack/react-query`
 directly.** That holds for the apps and for every other shared package — `forms`, `auth`,

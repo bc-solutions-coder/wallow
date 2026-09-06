@@ -1,6 +1,6 @@
-import { expect, type APIRequestContext, type Page, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-import { waitForEmailBody } from "./mailpit";
+import { E2E_PASSWORD, registerAndConfirm, uniqueEmail } from "./register";
 import { generateTotp } from "./totp";
 
 /**
@@ -15,9 +15,9 @@ import { generateTotp } from "./totp";
  * There is no seeded MFA-enabled account (api/seed.json has none), and enabling
  * MFA on the shared seeded admin would break every sibling spec that signs that
  * admin in with a password — a plain login would start returning mfaRequired. So
- * each run registers a FRESH `@e2e.local` user, confirms its email via the Mailpit
- * link (login requires a confirmed email), enrolls MFA on it, and only then can
- * exercise the challenge. Enrollment is a prerequisite for the challenge, so the
+ * each run registers a FRESH `@e2e.local` user through `register.ts` (which
+ * confirms its email via the Mailpit link, since login requires a confirmed
+ * email), enrolls MFA on it, and only then can exercise the challenge. Enrollment is a prerequisite for the challenge, so the
  * two tests run `describe.serial` and share the enrolled user + its TOTP secret:
  * the challenge cannot be reached without first standing an enrolled user up.
  *
@@ -40,7 +40,6 @@ import { generateTotp } from "./totp";
  * the screen's own verified state, not a URL. The TOTP codes are computed locally
  * from the enrollment secret with the server's exact parameters (see totp.ts).
  */
-const MFA_PASSWORD = "E2eMfa123!";
 
 /**
  * The enrolled user and its base32 secret, shared across the serial describe: the
@@ -49,56 +48,9 @@ const MFA_PASSWORD = "E2eMfa123!";
 let mfaEmail = "";
 let mfaSecret = "";
 
-/** Pull the `/verify-email/confirm?token=…&email=…` query out of the confirmation email. */
-function extractVerifyQuery(emailHtml: string): string {
-  const decoded: string = emailHtml.replaceAll("&amp;", "&");
-  const match: RegExpMatchArray | null = decoded.match(
-    /\/verify-email\/confirm\?(?<query>token=[^"'<\s]+)/u,
-  );
-
-  if (match?.groups?.query === undefined) {
-    throw new Error("verification email did not contain a verify-email/confirm link");
-  }
-
-  return match.groups.query;
-}
-
-/**
- * Register a fresh user through the signup screen and confirm its email via the
- * Mailpit-delivered link, leaving an account that can sign in (login requires a
- * confirmed email).
- */
-async function registerAndConfirm(
-  page: Page,
-  request: APIRequestContext,
-  email: string,
-): Promise<void> {
-  await page.goto("/register");
-  await expect(page.locator("[data-app-ready='true']")).toBeAttached();
-
-  await page.getByTestId("register-email").fill(email);
-  await page.getByTestId("register-password").fill(MFA_PASSWORD);
-  await page.getByTestId("register-confirm-password").fill(MFA_PASSWORD);
-  await page.getByTestId("register-terms").check();
-  await page.getByTestId("register-privacy").check();
-  await page.getByTestId("register-submit").click();
-
-  await expect(page.getByTestId("verify-email-heading")).toBeVisible({ timeout: 15_000 });
-
-  const emailHtml: string = await waitForEmailBody(request, {
-    to: email,
-    subject: "Verify your email address",
-  });
-  const query: string = extractVerifyQuery(emailHtml);
-
-  await page.goto(`/verify-email/confirm?${query}`);
-  await expect(page.locator("[data-app-ready='true']")).toBeAttached();
-  await expect(page.getByTestId("verify-email-confirm-success")).toBeVisible({ timeout: 15_000 });
-}
-
 test.describe.serial("mfa totp lifecycle", () => {
   test("totp enrollment issues backup codes", async ({ page, request }) => {
-    mfaEmail = `e2e-mfa-${Date.now()}@e2e.local`;
+    mfaEmail = uniqueEmail("e2e-mfa");
     await registerAndConfirm(page, request, mfaEmail);
 
     // Sign in with a returnUrl so the exchange-ticket path sets a full auth cookie
@@ -106,7 +58,7 @@ test.describe.serial("mfa totp lifecycle", () => {
     await page.goto(`/login?returnUrl=${encodeURIComponent("/mfa/enroll")}`);
     await expect(page.locator("[data-app-ready='true']")).toBeAttached();
     await page.getByTestId("login-email").fill(mfaEmail);
-    await page.getByTestId("login-password").fill(MFA_PASSWORD);
+    await page.getByTestId("login-password").fill(E2E_PASSWORD);
     await page.getByTestId("login-submit").click();
 
     await expect(page.locator("[data-app-ready='true']")).toBeAttached();
@@ -129,7 +81,7 @@ test.describe.serial("mfa totp lifecycle", () => {
     await page.goto("/login");
     await expect(page.locator("[data-app-ready='true']")).toBeAttached();
     await page.getByTestId("login-email").fill(mfaEmail);
-    await page.getByTestId("login-password").fill(MFA_PASSWORD);
+    await page.getByTestId("login-password").fill(E2E_PASSWORD);
     await page.getByTestId("login-submit").click();
 
     await expect(page.getByTestId("mfa-challenge-code")).toBeVisible({ timeout: 15_000 });

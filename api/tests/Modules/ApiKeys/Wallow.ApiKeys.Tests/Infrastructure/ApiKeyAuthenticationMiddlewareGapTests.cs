@@ -1,9 +1,12 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using Wallow.ApiKeys.Domain.Errors;
 using Wallow.ApiKeys.Infrastructure.Authorization;
 using Wallow.Shared.Contracts.ApiKeys;
 using Wallow.Shared.Kernel.Extensions;
 using Wallow.Shared.Kernel.MultiTenancy;
+using Wallow.Tests.Common.Helpers;
 
 namespace Wallow.ApiKeys.Tests.Infrastructure;
 
@@ -53,7 +56,7 @@ public class ApiKeyAuthenticationMiddlewareGapTests
     public async Task InvokeAsync_InvalidApiKey_DoesNotCallNext()
     {
         ApiKeyAuthenticationMiddleware middleware = CreateMiddleware();
-        DefaultHttpContext context = new DefaultHttpContext();
+        DefaultHttpContext context = new DefaultHttpContext { RequestServices = ProblemTestServices.Build() };
         context.Response.Body = new MemoryStream();
         context.Request.Headers["X-Api-Key"] = "sk_live_bad";
         TenantContext tenantContext = new TenantContext();
@@ -71,7 +74,7 @@ public class ApiKeyAuthenticationMiddlewareGapTests
     public async Task InvokeAsync_InvalidApiKey_WritesProperProblemJson()
     {
         ApiKeyAuthenticationMiddleware middleware = CreateMiddleware();
-        DefaultHttpContext context = new DefaultHttpContext();
+        DefaultHttpContext context = new DefaultHttpContext { RequestServices = ProblemTestServices.Build() };
         context.Response.Body = new MemoryStream();
         context.Request.Headers["X-Api-Key"] = "sk_live_bad";
         TenantContext tenantContext = new TenantContext();
@@ -82,14 +85,23 @@ public class ApiKeyAuthenticationMiddlewareGapTests
         await middleware.InvokeAsync(context, _apiKeyService, tenantContext);
 
         context.Response.StatusCode.Should().Be(401);
-        context.Response.ContentType.Should().Be("application/problem+json");
+        context.Response.ContentType.Should().StartWith("application/problem+json");
+
+        context.Response.Body.Position = 0;
+        JsonElement body = await JsonSerializer.DeserializeAsync<JsonElement>(context.Response.Body);
+        body.GetProperty("status").GetInt32().Should().Be(401);
+        body.GetProperty("code").GetString().Should().Be(ApiKeysErrors.ApiKeyInvalid.Code);
+        body.GetProperty("detail").GetString().Should().Be(ApiKeysErrors.ApiKeyInvalid.DefaultMessage);
+        body.GetProperty("traceId").GetString().Should().NotBeNullOrEmpty();
+        body.TryGetProperty("type", out JsonElement type).Should().BeTrue();
+        type.GetString().Should().Be("about:blank");
     }
 
     [Fact]
-    public async Task InvokeAsync_InvalidApiKeyWithNullError_Returns401WithDefaultMessage()
+    public async Task InvokeAsync_InvalidApiKeyWithNullError_Returns401WithTheCatalogDetail()
     {
         ApiKeyAuthenticationMiddleware middleware = CreateMiddleware();
-        DefaultHttpContext context = new DefaultHttpContext();
+        DefaultHttpContext context = new DefaultHttpContext { RequestServices = ProblemTestServices.Build() };
         context.Response.Body = new MemoryStream();
         context.Request.Headers["X-Api-Key"] = "sk_live_nullerr";
         TenantContext tenantContext = new TenantContext();
@@ -100,6 +112,9 @@ public class ApiKeyAuthenticationMiddlewareGapTests
         await middleware.InvokeAsync(context, _apiKeyService, tenantContext);
 
         context.Response.StatusCode.Should().Be(401);
+        context.Response.Body.Position = 0;
+        JsonElement body = await JsonSerializer.DeserializeAsync<JsonElement>(context.Response.Body);
+        body.GetProperty("detail").GetString().Should().Be(ApiKeysErrors.ApiKeyInvalid.DefaultMessage);
     }
 
     [Fact]

@@ -12,9 +12,8 @@
  * Testids ({page}-{element} kebab-case, invented per the scout's 7.4
  * reconciliation — the C# `InquiryPage` page object only covers the public
  * submit form, so there is no oracle for the detail/comments/status flow):
- * `inquiry-detail-heading`, `inquiry-detail-back-link`, `inquiry-detail-not-found`,
- * `inquiry-detail-error`, `inquiry-detail-status`, `inquiry-status-select` +
- * `inquiry-status-submit` + `inquiry-status-error`,
+ * `inquiry-detail-heading`, `inquiry-detail-back-link`, `inquiry-detail-error`,
+ * `inquiry-detail-status`, `inquiry-status-select` + `inquiry-status-submit`,
  * `inquiry-comments-table` + `inquiry-comment-item`,
  * `inquiry-comments-loading` / `inquiry-comments-empty` / `inquiry-comments-error`,
  * `inquiry-comment-content` + `inquiry-comment-internal` + `inquiry-comment-submit`,
@@ -23,16 +22,18 @@
  * `inquiry-comments-error` (the comment thread's READ failing) is deliberately
  * distinct from `inquiry-comment-error` (the add-comment MUTATION failing) —
  * they can co-render, so a spec asserting one must be able to say which failure
- * it saw.
+ * it saw. A failed status update has no inline surface: the root toaster owns
+ * it. A missing inquiry never reaches this component — the route's loader turns
+ * the API 404 into the router's not-found screen.
  */
-import { AppForm, errorText, FormError, SubmitButton, useAppForm } from "@bc-solutions-coder/forms";
+import { AppForm, FormError, SubmitButton, useAppForm } from "@bc-solutions-coder/forms";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@bc-solutions-coder/query";
 import type { InquiryCommentResponse, WallowSdk } from "@bc-solutions-coder/sdk";
 import {
   Badge,
   Button,
   Card,
-  ErrorBanner,
+  FailureBanner,
   ListCard,
   ListRow,
   MutedText,
@@ -90,31 +91,18 @@ export function InquiryDetail(props: { inquiryId: string }) {
 
   // React Query retains the last resolved data across a failed background
   // refetch, so a genuine error is only meaningful when there is NO data to fall
-  // back to — which is what distinguishes errored from resolved-null.
-  const inquiry = detailQuery.data ?? null;
-
-  if (inquiry === null) {
-    if (detailQuery.isError) {
-      return (
-        <ErrorBanner data-testid="inquiry-detail-error">
-          {errorText(detailQuery.error, "Could not load the inquiry.")}
-        </ErrorBanner>
-      );
-    }
-
+  // back to.
+  if (detailQuery.isError && detailQuery.data === undefined) {
     return (
-      <Card spacing="p-8 space-y-6" className="shadow-sm">
-        <a
-          href="/dashboard/inquiries"
-          data-testid="inquiry-detail-back-link"
-          className="inline-block text-sm text-muted-foreground hover:text-foreground no-underline mb-4"
-        >
-          Back to inquiries
-        </a>
-        <MutedText data-testid="inquiry-detail-not-found">Inquiry not found.</MutedText>
-      </Card>
+      <FailureBanner
+        data-testid="inquiry-detail-error"
+        error={detailQuery.error}
+        onRetry={() => detailQuery.refetch()}
+      />
     );
   }
+
+  const inquiry = detailQuery.data;
 
   return (
     <Card data-testid="inquiry-detail-card" spacing="p-8 space-y-6" className="shadow-sm">
@@ -179,11 +167,6 @@ function StatusControl(props: {
       >
         Update status
       </Button>
-      {mutation.isError ? (
-        <ErrorBanner data-testid="inquiry-status-error">
-          {errorText(mutation.error, "Could not update the status.")}
-        </ErrorBanner>
-      ) : null}
     </>
   );
 }
@@ -219,7 +202,7 @@ function CommentRow(props: { comment: InquiryCommentResponse }) {
 function CommentThread(props: { inquiryId: string }) {
   const { inquiryId } = props;
   const { sdk } = useRouteContext({ from: "__root__" });
-  const { data, isPending, isError, error } = useQuery(
+  const { data, isPending, isError, error, refetch } = useQuery(
     inquiriesGetCommentsOptions({ client: sdk.client, path: { id: inquiryId } }),
   );
 
@@ -231,11 +214,7 @@ function CommentThread(props: { inquiryId: string }) {
   // would render "No comments yet." over a server error. Cached comments still
   // win over a failed background refetch.
   if (isError && data === undefined) {
-    return (
-      <ErrorBanner data-testid="inquiry-comments-error">
-        {errorText(error, "Could not load the comments.")}
-      </ErrorBanner>
-    );
+    return <FailureBanner data-testid="inquiry-comments-error" error={error} onRetry={refetch} />;
   }
 
   const comments: readonly InquiryCommentResponse[] = data ?? [];

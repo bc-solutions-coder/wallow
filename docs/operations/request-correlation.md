@@ -3,7 +3,7 @@
 A user reports "it failed when I clicked save". This guide turns that into a specific
 backend request you can open in Grafana.
 
-Every error the BFF surfaces to the browser is a `WallowError` carrying two correlation
+Every error the BFF surfaces to the browser is an `ApiFailure` carrying two correlation
 members. They come from different places and answer different questions:
 
 | Member      | Minted by                | Answers                                            |
@@ -43,38 +43,43 @@ body — such a body has no upstream `traceId` to fall back on.
 Both members are on the error every SDK operation rejects with:
 
 ```ts
-import { isWallowError } from "@bc-solutions-coder/sdk";
+import { isApiFailure } from "@bc-solutions-coder/api-errors";
 
 try {
   await inquiriesCreate({ client, body });
 } catch (error) {
-  if (isWallowError(error)) {
+  if (isApiFailure(error)) {
     console.error(error.code, { requestId: error.requestId, traceId: error.traceId });
   }
 }
 ```
 
 `requestId` is read off the response header — the parsed body never carries it — and
-`traceId` out of the API's problem details body, which `GlobalExceptionHandler` stamps on
-every error response:
+`traceId` out of the API's problem details body, which the shared problem customizer
+(`ProblemContract.Customize`) stamps on every error response:
 
 ```json
 {
-  "type": "https://tools.ietf.org/html/rfc7231#section-6.6.1",
+  "type": "about:blank",
   "title": "Internal Server Error",
   "status": 500,
+  "detail": "Something went wrong. Try again later.",
+  "code": "Server.Error",
   "traceId": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
 }
 ```
 
-It appears at the **top level**, not nested under `extensions`. The handler sets
+It appears at the **top level**, not nested under `extensions`. The customizer sets
 `ProblemDetails.Extensions["traceId"]`, and ASP.NET Core carries `Extensions` as
-`[JsonExtensionData]`, so it serializes flattened into the object. The SDK reads
-`extensions.traceId` first and falls back to the flattened member, so it works against either
-shape — which is why a fork whose problem-details serializer nests extensions needs no SDK change.
+`[JsonExtensionData]`, so it serializes flattened into the object. `api-errors` reads only
+that flattened shape — a body whose `code` and `traceId` sit under a nested `extensions`
+object parses as `Client.UnrecognizedResponse` and loses both — so a fork that changes the
+problem-details serializer must keep the members at the top level.
 
 Surface both in whatever the user can copy — an error boundary, a toast, a support form.
-An id nobody can read is an id nobody will quote.
+An id nobody can read is an id nobody will quote. In the shared UI, `FailureBanner` and
+`toastFailure` show a `Reference <id>` line with a copy action for transport and 5xx failures
+(the trace id when the API answered, the request id when only the BFF did).
 
 ## Finding the trace in Grafana
 

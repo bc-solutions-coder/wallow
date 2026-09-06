@@ -16,8 +16,13 @@ using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Helpers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Errors;
+using Wallow.Shared.Api.Extensions;
+using Wallow.Shared.Api.Problems;
 using Wallow.Shared.Contracts.Identity.Events;
+using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Extensions;
+using Wallow.Shared.Kernel.Results;
 using Wolverine;
 
 namespace Wallow.Identity.Api.Controllers;
@@ -46,7 +51,8 @@ public sealed partial class AccountController(
     IMfaLockoutService mfaLockoutService,
     IConnectionMultiplexer redis,
     ILogger<AccountController> logger,
-    TimeProvider timeProvider) : ControllerBase
+    TimeProvider timeProvider,
+    IEmailChangeRateLimiter emailChangeRateLimiter) : ControllerBase
 {
     private const string TicketPurpose = "SignInTicket";
 
@@ -99,7 +105,7 @@ public sealed partial class AccountController(
                 IpAddress = ipAddress,
                 Reason = "account_not_found"
             });
-            return Unauthorized(new { succeeded = false, error = "invalid_credentials" });
+            return this.Problem(IdentityErrors.AuthInvalidCredentials);
         }
 
         Microsoft.AspNetCore.Identity.SignInResult result = await signInManager.CheckPasswordSignInAsync(
@@ -162,12 +168,12 @@ public sealed partial class AccountController(
                 UserId = user.Id,
                 IpAddress = ipAddress
             });
-            return StatusCode(423, new { succeeded = false, error = "locked_out" });
+            return this.Problem(IdentityErrors.AuthLockedOut);
         }
 
         if (result.IsNotAllowed)
         {
-            return StatusCode(403, new { succeeded = false, error = "email_not_confirmed" });
+            return this.Problem(IdentityErrors.AuthEmailNotConfirmed);
         }
 
         await messageBus.PublishAsync(new UserLoginFailedEvent
@@ -176,7 +182,7 @@ public sealed partial class AccountController(
             IpAddress = ipAddress,
             Reason = "invalid_credentials"
         });
-        return Unauthorized(new { succeeded = false, error = "invalid_credentials" });
+        return this.Problem(IdentityErrors.AuthInvalidCredentials);
     }
 
     [HttpPost("mfa/verify")]
@@ -189,13 +195,13 @@ public sealed partial class AccountController(
         MfaPartialAuthPayload? payload = await mfaPartialAuthService.ValidatePartialCookieAsync(ct);
         if (payload is null)
         {
-            return Unauthorized(new { succeeded = false, error = "no_mfa_session" });
+            return this.Problem(IdentityErrors.MfaSessionMissing);
         }
 
         WallowUser? user = await signInManager.UserManager.FindByIdAsync(payload.UserId);
         if (user is null || string.IsNullOrEmpty(user.TotpSecretEncrypted))
         {
-            return Unauthorized(new { succeeded = false, error = "invalid_code" });
+            return this.Problem(IdentityErrors.MfaCodeInvalid);
         }
 
         // Check if user is already locked out from MFA attempts
@@ -206,7 +212,7 @@ public sealed partial class AccountController(
                 UserId = user.Id,
                 LockoutCount = user.MfaLockoutCount
             });
-            return StatusCode(423, new { succeeded = false, error = "mfa_locked_out" });
+            return this.Problem(IdentityErrors.MfaLockedOut);
         }
 
         // Try TOTP first, then fall back to backup code
@@ -223,7 +229,7 @@ public sealed partial class AccountController(
                     UserId = user.Id,
                     LockoutCount = lockoutResult.LockoutCount
                 });
-                return StatusCode(423, new { succeeded = false, error = "mfa_locked_out" });
+                return this.Problem(IdentityErrors.MfaLockedOut);
             }
 
             await messageBus.PublishAsync(new UserLoginFailedEvent
@@ -232,7 +238,7 @@ public sealed partial class AccountController(
                 IpAddress = mfaIpAddress,
                 Reason = "invalid_mfa_code"
             });
-            return Unauthorized(new { succeeded = false, error = "invalid_code" });
+            return this.Problem(IdentityErrors.MfaCodeInvalid);
         }
 
         await mfaLockoutService.ResetAsync(user.Id, ct);
@@ -259,13 +265,13 @@ public sealed partial class AccountController(
     {
         if (string.IsNullOrEmpty(provider))
         {
-            return BadRequest(new { error = "provider_required" });
+            return this.Problem(IdentityErrors.AuthProviderRequired);
         }
 
         AuthenticationScheme? scheme = await authSchemeProvider.GetSchemeAsync(provider);
         if (scheme is null)
         {
-            return BadRequest(new { error = "unsupported_provider" });
+            return this.Problem(IdentityErrors.AuthProviderUnsupported);
         }
 
         string authUrl = GetRequiredAuthUrl();
@@ -606,7 +612,7 @@ public sealed partial class AccountController(
         if (payload is null)
         {
             LogExchangeTicketInvalid();
-            return BadRequest(new { succeeded = false, error = "invalid_or_expired_ticket" });
+            return this.Problem(IdentityErrors.AuthTicketInvalid);
         }
 
         LogExchangeTicketValidated(payload.Email, payload.Jti);
@@ -617,14 +623,14 @@ public sealed partial class AccountController(
         if (!wasSet)
         {
             LogExchangeTicketAlreadyUsed(payload.Jti);
-            return Unauthorized(new { succeeded = false, error = "ticket_already_used" });
+            return this.Problem(IdentityErrors.AuthTicketAlreadyUsed);
         }
 
         WallowUser? user = await signInManager.UserManager.FindByEmailAsync(payload.Email);
         if (user is null)
         {
             LogExchangeTicketUserNotFound(payload.Email);
-            return BadRequest(new { succeeded = false, error = "invalid_or_expired_ticket" });
+            return this.Problem(IdentityErrors.AuthTicketInvalid);
         }
 
         await signInManager.SignInAsync(user, isPersistent: payload.RememberMe);
@@ -701,7 +707,7 @@ public sealed partial class AccountController(
 
         if (!isPasswordless && request.Password != request.ConfirmPassword)
         {
-            return BadRequest(new { succeeded = false, error = "passwords_do_not_match" });
+            return this.Problem(IdentityErrors.AuthPasswordsDoNotMatch);
         }
 
         // A client id that names no organization is a broken sign-up link, and saying so beats
@@ -709,7 +715,7 @@ public sealed partial class AccountController(
         if (!string.IsNullOrEmpty(request.ClientId)
             && await clientTenantResolver.ResolveAsync(request.ClientId) is null)
         {
-            return BadRequest(new { succeeded = false, error = "invalid_client_id" });
+            return this.Problem(IdentityErrors.AuthClientIdInvalid);
         }
 
         // Self-registration uses placeholder names; users update their profile after onboarding
@@ -732,12 +738,12 @@ public sealed partial class AccountController(
 
         if (!result.Succeeded)
         {
-            string error = result.Errors.First().Code switch
+            IdentityError failure = result.Errors.First();
+            return failure.Code switch
             {
-                "DuplicateEmail" or "DuplicateUserName" => "email_taken",
-                _ => result.Errors.First().Description
+                "DuplicateEmail" or "DuplicateUserName" => this.Problem(IdentityErrors.AuthEmailTaken),
+                _ => IdentityValidationProblem(failure)
             };
-            return BadRequest(new { succeeded = false, error });
         }
 
         // Neither a role nor a membership is granted here. This endpoint is anonymous, so a
@@ -784,7 +790,7 @@ public sealed partial class AccountController(
         ClientTenantInfo? tenantInfo = await clientTenantResolver.ResolveAsync(clientId);
         if (tenantInfo is null)
         {
-            return NotFound();
+            return this.Problem(SharedErrors.NotFound);
         }
 
         return Ok(new { tenantId = tenantInfo.TenantId, orgName = tenantInfo.TenantName });
@@ -825,13 +831,20 @@ public sealed partial class AccountController(
         WallowUser? user = await signInManager.UserManager.FindByEmailAsync(request.Email);
         if (user is null)
         {
-            return BadRequest(new { succeeded = false, error = "invalid_token" });
+            return this.Problem(IdentityErrors.AuthTokenInvalid);
         }
 
+        // Identity verifies the token before it runs the password validator, so a failure here
+        // is either a link that cannot be redeemed or a new password the policy refuses. Only the
+        // former collapses into the token problem: answering a weak password with "this link has
+        // expired" sends the user off to request a link they do not need.
         IdentityResult result = await signInManager.UserManager.ResetPasswordAsync(user, request.Token, request.NewPassword);
         if (!result.Succeeded)
         {
-            return BadRequest(new { succeeded = false, error = "invalid_token" });
+            IdentityError failure = result.Errors.First();
+            return failure.Code == "InvalidToken"
+                ? this.Problem(IdentityErrors.AuthTokenInvalid)
+                : IdentityValidationProblem(failure);
         }
 
         await messageBus.PublishAsync(new PasswordChangedEvent
@@ -852,13 +865,13 @@ public sealed partial class AccountController(
         WallowUser? user = await signInManager.UserManager.FindByEmailAsync(email);
         if (user is null)
         {
-            return BadRequest(new { succeeded = false, error = "invalid_token" });
+            return this.Problem(IdentityErrors.AuthTokenInvalid);
         }
 
         IdentityResult result = await signInManager.UserManager.ConfirmEmailAsync(user, token);
         if (!result.Succeeded)
         {
-            return BadRequest(new { succeeded = false, error = "invalid_token" });
+            return this.Problem(IdentityErrors.AuthTokenInvalid);
         }
 
         await messageBus.PublishAsync(new EmailVerifiedEvent
@@ -877,10 +890,10 @@ public sealed partial class AccountController(
     [ProducesResponseType(typeof(AccountOperationResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> SendMagicLink([FromBody] SendMagicLinkRequest request, CancellationToken ct)
     {
-        PasswordlessResult result = await passwordlessService.SendMagicLinkAsync(request.Email, ct, request.ReturnUrl, request.ClientId);
-        if (!result.Succeeded)
+        Result result = await passwordlessService.SendMagicLinkAsync(request.Email, ct, request.ReturnUrl, request.ClientId);
+        if (result.IsFailure)
         {
-            return BadRequest(new { succeeded = false, error = result.Error });
+            return result.ToActionResult();
         }
 
         // Always return success to prevent email enumeration
@@ -892,14 +905,15 @@ public sealed partial class AccountController(
     [ProducesResponseType(typeof(PasswordlessVerificationResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> VerifyMagicLink([FromQuery] string token, [FromQuery] bool rememberMe = false, CancellationToken ct = default)
     {
-        PasswordlessResult result = await passwordlessService.ValidateMagicLinkAsync(token, ct);
-        if (!result.Succeeded)
+        Result<string> result = await passwordlessService.ValidateMagicLinkAsync(token, ct);
+        if (result.IsFailure)
         {
-            return Unauthorized(new { succeeded = false, error = result.Error });
+            return result.ToActionResult();
         }
 
-        string signInTicket = CreateSignInTicket(result.Email!, rememberMe);
-        return Ok(new { succeeded = true, email = result.Email, signInTicket });
+        string email = result.Value;
+        string signInTicket = CreateSignInTicket(email, rememberMe);
+        return Ok(new { succeeded = true, email, signInTicket });
     }
 
     [HttpPost("passwordless/otp")]
@@ -907,10 +921,10 @@ public sealed partial class AccountController(
     [ProducesResponseType(typeof(AccountOperationResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> SendOtp([FromBody] SendOtpRequest request, CancellationToken ct)
     {
-        PasswordlessResult result = await passwordlessService.SendOtpAsync(request.Email, ct);
-        if (!result.Succeeded)
+        Result result = await passwordlessService.SendOtpAsync(request.Email, ct);
+        if (result.IsFailure)
         {
-            return BadRequest(new { succeeded = false, error = result.Error });
+            return result.ToActionResult();
         }
 
         // Always return success to prevent email enumeration
@@ -922,14 +936,15 @@ public sealed partial class AccountController(
     [ProducesResponseType(typeof(PasswordlessVerificationResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> VerifyOtp([FromBody] VerifyOtpRequest request, CancellationToken ct)
     {
-        PasswordlessResult result = await passwordlessService.ValidateOtpAsync(request.Email, request.Code, ct);
-        if (!result.Succeeded)
+        Result<string> result = await passwordlessService.ValidateOtpAsync(request.Email, request.Code, ct);
+        if (result.IsFailure)
         {
-            return Unauthorized(new { succeeded = false, error = result.Error });
+            return result.ToActionResult();
         }
 
-        string signInTicket = CreateSignInTicket(result.Email!, request.RememberMe);
-        return Ok(new { succeeded = true, email = result.Email, signInTicket });
+        string email = result.Value;
+        string signInTicket = CreateSignInTicket(email, request.RememberMe);
+        return Ok(new { succeeded = true, email, signInTicket });
     }
 
     [HttpPost("change-email")]
@@ -940,32 +955,24 @@ public sealed partial class AccountController(
         string? userId = User.GetUserId();
         if (string.IsNullOrEmpty(userId))
         {
-            return Unauthorized(new { succeeded = false, error = "unauthorized" });
+            return this.Problem(SharedErrors.Unauthenticated);
         }
 
         WallowUser? user = await signInManager.UserManager.FindByIdAsync(userId);
         if (user is null)
         {
-            return Unauthorized(new { succeeded = false, error = "unauthorized" });
+            return this.Problem(SharedErrors.Unauthenticated);
         }
 
         if (string.Equals(user.Email, request.NewEmail, StringComparison.OrdinalIgnoreCase))
         {
-            return BadRequest(new { succeeded = false, error = "same_email" });
+            return this.Problem(IdentityErrors.AuthEmailUnchanged);
         }
 
-        // Rate limit: max 3 email change requests per hour per user
-        IDatabase redisDb = redis.GetDatabase();
-        string rateLimitKey = $"email:change:rate:{userId}";
-        long count = await redisDb.StringIncrementAsync(rateLimitKey);
-        if (count == 1)
+        Result throttle = await emailChangeRateLimiter.CheckAsync(userId);
+        if (throttle.IsFailure)
         {
-            await redisDb.KeyExpireAsync(rateLimitKey, TimeSpan.FromHours(1));
-        }
-
-        if (count > 3)
-        {
-            return StatusCode(429, new { succeeded = false, error = "rate_limited" });
+            return this.Problem(SharedErrors.RateLimitExceeded, retryAfter: throttle.Error.RetryAfter);
         }
 
         DateTimeOffset expiry = timeProvider.GetUtcNow().AddHours(24);
@@ -998,14 +1005,14 @@ public sealed partial class AccountController(
         WallowUser? user = await signInManager.UserManager.FindByIdAsync(userId);
         if (user is null)
         {
-            return BadRequest(new { succeeded = false, error = "invalid_token" });
+            return this.Problem(IdentityErrors.AuthTokenInvalid);
         }
 
         if (user.PendingEmailExpiry < timeProvider.GetUtcNow())
         {
             user.ClearPendingEmailChange();
             await signInManager.UserManager.UpdateAsync(user);
-            return BadRequest(new { succeeded = false, error = "token_expired" });
+            return this.Problem(IdentityErrors.AuthTokenExpired);
         }
 
         string oldEmail = user.Email!;
@@ -1013,7 +1020,7 @@ public sealed partial class AccountController(
         IdentityResult result = await signInManager.UserManager.ChangeEmailAsync(user, newEmail, token);
         if (!result.Succeeded)
         {
-            return BadRequest(new { succeeded = false, error = "invalid_token" });
+            return this.Problem(IdentityErrors.AuthTokenInvalid);
         }
 
         await signInManager.UserManager.SetUserNameAsync(user, newEmail);
@@ -1049,6 +1056,18 @@ public sealed partial class AccountController(
         string.IsNullOrEmpty(clientId)
             ? string.Empty
             : $"&{ExternalLoginClientIdKey}={Uri.EscapeDataString(clientId)}";
+
+    /// <summary>
+    /// Words an <see cref="IdentityResult"/> refusal as <c>Validation.Failed</c>. Only the password
+    /// validator's descriptions ride along as <c>detail</c>: they are the policy's own sentences and
+    /// the user has to read them to fix the password. Every other Identity description echoes the
+    /// input back under Identity's own nouns ("Username 'x' is invalid"), so it stays off the wire
+    /// and the catalog's default sentence answers instead.
+    /// </summary>
+    private ProblemResult IdentityValidationProblem(IdentityError failure) =>
+        failure.Code.StartsWith("Password", StringComparison.Ordinal)
+            ? this.Problem(SharedErrors.ValidationFailed, failure.Description)
+            : this.Problem(SharedErrors.ValidationFailed);
 
     private string GetRequiredAuthUrl() =>
         configuration["AuthUrl"] ?? throw new InvalidOperationException(

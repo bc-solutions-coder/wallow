@@ -11,9 +11,6 @@ import { timingSafeEqual } from "node:crypto";
 /** Header carrying the double-submit CSRF token on state-changing requests. */
 export const CSRF_HEADER: string = "x-csrf-token";
 
-/** Machine-readable code returned when the CSRF check rejects a request. */
-export const CSRF_INVALID_CODE: string = "CSRF_INVALID";
-
 /** The HTTP methods that mutate state and therefore carry a CSRF token. */
 const STATE_CHANGING_METHODS: ReadonlySet<string> = new Set<string>([
   "POST",

@@ -1,5 +1,8 @@
 **status: active**
 
+> Historical plan. Failure-handling passages link to the current spec and their original Git revision.
+
+
 # Design: `@bc-solutions-coder/forms`
 
 A new workspace package, `packages/forms`, that owns everything about building forms:
@@ -129,9 +132,7 @@ error type exactly one surface:
 | Server field errors | RFC 7807 `errors` dict keyed by field name | Mapped onto the matching field's `Field.Error` via TanStack's `setErrorMap` | same as above |
 | Form-level failure | RFC 7807 `detail` (or fallback text) | `form.FormError` → ui `ErrorBanner` above the submit | `{prefix}-error` |
 
-The RFC 7807 mapper lives in `forms/core` (generalizing the existing per-app `errorText`
-helpers). Unknown/unmatched field names in the server's `errors` dict fall back to the
-form-level banner rather than vanishing.
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-07-29/1016-forms-package-design.md).
 
 **Visual note:** wallow-web's per-field errors visually change from banner style to
 inline `Field.Error` text. Testids are preserved so E2E holds; this is the intended

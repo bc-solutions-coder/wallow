@@ -25,7 +25,7 @@
  *
  * NOTHING is mocked. The SDK is a real `createWallowSdk()` instance handed a stub
  * transport, so the assertions run through the real generated operation, the real
- * `WallowError` interceptor and the real 401-softening in the SDK's
+ * `ApiFailure` interceptor and the real 401-softening in the SDK's
  * `getCurrentUser` — the three pieces this query composes. A `vi.mock` of the SDK
  * would assert only that this file calls what this file calls.
  *

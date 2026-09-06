@@ -294,6 +294,7 @@ describe("CreateInquiryForm on @bc-solutions-coder/forms", () => {
       {
         type: "https://httpstatuses.io/400",
         title: "One or more validation errors occurred.",
+        code: "Validation.Failed",
         status: 400,
         errors: { ProjectType: ["'other' is not a recognised project type."] },
       },
@@ -312,13 +313,12 @@ describe("CreateInquiryForm on @bc-solutions-coder/forms", () => {
     expect(page.getByTestId("inquiry-error").elements()).toHaveLength(0);
   });
 
-  it("keeps a message for a property the form has no field for in the banner", async () => {
-    // `splitServerError` matches on the form's own value keys, so a property the
-    // form does not hold has nowhere to land but the banner.
+  it("shows the validation message for a property the form has no field for", async () => {
     harness.rejectJson(
       {
         type: "https://httpstatuses.io/400",
         title: "One or more validation errors occurred.",
+        code: "Validation.Failed",
         status: 400,
         errors: { Captcha: ["Captcha verification failed."] },
       },
@@ -340,6 +340,7 @@ describe("CreateInquiryForm on @bc-solutions-coder/forms", () => {
       {
         type: "https://httpstatuses.io/400",
         title: "One or more validation errors occurred.",
+        code: "Validation.Failed",
         status: 400,
         errors: { ProjectType: ["'other' is not a recognised project type."] },
       },
@@ -364,10 +365,13 @@ describe("CreateInquiryForm on @bc-solutions-coder/forms", () => {
     await expect.element(page.getByTestId("inquiry-success")).toBeInTheDocument();
   });
 
-  it("falls back to the form's own sentence when the failure carries no detail", async () => {
-    // `useAppForm`'s `fallbackError` supplies this sentence; without it the
-    // transport's own HTTP message wins.
-    harness.rejectJson({ type: "https://httpstatuses.io/500", title: "Server error" }, 500);
+  it("shows the shipped server sentence for a 5xx, ahead of the form's fallback", async () => {
+    // The resolver's status defaults sit before the call-site fallback, and a
+    // 5xx never shows its own detail — so `fallbackError` is not what renders.
+    harness.rejectJson(
+      { type: "https://httpstatuses.io/500", code: "Server.Error", title: "Server error" },
+      500,
+    );
 
     renderWithWallow(<CreateInquiryForm />, { harness });
 
@@ -376,7 +380,7 @@ describe("CreateInquiryForm on @bc-solutions-coder/forms", () => {
 
     await expect
       .element(page.getByTestId("inquiry-error"))
-      .toHaveTextContent("Could not submit the inquiry.");
+      .toHaveTextContent("Something went wrong on our side. Please try again later.");
   });
 
   it("replaces the form AND its heading with the success state", async () => {

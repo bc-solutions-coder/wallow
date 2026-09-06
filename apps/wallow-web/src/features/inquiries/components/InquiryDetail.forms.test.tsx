@@ -211,6 +211,7 @@ describe("InquiryDetail add-comment form on @bc-solutions-coder/forms", () => {
         {
           type: "https://httpstatuses.io/400",
           title: "One or more validation errors occurred.",
+          code: "Validation.Failed",
           status: 400,
           errors: { Content: ["A comment may not exceed 4000 characters."] },
         },
@@ -237,6 +238,7 @@ describe("InquiryDetail add-comment form on @bc-solutions-coder/forms", () => {
         {
           type: "https://httpstatuses.io/400",
           title: "One or more validation errors occurred.",
+          code: "Validation.Failed",
           status: 400,
           errors: { Content: ["A comment may not exceed 4000 characters."] },
         },

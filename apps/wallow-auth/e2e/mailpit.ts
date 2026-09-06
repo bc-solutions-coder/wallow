@@ -3,7 +3,7 @@ import type { APIRequestContext } from "@playwright/test";
 /**
  * Mailpit REST helper for the backend-dependent specs that read an emailed link
  * or code back out of the inbox (magic-link.spec.ts, otp-login.spec.ts,
- * mfa.spec.ts's verify-email confirmation, reset-password.spec.ts). NOT a spec
+ * register.ts's verify-email confirmation, reset-password.spec.ts). NOT a spec
  * file — its name is outside Playwright's `*.spec.ts` glob, so the runner never
  * treats it as a test.
  *

@@ -115,7 +115,11 @@ describe("OrganizationDetail deletion", () => {
   it("keeps the dialog open and shows why the deletion was refused", async () => {
     seed({
       "DELETE /v1/identity/organizations/o1": failsWith(
-        { title: "The organization is suspended by the platform.", status: 422 },
+        {
+          code: "Identity.OrganizationSuspendedByPlatform",
+          detail: "The organization is suspended by the platform.",
+          status: 422,
+        },
         422,
       ),
     });
