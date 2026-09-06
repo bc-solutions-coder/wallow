@@ -31,7 +31,8 @@ folders on top of `@bc-solutions-coder/api-errors`, the package's one non-catalo
   `defineFailureMessages` registry; `useFailureMessage(error, { messages?, fallback? })`
   resolves the sentence through `resolveFailureMessage` and returns `null` for a nullish error.
   Empty-registry default, so the hook answers without a provider. A nested provider
-  **replaces**, never merges — per-call-site sentences go through `messages`.
+  **replaces**, never merges — per-call-site sentences go through `messages`. The hook also
+  forwards optional `unmatched` validation messages from a form's field split to the resolver.
 - **`failure-banner`** — `FailureBanner({ error, messages?, fallback?, onRetry?, signInHref?,
 children? })` wraps `ErrorBanner`, renders nothing for a nullish `error`, and adds only what
   the status rule allows: "Try again" when `onRetry` is given; a "Sign in" link from the

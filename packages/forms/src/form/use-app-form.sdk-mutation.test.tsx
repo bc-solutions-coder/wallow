@@ -28,10 +28,6 @@ import { FormError } from "./form-error";
 import { SubmitButton } from "./submit-button";
 import { useAppForm } from "./use-app-form";
 
-/* ------------------------------------------------------------------ *
- * The transport: the one stand-in in this file.
- * ------------------------------------------------------------------ */
-
 /** What the SDK actually put on the wire for one submit. */
 interface SentRequest {
   readonly method: string;
@@ -86,19 +82,11 @@ function createSdk(transport: Transport): WallowSdk {
   return createWallowSdk({ baseUrl: "/api", fetch: transport.fetch });
 }
 
-/* ------------------------------------------------------------------ *
- * Harnesses: two forms, two generated factories, two `TError` types.
- * ------------------------------------------------------------------ */
-
 const organizationSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
 });
 
-/**
- * The create-organization shape (`organizationsCreateMutation`, `TError =
- * DefaultError`), built exactly the way a migrated screen builds one — this is
- * the form Wallow-ov6w.4.1 had to write with a workaround.
- */
+/** The create-organization factory uses DefaultError, unlike the registration factory. */
 function CreateOrganizationHarness(props: {
   readonly sdk: WallowSdk;
   readonly onCreated: (organizationId: string) => void;
@@ -169,10 +157,6 @@ function RegisterAppHarness(props: {
     </AppForm>
   );
 }
-
-/* ------------------------------------------------------------------ *
- * Rendering helpers.
- * ------------------------------------------------------------------ */
 
 /**
  * Each case gets its own client so no mutation state leaks between them. It is
@@ -285,20 +269,15 @@ describe("useAppForm with a generated SDK mutation", () => {
     });
 
     it("splits the API's RFC 7807 failure across the field and the banner", async () => {
-      // A real 400 problem details body: the SDK's own error interceptor turns
-      // it into an `ApiFailure`, `splitFieldErrors` folds `Name` onto the
-      // form's `name`, and `Scopes` — which this form has no field for — means
-      // the banner shows the failure's one resolved sentence (the 4xx detail
-      // here), never the unmatched messages joined together.
       const transport = createTransport(400, {
         status: 400,
         title: "Validation failed",
         detail: "One or more validation errors occurred.",
         errors: {
           Name: ["'Name' must not be empty."],
-          Scopes: ["At least one scope is required."],
+          Scopes: ["At least one scope is required.", "Choose a supported scope."],
         },
-        code: "VALIDATION_ERROR",
+        code: "Validation.Failed",
       });
       const { container, onUnhandledFailure } = await renderWithClient(
         <RegisterAppHarness sdk={createSdk(transport)} onRegistered={vi.fn()} />,
@@ -311,7 +290,7 @@ describe("useAppForm with a generated SDK mutation", () => {
         .poll(() => byTestId(container, "app-register-name-error").textContent)
         .toBe("'Name' must not be empty.");
       expect(byTestId(container, "app-register-error").textContent).toBe(
-        "One or more validation errors occurred.",
+        "At least one scope is required.",
       );
       // The form handled it, so the app's toast callback never hears of it.
       expect(onUnhandledFailure).not.toHaveBeenCalled();

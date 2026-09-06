@@ -22,40 +22,9 @@ import { SubmitButton } from "./submit-button";
 import { useAppForm } from "./use-app-form";
 
 /*
- * `useAppForm` end to end, in the browser project (real headless Chromium, a
- * real `QueryClient`, the real `AppForm`/`SubmitButton`/`FormError` shell and the
- * real `ApiFailure` from the SDK — nothing is mocked except the userland
- * `mutationFn`, which stands in for a generated SDK operation).
- *
- * The harness mounts one bare `form.Field` render prop rather than a catalog
- * field to observe field-level messages: `form.setErrorMap` only reaches fields
- * that are already registered, so a server field error can only be observed
- * through a mounted field.
- *
- * What is pinned here:
- *
- *   1. The schema is the `onDynamic` validator — invalid values surface on the
- *      field AND the mutation never runs. Both halves matter: a hook that
- *      merely swallowed the submit would satisfy either alone.
- *   2. A passing submit calls the mutation exactly ONCE, with the default
- *      `{ body: values }` variables the generated SDK operations expect, and
- *      hands the result to `onSuccess`.
- *   3. `toVariables` replaces that default for operations that also take a path.
- *   4. `pending` is real even on the no-mutation escape hatch (the
- *      forgot-password shape), because that path still runs through a mutation.
- *   5./6. A failure is SPLIT: `errors` entries become field messages and leave
- *      the banner clear, while anything else resolves ONE banner sentence
- *      through the registry — the form's `messages` first, the app's
- *      `FailureMessagesProvider` next, then the shipped copy (which reads a
- *      4xx `detail`), then `fallbackError`. A thrown `Error` is a transport
- *      failure and shows the shipped network sentence, never its own text.
- *      Both cases render through the shell with NO `pending`/`serverError`
- *      prop passed, which is what proves `AppForm` defaults them off
- *      `form.wallow`.
- *   7. A banner does not outlive the submit that produced it.
- *   8. The form is a HANDLED failure surface: its mutation carries
- *      `failureHandled` in `meta` (over whatever meta the caller set), so the
- *      query client's `onUnhandledFailure` never fires for a failed submit.
+ * Browser coverage for form validation, mutation state, and failure messages.
+ * A real QueryClient and form shell carry the submitted failure to the screen.
+ * The bare form.Field registers the input whose server messages are observed.
  */
 
 const schema = z.object({
@@ -392,6 +361,41 @@ describe("useAppForm", () => {
         audit: "member-add",
         failureHandled: true,
       });
+    });
+
+    it("replaces unmatched wording on a later failure and clears it after success", async () => {
+      const mutationFn = vi
+        .fn<(variables: MutationVariables) => Promise<MutationData>>()
+        .mockRejectedValueOnce(
+          new ApiFailure({
+            status: 400,
+            code: "Validation.Failed",
+            title: "Validation failed",
+            fieldErrors: { Captcha: ["Captcha verification failed."] },
+          }),
+        )
+        .mockRejectedValueOnce(
+          new ApiFailure({
+            status: 400,
+            code: "Validation.Failed",
+            title: "Validation failed",
+            detail: "Please review the request.",
+          }),
+        )
+        .mockResolvedValueOnce({ id: "created" });
+      const { container } = await renderHarness({ mutation: { mutationFn } });
+
+      await userEvent.click(submitButton(container));
+      await expect
+        .poll(() => queryTestId(container, "demo-error")?.textContent)
+        .toBe("Captcha verification failed.");
+      await userEvent.click(submitButton(container));
+      await expect
+        .poll(() => queryTestId(container, "demo-error")?.textContent)
+        .toBe("Please review the request.");
+      await userEvent.click(submitButton(container));
+      await expect.poll(() => queryTestId(container, "demo-error")).toBeNull();
+      expect(mutationFn).toHaveBeenCalledTimes(3);
     });
 
     it("does not let a banner outlive the submit that produced it", async () => {

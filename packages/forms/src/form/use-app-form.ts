@@ -14,7 +14,7 @@
  * callback never toasts what the form already shows.
  */
 
-import type { ApiFailure, FailureMessageRegistry } from "@bc-solutions-coder/api-errors";
+import type { FailureMessageRegistry } from "@bc-solutions-coder/api-errors";
 import { handledFailure, useMutation, type UseMutationOptions } from "@bc-solutions-coder/query";
 import { useFailureMessage } from "@bc-solutions-coder/ui/failure-messages";
 import {
@@ -151,7 +151,7 @@ export interface UseAppFormOptions<TValues, TVariables, TData, TError = unknown>
 export function useAppForm<TValues, TVariables = unknown, TData = unknown, TError = unknown>(
   options: UseAppFormOptions<TValues, TVariables, TData, TError>,
 ): AppFormApi<TValues> {
-  const [bannerFailure, setBannerFailure] = useState<ApiFailure | null>(null);
+  const [submitFailure, setSubmitFailure] = useState<SubmitFailure | null>(null);
   /*
    * The banner is a failure message like any other surface's: resolved through
    * the app registry the `FailureMessagesProvider` publishes (the shipped copy
@@ -159,7 +159,8 @@ export function useAppForm<TValues, TVariables = unknown, TData = unknown, TErro
    * behind. Resolving here rather than in the mutation callback is what lets
    * the registry reach it — the callback runs outside React.
    */
-  const serverError: string | null = useFailureMessage(bannerFailure, {
+  const serverError: string | null = useFailureMessage(submitFailure?.bannerFailure, {
+    unmatched: submitFailure?.unmatched,
     messages: options.messages,
     fallback: options.fallbackError,
   });
@@ -219,7 +220,7 @@ export function useAppForm<TValues, TVariables = unknown, TData = unknown, TErro
     onSubmit: ({ value }) => {
       // A banner must not outlive the submit that produced it, and a submit
       // reached programmatically skips the shell's own clear.
-      setBannerFailure(null);
+      setSubmitFailure(null);
 
       mutation.mutate(toMutationVariables(options, value), {
         onSuccess: (data: TData) => {
@@ -231,7 +232,7 @@ export function useAppForm<TValues, TVariables = unknown, TData = unknown, TErro
             Object.keys(options.defaultValues as Record<string, unknown>),
           );
 
-          setBannerFailure(split.bannerFailure);
+          setSubmitFailure(split);
           /*
            * `onServer` is the error-map key for messages that came from outside
            * the form, and the framework hands each already-mounted field
@@ -249,7 +250,7 @@ export function useAppForm<TValues, TVariables = unknown, TData = unknown, TErro
   });
 
   const clearServerErrors = useCallback((): void => {
-    setBannerFailure(null);
+    setSubmitFailure(null);
     form.setErrorMap({ onServer: { fields: {} } });
   }, [form]);
 

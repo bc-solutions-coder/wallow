@@ -313,11 +313,7 @@ describe("CreateInquiryForm on @bc-solutions-coder/forms", () => {
     expect(page.getByTestId("inquiry-error").elements()).toHaveLength(0);
   });
 
-  it("shows the form's own sentence for a property the form has no field for", async () => {
-    // The split matches on the form's own value keys, so a property the form
-    // does not hold cannot land on an input. The banner is ONE resolved
-    // sentence, never the API's unmatched wording joined in: with no detail and
-    // no registry entry for the code, that is the form's `fallbackError`.
+  it("shows the validation message for a property the form has no field for", async () => {
     harness.rejectJson(
       {
         type: "https://httpstatuses.io/400",
@@ -336,7 +332,7 @@ describe("CreateInquiryForm on @bc-solutions-coder/forms", () => {
 
     await expect
       .element(page.getByTestId("inquiry-error"))
-      .toHaveTextContent("Could not submit the inquiry.");
+      .toHaveTextContent("Captcha verification failed.");
   });
 
   it("clears a server field error on the next submit rather than wedging the form", async () => {

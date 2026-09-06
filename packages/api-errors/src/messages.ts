@@ -2,8 +2,8 @@
  * From a failure to the sentence a person reads.
  *
  * {@link resolveFailureMessage} walks a fixed precedence: the call site's
- * messages, the app's registry, the copy shipped here per code, the problem's
- * own `detail` (a 4xx with an API code only), the copy shipped here per
+ * messages, the app's registry, the first unmatched validation message when
+ * supplied, the copy shipped here per code, the problem's own `detail` (a 4xx with an API code only), the copy shipped here per
  * status, the call site's fallback, and finally one generic sentence. It
  * always returns a string.
  */
@@ -27,6 +27,8 @@ export type FailureMessageRegistry = Readonly<
 >;
 
 export interface ResolveFailureMessageOptions {
+  /** Validation messages that could not be placed on fields at this call site. */
+  readonly unmatched?: readonly string[] | undefined;
   /** The app's registry, from {@link defineFailureMessages}. */
   readonly registry?: FailureMessageRegistry | undefined;
   /** Sentences for this call site alone; they win over the registry. */
@@ -130,6 +132,13 @@ export function resolveFailureMessage(
   const registered: FailureMessage | undefined = lookup(options.registry, failure.code);
   if (registered) {
     return registered(failure);
+  }
+
+  if (failure.code === ErrorCode.VALIDATION_FAILED && isClientProblem(failure)) {
+    const firstUnmatched = options.unmatched?.find((message) => message.trim() !== "");
+    if (firstUnmatched !== undefined) {
+      return firstUnmatched;
+    }
   }
 
   const shipped: FailureMessage | undefined = lookup(CODE_MESSAGES, failure.code);

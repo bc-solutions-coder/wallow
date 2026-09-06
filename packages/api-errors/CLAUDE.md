@@ -34,7 +34,8 @@ one entry (`.`).** Published to GitHub Packages on `api-errors-v*` tags via
   `OAuth.<PascalCase(error)>` with the token as `title` — a documented grammar, not an
   enumerated list. `Retry-After` (delta-seconds or IMF-fixdate) lands on `retryAfter`.
 - `resolveFailureMessage` precedence is fixed and spec-pinned: call-site `messages` → app
-  `registry` → shipped per-code copy → `detail` (4xx with a **non-client** code only) →
+  `registry` → first nonblank `options.unmatched` sentence for a 4xx `Validation.Failed` →
+  shipped per-code copy → `detail` (4xx with a **non-client** code only) →
   shipped per-status copy (401/403/404/409/429/5xx) → `fallback` → one generic sentence.
   Transport, unrecognised and 5xx failures never surface `detail`; a non-failure input is
   classified first, so an `Error.message` is never echoed.

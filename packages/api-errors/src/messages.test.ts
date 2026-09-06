@@ -50,6 +50,7 @@ describe("resolveFailureMessage", () => {
         registry,
         messages: { "Validation.Failed": () => "From the call site" },
         fallback: "From the fallback",
+        unmatched: ["Unmatched validation message."],
       }),
     ).toBe("From the call site");
   });
@@ -68,8 +69,61 @@ describe("resolveFailureMessage", () => {
     expect(
       resolveFailureMessage(failure(BAD_REQUEST, "Validation.Failed", "From detail"), {
         registry,
+        unmatched: ["Unmatched validation message."],
       }),
     ).toBe("Registry saw 400");
+  });
+
+  it("uses the first nonblank unmatched validation message before generic detail", () => {
+    const error = failure(
+      BAD_REQUEST,
+      "Validation.Failed",
+      "One or more validation errors occurred.",
+    );
+    expect(
+      resolveFailureMessage(error, {
+        unmatched: ["", "  ", "Captcha verification failed.", "Another rule failed."],
+        fallback: "Could not submit.",
+      }),
+    ).toBe("Captcha verification failed.");
+    expect(error.detail).toBe("One or more validation errors occurred.");
+  });
+
+  it.each([undefined, [], ["", "  "]])(
+    "uses normal validation resolution without usable unmatched text: %j",
+    (unmatched) => {
+      expect(
+        resolveFailureMessage(failure(BAD_REQUEST, "Validation.Failed", "Validation detail."), {
+          unmatched,
+        }),
+      ).toBe("Validation detail.");
+      expect(
+        resolveFailureMessage(failure(BAD_REQUEST, "Validation.Failed"), {
+          unmatched,
+          fallback: "Could not save.",
+        }),
+      ).toBe("Could not save.");
+    },
+  );
+
+  it.each([
+    [
+      500,
+      "Validation.Failed",
+      "Internal details",
+      "Something went wrong on our side. Please try again later.",
+    ],
+    [400, "Orders.Closed", "The order is closed.", "The order is closed."],
+    [
+      503,
+      "Transport.NetworkError",
+      "fetch failed",
+      "Unable to reach the server. Check your connection and try again.",
+    ],
+  ])("ignores unmatched context for %i %s", (status, code, detail, expected) => {
+    expect(
+      resolveFailureMessage(failure(status, code, detail), { unmatched: ["Must not leak."] }),
+    ).toBe(expected);
   });
 
   it("hands the failure to a registry entry", () => {

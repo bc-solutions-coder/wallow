@@ -24,7 +24,7 @@ import {
 } from "@bc-solutions-coder/api-errors";
 
 /** What one failed submit leaves for the form to show. */
-export interface SubmitFailure extends Pick<SplitFieldErrors, "fieldErrors"> {
+export interface SubmitFailure extends SplitFieldErrors {
   /**
    * The failure the banner resolves its sentence from, or `null` when every
    * message landed on a field — a banner there would only repeat the inputs.
@@ -39,8 +39,8 @@ export interface SubmitFailure extends Pick<SplitFieldErrors, "fieldErrors"> {
  * already an `ApiFailure` is classified first (a thrown `Error` is a transport
  * failure), so the banner never shows transport text. A message keyed by a
  * field the form does not hold cannot be shown next to an input; the banner
- * then carries the failure's own resolved sentence rather than a joined list of
- * the API's wording.
+ * receives the unmatched messages as resolver context, without changing the
+ * original failure or joining messages together.
  */
 export function splitSubmitFailure(error: unknown, knownFields: readonly string[]): SubmitFailure {
   const failure: ApiFailure = toApiFailure(error);
@@ -52,5 +52,5 @@ export function splitSubmitFailure(error: unknown, knownFields: readonly string[
   );
   const everyMessagePlaced: boolean = unmatched.length === 0 && placedAnyMessage;
 
-  return { fieldErrors, bannerFailure: everyMessagePlaced ? null : failure };
+  return { fieldErrors, unmatched, bannerFailure: everyMessagePlaced ? null : failure };
 }

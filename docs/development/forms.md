@@ -225,11 +225,13 @@ The rules, and why each one is there:
   as a transport failure rather than echoed.
 - **If every message landed on a field, `serverError` stays `null`** and no banner renders — a
   banner there would only repeat what is already under the inputs.
-- **A message keyed by a field the form does not hold is not joined into the banner.** The
-  banner shows the failure's resolved sentence, which for a validation problem is its generic
-  detail, so the API's wording for that field does not reach the screen. Hold every field the
-  API validates (a hidden field is fine); `messages` keys by code, so it cannot recover which
-  field failed.
+- **Unmatched validation messages reach the banner.** For a 4xx `Validation.Failed`, the
+  resolver shows the first nonblank unmatched message in server order. For example, a
+  `Captcha` error on a form without a captcha field shows "Captcha verification failed."
+  Matched messages stay on their fields, and the banner never joins messages into a list.
+  Explicit form `messages` and the app registry still win; with no usable unmatched message,
+  normal detail/status/fallback resolution applies. Other failure codes keep their existing
+  behavior. Forms do not need hidden fields merely to retain validation wording.
 - **Every form mutation is a handled failure.** `useAppForm` stamps `handledFailure` on the
   mutation's `meta`, so the query client's `onUnhandledFailure` callback never toasts what the
   form already shows.
@@ -238,7 +240,7 @@ The rules, and why each one is there:
 space and no stale testid is left behind.
 
 A component outside a form resolves its message with `useFailureMessage` (or renders `FailureBanner`) from `ui`; a bespoke
-form uses `splitFieldErrors` and the hook directly.
+form uses `splitFieldErrors` and passes its `unmatched` result to the hook alongside the failure.
 
 ## Behaviour and styling conventions
 

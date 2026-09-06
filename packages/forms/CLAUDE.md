@@ -18,11 +18,14 @@ drive the real client.
 Mechanics are in `docs/development/forms.md` § The error model; the invariants:
 
 - **Never a joined string.** `splitSubmitFailure` (core) lands messages on the form's
-  `defaultValues` keys and otherwise hands the whole `ApiFailure` to the banner; unmatched
-  wording is not assembled into a sentence.
-- **Resolve in the hook body, not the mutation callback.** `useAppForm` keeps `bannerFailure`
-  in state and reads `useFailureMessage` where the `FailureMessagesProvider` context is
-  reachable; a callback is not inside React.
+  `defaultValues` keys and preserves `unmatched` in server order alongside the original
+  `ApiFailure`. The resolver shows the first nonblank unmatched sentence for a 4xx
+  `Validation.Failed`, after explicit form/app messages and before generic detail or fallback.
+  Other failures keep their normal message rules. Hidden fields are not needed for this.
+- **Resolve in the hook body, not the mutation callback.** `useAppForm` keeps the submit
+  failure and unmatched context in one state value and reads `useFailureMessage` where the
+  `FailureMessagesProvider` context is reachable. Retry/reset clears both together; a
+  callback is not inside React.
 - **Every mutation the hook creates carries `handledFailure(meta)`** over the caller's own
   `meta`, so the client's `onUnhandledFailure` never fires for a form. Specs build the client
   with `createQueryClient({ onUnhandledFailure })` and assert it.

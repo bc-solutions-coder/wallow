@@ -4,13 +4,8 @@ import { describe, expect, it } from "vitest";
 import { splitSubmitFailure } from "./server-error";
 
 /*
- * The failure-splitting contract, in the node project (pure logic, no DOM).
- *
- * The real `ApiFailure` is constructed because `isApiFailure` is a brand check
- * the class sets in its constructor; a duck type would prove nothing. The
- * `splitSubmitFailure` cases pin the current split: matched keys land on
- * fields, an unmatched key or no field errors leaves the failure for the
- * banner, and a thrown `Error` is classified as a transport failure.
+ * The field split preserves unmatched messages and the original branded
+ * failure. Unclassified exceptions become transport failures.
  */
 
 /** Uses real branded failures to cover the field split and transport classification. */
@@ -48,6 +43,7 @@ describe("splitSubmitFailure", () => {
     });
     // Everything landed on a field, so a banner would only repeat the inputs.
     expect(result.bannerFailure).toBeNull();
+    expect(result.unmatched).toEqual([]);
   });
 
   it("keeps the failure for the banner when a message matched no field", () => {
@@ -55,14 +51,17 @@ describe("splitSubmitFailure", () => {
       status: 400,
       code: "Validation.Failed",
       title: "Validation failed",
-      fieldErrors: { Name: ["'Name' must not be empty."], Surprise: ["Nope."] },
+      fieldErrors: {
+        Name: ["'Name' must not be empty."],
+        Surprise: ["Nope.", "Another rule failed."],
+        Captcha: ["Try the captcha again."],
+      },
     });
 
     const result = splitSubmitFailure(error, KNOWN_FIELDS);
 
-    // The matched half still reaches its field; the unmatched half is not
-    // joined into a string — the banner resolves the failure's own sentence.
     expect(result.fieldErrors).toEqual({ name: ["'Name' must not be empty."] });
+    expect(result.unmatched).toEqual(["Nope.", "Another rule failed.", "Try the captcha again."]);
     expect(result.bannerFailure).toBe(error);
   });
 

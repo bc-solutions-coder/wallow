@@ -33,6 +33,8 @@ export function FailureMessagesProvider({
 
 /** The per-call-site knobs of `useFailureMessage`, mirroring the resolver's. */
 export interface UseFailureMessageOptions {
+  /** Validation messages that could not be placed on fields at this call site. */
+  readonly unmatched?: readonly string[] | undefined;
   /** Sentences for this call site alone; they win over the registry. */
   readonly messages?: FailureMessageRegistry | undefined;
   /** The call site's own last resort, ahead of the generic sentence. */
@@ -55,6 +57,7 @@ export function useFailureMessage(
 
   return resolveFailureMessage(error, {
     registry,
+    unmatched: options.unmatched,
     messages: options.messages,
     fallback: options.fallback,
   });
