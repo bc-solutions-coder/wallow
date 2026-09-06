@@ -1,3 +1,4 @@
+import { expectNavigationEscape } from "@bc-solutions-coder/testing/navigation-escape";
 import { render } from "@bc-solutions-coder/testing/render";
 import { act } from "react";
 import { toast } from "sonner";
@@ -22,9 +23,9 @@ function toasts(): HTMLElement[] {
   return [...document.querySelectorAll<HTMLElement>("[data-sonner-toast]")];
 }
 
-function raise(message: string, reference?: Parameters<typeof toastFailure>[1]): void {
+function raise(message: string, options?: Parameters<typeof toastFailure>[1]): void {
   act(() => {
-    toastFailure(message, reference);
+    toastFailure(message, options);
   });
 }
 
@@ -80,6 +81,48 @@ describe("toastFailure", () => {
     expect(only?.querySelector("button[data-button]")).toBeNull();
   });
 
+  it("navigates to the sign-in destination with a single action", async () => {
+    await render(<FailureToaster />);
+    raise("Please sign in again.", {
+      signInHref: "/auth/login?returnTo=%2Fsettings",
+      reference: { requestId: "not-for-copying" },
+    });
+
+    await expect.poll(() => toasts().length).toBe(1);
+    const [only] = toasts();
+    const actions = only?.querySelectorAll<HTMLButtonElement>("button[data-button]");
+    expect(actions).toHaveLength(1);
+    expect(actions?.[0]?.textContent).toBe("Sign in");
+    expect(only?.textContent).not.toContain("Copy reference");
+    expect(only?.textContent).not.toContain("Reference");
+    await userEvent.click(actions?.[0] as HTMLButtonElement);
+
+    const navigation = await expectNavigationEscape();
+    expect(navigation.url).toBe(new URL("/auth/login?returnTo=%2Fsettings", location.origin).href);
+  });
+
+  it("keeps sign-in and referenced toasts after an ordinary toast expires", async () => {
+    await render(<FailureToaster />);
+    raise("Please sign in again.", { signInHref: "/auth/login" });
+    raise("The server is unavailable.", { reference: { requestId: "request-persistent" } });
+    raise("Temporary notice.");
+
+    await expect.poll(() => toasts().length).toBe(3);
+    await userEvent.unhover(
+      document.querySelector<HTMLElement>("[data-sonner-toaster]") as HTMLElement,
+    );
+    await expect
+      .poll(() => toasts().some((element) => element.textContent?.includes("Temporary notice.")), {
+        timeout: 7000,
+      })
+      .toBe(false);
+    expect(toasts()).toHaveLength(2);
+    expect(toasts().some((element) => element.textContent?.includes("Sign in"))).toBe(true);
+    expect(
+      toasts().some((element) => element.textContent?.includes("Reference request-persistent")),
+    ).toBe(true);
+  }, 10000);
+
   it("shows the reference line, preferring the trace id", async () => {
     await render(<FailureToaster />);
     raise("Something went wrong on our side.", { traceId: "trace-1", requestId: "request-1" });
@@ -94,23 +137,27 @@ describe("toastFailure", () => {
     expect(text).toContain("Reference request-2");
   });
 
-  it("copies the reference without dismissing the toast", async () => {
-    await render(<FailureToaster />);
-    raise("Something went wrong on our side.", { traceId: "4bf92f3577b34da6a3ce929d0e0e4736" });
+  it.each(["legacy", "options"])(
+    "copies the %s reference without dismissing the toast",
+    async (shape) => {
+      await render(<FailureToaster />);
+      const reference = { traceId: "4bf92f3577b34da6a3ce929d0e0e4736" };
+      raise("Something went wrong on our side.", shape === "legacy" ? reference : { reference });
 
-    await expect.poll(() => toasts().length).toBe(1);
-    const copy = toasts()[0]?.querySelector<HTMLButtonElement>("button[data-button]");
-    expect(copy?.textContent).toBe("Copy reference");
-    await userEvent.click(copy as HTMLButtonElement);
+      await expect.poll(() => toasts().length).toBe(1);
+      const copy = toasts()[0]?.querySelector<HTMLButtonElement>("button[data-button]");
+      expect(copy?.textContent).toBe("Copy reference");
+      await userEvent.click(copy as HTMLButtonElement);
 
-    await expect
-      .poll(() => navigator.clipboard.readText())
-      .toBe("4bf92f3577b34da6a3ce929d0e0e4736");
-    // Dismissal is animation-deferred, so a bare synchronous check would pass
-    // either way; wait past the removal delay before asserting it stayed.
-    await new Promise((resolve) => {
-      setTimeout(resolve, 400);
-    });
-    expect(toasts()).toHaveLength(1);
-  });
+      await expect
+        .poll(() => navigator.clipboard.readText())
+        .toBe("4bf92f3577b34da6a3ce929d0e0e4736");
+      // Dismissal is animation-deferred, so a bare synchronous check would pass
+      // either way; wait past the removal delay before asserting it stayed.
+      await new Promise((resolve) => {
+        setTimeout(resolve, 400);
+      });
+      expect(toasts()).toHaveLength(1);
+    },
+  );
 });

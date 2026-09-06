@@ -175,7 +175,12 @@ export {
   useFailureMessage,
   type UseFailureMessageOptions,
 } from "./components/failure-messages";
-export { FailureToaster, type FailureReference, toastFailure } from "./components/failure-toast";
+export {
+  FailureToaster,
+  type FailureReference,
+  type FailureToastOptions,
+  toastFailure,
+} from "./components/failure-toast";
 export {
   Field,
   type FieldControlProps,

@@ -24,7 +24,7 @@ import {
   toApiFailure,
 } from "@bc-solutions-coder/api-errors";
 import type { UnhandledFailure } from "@bc-solutions-coder/query";
-import { toastFailure } from "@bc-solutions-coder/ui/failure-toast";
+import { failureSignInHref, toastFailure } from "@bc-solutions-coder/ui/failure-toast";
 
 import { failureMessages } from "./failure-messages";
 import { log } from "./log";
@@ -44,7 +44,10 @@ export function reportUnhandledFailure({ kind, error }: UnhandledFailure): void 
 
   const reference: FailureReference | undefined = failureReference(failure);
 
-  toastFailure(resolveFailureMessage(failure, { registry: failureMessages }), reference);
+  toastFailure(resolveFailureMessage(failure, { registry: failureMessages }), {
+    reference,
+    signInHref: failureSignInHref(failure.code, `${location.pathname}${location.search}`),
+  });
   log.warn(
     UNHANDLED_FAILURE_EVENT,
     {

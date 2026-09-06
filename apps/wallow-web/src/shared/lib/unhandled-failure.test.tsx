@@ -1,4 +1,6 @@
-import { ApiFailure, ClientErrorCode } from "@bc-solutions-coder/api-errors";
+import { ApiFailure, ClientErrorCode, ErrorCode } from "@bc-solutions-coder/api-errors";
+import { expectNavigationEscape } from "@bc-solutions-coder/testing/navigation-escape";
+import { userEvent } from "vitest/browser";
 import { render } from "@bc-solutions-coder/testing/render";
 import { FailureToaster } from "@bc-solutions-coder/ui/failure-toast";
 import { act } from "react";
@@ -60,7 +62,31 @@ describe("reportUnhandledFailure", () => {
 
     await expect.poll(() => toasts().length).toBe(1);
     expect(toasts()[0]?.textContent).toContain("That verification code is not valid.");
+    expect(toasts()[0]?.querySelector("button[data-button]")).toBeNull();
     expect(toasts()[0]?.textContent).not.toContain("Reference");
+  });
+
+  it.each([
+    ErrorCode.AUTH_UNAUTHENTICATED,
+    ClientErrorCode.BFF_SESSION_MISSING,
+    ClientErrorCode.BFF_SESSION_REFRESH_FAILED,
+  ])("offers sign-in with the current return path for %s", async (code) => {
+    const currentPath = `${location.pathname}${location.search}`;
+    report(
+      "mutation",
+      new ApiFailure({ status: 401, code, title: "Unauthorized", requestId: "not-quotable" }),
+    );
+
+    await expect.poll(() => toasts().length).toBe(1);
+    const action = toasts()[0]?.querySelector<HTMLButtonElement>("button[data-button]");
+    expect(action?.textContent).toBe("Sign in");
+    expect(toasts()[0]?.textContent).not.toContain("Reference");
+    await userEvent.click(action as HTMLButtonElement);
+    const navigation = await expectNavigationEscape();
+    const destination = new URL(navigation.url);
+    expect(destination.origin).toBe(location.origin);
+    expect(destination.pathname).toBe("/bff/login");
+    expect(destination.searchParams.get("returnTo")).toBe(currentPath);
   });
 
   it("shows the quotable reference and logs the trace id ahead of the request id", async () => {
@@ -71,6 +97,7 @@ describe("reportUnhandledFailure", () => {
       "Something went wrong on our side. Please try again later.",
     );
     expect(toasts()[0]?.textContent).toContain("Reference trace-1");
+    expect(toasts()[0]?.querySelector("button[data-button]")?.textContent).toBe("Copy reference");
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn).toHaveBeenCalledWith(
       UNHANDLED_FAILURE_EVENT,

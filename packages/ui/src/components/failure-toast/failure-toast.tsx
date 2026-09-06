@@ -7,6 +7,13 @@ import { useTheme } from "../theme-provider/theme-provider";
 /** The ids a toast may show, as `failureReference` answers them; the first present wins. */
 export type { FailureReference } from "@bc-solutions-coder/api-errors";
 
+/** Toast actions; inherited reference fields preserve the positional reference form. */
+export interface FailureToastOptions extends FailureReference {
+  readonly reference?: FailureReference | undefined;
+  /** Sign-in takes precedence over a reference and its copy action. */
+  readonly signInHref?: string | undefined;
+}
+
 /**
  * sonner injects its own unlayered stylesheet, which beats Tailwind's layered
  * utilities on the cascade. Every token here is therefore marked important so
@@ -28,13 +35,26 @@ function ignoreClipboardDenial(): void {
 }
 
 /**
- * Raise a failure toast. The reference line and its copy action appear only
- * when the caller passes a reference — `failureReference(error)` from
- * api-errors decides whether the failure is one support can act on. A toast
- * carrying a reference stays until closed: there is no toast history, and an
- * id that vanishes after four seconds is an id nobody quotes.
+ * Raise a failure toast with optional sign-in or reference actions. Sign-in
+ * takes precedence; either action keeps the toast until closed. A plain
+ * reference object remains shorthand for `{ reference }`.
  */
-export function toastFailure(message: string, reference?: FailureReference): void {
+export function toastFailure(message: string, options?: FailureToastOptions): void {
+  const signInHref = options?.signInHref;
+  if (signInHref !== undefined) {
+    toast.error(message, {
+      duration: Number.POSITIVE_INFINITY,
+      action: {
+        label: "Sign in",
+        onClick: () => {
+          globalThis.location.assign(signInHref);
+        },
+      },
+    });
+    return;
+  }
+
+  const reference = options?.reference ?? options;
   const id: string | undefined = reference?.traceId ?? reference?.requestId;
 
   if (id === undefined) {

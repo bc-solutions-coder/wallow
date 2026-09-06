@@ -34,19 +34,20 @@ folders on top of `@bc-solutions-coder/api-errors`, the package's one non-catalo
   **replaces**, never merges — per-call-site sentences go through `messages`.
 - **`failure-banner`** — `FailureBanner({ error, messages?, fallback?, onRetry?, signInHref?,
 children? })` wraps `ErrorBanner`, renders nothing for a nullish `error`, and adds only what
-  the status rule allows: "Try again" when `onRetry` is given; a "Sign in" link for the 401
-  codes (`Auth.Unauthenticated`, `Bff.SessionMissing`, `Bff.SessionRefreshFailed`) — to
-  `/bff/login?returnTo=<current path>` by default, built here rather than imported because `ui`
-  must not depend on the SDK, or to `signInHref` for an app without a BFF (wallow-auth); and
+  the status rule allows: "Try again" when `onRetry` is given; a "Sign in" link from the
+  shared `failureSignInHref` rule, with `signInHref` for an app without a BFF (wallow-auth); and
   the `Reference <id>` line with "Copy reference" only when api-errors' `failureReference`
   answers (transport and 5xx; trace id, else request id — the rule lives THERE, not here). The
   path comes from `useSyncExternalStore` with a `"/"` server snapshot so SSR never mismatches.
 - **`failure-toast`** — **sonner is the documented exception to "every component wraps Base
   UI"**: the Base UI toast wrapper is deleted and must not come back. `FailureToaster` mounts
   sonner's `<Toaster>` bottom-right with a close button, `theme` fed from `useTheme().mode`;
-  `toastFailure(message, reference?)` raises `toast.error` with the reference line and a copy
-  action that `preventDefault()`s so the toast stays; a referenced toast has no timeout (only
-  the close button ends it), an unreferenced one keeps sonner's default. sonner renders inline
+  `toastFailure(message, { reference?, signInHref? })` raises `toast.error`; the existing
+  `(message, reference?)` form still accepts a `FailureReference` directly. A sign-in
+  destination gives it one "Sign in" action that navigates there, taking precedence over
+  any reference. Otherwise a reference adds its line and a "Copy reference" action that
+  prevents dismissal. Both sign-in and referenced toasts have no timeout; a message alone
+  keeps sonner's default. `FailureToastOptions` describes both forms. sonner renders inline
   (no portal), its stylesheet is **unlayered**, so every token in `TOAST_CLASSNAMES` carries
   Tailwind's `!` suffix, and its toast store is a **module singleton** — a story or spec must
   `toast.dismiss()` and wait for the exit animation before asserting an empty screen. Its
@@ -54,6 +55,14 @@ children? })` wraps `ErrorBanner`, renders nothing for a nullish `error`, and ad
   toast, Escape collapses the stack rather than closing, and `FailureToaster` must sit under
   `ThemeProvider` (`useTheme` falls back to light without one). sonner is in both browser
   projects' `optimizeDeps.include` for the same mid-run-reload reason as the recipe runtime.
+
+`core/failure-sign-in.ts` owns the shared sign-in rule for banners and toast callbacks:
+`failureSignInHref(code, currentPath, signInHref?)` returns a destination only for
+`Auth.Unauthenticated`, `Bff.SessionMissing`, and `Bff.SessionRefreshFailed`. It defaults to
+`/bff/login?returnTo=<encoded current path and query>`, with no SDK dependency. The
+`failure-toast` subpath exports it for app callbacks; the root barrel does not. The caller
+supplies the current path so the banner keeps its SSR snapshot and a toast uses the path
+at the time the failure occurs.
 
 The query side (`createQueryClient({ onUnhandledFailure })`, `handledFailure`,
 `toastedFailure`) lives in `packages/query`; wiring the callback to `toastFailure` is the app's

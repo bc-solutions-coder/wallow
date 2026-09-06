@@ -1,13 +1,12 @@
 import {
   type ApiFailure,
-  ClientErrorCode,
-  ErrorCode,
   type FailureMessageRegistry,
   failureReference,
   toApiFailure,
 } from "@bc-solutions-coder/api-errors";
 import { type ReactElement, type ReactNode, useState, useSyncExternalStore } from "react";
 
+import { failureSignInHref } from "../../core/failure-sign-in";
 import { Button } from "../button/button";
 import { ErrorBanner, type ErrorBannerProps } from "../error-banner/error-banner";
 import { useFailureMessage } from "../failure-messages/failure-messages";
@@ -38,16 +37,6 @@ export interface FailureBannerProps extends Omit<ErrorBannerProps, "children"> {
   /** Phrasing content rendered after the sentence and its actions. */
   readonly children?: ReactNode;
 }
-
-/** The BFF login route; the banner links to it directly, so `ui` needs no SDK. */
-const BFF_LOGIN_PATH = "/bff/login";
-
-/** The codes that mean "sign in again", whatever the copy says. */
-const SIGN_IN_CODES: ReadonlySet<string> = new Set([
-  ErrorCode.AUTH_UNAUTHENTICATED,
-  ClientErrorCode.BFF_SESSION_MISSING,
-  ClientErrorCode.BFF_SESSION_REFRESH_FAILED,
-]);
 
 /** The inline action style: a link-variant button with the box padding removed. */
 const ACTION_CLASS = "h-auto p-0 text-sm";
@@ -170,7 +159,7 @@ export function FailureBanner({
   const failure: ApiFailure = toApiFailure(error);
   const ids = failureReference(failure);
   const reference: string | undefined = ids?.traceId ?? ids?.requestId;
-  const signIn: boolean = SIGN_IN_CODES.has(failure.code);
+  const signIn = failureSignInHref(failure.code, currentPath, signInHref);
 
   return (
     <ErrorBanner data-testid={testId} {...rest}>
@@ -179,13 +168,10 @@ export function FailureBanner({
       {onRetry === undefined ? null : (
         <RetryAction onRetry={onRetry} testId={derive(testId, "retry")} />
       )}
-      {signIn ? " " : null}
-      {signIn ? (
-        <SignInLink
-          href={signInHref ?? `${BFF_LOGIN_PATH}?returnTo=${encodeURIComponent(currentPath)}`}
-          testId={derive(testId, "sign-in")}
-        />
-      ) : null}
+      {signIn === undefined ? null : " "}
+      {signIn === undefined ? null : (
+        <SignInLink href={signIn} testId={derive(testId, "sign-in")} />
+      )}
       {reference === undefined ? null : <ReferenceLine key={reference} reference={reference} />}
       {children}
     </ErrorBanner>

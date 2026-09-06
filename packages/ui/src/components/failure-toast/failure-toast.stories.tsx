@@ -1,8 +1,10 @@
+import { ClientErrorCode } from "@bc-solutions-coder/api-errors";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import type { ReactElement } from "react";
 import { toast } from "sonner";
 import { expect, screen, userEvent, waitFor } from "storybook/test";
 
+import { failureSignInHref } from "../../core/failure-sign-in";
 import { Button } from "../button/button";
 import { FailureToaster, toastFailure } from "./failure-toast";
 
@@ -43,6 +45,15 @@ function Demo(): ReactElement {
         5xx with reference
       </Button>
       <Button onClick={() => toastFailure("You don't have permission to do that.")}>403</Button>
+      <Button
+        onClick={() =>
+          toastFailure("Your session has expired. Please sign in again.", {
+            signInHref: failureSignInHref(ClientErrorCode.BFF_SESSION_REFRESH_FAILED, "/settings"),
+          })
+        }
+      >
+        Session expired
+      </Button>
     </div>
   );
 }
@@ -72,6 +83,16 @@ export const WithoutReference: Story = {
     await clearToasts();
     await userEvent.click(screen.getByRole("button", { name: "403" }));
     await waitFor(() => expect(screen.getByText(/permission/)).toBeVisible());
+    await expect(screen.queryByRole("button", { name: "Copy reference" })).toBeNull();
+  },
+};
+
+/** A session failure stays visible with one sign-in action. */
+export const WithSignIn: Story = {
+  play: async () => {
+    await clearToasts();
+    await userEvent.click(screen.getByRole("button", { name: "Session expired" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Sign in" })).toBeVisible());
     await expect(screen.queryByRole("button", { name: "Copy reference" })).toBeNull();
   },
 };
