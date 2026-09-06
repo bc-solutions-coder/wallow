@@ -113,6 +113,20 @@ ${generateCssVars("dark", theme.dark)}
   letter-spacing: 0.05em;
 }
 
+.navbar .btn.dropdown-toggle {
+  --bs-btn-color: var(--bs-navbar-color);
+  --bs-btn-hover-color: var(--bs-navbar-hover-color);
+  --bs-btn-active-color: var(--bs-navbar-active-color);
+}
+
+.navbar .dropdown-menu {
+  --bs-dropdown-link-color: var(--bs-body-color);
+  --bs-dropdown-link-hover-color: var(--bs-body-color);
+  --bs-dropdown-link-hover-bg: var(--bs-secondary-bg);
+  --bs-dropdown-link-active-color: var(--bs-body-bg);
+  --bs-dropdown-link-active-bg: var(--bs-body-color);
+}
+
 /* Code blocks */
 pre {
   background-color: ${theme.light.card};
