@@ -1,0 +1,11 @@
+# The scratch app's own pnpm settings. Its presence also makes this directory
+# its own workspace root, so pnpm stops walking up to the repo's settings.
+#
+# The packed SDK and styles carry registry ranges for the workspace packages
+# they depend on (`pnpm pack` rewrites `workspace:` ranges), and neither
+# package is on any registry. These overrides pin those ranges to the tarballs
+# the smoke script packs beside them. A new runtime workspace dependency of a
+# packed package shows up as a registry 404 on install: pack it and add it here.
+overrides:
+  "@bc-solutions-coder/api-errors": "file:./vendor/api-errors.tgz"
+  "@bc-solutions-coder/env": "file:./vendor/env.tgz"

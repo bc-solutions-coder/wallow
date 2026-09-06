@@ -12,8 +12,10 @@
 # fork installs the package from a registry. This script is that install.
 #
 # Steps:
-#   1. build packages/sdk and packages/styles (pack ships dist/, so it must exist)
-#   2. `pnpm pack` both into a work directory outside the repo
+#   1. build packages/sdk and packages/styles plus the workspace packages they
+#      depend on at runtime, api-errors and env (pack ships dist/, so it must
+#      exist)
+#   2. `pnpm pack` all four into a work directory outside the repo
 #   3. copy the committed scaffold (scripts/fork-smoke/) next to the tarballs
 #   4. `pnpm install` there — its package.json points at `file:./vendor/*.tgz`
 #   5. `pnpm build`, then `pnpm typecheck` (the route tree is emitted BY the
@@ -57,19 +59,31 @@ case "$WORK_DIR" in
 esac
 
 log "Building the packages that get packed"
-pnpm --dir "$REPO_ROOT" --filter @bc-solutions-coder/sdk --filter @bc-solutions-coder/styles build
+pnpm --dir "$REPO_ROOT" \
+  --filter @bc-solutions-coder/api-errors \
+  --filter @bc-solutions-coder/env \
+  --filter @bc-solutions-coder/sdk \
+  --filter @bc-solutions-coder/styles \
+  build
 
 log "Packing the tarballs"
 mkdir -p "$APP_DIR/vendor"
 # Fixed names (not <name>-<version>.tgz) so the scaffold's package.json can spell
 # out its `file:` specifiers instead of the script rewriting JSON.
+# api-errors and env ride along because the SDK and styles depend on them:
+# packing rewrites each `workspace:` range into a registry range, and the
+# scaffold's pnpm-workspace.yaml overrides pin those ranges to these tarballs
+# so the install never asks a registry for them.
+pnpm --dir "$REPO_ROOT/packages/api-errors" pack --out "$APP_DIR/vendor/api-errors.tgz"
+pnpm --dir "$REPO_ROOT/packages/env" pack --out "$APP_DIR/vendor/env.tgz"
 pnpm --dir "$REPO_ROOT/packages/sdk" pack --out "$APP_DIR/vendor/sdk.tgz"
 pnpm --dir "$REPO_ROOT/packages/styles" pack --out "$APP_DIR/vendor/styles.tgz"
 
 log "Scaffolding the scratch app in $APP_DIR"
 # The scaffold only — no node_modules, no build output, and no repo config
-# (.npmrc / pnpm-workspace.yaml stay behind, which is the point).
-tar -cf - -C "$SCAFFOLD_DIR" package.json tsconfig.json vite.config.ts src | tar -xf - -C "$APP_DIR"
+# (the repo's .npmrc and pnpm-workspace.yaml stay behind, which is the point;
+# the scaffold's own pnpm-workspace.yaml carries just the tarball overrides).
+tar -cf - -C "$SCAFFOLD_DIR" package.json pnpm-workspace.yaml tsconfig.json vite.config.ts src | tar -xf - -C "$APP_DIR"
 
 log "Installing from the packed tarballs"
 # No lockfile is committed for the scaffold, so this resolves fresh — a fork's
