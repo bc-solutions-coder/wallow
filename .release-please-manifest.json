@@ -1,5 +1,5 @@
 {
   ".": "5.0.0",
   "packages/api-errors": "1.0.0",
-  "packages/sdk": "1.0.0"
+  "packages/sdk": "2.0.0"
 }
