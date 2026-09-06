@@ -6,166 +6,17 @@ import { userEvent } from "vitest/browser";
 import { NavigationMenu } from "./navigation-menu";
 
 /*
- * Navigation Menu behavioural spec (Wallow-m5aq.3.9), shaped after the
- * Wallow-m5aq.3.1 Dialog exemplar and its Wave-2 siblings:
- *
- *   1. Runs in the vitest BROWSER project — real headless Chromium, real Base UI,
- *      real DOM. Nothing is mocked.
- *   2. Recipes are asserted THROUGH the component, never by importing
- *      `navigationMenuLinkRecipe` and inspecting its return value: a recipe unit
- *      test would pass while the component forgot to apply it.
- *   3. Class assertions are an ORDER-FREE SET (`classSet`), because
- *      `cn()`/tailwind-merge is free to reorder. The `*_CLASSES` constants below
- *      are the single source of truth for what each recipe must contain — the
- *      green phase transcribes them into navigation-menu.styles.ts.
- *   4. Stories carry the visual coverage (see navigation-menu.stories.tsx); this
- *      file is only for the edges a screenshot cannot make.
- *
- * ANATOMY, measured against @base-ui/react 1.6.0 in this browser (not guessed —
- * four throwaway probe rounds, written, run and deleted):
- *
- *   <nav data-testid>                                    <- NavigationMenu.Root
- *     …gains data-open while any item is open. A NESTED Root renders
- *     <div data-nested> instead of <nav> (measured).
- *     <ul>                                               <- NavigationMenu.List
- *       …also gains data-open
- *       <li>                                             <- NavigationMenu.Item
- *         <button type="button" aria-expanded
- *                 data-base-ui-navigation-menu-trigger>  <- NavigationMenu.Trigger
- *           …gains data-popup-open, data-pressed and aria-controls="<popup id>"
- *           <span aria-hidden>                           <- NavigationMenu.Icon
- *             …gains data-popup-open in step with its trigger
- *         …while THIS item is open Base UI injects two <span data-base-ui-focus-guard>
- *         and a <span aria-owns="<viewport id>"> as siblings of the trigger
- *         <a>                                            <- NavigationMenu.Link
- *           …an Item may hold a Link directly instead of a Trigger + Content
- *
- *   …and, only while open, portalled onto <body>:
- *   <div data-base-ui-portal>                            <- NavigationMenu.Portal
- *     <div data-open role="presentation" style="user-select:none">
- *                                                        <- NavigationMenu.Backdrop
- *     <div data-open data-side data-align role="presentation"
- *          style="position:absolute;left;top;--available-*;--anchor-*">
- *                                                        <- NavigationMenu.Positioner
- *       <nav data-open data-side data-align tabindex="-1"
- *            style="--popup-width;--popup-height">       <- NavigationMenu.Popup
- *         <div data-open data-side data-align aria-hidden
- *              style="position:absolute;left:…">         <- NavigationMenu.Arrow
- *         <span data-base-ui-focus-guard>
- *         <div>                                          <- NavigationMenu.Viewport
- *           <div data-open>            …the ACTIVE item's Content, MOVED here
- *                                                        <- NavigationMenu.Content
- *             <a data-active aria-current="page">        <- NavigationMenu.Link active
- *         <span data-base-ui-focus-guard>
- *
- * NINE consequences worth knowing before editing this file. The first five are
- * the Wave-2 gotchas the Dialog exemplar pinned; the last four are specific to
- * this component and were measured here.
- *
- *   (1) PORTAL. Nothing under NavigationMenu.Portal is in the DOM while closed —
- *       these are absent elements, not hidden ones. Every open-state query goes
- *       through `document.body`, NEVER through `render`'s `container`. Hence the
- *       `part()`/`maybePart()` helpers below.
- *
- *   (2) THERE IS NO BASE UI POINTER BLOCKER HERE — and that is WORSE, not
- *       better. A navigation menu is NOT modal, so Base UI renders no
- *       `<div style="position:fixed;inset:0">` blocker (measured: the only
- *       `role="presentation"` elements in the portal are the Backdrop and the
- *       Positioner). What DOES intercept pointers is the open POPUP ITSELF: this
- *       project loads no Tailwind, so the popup's `z-50` does nothing, and the
- *       positioner still parks the panel on top of the trigger list at
- *       `top: 45px`. A `userEvent.click` on a SECOND trigger while the menu is
- *       open therefore times out after ~15s on Playwright's actionability check
- *       ("<a data-testid=…> from <div data-base-ui-portal> subtree intercepts
- *       pointer events"). Trigger-switching coverage goes through the KEYBOARD
- *       or a direct `element.click()` here; realistic pointer coverage lives in
- *       navigation-menu.stories.tsx.
- *
- *   (3) CLOSING IS ANIMATION-FRAME-DEFERRED on at least the outside-press path
- *       (measured: the popup is still in the DOM synchronously after a
- *       dispatched outside press and gone a frame later). Escape and a second
- *       trigger press happened to unmount synchronously, but every absence
- *       assertion here still uses `await expect.poll(...)` — the exemplar's
- *       standing instruction, because which paths defer is not a contract.
- *
- *   (4) `data-starting-style` / `data-ending-style` only exist DURING a
- *       transition, so no spec asserts them on an element. They are pinned as
- *       `data-[starting-style]:` / `data-[ending-style]:` modifiers inside the
- *       recipe class sets instead, which is what the catalog actually owns.
- *
- *   (5) OPENING VIA `defaultValue` DOES NOT MOVE FOCUS (measured:
- *       `document.activeElement` stays on `<body>`). Every focus assertion opens
- *       through a real trigger interaction. The flip side is the useful half:
- *       `defaultValue` mounts the ENTIRE portal half with no pointer at all,
- *       which is how every recipe/markup spec below opens the menu.
- *
- *   (6) *** NEVER `element.click()` A LINK WITH A REAL href IN THIS PROJECT. ***
- *       `NavigationMenu.Link` renders a genuine `<a>`, and a real click on
- *       `href="https://example.com/one"` NAVIGATES the vitest iframe, which
- *       kills the entire run with "Cannot connect to the iframe. Did you change
- *       the location…" — not one failing spec, the whole file. Cost a probe
- *       round. Links in this file either carry no `href` at all or a `#hash`
- *       (measured safe: the hash changes, the iframe survives). The same rule
- *       applies to the stories.
- *
- *   (7) THE POPUP IS SHARED AND THE CONTENT MOVES INTO IT. Unlike Menu, where
- *       each trigger owns a popup, one Positioner/Popup/Viewport serves the
- *       whole menu and the ACTIVE item's `Content` is relocated into the
- *       Viewport. Switching triggers unmounts the old Content and mounts the new
- *       one inside the SAME popup, which is why `Content` is the part carrying
- *       the panel's padding while `Popup` carries the card's paint.
- *
- *   (8) THE MENU OPENS ON HOVER, with a 50ms `delay` (measured — there is no
- *       `openOnHover` prop to turn it off). Combined with the standing
- *       "Playwright's mouse position persists across specs in a file" memory,
- *       this means the pointer-driven specs are LAST in this file and the single
- *       closed-state spec is FIRST. A fresh render under a parked mouse was
- *       measured NOT to auto-open (Playwright fires no new hover without
- *       movement), but the ordering costs nothing and removes the class of flake
- *       entirely.
- *
- *   (9) ORIENTATION IS INVISIBLE IN THE MARKUP. `orientation="vertical"` puts NO
- *       `data-orientation` on the Root or the List (measured); it only swaps the
- *       arrow-key axis — horizontal roves the triggers with ArrowLeft/Right and
- *       enters the panel with ArrowDown, vertical roves with ArrowUp/Down and
- *       enters with ArrowRight. So orientation is pinned BEHAVIOURALLY below,
- *       not by an attribute, and no recipe may key off it.
- */
-
-/**
- * Utilities `NavigationMenu.Root` must render. `min-w-0` is the whole reason
- * this recipe is not empty: without it a `w-16` icon rail is blown open by its
- * own labels, which is the bug the Phase-4 sidebar sweep exists to fix. `flex`
- * gives the landmark a direction the caller flips with `flex-col`.
+ * Browser coverage for NavigationMenu composition, props, and keyboard behavior.
+ * Popup parts are portalled onto body and unmount after an animation frame.
+ * This project loads no Tailwind; pointer interactions with overlapping panels
+ * use direct DOM clicks. Links use hashes to keep the test iframe on this page.
  */
 const ROOT_CLASSES = ["flex", "min-w-0"];
 
-/**
- * Utilities `NavigationMenu.List` must render. `m-0 list-none p-0` is a real
- * reset, not decoration: this part is a genuine `<ul>`, and a browser's default
- * `padding-inline-start` of 40px would push every row off a 64px icon rail
- * before any of the catalog's own spacing applied.
- */
 const LIST_CLASSES = ["m-0", "flex", "min-w-0", "list-none", "gap-1", "p-0"];
 
-/**
- * Utilities `NavigationMenu.Item` must render. It carries its own marker reset
- * rather than relying on the List's, because an Item is legitimately rendered
- * outside a List through the `render` prop.
- */
 const ITEM_CLASSES = ["min-w-0", "list-none"];
 
-/**
- * Utilities `NavigationMenu.Trigger` must render.
- *
- * This DELIBERATELY diverges from `dialogTriggerRecipe`/`menuTriggerRecipe`,
- * which are colourless because a dialog or menu trigger is routinely composed
- * onto a real `Button`. A navigation trigger is not a button in a toolbar, it is
- * a NAV ROW that happens to open a panel, and it has to sit flush beside the
- * `Link` rows in the same list — so it takes the shared row shape and states its
- * hover/open colour. A caller who does want it colourless overrides through
- * `className`, which is the contract the override spec below pins.
- */
 const TRIGGER_CLASSES = [
   "flex",
   "min-w-0",
@@ -177,12 +28,6 @@ const TRIGGER_CLASSES = [
   "text-sm",
   "font-medium",
   "whitespace-nowrap",
-  // The trigger's REST TEXT, which it did not name before Wallow-lrlm.10. A
-  // `<button>` takes no colour from `text-foreground` on an ancestor the way the
-  // sibling `<a>` does, so an unnamed rest text left a trigger painting the UA's
-  // black beside a `Link` painting `text-foreground` — measured pure black on a
-  // real rail. It is a colour DIMENSION as much as the hover pair is, and the
-  // `surface` axis can only hand the rail a legible row by owning it.
   "text-foreground",
   "outline-none",
   "transition-colors",
@@ -190,32 +35,9 @@ const TRIGGER_CLASSES = [
   "hover:text-accent-foreground",
   "data-[popup-open]:bg-accent",
   "data-[popup-open]:text-accent-foreground",
-  // `aria-disabled:`, NOT `data-[disabled]:`. Measured: a disabled
-  // NavigationMenu.Trigger renders `aria-disabled="true" tabindex="0"` and gets
-  // NEITHER a `disabled` attribute nor a `data-disabled` one — it stays
-  // focusable so a keyboard user can still reach and read it. A
-  // `data-[disabled]:` modifier copied from the other triggers in this catalog
-  // would silently never match; the passthrough spec below pins the attribute
-  // this depends on.
   "aria-disabled:opacity-50",
 ];
 
-/**
- * Utilities `NavigationMenu.Trigger` must render when the caller composes it onto
- * the INVERTED RAIL — `surface="sidebar"` (Wallow-lrlm.10). The same row shape,
- * every colour respelled in the `sidebar-*` family, and not one page token left.
- *
- * All three states collapse onto the one `sidebar-accent` the theme ships,
- * exactly as `navigationMenuLinkRecipe`'s sidebar arm does, because that is the
- * only surface the inverted family names; the row still tells its states apart,
- * since a row at rest carries no surface at all.
- *
- * Which surface a row was composed onto is the one thing about it no `data-*`
- * attribute can say — only the caller knows — so this is a cva variant and never
- * a modifier. What these classes PAINT is measured in the storybook project (see
- * navigation-menu.stories.tsx's TriggerSidebarSurface); this project compiles no
- * Tailwind, so all it can honestly assert is the class list.
- */
 const TRIGGER_SIDEBAR_CLASSES = [
   "flex",
   "min-w-0",
@@ -237,14 +59,6 @@ const TRIGGER_SIDEBAR_CLASSES = [
   "aria-disabled:opacity-50",
 ];
 
-/**
- * Utilities `NavigationMenu.Icon` must render — the chevron that says the row
- * opens a panel. `ml-auto` parks it at the end of the row whatever the label
- * length, and the rotation is expressed against Base UI's measured
- * `data-popup-open`. Per the Popover ruling (Wallow-m5aq.3.3 gotcha 9), a
- * rotation is asserted as its CLASS only — Tailwind v4 emits `rotate` as its own
- * CSS property, so `transform` is never the thing to look at.
- */
 const ICON_CLASSES = [
   "ml-auto",
   "flex",
@@ -257,20 +71,8 @@ const ICON_CLASSES = [
   "data-[popup-open]:rotate-180",
 ];
 
-/**
- * Utilities `NavigationMenu.Content` must render. The panel's PADDING lives here
- * rather than on the popup, because one popup is shared by every item (see
- * consequence 7) while each item's content is its own panel.
- */
 const CONTENT_CLASSES = ["flex", "min-w-0", "flex-col", "gap-1", "p-2"];
 
-/**
- * Utilities `NavigationMenu.Link` must render — the same row shape as the
- * trigger, so a list of links and a list of triggers line up. Base UI puts
- * `data-active` and `aria-current="page"` on a link marked `active` (measured),
- * so the current-page treatment is a `data-[active]:` modifier and never a cva
- * variant.
- */
 const LINK_CLASSES = [
   "flex",
   "min-w-0",
@@ -292,33 +94,10 @@ const LINK_CLASSES = [
   "data-[active]:text-accent-foreground",
 ];
 
-/**
- * Utilities `NavigationMenu.Backdrop` must render. Measured: Base UI gives this
- * element no inline positioning at all (only `user-select`), so covering the
- * window is entirely the recipe's job — the same finding as `menuBackdropRecipe`.
- *
- * It is deliberately NOT a scrim. A desktop navigation bar must not dim the page
- * behind its own dropdown. The mobile-overlay presentation the Phase-4 sweep
- * needs adds `bg-foreground/50` through `className`, which the MobileOverlay
- * story shows.
- */
 const BACKDROP_CLASSES = ["fixed", "inset-0"];
 
-/**
- * Utilities `NavigationMenu.Positioner` must render. Base UI owns this element's
- * inline `position`/`left`/`top`, so the recipe may only add stacking and focus
- * concerns — the same rule as `selectPositionerRecipe` and `menuPositionerRecipe`,
- * and the opposite of `dialogPopupRecipe`, which owns its own centring.
- */
 const POSITIONER_CLASSES = ["z-50", "outline-none"];
 
-/**
- * Utilities `NavigationMenu.Popup` must render — the shared card every item's
- * panel appears inside. `relative` is load-bearing: Base UI gives
- * `NavigationMenu.Arrow` an inline `position: absolute` and `left` but no `top`,
- * so the popup has to be the arrow's containing block. No padding here; the
- * Content owns that (consequence 7).
- */
 const POPUP_CLASSES = [
   "relative",
   "rounded-md",
@@ -336,12 +115,6 @@ const POPUP_CLASSES = [
   "data-[ending-style]:opacity-0",
 ];
 
-/**
- * Utilities `NavigationMenu.Arrow` must render. Identical to `menuArrowRecipe`
- * because both parts run on Base UI's one `useAnchorPositioning` engine and
- * share its `Side` vocabulary; `bottom` and `inline-end` were observed directly
- * here, `top` and `inline-start` come from that shared type.
- */
 const ARROW_CLASSES = [
   "size-2.5",
   "rotate-45",
@@ -355,17 +128,8 @@ const ARROW_CLASSES = [
   "data-[side=inline-end]:-left-1",
 ];
 
-/**
- * Utilities `NavigationMenu.Viewport` must render: the clipping a panel
- * cross-fade needs when the active item changes inside one popup.
- */
 const VIEWPORT_CLASSES = ["relative", "overflow-hidden"];
 
-/**
- * Every member `@base-ui/react/navigation-menu` publishes on its namespace,
- * sorted. Thirteen — note there is NO `Handle`/`createHandle` pair here (unlike
- * Dialog and Menu) and no `Separator`.
- */
 const BASE_UI_PART_NAMES = [
   "Arrow",
   "Backdrop",
@@ -382,48 +146,31 @@ const BASE_UI_PART_NAMES = [
   "Viewport",
 ];
 
-/** The element's classes as an order-free set, so tailwind-merge may reorder. */
 function classSet(element: Element): string[] {
   return [...element.classList].toSorted();
 }
 
-/**
- * The part carrying `data-testid`, searched across the whole document because
- * the open half of a navigation menu is portalled out of the render container.
- */
 function part(testId: string): HTMLElement {
   const element = document.body.querySelector<HTMLElement>(`[data-testid="${testId}"]`);
   expect(element, `no element with data-testid="${testId}"`).not.toBeNull();
   return element as HTMLElement;
 }
 
-/** The same lookup for parts that are legitimately absent. */
 function maybePart(testId: string): HTMLElement | null {
   return document.body.querySelector<HTMLElement>(`[data-testid="${testId}"]`);
 }
 
-/** The `data-testid` of whatever currently holds focus, for the polled focus assertions. */
 function focusedTestId(): string | null {
   return document.activeElement?.getAttribute("data-testid") ?? null;
 }
 
 interface SiteNavProps {
-  /** Opens one item on first render WITHOUT any pointer input — see consequence 5. */
   readonly defaultValue?: string;
-  /** Drives the open item from outside, for the controlled spec. */
   readonly value?: string | null;
-  /** Vertical is the sidebar-rail axis the Phase-4 sweep needs. */
   readonly orientation?: "horizontal" | "vertical";
-  /** Called with the item value Base UI wants open. */
   readonly onValueChange?: (value: string | null) => void;
 }
 
-/**
- * Every part at once, so one fixture can carry the whole anatomy. Note the third
- * item holds a bare `Link` rather than a Trigger + Content — an Item does not
- * have to open a panel, and the flat row is what a real sidebar is mostly made
- * of. Every `href` is a `#hash` for the reason in consequence 6.
- */
 function SiteNav(props: SiteNavProps): ReactElement {
   return (
     <NavigationMenu.Root
@@ -483,14 +230,6 @@ describe("NavigationMenu", () => {
     expect(Object.keys(NavigationMenu).toSorted()).toEqual(BASE_UI_PART_NAMES);
   });
 
-  /*
-   * ---------------------------------------------------------------------------
-   * CLOSED STATE. This spec is FIRST on purpose: it is the only one that asserts
-   * "nothing is open", and the menu opens on hover (consequence 8), so it runs
-   * before any spec has moved Playwright's mouse.
-   * ---------------------------------------------------------------------------
-   */
-
   it("keeps every portalled part out of the DOM while closed", async () => {
     await render(<SiteNav />);
 
@@ -520,13 +259,6 @@ describe("NavigationMenu", () => {
     expect(part("n-icon-products").getAttribute("aria-hidden")).toBe("true");
     expect(part("n-link-inquiries").tagName).toBe("A");
   });
-
-  /*
-   * ---------------------------------------------------------------------------
-   * OPEN STATE, opened through `defaultValue` so no pointer is involved
-   * (consequence 5). Everything about markup and recipes is asserted here.
-   * ---------------------------------------------------------------------------
-   */
 
   it("mounts the whole portalled half when an item is open", async () => {
     await render(<SiteNav defaultValue="products" />);
@@ -558,8 +290,6 @@ describe("NavigationMenu", () => {
   });
 
   it("moves the active item's content into the shared viewport", async () => {
-    // Consequence 7, and the single biggest structural difference from Menu: the
-    // Content is authored inside its Item but ends up inside the popup.
     await render(<SiteNav defaultValue="products" />);
 
     const content = part("n-content-products");
@@ -594,10 +324,6 @@ describe("NavigationMenu", () => {
   });
 
   it("respells the trigger in the rail's palette, without leaking `surface` into the markup", async () => {
-    // The axis the Link got in Wallow-lrlm.6.4 and the trigger did not. No app
-    // renders a trigger today, so this is the gap closing rather than a defect
-    // healing — but a trigger dropped into a sidebar would otherwise reproduce
-    // exactly the 1.27:1 hover defect that axis was filed for.
     await render(
       <NavigationMenu.Root data-testid="s-root" defaultValue="one">
         <NavigationMenu.List data-testid="s-list">
@@ -648,9 +374,6 @@ describe("NavigationMenu", () => {
   });
 
   it("keeps the panel mounted and hidden when keepMounted is asked for", async () => {
-    // The crawler/SSR escape hatch. Measured: the Content stays in the viewport
-    // carrying `data-closed` and the `hidden` attribute rather than unmounting,
-    // so its recipe must still be on it.
     await render(
       <NavigationMenu.Root data-testid="k-root">
         <NavigationMenu.List data-testid="k-list">
@@ -680,12 +403,6 @@ describe("NavigationMenu", () => {
     expect(part("k-popup").hasAttribute("data-closed")).toBe(true);
     expect(classSet(content)).toEqual(CONTENT_CLASSES.toSorted());
   });
-
-  /*
-   * ---------------------------------------------------------------------------
-   * CALLER CONTRACTS: className override, the `render` prop, prop passthrough.
-   * ---------------------------------------------------------------------------
-   */
 
   it("lets a caller className override popup, trigger and link recipe utilities", async () => {
     // The cn()/tailwind-merge proof: the conflicting recipe utility is REMOVED
@@ -747,10 +464,6 @@ describe("NavigationMenu", () => {
   });
 
   it("carries the recipes onto other elements through the render prop", async () => {
-    // Base UI's `render` prop is much of the reason this catalog moved onto Base
-    // UI at all: the recipe has to travel to whatever element the caller
-    // substitutes. For this component it is the load-bearing case — the Phase-4
-    // sidebar renders every Link as a TanStack Router `Link`.
     await render(
       <NavigationMenu.Root data-testid="r-root" defaultValue="one" render={<aside />}>
         <NavigationMenu.List data-testid="r-list">
@@ -814,9 +527,6 @@ describe("NavigationMenu", () => {
       </NavigationMenu.Root>,
     );
 
-    // Measured: a disabled trigger is marked with `aria-disabled` and stays
-    // focusable (`tabindex="0"`) rather than taking the native `disabled`
-    // attribute — which is why its recipe uses an `aria-disabled:` modifier.
     const trigger = part("dashboard-nav-products");
     expect(trigger.getAttribute("aria-disabled")).toBe("true");
     expect(trigger.hasAttribute("disabled")).toBe(false);
@@ -843,14 +553,6 @@ describe("NavigationMenu", () => {
     expect(part("n-trigger-products").hasAttribute("data-popup-open")).toBe(false);
   });
 
-  /*
-   * ---------------------------------------------------------------------------
-   * KEYBOARD. Nothing below touches the pointer, so these still run before the
-   * pointer-driven specs (consequence 8). Focus is polled at every step because
-   * Base UI moves it a tick after the key.
-   * ---------------------------------------------------------------------------
-   */
-
   it("roves focus along the triggers with the horizontal arrow keys", async () => {
     await render(<SiteNav />);
 
@@ -866,28 +568,34 @@ describe("NavigationMenu", () => {
     expect(maybePart("n-popup")).toBeNull();
   });
 
-  it("opens the panel with ArrowDown and lands focus on its first link", async () => {
-    // The keyboard entry path a navigation menu is judged on: no pointer at all,
-    // and the proof that the panel is reachable without a mouse. "No pointer" has
-    // to be made true, not assumed — a pointer parked (by an earlier file) where
-    // the panel mounts would hover-steal focus from the first link.
-    await render(<SiteNav />);
+  it.each([false, true])(
+    "opens the panel with ArrowDown and lands focus on its first link, initially hovered: %s",
+    async (initiallyHovered) => {
+      await render(<SiteNav />);
 
-    await userEvent.unhover(part("n-trigger-products"));
-    part("n-trigger-products").focus();
-    await userEvent.keyboard("{ArrowDown}");
+      if (initiallyHovered) {
+        await userEvent.hover(part("n-trigger-products"));
+        await expect.poll(() => maybePart("n-popup")).not.toBeNull();
+      }
 
-    await expect.poll(focusedTestId).toBe("n-link-apps");
-    expect(part("n-popup").hasAttribute("data-open")).toBe(true);
-    expect(part("n-trigger-products").hasAttribute("data-popup-open")).toBe(true);
-  });
+      // Unhover starts a delayed close if the pointer has already opened the menu.
+      // Wait for that close before testing keyboard entry into a closed panel.
+      await userEvent.unhover(part("n-trigger-products"));
+      await expect.poll(() => maybePart("n-popup")).toBeNull();
+      part("n-trigger-products").focus();
+      await userEvent.keyboard("{ArrowDown}");
+
+      await expect.poll(focusedTestId).toBe("n-link-apps");
+      expect(part("n-popup").hasAttribute("data-open")).toBe(true);
+      expect(part("n-trigger-products").hasAttribute("data-popup-open")).toBe(true);
+    },
+  );
 
   it("swaps the arrow-key axis when the orientation is vertical", async () => {
-    // Consequence 9: nothing in the markup says "vertical", so the axis swap is
-    // the only way to pin the orientation prop — and it is exactly what a
-    // sidebar rail needs (up/down along the rail, right to enter the panel).
     await render(<SiteNav orientation="vertical" />);
 
+    await userEvent.unhover(part("n-trigger-products"));
+    await expect.poll(() => maybePart("n-popup")).toBeNull();
     part("n-trigger-products").focus();
 
     await userEvent.keyboard("{ArrowDown}");
@@ -905,6 +613,8 @@ describe("NavigationMenu", () => {
   it("closes and unmounts the panel on Escape and returns focus to the trigger", async () => {
     await render(<SiteNav />);
 
+    await userEvent.unhover(part("n-trigger-products"));
+    await expect.poll(() => maybePart("n-popup")).toBeNull();
     part("n-trigger-products").focus();
     await userEvent.keyboard("{ArrowDown}");
     await expect.poll(focusedTestId).toBe("n-link-apps");
@@ -920,13 +630,6 @@ describe("NavigationMenu", () => {
     expect(document.activeElement).toBe(part("n-trigger-products"));
   });
 
-  /*
-   * ---------------------------------------------------------------------------
-   * POINTER-DRIVEN SPECS — LAST IN THE FILE (consequence 8: Playwright's mouse
-   * position persists across specs, and this menu opens on hover).
-   * ---------------------------------------------------------------------------
-   */
-
   it("opens the panel when the trigger is clicked", async () => {
     await render(<SiteNav />);
 
@@ -935,8 +638,6 @@ describe("NavigationMenu", () => {
     await expect.poll(() => maybePart("n-popup")).not.toBeNull();
     expect(part("n-popup").hasAttribute("data-open")).toBe(true);
     expect(part("n-content-products").hasAttribute("data-open")).toBe(true);
-    // Measured: a click leaves focus on the trigger — it does NOT enter the
-    // panel the way ArrowDown does.
     expect(document.activeElement).toBe(part("n-trigger-products"));
   });
 
@@ -952,9 +653,6 @@ describe("NavigationMenu", () => {
   });
 
   it("swaps the panel when a second trigger is pressed", async () => {
-    // A DIRECT DOM click, not `userEvent.click`: the open popup lies on top of
-    // the trigger list in this unstyled project, so Playwright's actionability
-    // check on the second trigger never resolves. See consequence 2.
     await render(<SiteNav />);
 
     await userEvent.click(part("n-trigger-products"));
@@ -1003,17 +701,11 @@ describe("NavigationMenu", () => {
     outside.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
     outside.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
-    // Measured: this path is the animation-frame-deferred one — the popup is
-    // still in the DOM synchronously here.
     await expect.poll(() => maybePart("n-popup")).toBeNull();
     expect(part("n-trigger-products").getAttribute("aria-expanded")).toBe("false");
   });
 
   it("opens the panel on hover, after the root's delay", async () => {
-    // LAST SPEC IN THE FILE, per the standing "Playwright's mouse position
-    // persists across specs" rule — this is the one that parks the pointer over
-    // a trigger. Hover-open is not opt-in: there is no `openOnHover` prop, so a
-    // consumer has to know it happens.
     await render(<SiteNav />);
 
     expect(maybePart("n-popup")).toBeNull();
