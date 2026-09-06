@@ -208,19 +208,18 @@ public sealed class MultipleHandlerSeparationTests(WallowApiFactory factory)
             "duplicated side effect this setting exists to prevent");
 
         // The sharpest statement of the defect: the retry replayed the failing handler and nothing
-        // else. Count deliveries rather than executions so the claim is about what the transport
-        // handed each handler, and stay off the exact retry count so tuning the error policy does
-        // not rewrite this test.
-        ILookup<bool, EnvelopeRecord> deliveries =
-            RecordsOf<TMessage>(session.Received).ToLookup(record => QueueOf(record) == poisonedQueue);
+        // else. Inline retries reuse the same delivery, so count execution attempts rather than
+        // transport receipts. Avoid pinning the retry count to a particular error policy.
+        ILookup<bool, EnvelopeRecord> executions =
+            RecordsOf<TMessage>(session.Executed).ToLookup(record => QueueOf(record) == poisonedQueue);
 
-        deliveries[true].Should().HaveCountGreaterThan(
+        executions[true].Should().HaveCountGreaterThan(
             1,
             "the poisoned handler is the one that must be retried");
 
-        deliveries[false].Should().HaveCount(
+        executions[false].Should().HaveCount(
             handlerCount - 1,
-            "each healthy handler must be delivered the message exactly once — the poisoned " +
+            "each healthy handler must execute the message exactly once — the poisoned " +
             "handler's retry must not put it back in front of any of them");
     }
 

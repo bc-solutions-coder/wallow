@@ -20,6 +20,12 @@ updates:
         patterns:
           - "microsoft-*"
           - "aspnet-*"
+      wolverine:
+        patterns:
+          - "wolverinefx*"
+      openiddict:
+        patterns:
+          - "openiddict*"
       ef-core:
         patterns:
           - "*entityframework*"
