@@ -69,7 +69,8 @@ public class AccountControllerTicketReplayTests
             Substitute.For<IMfaLockoutService>(),
             _redis,
             Substitute.For<ILogger<AccountController>>(),
-            TimeProvider.System);
+            TimeProvider.System,
+            Substitute.For<IEmailChangeRateLimiter>());
 
         _controller.ControllerContext = new ControllerContext
         {

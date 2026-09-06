@@ -6,14 +6,18 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 using Wallow.Identity.Api.Contracts.Requests;
 using Wallow.Identity.Api.Controllers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Domain.Errors;
+using Wallow.Identity.Infrastructure.Options;
+using Wallow.Identity.Infrastructure.Services;
 using Wallow.Shared.Api.Problems;
 using Wallow.Shared.Contracts.Identity.Events;
+using Wallow.Shared.Infrastructure.RateLimiting;
 using Wolverine;
 
 namespace Wallow.Identity.Tests.Api.Controllers;
@@ -72,7 +76,8 @@ public class AccountControllerEmailChangeTests
             Substitute.For<IMfaLockoutService>(),
             redisMultiplexer,
             Substitute.For<ILogger<AccountController>>(),
-            _timeProvider);
+            _timeProvider,
+            new EmailChangeRateLimiter(new RedisFixedWindowCounter(redisMultiplexer), Options.Create(new EmailChangeOptions())));
 
         DefaultHttpContext httpContext = new()
         {

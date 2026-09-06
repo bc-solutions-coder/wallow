@@ -65,7 +65,8 @@ public class AccountControllerTests
             Substitute.For<IMfaLockoutService>(),
             Substitute.For<IConnectionMultiplexer>(),
             Substitute.For<ILogger<AccountController>>(),
-            TimeProvider.System);
+            TimeProvider.System,
+            Substitute.For<IEmailChangeRateLimiter>());
 
         _controller.ControllerContext = new ControllerContext
         {

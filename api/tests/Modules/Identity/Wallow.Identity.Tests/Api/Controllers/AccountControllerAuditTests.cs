@@ -80,7 +80,8 @@ public class AccountControllerAuditTests
             _mfaLockoutService,
             Substitute.For<IConnectionMultiplexer>(),
             Substitute.For<ILogger<AccountController>>(),
-            TimeProvider.System);
+            TimeProvider.System,
+            Substitute.For<IEmailChangeRateLimiter>());
 
         DefaultHttpContext httpContext = new();
         httpContext.Connection.RemoteIpAddress = IPAddress.Parse(TestIpAddress);

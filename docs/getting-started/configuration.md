@@ -216,6 +216,24 @@ Delivery tuning lives under `Identity:BackchannelLogout`:
 | `RetryDelay` | `00:00:01` | The pause before the single retry a failed delivery gets. |
 | `OverallTimeout` | `00:00:10` | The bound on the whole notification fan-out. Deliveries run in parallel, so this is a backstop for many slow relying parties, not a per-client budget. |
 
+### Identity: email-change throttling
+
+Email-change requests are counted per user in a fixed window starting with the first request.
+Configure the limit under `Identity:EmailChange`:
+
+| Key | Default | Meaning |
+|-----|---------|---------|
+| `RateLimitMaxRequests` | `3` | Requests allowed in the window. Zero refuses every request. |
+| `RateLimitWindow` | `01:00:00` | Duration of the counting window. Later requests do not refresh it. |
+
+The cap must be non-negative and the window positive; invalid values fail startup validation.
+An over-limit request returns HTTP 429 with `RateLimit.Exceeded`. `Retry-After` uses the
+positive remaining counter TTL, falling back to the configured window when none remains.
+
+Passwordless requests use the same counting and retry-delay behavior, configured separately
+under `Passwordless:RateLimitMaxRequests` and `Passwordless:RateLimitWindow`. Defaults are
+three requests per email per 15 minutes. Magic-link and OTP requests share that email's counter.
+
 ### Identity: Invalid-Client Lockout
 
 Every `invalid_client` answer the token endpoint gives — a wrong or missing secret, an unknown

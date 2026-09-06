@@ -1,9 +1,10 @@
 using StackExchange.Redis;
 using Wallow.Inquiries.Infrastructure.Services;
+using Wallow.Shared.Infrastructure.RateLimiting;
 
 namespace Wallow.Inquiries.Tests.Infrastructure.Services;
 
-public class ValkeyRateLimitServiceTests
+public class InquiryRateLimitServiceTests
 {
     [Fact]
     public async Task IsAllowedAsync_FirstRequest_ReturnsTrue()
@@ -13,7 +14,7 @@ public class ValkeyRateLimitServiceTests
         redis.GetDatabase(Arg.Any<int>(), Arg.Any<object?>()).Returns(db);
         db.StringIncrementAsync(Arg.Any<RedisKey>(), Arg.Any<long>(), Arg.Any<CommandFlags>()).Returns(1L);
 
-        ValkeyRateLimitService service = new(redis);
+        InquiryRateLimitService service = new(new RedisFixedWindowCounter(redis));
 
         bool result = await service.IsAllowedAsync("192.168.1.1", CancellationToken.None);
 
@@ -28,7 +29,7 @@ public class ValkeyRateLimitServiceTests
         redis.GetDatabase(Arg.Any<int>(), Arg.Any<object?>()).Returns(db);
         db.StringIncrementAsync(Arg.Any<RedisKey>(), Arg.Any<long>(), Arg.Any<CommandFlags>()).Returns(5L);
 
-        ValkeyRateLimitService service = new(redis);
+        InquiryRateLimitService service = new(new RedisFixedWindowCounter(redis));
 
         bool result = await service.IsAllowedAsync("192.168.1.1", CancellationToken.None);
 
@@ -43,7 +44,7 @@ public class ValkeyRateLimitServiceTests
         redis.GetDatabase(Arg.Any<int>(), Arg.Any<object?>()).Returns(db);
         db.StringIncrementAsync(Arg.Any<RedisKey>(), Arg.Any<long>(), Arg.Any<CommandFlags>()).Returns(6L);
 
-        ValkeyRateLimitService service = new(redis);
+        InquiryRateLimitService service = new(new RedisFixedWindowCounter(redis));
 
         bool result = await service.IsAllowedAsync("192.168.1.1", CancellationToken.None);
 
@@ -58,7 +59,7 @@ public class ValkeyRateLimitServiceTests
         redis.GetDatabase(Arg.Any<int>(), Arg.Any<object?>()).Returns(db);
         db.StringIncrementAsync(Arg.Any<RedisKey>(), Arg.Any<long>(), Arg.Any<CommandFlags>()).Returns(1L);
 
-        ValkeyRateLimitService service = new(redis);
+        InquiryRateLimitService service = new(new RedisFixedWindowCounter(redis));
 
         await service.IsAllowedAsync("192.168.1.1", CancellationToken.None);
 
@@ -73,7 +74,7 @@ public class ValkeyRateLimitServiceTests
         redis.GetDatabase(Arg.Any<int>(), Arg.Any<object?>()).Returns(db);
         db.StringIncrementAsync(Arg.Any<RedisKey>(), Arg.Any<long>(), Arg.Any<CommandFlags>()).Returns(3L);
 
-        ValkeyRateLimitService service = new(redis);
+        InquiryRateLimitService service = new(new RedisFixedWindowCounter(redis));
 
         await service.IsAllowedAsync("192.168.1.1", CancellationToken.None);
 
@@ -88,7 +89,7 @@ public class ValkeyRateLimitServiceTests
         redis.GetDatabase(Arg.Any<int>(), Arg.Any<object?>()).Returns(db);
         db.StringIncrementAsync(Arg.Any<RedisKey>(), Arg.Any<long>(), Arg.Any<CommandFlags>()).Returns(1L);
 
-        ValkeyRateLimitService service = new(redis);
+        InquiryRateLimitService service = new(new RedisFixedWindowCounter(redis));
         string ipAddress = "203.0.113.5";
 
         await service.IsAllowedAsync(ipAddress, CancellationToken.None);

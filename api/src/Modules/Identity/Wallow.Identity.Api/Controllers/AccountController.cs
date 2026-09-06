@@ -51,7 +51,8 @@ public sealed partial class AccountController(
     IMfaLockoutService mfaLockoutService,
     IConnectionMultiplexer redis,
     ILogger<AccountController> logger,
-    TimeProvider timeProvider) : ControllerBase
+    TimeProvider timeProvider,
+    IEmailChangeRateLimiter emailChangeRateLimiter) : ControllerBase
 {
     private const string TicketPurpose = "SignInTicket";
 
@@ -968,20 +969,10 @@ public sealed partial class AccountController(
             return this.Problem(IdentityErrors.AuthEmailUnchanged);
         }
 
-        // Rate limit: max 3 email change requests per hour per user
-        IDatabase redisDb = redis.GetDatabase();
-        string rateLimitKey = $"email:change:rate:{userId}";
-        long count = await redisDb.StringIncrementAsync(rateLimitKey);
-        if (count == 1)
+        Result throttle = await emailChangeRateLimiter.CheckAsync(userId);
+        if (throttle.IsFailure)
         {
-            await redisDb.KeyExpireAsync(rateLimitKey, TimeSpan.FromHours(1));
-        }
-
-        if (count > 3)
-        {
-            TimeSpan? remaining = await redisDb.KeyTimeToLiveAsync(rateLimitKey);
-            TimeSpan retryAfter = remaining is { } wait && wait > TimeSpan.Zero ? wait : TimeSpan.FromHours(1);
-            return this.Problem(SharedErrors.RateLimitExceeded, retryAfter: retryAfter);
+            return this.Problem(SharedErrors.RateLimitExceeded, retryAfter: throttle.Error.RetryAfter);
         }
 
         DateTimeOffset expiry = timeProvider.GetUtcNow().AddHours(24);

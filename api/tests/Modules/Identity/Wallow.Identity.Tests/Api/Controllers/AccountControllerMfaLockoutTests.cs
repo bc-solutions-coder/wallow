@@ -68,7 +68,8 @@ public class AccountControllerMfaLockoutTests
             _mfaLockoutService,
             Substitute.For<IConnectionMultiplexer>(),
             Substitute.For<ILogger<AccountController>>(),
-            _timeProvider);
+            _timeProvider,
+            Substitute.For<IEmailChangeRateLimiter>());
 
         _controller.ControllerContext = new ControllerContext
         {

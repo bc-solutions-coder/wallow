@@ -1,3 +1,5 @@
+using Wallow.Shared.Infrastructure.RateLimiting;
+
 #pragma warning disable CA2012 // Use ValueTasks correctly - NSubstitute requires ValueTask in Returns()
 
 using System.Text.Json;
@@ -413,7 +415,7 @@ public sealed class PasswordlessServiceAdditionalGapTests
             MagicLinkTtl = TimeSpan.FromMinutes(10),
             OtpTtl = TimeSpan.FromMinutes(5)
         };
-        _sut = new PasswordlessService(mux, _messageBus, _userManager, dp, Options.Create(opts), NullLogger<PasswordlessService>.Instance);
+        _sut = new PasswordlessService(mux, _messageBus, _userManager, dp, Options.Create(opts), NullLogger<PasswordlessService>.Instance, new RedisFixedWindowCounter(mux));
     }
 
     [Fact]

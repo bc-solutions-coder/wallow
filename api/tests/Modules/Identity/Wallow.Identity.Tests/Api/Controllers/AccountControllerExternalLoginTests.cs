@@ -77,7 +77,8 @@ public class AccountControllerExternalLoginTests
             Substitute.For<IMfaLockoutService>(),
             Substitute.For<IConnectionMultiplexer>(),
             Substitute.For<ILogger<AccountController>>(),
-            TimeProvider.System);
+            TimeProvider.System,
+            Substitute.For<IEmailChangeRateLimiter>());
 
         // Set up HttpContext with a mock auth service so SignOutAsync works
         DefaultHttpContext httpContext = new();

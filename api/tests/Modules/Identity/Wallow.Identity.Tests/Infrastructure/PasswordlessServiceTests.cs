@@ -8,6 +8,7 @@ using Wallow.Identity.Domain.Errors;
 using Wallow.Identity.Infrastructure.Options;
 using Wallow.Identity.Infrastructure.Services;
 using Wallow.Shared.Contracts.Identity.Events;
+using Wallow.Shared.Infrastructure.RateLimiting;
 using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Identity;
 using Wallow.Shared.Kernel.MultiTenancy;
@@ -22,6 +23,7 @@ public sealed class PasswordlessServiceTests
     private readonly IMessageBus _messageBus;
     private readonly UserManager<WallowUser> _userManager;
     private readonly PasswordlessService _sut;
+    private readonly PasswordlessOptions _options;
     private readonly Guid _tenantId = Guid.NewGuid();
 
     public PasswordlessServiceTests()
@@ -34,8 +36,55 @@ public sealed class PasswordlessServiceTests
             Substitute.For<IUserStore<WallowUser>>(), null, null, null, null, null, null, null, null);
         TenantContext tc = new(); tc.SetTenant(new TenantId(_tenantId));
         IDataProtectionProvider dp = DataProtectionProvider.Create("test");
-        PasswordlessOptions opts = new() { RateLimitMaxRequests = 3, RateLimitWindow = TimeSpan.FromMinutes(15), MagicLinkTtl = TimeSpan.FromMinutes(10), OtpTtl = TimeSpan.FromMinutes(5) };
-        _sut = new PasswordlessService(mux, _messageBus, _userManager, dp, Options.Create(opts), NullLogger<PasswordlessService>.Instance);
+        _options = new() { RateLimitMaxRequests = 3, RateLimitWindow = TimeSpan.FromMinutes(15), MagicLinkTtl = TimeSpan.FromMinutes(10), OtpTtl = TimeSpan.FromMinutes(5) };
+        _sut = new PasswordlessService(mux, _messageBus, _userManager, dp, Options.Create(_options), NullLogger<PasswordlessService>.Instance, new RedisFixedWindowCounter(mux));
+    }
+
+
+    [Theory]
+    [InlineData(2, true)]
+    [InlineData(3, false)]
+    public async Task SendOtp_UsesConfiguredCap(long count, bool allowed)
+    {
+        _options.RateLimitMaxRequests = 2;
+        _options.RateLimitWindow = TimeSpan.FromMinutes(9);
+        _redis.StringIncrementAsync("pwdless:rate:r@t.com", 1, CommandFlags.None).Returns(count);
+
+        Result result = await _sut.SendOtpAsync("r@t.com", CancellationToken.None);
+
+        result.IsSuccess.Should().Be(allowed);
+        if (!allowed)
+        {
+            result.Error.Code.Should().Be("RateLimit.Exceeded");
+            result.Error.RetryAfter.Should().Be(TimeSpan.FromMinutes(9));
+        }
+    }
+
+    [Theory]
+    [InlineData(41, 41)]
+    [InlineData(null, 900)]
+    [InlineData(0, 900)]
+    [InlineData(-1, 900)]
+    public async Task SendMagicLink_UsesRemainingDelay(int? ttlSeconds, int expectedSeconds)
+    {
+        _redis.StringIncrementAsync("pwdless:rate:r@t.com", 1, CommandFlags.None).Returns(4L);
+        _redis.KeyTimeToLiveAsync("pwdless:rate:r@t.com").Returns(ttlSeconds is { } seconds ? TimeSpan.FromSeconds(seconds) : null);
+
+        Result result = await _sut.SendMagicLinkAsync("r@t.com", CancellationToken.None);
+
+        result.Error.Code.Should().Be("RateLimit.Exceeded");
+        result.Error.RetryAfter.Should().Be(TimeSpan.FromSeconds(expectedSeconds));
+    }
+
+    [Fact]
+    public async Task SendOtp_FirstAttemptUsesConfiguredWindow()
+    {
+        _options.RateLimitWindow = TimeSpan.FromMinutes(9);
+        _redis.StringIncrementAsync("pwdless:rate:r@t.com", 1, CommandFlags.None).Returns(1L);
+
+        (await _sut.SendOtpAsync("r@t.com", CancellationToken.None)).IsSuccess.Should().BeTrue();
+
+        await _redis.Received().KeyExpireAsync("pwdless:rate:r@t.com", TimeSpan.FromMinutes(9), ExpireWhen.Always, CommandFlags.None);
     }
 
     [Fact]
@@ -188,6 +237,6 @@ public sealed class PasswordlessServiceTests
         TenantContext tc = new();
         tc.SetTenant(new TenantId(_tenantId));
         PasswordlessOptions opts = new() { RateLimitMaxRequests = 3, RateLimitWindow = TimeSpan.FromMinutes(15), MagicLinkTtl = TimeSpan.FromMinutes(10), OtpTtl = TimeSpan.FromMinutes(5) };
-        return new PasswordlessService(mux, messageBus, userManager, dataProtectionProvider, Options.Create(opts), NullLogger<PasswordlessService>.Instance);
+        return new PasswordlessService(mux, messageBus, userManager, dataProtectionProvider, Options.Create(opts), NullLogger<PasswordlessService>.Instance, new RedisFixedWindowCounter(mux));
     }
 }

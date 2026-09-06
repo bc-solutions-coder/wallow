@@ -10,6 +10,7 @@ using Wallow.Identity.Domain.Entities;
 using Wallow.Identity.Domain.Errors;
 using Wallow.Identity.Infrastructure.Options;
 using Wallow.Shared.Contracts.Identity.Events;
+using Wallow.Shared.Contracts.RateLimiting;
 using Wallow.Shared.Kernel.Errors;
 using Wallow.Shared.Kernel.Results;
 using Wolverine;
@@ -24,6 +25,7 @@ public sealed partial class PasswordlessService : IPasswordlessService
     private const string OtpKeyPrefix = "pwdless:otp:";
 
     private readonly IDatabase _redis;
+    private readonly IFixedWindowCounter _counter;
     private readonly IMessageBus _messageBus;
     private readonly UserManager<WallowUser> _userManager;
     private readonly IDataProtector _protector;
@@ -36,9 +38,11 @@ public sealed partial class PasswordlessService : IPasswordlessService
         UserManager<WallowUser> userManager,
         IDataProtectionProvider dataProtectionProvider,
         IOptions<PasswordlessOptions> options,
-        ILogger<PasswordlessService> logger)
+        ILogger<PasswordlessService> logger,
+        IFixedWindowCounter counter)
     {
         _redis = connectionMultiplexer.GetDatabase();
+        _counter = counter;
         _messageBus = messageBus;
         _userManager = userManager;
         _options = options.Value;
@@ -201,12 +205,7 @@ public sealed partial class PasswordlessService : IPasswordlessService
     private async Task<Result> CheckRateLimitAsync(string email)
     {
         string rateLimitKey = $"{RateLimitKeyPrefix}{email}";
-        long count = await _redis.StringIncrementAsync(rateLimitKey);
-
-        if (count == 1)
-        {
-            await _redis.KeyExpireAsync(rateLimitKey, _options.RateLimitWindow);
-        }
+        long count = await _counter.IncrementAsync(rateLimitKey, _options.RateLimitWindow);
 
         if (count <= _options.RateLimitMaxRequests)
         {
@@ -214,8 +213,7 @@ public sealed partial class PasswordlessService : IPasswordlessService
         }
 
         LogRateLimited(email);
-        TimeSpan? remaining = await _redis.KeyTimeToLiveAsync(rateLimitKey);
-        TimeSpan retryAfter = remaining is { } wait && wait > TimeSpan.Zero ? wait : _options.RateLimitWindow;
+        TimeSpan retryAfter = await _counter.GetRetryAfterAsync(rateLimitKey, _options.RateLimitWindow);
         return Result.Failure(new Error(SharedErrors.RateLimitExceeded, retryAfter: retryAfter));
     }
 

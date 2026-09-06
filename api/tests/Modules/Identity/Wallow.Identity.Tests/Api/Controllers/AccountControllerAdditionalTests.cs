@@ -84,7 +84,8 @@ public class AccountControllerAdditionalTests
             Substitute.For<IMfaLockoutService>(),
             redisMultiplexer,
             Substitute.For<ILogger<AccountController>>(),
-            TimeProvider.System);
+            TimeProvider.System,
+            Substitute.For<IEmailChangeRateLimiter>());
 
         DefaultHttpContext httpContext = CreateHttpContextWithAuth();
         _controller.ControllerContext = new ControllerContext
