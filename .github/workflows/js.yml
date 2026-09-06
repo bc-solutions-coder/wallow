@@ -204,3 +204,6 @@ jobs:
       # cannot express.
       - name: Check package export surface
         run: pnpm check:exports
+
+      - name: Verify external package consumer
+        run: pnpm check:external-consumer

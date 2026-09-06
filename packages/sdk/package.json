@@ -74,7 +74,7 @@
   },
   "scripts": {
     "generate": "openapi-ts",
-    "build": "vite build && tsc -p tsconfig.build.json",
+    "build": "vite build && tsc -p tsconfig.build.json && node scripts/complete-query-declarations.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"

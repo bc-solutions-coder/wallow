@@ -81,6 +81,76 @@ must resolve generated-contract drift, merge the relevant release changes, and v
 package publication before telling consumers to install a new version. See
 [package release stages](../operations/versioning.md#a-published-package-releases-in-two-stages).
 
+### Choose packages by capability
+
+| Package or entry | What your app gets | Additional dependency |
+| --- | --- | --- |
+| `@bc-solutions-coder/sdk` | Typed platform operations, browser SDK, login and logout helpers | None |
+| `@bc-solutions-coder/sdk/server` | BFF routes, sessions, refresh, and authenticated API proxy | `redis@^4.7.0` for production sessions |
+| `@bc-solutions-coder/sdk/server/service` | Service-account API client | Redis when using a shared token cache |
+| `@bc-solutions-coder/sdk/server/forwarded` | Trusted-proxy address and origin helpers | None |
+| `@bc-solutions-coder/sdk/server/passthrough` | Session-less reverse proxy | None; this is not the external app BFF |
+| `@bc-solutions-coder/sdk/query` | Generated TanStack Query operations | Compatible `@tanstack/react-query` and its React peers |
+| `@bc-solutions-coder/api-errors` | Failure parsing, error codes, and readable messages | None |
+
+SDK subpaths are entry points in one package, not separate packages to install.
+The SDK declares its API-errors dependency. Install API-errors directly as well when
+your app imports it. Both packages must be available to the installing identity.
+Use the selected SDK version's `peerDependencies` to choose optional library versions.
+Your framework, React, and styling remain your app's dependencies.
+
+### Grant package access to the consuming repository
+
+For local installs, use a classic personal access token with `read:packages` and an
+account that can read both packages. A Wallow application secret does not authenticate
+to GitHub Packages. See [GitHub's npm registry instructions](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-npm-registry).
+
+For GitHub Actions, grant the consuming repository read access in **Manage Actions
+access** on each package's settings page. Give its workflow `packages: read` and
+`contents: read`; authenticate installation with its `GITHUB_TOKEN`. Repository access
+to Wallow's source alone does not establish cross-repository package access. If that
+token cannot access the packages, use a repository secret containing an authorized
+classic read token. See [GitHub package access permissions](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility).
+
+Configure the registry with `actions/setup-node` using
+`registry-url: https://npm.pkg.github.com` and `scope: '@bc-solutions-coder'`.
+Set `NODE_AUTH_TOKEN` for the install step. For Docker builds, forward the read token
+as the build secret described in the SDK guide, not as a runtime application secret.
+
+Verify access using the same identity that builds the app:
+
+```bash
+npm view @bc-solutions-coder/sdk version dependencies peerDependencies --json
+npm view @bc-solutions-coder/api-errors version --json
+```
+
+A 401 or 403 is an authentication or permission failure. A 404 can mean the package
+or version has not been published, or the caller cannot read it. Check publication
+and permissions for both packages before changing imports or SDK code.
+
+Wallow also provides a check that installs into a temporary directory outside the
+workspace, loads every public entry point, runs a BFF and API smoke check, and checks
+the consumer's types. From the Wallow root, run:
+
+```bash
+pnpm check:external-consumer
+```
+
+Without arguments, it checks freshly packed local code without a GitHub package token.
+To check published versions with your configured registry credentials, pass the SDK
+version and API-errors version in that order:
+
+```bash
+pnpm check:external-consumer "$SDK_VERSION" "$API_ERRORS_VERSION"
+```
+
+The check uses Node 24+, Wallow's installed pnpm toolchain, and access to npmjs.org
+for third-party dependencies. It does not log in to a Wallow deployment or prove that
+a different repository's CI token has access; run the versioned check with that
+identity as well. The publishing workflow checks that the API-errors version exists
+before publishing an SDK that depends on it. If the dependency check fails, finish
+publishing API-errors first, then rerun the SDK publication.
+
 ### Use a local Wallow checkout before publication
 
 To validate the source in a sibling folder, build and pack the two public packages.

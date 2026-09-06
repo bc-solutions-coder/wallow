@@ -9,7 +9,8 @@
   ],
   "workspaces": {
     ".": {
-      "ignoreDependencies": ["@arethetypeswrong/cli", "publint"]
+      "ignoreDependencies": ["@arethetypeswrong/cli", "publint"],
+      "entry": ["scripts/external-consumer.mjs"]
     },
     "apps/*": {
       "entry": [

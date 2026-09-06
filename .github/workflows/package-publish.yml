@@ -140,6 +140,20 @@ jobs:
           PACKAGE_NAME: ${{ steps.target.outputs.name }}
         run: pnpm exec turbo run build test --filter "$PACKAGE_NAME"
 
+      - name: Verify external package consumer
+        run: pnpm check:external-consumer
+
+      - name: Require the SDK dependency to be published
+        if: steps.target.outputs.name == '@bc-solutions-coder/sdk'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          errors_version="$(node -p "require('./packages/api-errors/package.json').version")"
+          if ! npm view "@bc-solutions-coder/api-errors@$errors_version" version --registry=https://npm.pkg.github.com; then
+            echo "::error::Publish api-errors@$errors_version and grant this repository package read access before publishing the SDK."
+            exit 1
+          fi
+
       - name: Sync package version from the tag or dispatch input
         working-directory: ${{ steps.target.outputs.directory }}
         env:

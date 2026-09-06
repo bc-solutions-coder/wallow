@@ -190,9 +190,9 @@ Keep the credential out of that file and in your **user-level** config instead:
 npm config set "//npm.pkg.github.com/:_authToken" "$GITHUB_TOKEN"   # or: pnpm config set …
 ```
 
-> **Scope note:** GitHub Packages resolves scoped packages against the
-> publishing organization, so the token — a personal access token or CI token —
-> needs `read:packages` on that organization.
+> **Access:** Both the SDK and its API-errors dependency need to be readable.
+> Grant the consuming repository access to both packages for GitHub Actions. See
+> [external package access](external-app.md#grant-package-access-to-the-consuming-repository).
 
 In a **Docker build**, the token crosses into the build the same way: as a
 **build secret**, never a build `ARG` or an `ENV` — both bake the token into the

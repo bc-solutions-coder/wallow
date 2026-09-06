@@ -23,8 +23,9 @@
     "format:check": "oxfmt --check apps packages package.json pnpm-workspace.yaml tsconfig.base.json tsconfig.build.base.json .oxlintrc.json .oxfmtrc.json turbo.jsonc",
     "check:exports": "./scripts/check-exports.sh",
     "check:generated": "./scripts/check-generated.sh",
-    "check": "pnpm format:check && pnpm lint && pnpm lint:tests && pnpm lint:manifests && pnpm lint:deps && pnpm lint:env && pnpm check:generated && turbo run build typecheck && pnpm test && pnpm check:exports",
-    "prepare": "husky"
+    "check": "pnpm format:check && pnpm lint && pnpm lint:tests && pnpm lint:manifests && pnpm lint:deps && pnpm lint:env && pnpm check:generated && turbo run build typecheck && pnpm test && pnpm check:exports && pnpm check:external-consumer",
+    "prepare": "husky",
+    "check:external-consumer": "./scripts/check-external-consumer.sh"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
