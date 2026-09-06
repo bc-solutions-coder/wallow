@@ -5,14 +5,9 @@ import { expect, fn, screen, userEvent, waitFor } from "storybook/test";
 import { Select } from "./select";
 
 /*
- * Wallow-m5aq.2.8 — Select stories. `@storybook/addon-vitest` turns every export
- * below into a Vitest test case rendered in the same headless Chromium the
- * `browser` project uses, with the real Tailwind pipeline attached (see
- * .storybook/main.ts), so these are the VISUAL half of the component's spec
- * while select.test.tsx holds the markup assertions a screenshot cannot make.
- *
- * The popup is PORTALLED to <body>, which is outside the story canvas, so the
- * play function reaches it through `screen` rather than `canvas`.
+ * Select appearance and interaction coverage in Chromium with real Tailwind
+ * styles. The popup is portalled to <body>, outside the story canvas, so play
+ * functions reach it through `screen`.
  */
 
 /** The options every story shows. */
@@ -121,7 +116,9 @@ export const OpenAndSelect: Story = {
 
     // The popup is portalled to <body>, so it is not inside `canvas`.
     const popup = await screen.findByTestId("font-popup");
-    await expect(popup).toBeVisible();
+    await waitFor(async () => {
+      await expect(popup).toBeVisible();
+    });
     await expect(trigger).toHaveAttribute("data-popup-open");
 
     await userEvent.click(screen.getByTestId("font-mono"));

@@ -569,7 +569,7 @@ describe("NavigationMenu", () => {
   });
 
   it.each([false, true])(
-    "opens the panel with ArrowDown and lands focus on its first link, initially hovered: %s",
+    "opens with ArrowDown, keeps trigger focus, and enters links with Tab, initially hovered: %s",
     async (initiallyHovered) => {
       await render(<SiteNav />);
 
@@ -585,9 +585,16 @@ describe("NavigationMenu", () => {
       part("n-trigger-products").focus();
       await userEvent.keyboard("{ArrowDown}");
 
+      await expect
+        .poll(() => ({
+          focused: focusedTestId(),
+          popupOpen: maybePart("n-popup")?.hasAttribute("data-open") ?? false,
+          triggerOpen: part("n-trigger-products").hasAttribute("data-popup-open"),
+        }))
+        .toEqual({ focused: "n-trigger-products", popupOpen: true, triggerOpen: true });
+
+      await userEvent.tab();
       await expect.poll(focusedTestId).toBe("n-link-apps");
-      expect(part("n-popup").hasAttribute("data-open")).toBe(true);
-      expect(part("n-trigger-products").hasAttribute("data-popup-open")).toBe(true);
     },
   );
 
@@ -606,6 +613,9 @@ describe("NavigationMenu", () => {
     await expect.poll(focusedTestId).toBe("n-trigger-products");
 
     await userEvent.keyboard("{ArrowRight}");
+    await expect.poll(() => maybePart("n-popup")).not.toBeNull();
+    expect(focusedTestId()).toBe("n-trigger-products");
+    await userEvent.tab();
     await expect.poll(focusedTestId).toBe("n-link-apps");
     expect(part("n-popup").hasAttribute("data-open")).toBe(true);
   });
@@ -617,6 +627,9 @@ describe("NavigationMenu", () => {
     await expect.poll(() => maybePart("n-popup")).toBeNull();
     part("n-trigger-products").focus();
     await userEvent.keyboard("{ArrowDown}");
+    await expect.poll(() => maybePart("n-popup")).not.toBeNull();
+    expect(focusedTestId()).toBe("n-trigger-products");
+    await userEvent.tab();
     await expect.poll(focusedTestId).toBe("n-link-apps");
 
     await userEvent.keyboard("{Escape}");
