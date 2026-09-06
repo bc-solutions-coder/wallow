@@ -122,6 +122,7 @@ together.
 | [Forms](docs/development/forms.md) | The `@bc-solutions-coder/forms` authoring layer |
 | [Frontend state](docs/development/frontend-state.md) | TanStack Query, auth, and the nav store |
 | [Logging](docs/development/logging.md) | Structured logging across the browser and the app server |
+| [Connect an external app](docs/integrations/external-app.md) | Set up an app in another repository |
 | [BFF pattern](docs/integrations/bff-pattern.md) | Same-origin OIDC through the app server |
 | [TypeScript SDK](docs/integrations/typescript-sdk.md) | `@bc-solutions-coder/sdk` reference |
 

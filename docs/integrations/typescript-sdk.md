@@ -1,5 +1,9 @@
 # TypeScript SDK Integration Guide
 
+For an app in another repository, start with [Connect an external app](external-app.md).
+This reference describes the current checkout; verify package availability before using
+its APIs with an older published SDK.
+
 This guide explains how to consume Wallow from a TypeScript frontend using the
 `@bc-solutions-coder/sdk` package. The SDK ships a **browser
 client** for calling Wallow APIs from the page, and a **server (BFF) tunnel**
@@ -23,10 +27,10 @@ you.
 | `@bc-solutions-coder/sdk/server/passthrough` | Server (Node)                                       | `createApiPassthrough()` — a pure reverse proxy that owns no session and forwards the upstream response verbatim. Its own subpath so a passthrough-only app never pulls `openid-client` into its server bundle                                                                                       |
 | `@bc-solutions-coder/sdk/query`              | Browser                                             | The TanStack Query layer — a generated `{op}Options()` / `{op}QueryKey()` / `{op}Mutation()` trio per OpenAPI operation, plus the curated invalidation predicates `queriesForOperation()` and `queriesWithTag()`                                                                                     |
 
-The browser never holds an access token. It holds only a sealed, `httpOnly`
-session cookie. The BFF exchanges the authorization code, stores the token set
-inside that sealed cookie, and attaches the `Authorization: Bearer` header when
-it proxies calls to the Wallow API.
+With production Valkey sessions, tokens stay on the server and the browser holds
+only a sealed session identifier in an HttpOnly cookie. The development cookie store
+instead seals the token set into the cookie, unreadable by browser JavaScript. The
+BFF exchanges authorization codes and attaches bearer tokens to upstream API calls.
 
 ```mermaid
 sequenceDiagram
@@ -71,8 +75,12 @@ origin:
 | ------------------------ | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Redirect URI             | `https://app.example.com/bff/callback`             | Where the authorization code lands; must match `OIDC_REDIRECT_URI` exactly                                                                                     |
 | Post-logout redirect URI | `https://app.example.com/`                         | Where the browser lands after signing out                                                                                                                       |
-| Front-channel logout URI | `https://app.example.com/bff/frontchannel-logout`  | Browser-delivered sign-out when the user's Wallow session ends in another app's tab                                                                             |
 | Back-channel logout URI  | `https://app.example.com/bff/backchannel-logout`   | Server-to-server sign-out — the delivery that works with no browser open. Must be reachable **from the identity server** ([details](#receiving-back-channel-logout)) |
+
+Supply the post-logout redirect URI even though the form permits leaving it blank;
+the SDK requires it. The org registration form supports back-channel logout, not
+front-channel logout registration. Users also need membership or enrollment in the
+application's organization, which defaults to invite-only.
 
 Keep `offline_access` among the requested scopes — without it no refresh token is
 issued and the session dies with its first access token.
@@ -90,7 +98,7 @@ under [Installation](#installation)):
 ```bash
 echo "@bc-solutions-coder:registry=https://npm.pkg.github.com" >> .npmrc
 npm config set "//npm.pkg.github.com/:_authToken" "$GITHUB_TOKEN"
-npm install @bc-solutions-coder/sdk @bc-solutions-coder/api-errors redis
+npm install @bc-solutions-coder/sdk @bc-solutions-coder/api-errors 'redis@^4.7.0'
 ```
 
 `@bc-solutions-coder/api-errors` is the failure model every SDK rejection is an
@@ -181,14 +189,6 @@ Keep the credential out of that file and in your **user-level** config instead:
 ```bash
 npm config set "//npm.pkg.github.com/:_authToken" "$GITHUB_TOKEN"   # or: pnpm config set …
 ```
-
-> **Why not a token line in the project `.npmrc`?** A committed `.npmrc` could
-> be edited to redirect the registry, which would hand your token to whoever
-> controls it — so pnpm refuses to expand `${GITHUB_TOKEN}` from a project file
-> and warns instead. The `pnpm config set` above writes to `~/.npmrc`, which
-> both npm and pnpm honour. In CI, use `actions/setup-node` with
-> `registry-url: https://npm.pkg.github.com` and a `NODE_AUTH_TOKEN` env var; it
-> writes a user-level `.npmrc` for you.
 
 > **Scope note:** GitHub Packages resolves scoped packages against the
 > publishing organization, so the token — a personal access token or CI token —
@@ -300,18 +300,19 @@ own manifest component: merging the SDK's Release PR is what bumps `packages/sdk
 creates the `sdk-vX.Y.Z` tag that then triggers the publish below. See
 [a published package's two release stages](../operations/versioning.md#a-published-package-releases-in-two-stages).
 
-Publish a new SDK version in one of two ways:
+Set `SDK_VERSION` to the version selected by release-please. Publish that SDK version
+in one of two ways:
 
 - **Push an `sdk-v<version>` tag** — the `package-publish` workflow reads the
   package (`sdk`) and the version off the tag and publishes that version:
 
   ```bash
-  git tag sdk-v0.1.0
-  git push origin sdk-v0.1.0
+  git tag "sdk-v${SDK_VERSION}"
+  git push origin "sdk-v${SDK_VERSION}"
   ```
 
 - **Run the `package-publish` workflow manually** from the Actions tab (or via
-  `gh workflow run package-publish.yml -f package=sdk -f version=0.1.0`),
+  `gh workflow run package-publish.yml -f package=sdk -f version="$SDK_VERSION"`),
   providing the package and the version (no leading `v`).
 
 Either path installs, tests, and builds the package, syncs its `package.json` to the
@@ -601,8 +602,9 @@ working.
 | `ValkeySessionStore` | In a Redis-compatible server; the cookie holds only an opaque sealed session id | Production — small cookies, server-side revocation, and a refresh lock that serializes concurrent token refreshes for one session |
 
 The single-argument default is `CookieSessionStore`, and that default exists so a fork runs with
-zero infrastructure. It is a **development default only**: production deployments must construct a
-`ValkeySessionStore` explicitly and pass it as the second argument. See
+zero infrastructure. It is a **development default only**: use `createWallowBffServer()` with `REDIS_URL` for production. When using the
+lower-level handlers directly, construct a shared `ValkeySessionStore` and pass it
+as the second argument to both handlers and proxy. See
 [Choosing a Session Store](bff-pattern.md#choosing-a-session-store) for the full reasoning.
 
 ```ts
@@ -1169,9 +1171,9 @@ same client with a per-run port instead (`./scripts/e2e.sh`, Wallow-joo0).
 
 ## Security model
 
-- **Tokens never reach the browser.** The access token, refresh token, and
-  `id_token` live only inside the sealed session cookie, which is `httpOnly` and
-  unreadable by JavaScript. The browser holds an opaque, encrypted blob.
+- **Production tokens stay server-side.** With Valkey, the cookie contains a sealed
+  session identifier. The development cookie store instead contains encrypted tokens
+  and does not support server-side session revocation.
 - **Same-origin by design.** Serve the browser app and the BFF (`/bff/*` and
   `/api/**`) from the same origin. The session cookie is scoped to that origin,
   and every instance `createWallowSdk()` builds sends it with

@@ -1,4 +1,4 @@
-# Integration Cookbook: New Fork, New App
+# Integration cookbook: add an app inside a Wallow fork
 
 A start-to-finish recipe for standing up a new TanStack Start frontend against Wallow —
 from `npm install` to a working feature reading and writing module data through the BFF.
@@ -24,36 +24,8 @@ you can read a working version rather than trusting a snippet.
 packages as `workspace:*` runtime dependencies — see
 [Frontend Setup → Depend on the core packages](../development/frontend-setup.md#1-depend-on-the-core-packages).
 
-**Outside the workspace**, packages come from GitHub Packages under the repository owner's scope,
-so point the scope at that registry in a project `.npmrc`:
-
-```ini
-@bc-solutions-coder:registry=https://npm.pkg.github.com
-```
-
-The credential goes in your **user-level** config, not that file — pnpm will not expand
-`${GITHUB_TOKEN}` out of a committed project `.npmrc`, because such a file could be edited to
-redirect the registry:
-
-```bash
-npm config set "//npm.pkg.github.com/:_authToken" "$GITHUB_TOKEN"   # or: pnpm config set …
-npm install @bc-solutions-coder/sdk
-```
-
-> [!IMPORTANT]
-> **Only `@bc-solutions-coder/sdk` and `@bc-solutions-coder/api-errors` are published today.**
-> `package-publish.yml` fires on an `sdk-v*` or `api-errors-v*` tag and publishes the package the
-> tag names; no workflow publishes `@bc-solutions-coder/styles`, so
-> `npm install @bc-solutions-coder/styles` returns a 404. Like every other workspace package but
-> those two it is marked `"private": true`, which is what states that: nothing about the
-> package's contents prevents publication, it simply has no release pipeline, and until it gets
-> one the `private` flag stops an accidental `npm publish` from shipping a `0.0.0` under a name
-> forks would then depend on. An out-of-workspace app supplies its own Tailwind setup and copies
-> the theme tokens it needs from `packages/styles/branding.json`.
-
-The token needs only `read:packages`. The SDK carries no host-framework dependency: its server handlers are
-web-standard `(Request) => Promise<Response>` functions, so they mount on TanStack Start,
-Nitro, Hono, or a bare Fetch handler alike.
+For an app in another repository, use [Connect an external app](external-app.md).
+The remaining steps use private workspace packages and apply to apps inside a Wallow fork.
 
 ## 2. Add `tanstackStart()` to `vite.config.ts`
 
@@ -92,14 +64,10 @@ hand-edit it, and do not add a `routes:generate` script. The complete config, in
 `copyPublicDir` workaround Nitro needs, is in
 [Frontend Setup → Vite config](../development/frontend-setup.md#3-vite-config-viteconfigts).
 
-This config is hand-rolled on purpose. Apps *inside* the workspace spread
-`wallowAppConfig({ defaultPort })` from `@bc-solutions-coder/config/vite/app` instead and get all
-of this for free — but that package is `"private": true` and is never published, so it cannot
-reach the out-of-workspace audience this page is written for. The same applies to the
-`wallowStyles()` plugin above: it is available in a fork of this repository and, per the note in
-step 1, not yet installable outside one. **Working inside a fork? Use the preset** and read
-[Frontend Setup](../development/frontend-setup.md#3-vite-config-viteconfigts) rather than this
-block.
+For workspace apps, prefer `wallowAppConfig({ defaultPort })` from
+`@bc-solutions-coder/config/vite/app`; see the [frontend setup guide](../development/frontend-setup.md).
+The expanded config above shows the pieces it supplies. Both the config and styles
+packages are private workspace dependencies.
 
 ## 3. Mount the splat server routes
 

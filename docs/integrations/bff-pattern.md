@@ -1,5 +1,9 @@
 # BFF Pattern Integration Guide
 
+For an app in another repository, start with [Connect an external app](external-app.md).
+This reference describes the current checkout; verify package availability before using
+its APIs with an older published SDK.
+
 This guide explains how fork sites can consume Wallow as an identity provider using the Backend-for-Frontend (BFF) pattern with the OAuth 2.0 Authorization Code flow.
 
 ## Overview
@@ -55,16 +59,21 @@ sequenceDiagram
 
 Sign in to the Wallow dashboard as an admin or manager of your organization, open
 **Organizations → your organization**, and press **Register application** in the
-**Applications** ledger. The inline stepper walks three steps — only the required fields
+**Applications** ledger. The inline stepper walks four steps — only the required fields
 gate the **Register** button, which is reachable from every step:
 
 | Step      | Field                     | Value                                                                                                                                                                                                                                    |
 | --------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Basics    | Name                      | Required. Shown on the consent screen, and the source of the client id, which Wallow derives as `app-<organization-slug>-<name-slug>`. Both are immutable after registration.                                                             |
+| Basics    | Name                      | Required. Immutable registration name; the client id derives from it. The branded display name shown during consent is configured separately.                                                             |
 | Redirects | Redirect URIs             | Required, one per line. The full callback URL on your BFF (e.g., `https://myapp.example.com/callback`). Each URI must be absolute, fragment-free, and HTTPS; `http://localhost` (and `127.0.0.1`) may use plain HTTP for local development. |
-| Redirects | Post-logout redirect URIs | Optional. Where to send the user after logout (e.g., `https://myapp.example.com/`). Same URI rules.                                                                                                                                       |
-| Redirects | Back-channel logout URI   | Optional. Same URI rules.                                                                                                                                                                                                                 |
+| Redirects | Post-logout redirect URIs | Required for the SDK, optional in the form. Where to send the user after logout (e.g., `https://myapp.example.com/`). Same URI rules.                                                                                                                                       |
+| Redirects | Back-channel logout URI   | Optional. Absolute, fragment-free URL reachable from Wallow. HTTP is allowed for this confidential server endpoint.                                                                                                                                                                                                                 |
 | Scopes    | Scopes                    | At least one. `openid`, `profile`, `email`, and `offline_access` are the login scopes (`openid` is pre-selected); below them is the organization-grantable API scope catalog. Platform-only scopes are listed but cannot be granted.       |
+
+The fourth step, **Branding**, sets the display name and optional tagline. The
+organization registration form does not expose a front-channel logout URI. Users
+need membership or enrollment in the organization; new organizations default to
+invite-only.
 
 Every application is a **confidential client** — there is no public-client option — so
 Wallow returns a `client_id` together with a `client_secret`. **The secret is shown exactly
@@ -96,7 +105,7 @@ then fails at login.
 | ------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `OIDC_ISSUER`       | The **browser**    | The public origin the browser is redirected to for `/connect/authorize` and `/connect/logout`. It must match the issuer the API advertises, character for character, path prefix included.                                                                                                                        |
 | `OIDC_METADATA_URL` | The **BFF server** | Where the server fetches the discovery document. Defaults to `${OIDC_ISSUER}/.well-known/openid-configuration`. Set it explicitly whenever the server reaches the API under a different name than the browser does — a container network, split-horizon DNS, or to avoid hairpinning back out through the ingress. |
-| `BFF_API_BASE_URL`  | The **BFF server** | The upstream the `/api` proxy forwards to. In every deployed topology this is a container-internal address, never the public one.                                                                                                                                                                                 |
+| `BFF_API_BASE_URL`  | The **BFF server** | The upstream the `/api` proxy forwards to. Use a public API URL reachable from an external app server, or an internal address when the servers share a network. Preserve any API path prefix.                                                                                                                                                                                 |
 
 Those are the SDK's concrete variable names. In the hand-rolled walkthrough below they appear as
 `WALLOW_AUTH_URL` (the browser-facing origin the user is redirected to) and `WALLOW_API_URL` (the
@@ -651,8 +660,10 @@ an operational decision, not a stylistic one.
 `CookieSessionStore` is the **default** when you call `createBffHandlers(config)`
 or `createApiProxy(config)` with a single argument. That default exists so a
 fork runs with zero infrastructure, and it is a **development default only**.
-Production deployments must construct a `ValkeySessionStore` explicitly and pass
-it as the second argument:
+For production, use `createWallowBffServer()` with `REDIS_URL` to select Valkey
+automatically. Without `REDIS_URL`, the preset still falls back to cookie storage;
+production mode does not enforce this requirement. If using lower-level handlers,
+construct a shared `ValkeySessionStore` and pass it to both handlers and proxy:
 
 ```typescript
 import {
@@ -1012,7 +1023,7 @@ every `/connect/*` endpoint.
 | `invalid_grant` on token exchange     | `code_verifier` mismatch or code already used                       | Generate a fresh `code_verifier` per login attempt; codes are single-use |
 | `invalid_grant` on token refresh      | Refresh token revoked or expired                                    | Clear the session and redirect the user to login                         |
 | Consent screen appears on every login | Requesting scopes outside the stored consent, sending `prompt=consent`, or the user withdrew consent in settings | Consent is remembered per (user, client, scopes): keep the requested scope set stable, drop `prompt=consent` unless re-confirmation is intended, and expect the screen once after a withdrawal |
-| Session cookie not sent to BFF        | `SameSite=Strict` blocking cross-site redirect                      | The BFF and the callback URL must be on the same origin as your frontend |
+| Session cookie not sent to BFF        | `SameSite=Strict` blocking cross-site redirect                      | Use the SDK default `Lax` for session cookies when the first page after a cross-site redirect needs the session. Login transaction cookies always use `Lax`. |
 | Redirect URI mismatch                 | Registered URI does not exactly match `redirect_uri` in the request | Update the registered redirect URI in the Wallow dashboard to match      |
 | Authorize URL 404s before the login form appears | Issuer origin (or its path prefix) does not match what the API advertises | See [The Issuer and Origin Contract](#the-issuer-and-origin-contract)   |
 | Callback always 400s, no session is created | Login-transaction cookie was not returned — usually a `form_post` response mode or an iframed flow | Keep the callback a top-level GET redirect; see [The Callback Must Stay a Top-Level GET Redirect](#the-callback-must-stay-a-top-level-get-redirect) |

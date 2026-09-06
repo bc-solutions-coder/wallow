@@ -27,6 +27,7 @@ Each section below is a curated starting point, not a full index — use the sid
 
 ## Integrations
 
+- [Connect an external app](integrations/external-app.md) — registration, SDK, runtime secrets, and deployment checks
 - [BFF Pattern](integrations/bff-pattern.md) — same-origin OIDC through the app server
 - [TypeScript SDK](integrations/typescript-sdk.md) — `@bc-solutions-coder/sdk` auth and API client
 - [Integration Cookbook](integrations/integration-cookbook.md) — wiring the SDK into an existing app
