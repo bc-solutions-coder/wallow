@@ -1,6 +1,6 @@
 {
   "name": "@bc-solutions-coder/sdk",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "Wallow TypeScript SDK: browser client, BFF tunnel, and service-account client",
   "license": "Apache-2.0",
   "repository": {
