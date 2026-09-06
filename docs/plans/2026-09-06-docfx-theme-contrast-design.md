@@ -1,6 +1,6 @@
-# DocFX theme contrast design
+**status: completed**
 
-**Status:** Approved
+# DocFX theme contrast design
 
 ## Problem
 
@@ -38,13 +38,14 @@ Use semantic mappings in `scripts/generate-docs-theme.mjs`:
 
 ## Verification
 
-Run the contrast check against the generated CSS before and after the change.
-Each inline-code and navbar combination must meet the WCAG AA 4.5:1 threshold.
-Then regenerate the theme a second time to prove that the committed file is
-stable, build the DocFX site, and run the repository checks relevant to the
-changed JavaScript and generated CSS.
+The regression test in `packages/testing/scripts/docfx-contrast.mjs` opens the
+built fork guide in Playwright Chromium. It measures the computed text and
+surface colors for the first table-cell `code` element and for a Bootstrap
+navbar link in both themes. Chromium resolves the authored colors through a
+canvas before the test enforces the WCAG AA 4.5:1 threshold.
 
-No source-text regression test will be added. The repository policy prefers
-rendered behavior tests, and this repository has no DocFX browser-test entry
-point. The generated artifact and contrast check exercise the reported output
-without pinning implementation text in a test.
+The docs workflow builds the site before running `test:docfx`, so the test
+exercises the rendered HTML and generated theme without reading or matching
+source text. Regenerate the theme a second time to prove that the committed file
+is stable, then build the DocFX site and run the repository checks relevant to
+the changed files.

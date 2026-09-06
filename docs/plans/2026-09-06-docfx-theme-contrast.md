@@ -1,3 +1,5 @@
+**status: completed**
+
 # DocFX Theme Contrast Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
@@ -134,3 +136,38 @@ git add scripts/generate-docs-theme.mjs \
   docs/plans/2026-09-06-docfx-theme-contrast.md
 git commit -m "fix(docs): restore DocFX theme contrast"
 ```
+
+### Task 3: Add rendered regression coverage
+
+**Files:**
+
+- Add: `packages/testing/scripts/docfx-contrast.mjs`
+- Modify: `packages/testing/package.json`
+- Modify: `.github/workflows/docs.yml`
+- Modify: `docs/plans/2026-09-06-docfx-theme-contrast-design.md`
+- Modify: `docs/plans/2026-09-06-docfx-theme-contrast.md`
+
+**Step 1: Prove the rendered test fails before the fix**
+
+Build the fork guide with the pre-fix theme artifact, then run:
+
+```bash
+pnpm --filter @bc-solutions-coder/testing test:docfx
+```
+
+Expected: the real table-cell inline code and Bootstrap navbar link fail the
+WCAG AA 4.5:1 threshold in both themes.
+
+**Step 2: Prove the rendered test passes after the fix**
+
+Rebuild the site from the corrected generator and run the same command.
+
+Expected: all four rendered contrast checks pass without reading CSS or source
+text. The browser resolves computed colors through a canvas before calculating
+their contrast.
+
+**Step 3: Run the test in the docs workflow**
+
+Install the testing package dependencies and Chromium in the `build-site` job.
+Run `test:docfx` after DocFX builds and before uploading the site artifact. Keep
+the workflow path filters in sync with the test and package manifest.
