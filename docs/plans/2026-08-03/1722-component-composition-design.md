@@ -1,3 +1,5 @@
+> Historical plan. Failure-handling passages link to the current spec and their original Git revision.
+
 # Component composition, hook extraction, and forms adoption
 
 **status: completed**
@@ -87,12 +89,7 @@ No new API. The layer already covers what these screens hand-roll. Each migratio
 - the `ErrorBanner` wiring — `FormError`
 - one `useState` per field
 
-**The one gap, which stays a gap.** These auth endpoints return bare `{ succeeded, error }`
-rather than RFC 7807, so `splitServerError` cannot read them. Each screen keeps its own
-`failureMessage(cause)` mapper — genuine domain logic, not boilerplate. The narrower fix:
-promote the `readMember` already exported from `login/auth-result.ts` into
-`shared/lib/error-code.ts`, delete the three copies, and move each screen's mapper into its
-feature's `api.ts` as a pure exported function.
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-08-03/1722-component-composition-design.md).
 
 ### Layer 3 — `wallow-auth/src/shared/components/AuthScreen.tsx`
 

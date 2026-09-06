@@ -14,47 +14,10 @@ import { SubmitButton } from "./submit-button";
 import { useAppForm } from "./use-app-form";
 
 /*
- * WHEN `useAppForm` validates (Wallow-ov6w.6) — the timing contract, in the
- * browser project (real headless Chromium, a real `QueryClient`, the real
- * `AppForm` + `AppField` + catalog `TextField` + ui `Field`/`Input`, the real
- * `ApiFailure`; nothing is mocked but the userland `mutationFn`).
- *
- * The sibling `use-app-form.test.tsx` pins WHAT validation says and where the
- * message lands. This file pins WHEN it runs, which is a separate contract and
- * the one the package guide got wrong: the design specified revalidate-on-
- * change and the hook was built submit-only.
- *
- * The rule has two halves, and an implementation that satisfies only one of them
- * is wrong in a user-visible way:
- *
- *   FIRST TOUCH IS QUIET. A field nobody has submitted yet must stay silent
- *   while it is being typed into, however invalid the half-typed value is.
- *   Erroring on the first keystroke of an empty required field is the classic
- *   "validate on change" regression, so it is asserted here directly (cases 1
- *   and 2) rather than left implied.
- *
- *   ONCE FLAGGED, IT KEEPS UP. After a failed submit the field is already
- *   showing a message, and from then on it re-validates as the user types: the
- *   text swaps to whatever rule the new value breaks (case 3), disappears the
- *   moment the value is good (case 4) and comes BACK if the value goes bad again
- *   (case 5) — with NO second submit, which every one of them proves by
- *   asserting the submit callback never ran again.
- *
- * Case 6 is the blast-radius guard: revalidation is per FIELD, so typing into
- * `name` must not silence the message a failed submit put on `email`. A "clear
- * every error on any change" implementation passes cases 3-5 and fails this.
- *
- * Case 7 is a REGRESSION GUARD over the other producer of field messages: the
- * `onServer` map key `splitServerError` fills from an RFC 7807 body. It passes
- * today and has to keep passing, because revalidation writes to the same field
- * meta. What it pins is the pair that is stable either way — the server message
- * reaches the field, and it leaves when the user edits the value the server
- * objected to.
- *
- * The ladder every case climbs comes from the schema below: "" breaks the min
- * rule, "Adalovelace" breaks the max rule, "Ada" breaks neither. Two different
- * failing messages are what make "the text updated live" distinguishable from
- * "the old text is still sitting there".
+ * Fields stay quiet before the first submit and revalidate on edits afterward.
+ * Server field errors clear when the user edits the rejected value.
+ * Two failing values distinguish a fresh validation message from a stale one;
+ * the second field verifies that editing one input preserves the other's error.
  */
 
 const schema = z.object({

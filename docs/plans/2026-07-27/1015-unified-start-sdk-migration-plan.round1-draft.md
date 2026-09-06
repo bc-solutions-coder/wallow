@@ -1,5 +1,8 @@
 **status: active**
 
+> Historical plan. Failure-handling passages link to the current spec and their original Git revision.
+
+
 # Unified Plan — TanStack Start Adoption + SDK Streamlining
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan
@@ -456,14 +459,7 @@ Move `@tanstack/react-query` to **optional** peer. Regenerate; `./query` re-expo
 generated artifacts + the curated `invalidations.ts`.
 **Commit:** `feat(sdk)!: generate the TanStack Query surface for all operations`
 
-### Task 4.2 — `WallowError` unification; delete both unwraps + `MfaUnwrap`
-
-**Files:** `packages/sdk/src/facade.ts`, `auth-client.ts:313-321`,
-`apps/wallow-web/src/features/mfa/errors.ts:38-45`, `mfa-client.ts`.
-With `throwOnError: true` + `responseStyle: 'data'`, a response interceptor converts RFC 7807
-bodies (code from `extensions.code`, `UNKNOWN` fallback) into `WallowError` for every
-operation. Both apps consume `WallowError` only.
-**Commit:** `feat(sdk)!: unify error contract on WallowError via generated client`
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-07-27/1015-unified-start-sdk-migration-plan.round1-draft.md).
 
 ### Task 4.3 — `auth-client.ts` (376) → `auth-extras.ts` (~70) (R14)
 

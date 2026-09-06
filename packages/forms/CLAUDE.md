@@ -7,7 +7,7 @@ Consumer-facing docs (authoring, testid derivation, error model, escape hatches)
 
 `styles → ui → forms → apps`. `ui` must never import this package. Source imports
 `@bc-solutions-coder/api-errors` runtime values only from `core/server-error.ts`
-(`toApiFailure`, `splitFieldErrors`, and the deprecated helpers' brand check and resolver);
+(`toApiFailure` and `splitFieldErrors`);
 `form/use-app-form.ts` takes only types from it. The banner sentence comes from `ui`'s
 `useFailureMessage`, never from a resolver call here, so the app registry reaches forms.
 Source never imports `@bc-solutions-coder/sdk` — the SDK is a devDependency that specs use to
@@ -26,8 +26,6 @@ Mechanics are in `docs/development/forms.md` § The error model; the invariants:
 - **Every mutation the hook creates carries `handledFailure(meta)`** over the caller's own
   `meta`, so the client's `onUnhandledFailure` never fires for a form. Specs build the client
   with `createQueryClient({ onUnhandledFailure })` and assert it.
-- `errorText` and `splitServerError` are `@deprecated` and stay on the barrel only until their
-  remaining call sites move. Do not add call sites.
 
 **Never name `@tanstack/react-query`.** react-query arrives through the
 `@bc-solutions-coder/query` facade so `useAppForm`'s `useMutation` and the host's

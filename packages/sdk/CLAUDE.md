@@ -60,12 +60,10 @@ change here must keep all three true:
 - Browser-side the double-submit cookie is the ONE token source — read live per request;
   `createWallowSdk({ csrf: false })` skips the interceptor for a passthrough topology
   (wallow-auth), which has no token of its own to stamp.
-- RFC 7807: the machine code is a **top-level `code`** on the problem body (never
-  `extensions.code`), and `@bc-solutions-coder/api-errors` is the ONLY parser — the browser
+- RFC 7807: the machine code is a **top-level `code`** on the problem body, and `@bc-solutions-coder/api-errors` is the ONLY parser — the browser
   interceptor (`runtime-config.ts`) and the proxy both call its `failureFromResponse`, and every
   failure the SDK raises is its `ApiFailure`. The SDK has no error type of its own;
-  `WallowError` / `isWallowError` / `UNKNOWN_ERROR_CODE` / `parseProblemDetails` are deleted and
-  pinned deleted by `src/index.test.ts`. A body without a code parses as
+  consumers import the failure type and brand check from `api-errors`. A body without a code parses as
   `Client.UnrecognizedResponse`, so a spec that fakes a problem body must give it a `code`.
 - **Relayed vs originated.** An upstream failure is relayed byte for byte. Every failure the
   `/api` proxy, the passthrough, `/bff/user`, and the logout CSRF gate answer THEMSELVES goes

@@ -2,8 +2,8 @@
 
 The runnable **external relying-party example**: a TanStack Start app on its own
 origin that consumes Wallow the way a fork's customer would — through the
-published `@bc-solutions-coder/sdk` alone, over OIDC and the BFF pattern, with
-no other workspace package at runtime.
+published `@bc-solutions-coder/sdk` over OIDC and the BFF pattern, with
+`@bc-solutions-coder/api-errors` for failure parsing and message resolution.
 
 The full walk-through this app is the runnable form of is the quickstart:
 [`docs/integrations/typescript-sdk.md`](../../docs/integrations/typescript-sdk.md).

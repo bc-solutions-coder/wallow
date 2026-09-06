@@ -48,7 +48,7 @@ import { toAppHref } from "@shared/lib/base-path";
  * The screen now renders on `@bc-solutions-coder/forms`, but it deliberately
  * uses NEITHER of the two things `useAppForm` normally supplies for a failure:
  *
- *  1. **No `mutation` option, and so no `splitServerError`.** That split would
+ *  1. **No `mutation` option, and so no `splitSubmitFailure`.** That split would
  *     put the failure on the form, but the two client-side guards below share
  *     ONE banner with the rejection copy and must fire BEFORE any request. The
  *     whole existing guard order — link check, mismatch check, clear, call,

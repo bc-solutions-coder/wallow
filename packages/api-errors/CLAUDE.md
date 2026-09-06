@@ -3,7 +3,7 @@
 The **API failure model** every Wallow consumer shares: `ApiFailure`, the parsers that build
 one, the message resolver, and the field-error split. **Zero runtime dependencies, no React,
 one entry (`.`).** Published to GitHub Packages on `api-errors-v*` tags via
-`package-publish.yml`; the SDK will depend on it (`workspace:^`), never the reverse.
+`package-publish.yml`; the SDK depends on it (`workspace:^`), never the reverse.
 
 ## Charter (compiler-enforced)
 
@@ -27,8 +27,8 @@ one entry (`.`).** Published to GitHub Packages on `api-errors-v*` tags via
   on the error or its cause; `Transport.Aborted` 499 for an `AbortError`; else
   `Transport.NetworkError` 503) → plain object read as a body → anything else is
   `Client.UnrecognizedResponse` at `context.status` (500 when unknown).
-- Bodies: problem+json is recognised by a **top-level string `code`** (the unified contract;
-  no `extensions.code` probing). The **response status is authoritative**; the body's
+- Bodies: problem+json is recognised by a **top-level string `code`** in the unified contract.
+  The **response status is authoritative**; the body's
   `status` stands in only when a bare object reaches `toApiFailure` with no status.
   `x-request-id` is the BFF tunnel's header, so a direct-to-API caller gets no `requestId`. An OAuth body (`{ error, error_description }`) becomes
   `OAuth.<PascalCase(error)>` with the token as `title` — a documented grammar, not an

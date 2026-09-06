@@ -3,7 +3,7 @@
 Every app is a **TanStack Start** frontend consuming the `@bc-solutions-coder` workspace
 packages via `workspace:*`. `forms`, `auth`, `navigation`, `logger` and `utils` are optional.
 **`minimal-app` is the external relying-party example**: it depends on the published `sdk`
-alone (plus `redis` for the session store) — deliberately no `ui`, `styles`, `query`, `auth`,
+and `api-errors` (plus `redis` for the session store) — deliberately no `ui`, `styles`, `query`, `auth`,
 `env` or `testing`, which an external consumer cannot install. `config` is a build-time-only
 devDependency supplying `wallowAppConfig()` to `vite.config.ts`, never imported by app code.
 

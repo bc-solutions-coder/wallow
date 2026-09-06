@@ -67,7 +67,6 @@ is importable. Everything below comes from `@bc-solutions-coder/forms`.
 | `SubmitButton`, `FormError`                                                   | The two children that read the shell's `pending` / `serverError` instead of taking them as props.    |
 | `TextField`, `PasswordField`, `TextareaField`, `SelectField`, `CheckboxField` | The catalog fields, reached through `form.AppField`'s render prop.                                   |
 | `fieldTestId`, `fieldErrorTestId`                                             | The testid derivation helpers, so a bespoke control can match the catalog exactly.                   |
-| `splitServerError`, `errorText`                                               | **Deprecated** error readers; see The error model.                                                   |
 | `withForm`                                                                    | TanStack's higher-order form composition, bound to this package's contexts.                          |
 
 ## Authoring a form
@@ -238,9 +237,7 @@ The rules, and why each one is there:
 `FormError` renders nothing at all when there is no form-level error, so no empty banner reserves
 space and no stale testid is left behind.
 
-`errorText` and `splitServerError` remain exported but are **deprecated**: they prefer the raw
-`detail` over the registry and echo a thrown `Error`'s message. A component outside a form
-resolves its message with `useFailureMessage` (or renders `FailureBanner`) from `ui`; a bespoke
+A component outside a form resolves its message with `useFailureMessage` (or renders `FailureBanner`) from `ui`; a bespoke
 form uses `splitFieldErrors` and the hook directly.
 
 ## Behaviour and styling conventions

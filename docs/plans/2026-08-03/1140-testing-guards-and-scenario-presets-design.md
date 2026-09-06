@@ -1,3 +1,5 @@
+> Historical plan. Failure-handling passages link to the current spec and their original Git revision.
+
 # Testing guards and scenario presets
 
 **status: active**
@@ -81,11 +83,8 @@ response shape drifts, the helper's spec fails, not seventeen app specs. No
 
 ## 4. Problem-details responder and `renderScreen`
 
-- `harness.rejectProblem({ status?, detail?, fieldErrors? })` joins
-  `rejectJson` on the harness: emits `application/problem+json` with the
-  RFC 7807 envelope, PascalCasing the camelCase field keys the spec writes —
-  mirroring FluentValidation's output, so `splitServerError`'s real casing fold
-  is exercised. Default status 400.
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-08-03/1140-testing-guards-and-scenario-presets-design.md).
+
 - `renderScreen(route, { at, user, api })` in `./render-with-wallow` — pure
   composition of harness creation, auth preset, per-route responders, and route
   mount. Collapses today's four-step arrange block to one call. Built last,

@@ -29,7 +29,7 @@ const FAILURE_MESSAGES = defineFailureMessages({
 /** `<resolved message> (<code>)` — the sentence to show, and the code to search for. */
 function describeFailure(error: unknown): string {
   if (!isApiFailure(error)) {
-    return error instanceof Error ? error.message : "Request failed";
+    return resolveFailureMessage(error, { registry: FAILURE_MESSAGES });
   }
   return `${resolveFailureMessage(error, { registry: FAILURE_MESSAGES })} (${error.code})`;
 }

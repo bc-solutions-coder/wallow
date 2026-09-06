@@ -1,5 +1,8 @@
 **status: active**
 
+> Historical plan. Failure-handling passages link to the current spec and their original Git revision.
+
+
 # Unified Plan — TanStack Start Adoption + SDK Streamlining
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan
@@ -66,7 +69,7 @@ source plan says otherwise, **this section wins**.
 | V11 | Open epic `Wallow-m5aq` (Base UI catalog rebuild) sweeps both apps' files in its later phases. | Hard sequencing rule: Phases 3–4 of this plan and m5aq's app-sweep phases must not run concurrently on the same app (D10). |
 | V12 | Start ships sessions (`getSession`/`sealSession`/…) and `createCsrfMiddleware`. | Confirmed available — and deliberately **not** used in the SDK (D6). |
 | V13 | `@tanstack/react-start/server` exports `getRequest`, `getRequestHeaders`, `getCookie`, etc.; global request middleware via `createStart(() => ({ requestMiddleware: [...] }))` in `src/start.ts` runs before server routes, SSR, and server functions. | This is the consumption site for SDK per-request wiring (D4). |
-| V14 | `WallowError` is exported **only** from `packages/sdk/src/server/index.ts:7`; the browser entry cannot import it. | Prerequisite for error unification: task 2.8 exports it (+ `isWallowError`) from the browser entry before 4.2 depends on it. |
+| V14 | Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-07-27/1015-unified-start-sdk-migration-plan.md). | |
 | V15 | Deriving `operationId` from bare `MethodInfo.Name` **collides**: ≥15 duplicates in the current API (e.g. `GetById` ×3, `Create`/`Delete` repeats across controllers). | The transformer derives `{Controller minus "Controller"}{Method}` and the tests assert **uniqueness**, not just presence (task 1.2). |
 | V16 | minimal-app is **not** an Aspire resource (`AppHost/Program.cs:60,74` registers only wallow-auth + wallow-web) and has **no Dockerfile or production-compose service**. | 3.1 has no Aspire/Docker steps; the spike builds a **throwaway** Dockerfile for minimal-app solely to validate Nitro-in-container. The Phase 3 gate's compose check covers the two containerized apps. |
 | V17 | `setSsrRequestContextResolver`'s only caller is `apps/wallow-web/src/ssr.tsx:20`. Deleting `ssr.tsx` in Phase 3 without a replacement silently breaks SSR data until Phase 4. | Task 3.3 installs a temporary resolver bridge in `src/start.ts` (D13b); task 4.4 deletes it with the seam. |
@@ -77,11 +80,8 @@ source plan says otherwise, **this section wins**.
   `Request → Response`. `iron-webcrypto` stays a **direct** dependency (this inverts 0928's
   "import iron through h3" small-win, which only made sense while h3 remained). Apps drop h3
   entirely in Phase 3 when their hosts are deleted.
-- **D2 — SDK surface collapse comes AFTER the Start migration** (0909's ordering wins over
-  0928's). Query-plugin adoption churns feature files; the migration churns app shells;
-  separating them keeps each diff reviewable and each gate meaningful. The only SDK work that
-  precedes migration is what the migration consumes: web-standard handlers, `createWallowSdk`,
-  SSR-safe auth redirects, server presets, and the browser `WallowError` export (Phase 2).
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-07-27/1015-unified-start-sdk-migration-plan.md).
+
 - **D3 — `@tanstack/react-router-ssr-query` solely owns dehydration.** The SDK ships **no**
   dehydration/hydration code, ever. wallow-web's JSON-string workaround and the absent
   hydrate wiring in wallow-auth/minimal-app are all replaced by the integration.
@@ -129,14 +129,8 @@ source plan says otherwise, **this section wins**.
     (Phase 3) and the seam deletion (task 4.4).
   - **c)** Phase 1.4 permits thin local aliases for renamed operations **only in files
     already scheduled for deletion in Phase 4**.
-- **D14 — client instance model.** In the **browser**, the app creates **one** SDK instance
-  at boot (module scope in app code — the SDK itself holds no global). On the **server**,
-  request middleware creates a per-request instance. Generated operations receive the
-  instance via the standard `{ client }` call option. `src/runtime-config.ts` **survives**
-  Phase 4 as the home of the `WallowError` response interceptor; only its baked `/api`
-  default dies (2.5 makes `baseUrl` explicit). The interceptor is *defined* in
-  `runtime-config.ts`; **`createWallowSdk` registers it on every instance it creates** —
-  the generated default client is never used directly by app code.
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-07-27/1015-unified-start-sdk-migration-plan.md).
+
 - **D15 — release train.** The SDK publishes (`sdk-v*`) only at the **Phase 3 and Phase 4
   gates**, never mid-phase — intermediate `!` commits accumulate into those two releases.
   `!` is reserved for genuine consumer-visible contract breaks (SDK server/browser contract,
@@ -443,14 +437,7 @@ new subpath export `./server/passthrough`; `packages/sdk/package.json`.
 - Tests port the strongest cases from the apps' existing host tests.
 **Commit:** `feat(sdk): ship bff-server and passthrough presets`
 
-### Task 2.8 — Export `WallowError` + `isWallowError` from the browser entry (V14; prereq for 4.2)
-
-**Files:** `packages/sdk/src/index.ts`, `src/server/errors.ts` (move/re-home the class so
-both entries share one definition) + test.
-**Steps:** Failing test: `import { WallowError, isWallowError } from "@bc-solutions-coder/sdk"`
-resolves and `isWallowError` recognizes instances **via a brand check, not `instanceof`**
-(module-graph duplication breaks `instanceof` — see the vitest memory) → implement → green.
-**Commit:** `feat(sdk): export WallowError from the browser entry`
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-07-27/1015-unified-start-sdk-migration-plan.md).
 
 **PHASE 2 GATE:** `pnpm check` green · SDK builds before apps · all three apps boot under
 `pnpm dev` · `./scripts/e2e.sh` **green per 0.11** (no new failures, no new quarantines —
@@ -793,18 +780,7 @@ through `invalidations.ts`; no inline key literals. Add a test asserting a serve
 and a browser instance emit **identical keys** for the same operation (D4 invariant).
 **Commit:** `feat(sdk)!: generate the tanstack query surface for all operations`
 
-### Task 4.2 — `WallowError` unification (R13); delete both unwraps + `MfaUnwrap`
-
-**Files:** `packages/sdk/src/facade.ts`, `auth-client.ts:313-321`,
-`apps/wallow-web/src/features/mfa/errors.ts:38-45`, `mfa-client.ts`;
-interceptor **defined** in `src/runtime-config.ts`, **registered per instance** by
-`createWallowSdk` (D14).
-Starting from 2.8's browser export: with `throwOnError: true` + `responseStyle: 'data'`, a
-response interceptor converts RFC 7807 bodies (code from `extensions.code`, `UNKNOWN`
-fallback) into `WallowError` for every operation — including the MFA endpoints' raw
-`{ succeeded, error }` shape (see the MFA memory: no `.detail` there; map `.error` codes).
-Both apps consume `WallowError` only.
-**Commit:** `feat(sdk)!: unify error contract on WallowError`
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-07-27/1015-unified-start-sdk-migration-plan.md).
 
 ### Task 4.3 — `auth-client.ts` (376) → `auth-extras.ts` (~70) (R14)
 
@@ -905,9 +881,7 @@ Each track carries its own gate (`pnpm check` for frontend tracks,
   `tailwind-merge` only if the override bug is actually hit; fold the per-app
   `src/lib/branding.ts` re-export shims into one shared export if Phase 3/4 churn leaves
   them redundant.
-- **5.7** Request-id correlation (gap review): the proxy forwards inbound `x-request-id`
-  (generating one when absent) to the upstream API, and `WallowError` carries it; document
-  how to correlate a frontend error with backend OTel traces in Grafana.
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-07-27/1015-unified-start-sdk-migration-plan.md).
 
 ---
 
@@ -995,7 +969,7 @@ Round 1 (2026-07-27, four independent reviewers over the first draft):
 | Architecture reviewer | APPROVE-WITH-CHANGES (12 findings; blockers: baseUrl-in-keys vs `internalOrigin`; module-client fate) | Incorporated: D4/D14, task 2.5(e), 4.1 key-identity test |
 | Blocker hunter | APPROVE-WITH-CHANGES (15 findings; blockers: operationId collisions; `ssr.tsx` deletion timing) | Incorporated: V1/V2 corrected with type+runtime evidence, V15/1.2, V17/D13b |
 | Consistency reviewer | REWORK (24 findings; blockers: compose positional overrides; minimal-app container assumptions; pinned-spec retirement timing) — plus full 0928 items 1–28 + 0909 commitment coverage audit | Incorporated: 0.1, V16, per-task spec-churn lists, register carried, Phase 1 reorder |
-| Gap reviewer | 10 ranked proposals; prerequisites: browser `WallowError` export, test seam | Incorporated: 2.8, 4.0, 4.5 extension, 4.8, 5.7, do-not-add list |
+| Gap reviewer | Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-07-27/1015-unified-start-sdk-migration-plan.md). | |
 
 Round 2 (2026-07-27, two independent reviewers over the round-1-revised draft):
 
@@ -1012,8 +986,7 @@ No open blockers remain; the plan is ready for acceptance.
   leaves; dependencies per the sequencing summary). No open beads currently cover this work.
 - On acceptance: keep this file `active` as the execution reference, mark 0909 and 0928
   `superseded` (edit only their status lines), keep 0908 `active` as the findings record.
-- Commit subjects: Conventional Commits, lowercase, imperative, < 72 chars; `!` per D15
-  only for consumer-visible contract breaks. The lowercase rule applies to prose, not code
-  identifiers — `WallowError`, `AnyRouter`, `returnTo` keep their casing in subjects.
+Failure-handling passage retired. See the [current spec](https://github.com/bc-solutions-coder/wallow/issues/176) or [original record](https://github.com/bc-solutions-coder/wallow/blob/c484c9fd24e8deb1b707075b47e1aaab65a645d9/docs/plans/2026-07-27/1015-unified-start-sdk-migration-plan.md).
+
 - Session completion discipline applies per CLAUDE.md (quality gates, `bd dolt push`,
   `git push`).

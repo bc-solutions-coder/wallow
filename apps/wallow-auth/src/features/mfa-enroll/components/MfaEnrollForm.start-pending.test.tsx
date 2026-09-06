@@ -12,14 +12,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MfaEnrollForm } from "./MfaEnrollForm";
 
 /**
- * The IN-FLIGHT window of enrollment start; the sibling `MfaEnrollForm.test.tsx` covers what
- * the screen shows once the call has SETTLED.
- *
- * A retry button left live over an open request means a second `enrollTotp`, which mints a
- * second secret and invalidates the QR the user has already scanned.
- *
- * Real SDK over a faked fetch (sdk-harness) — "in flight" is a property of the TRANSPORT, so
- * the response is held open rather than a stubbed promise resolved late.
+ * Holds the enrollment response open to test the pending controls.
+ * A live retry button could mint a second secret and invalidate the scanned QR.
  */
 
 const mocks = vi.hoisted(() => ({
@@ -48,7 +42,7 @@ function enrolledResponse(): Response {
 
 /**
  * A 500 whose body names no machine code, so the error interceptor shapes it into
- * `code: "UNKNOWN"` and it lands on the generic "could not start" copy rather than the
+ * `Client.UnrecognizedResponse` and it lands on the generic failure copy rather than the
  * session or expired-link branches.
  */
 function serverRejectionResponse(): Response {

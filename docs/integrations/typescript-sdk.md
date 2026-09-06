@@ -745,7 +745,7 @@ const FAILURE_MESSAGES = defineFailureMessages({
 
 function describeFailure(error: unknown): string {
   if (!isApiFailure(error)) {
-    return error instanceof Error ? error.message : "Request failed";
+    return resolveFailureMessage(error, { registry: FAILURE_MESSAGES });
   }
   return `${resolveFailureMessage(error, { registry: FAILURE_MESSAGES })} (${error.code})`;
 }
@@ -806,7 +806,7 @@ the following, each retried at most once:
 | No response within `FORWARD_TIMEOUT_MS` (30s)         | Returns `504` with code `Transport.Timeout`                                   |
 | Transport failure                                     | Returns `503` with code `Transport.NetworkError`                              |
 
-An API failure is **relayed** byte for byte, `errors[]` and `traceId` included.
+An API failure is **relayed** byte for byte, the `errors` dictionary and `traceId` included.
 Every failure the server hop hits itself — in the `/api` proxy or the
 passthrough — is an **originated problem** written through the shared
 `problemResponse(status, code, { requestId, detail?, headers? })`: the same

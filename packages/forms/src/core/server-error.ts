@@ -18,8 +18,6 @@
 
 import {
   type ApiFailure,
-  isApiFailure,
-  resolveFailureMessage,
   type SplitFieldErrors,
   splitFieldErrors,
   toApiFailure,
@@ -55,84 +53,4 @@ export function splitSubmitFailure(error: unknown, knownFields: readonly string[
   const everyMessagePlaced: boolean = unmatched.length === 0 && placedAnyMessage;
 
   return { fieldErrors, bannerFailure: everyMessagePlaced ? null : failure };
-}
-
-/** The two surfaces a failed submit is split across. */
-export interface SplitServerError {
-  /**
-   * camelCase field name -> messages, for the names the form actually has. Only
-   * matched entries appear; an unmatched one joins {@link formError} instead.
-   */
-  readonly fieldErrors: Readonly<Record<string, readonly string[]>>;
-  /** The banner sentence, or `null` when every message landed on a field. */
-  readonly formError: string | null;
-}
-
-/**
- * The human-readable sentence for `error`: the API's ProblemDetails `detail`
- * when it sent one, else the sentence `@bc-solutions-coder/api-errors` resolves
- * for the code or status, else `fallback`.
- *
- * @deprecated Resolve a failure message through the registry instead:
- * `useFailureMessage(error)` from `@bc-solutions-coder/ui/failure-messages`
- * hoisted to the top of the component (it accepts a nullish error and returns
- * `null`, so it replaces an `isError ? errorText(...) : null` expression
- * without a conditional hook), or `resolveFailureMessage(error, options)` from
- * `@bc-solutions-coder/api-errors` outside React. This helper prefers the raw
- * `detail` over the registry and echoes a thrown `Error`'s message, both of
- * which the failure model forbids. It stays only until its remaining call
- * sites move; do not add one.
- */
-export function errorText(error: unknown, fallback: string): string {
-  if (isApiFailure(error)) {
-    return error.detail ?? resolveFailureMessage(error, { fallback });
-  }
-  return error instanceof Error && error.message !== "" ? error.message : fallback;
-}
-
-/**
- * Split a failed submit into field-level and form-level messages.
- *
- * `knownFields` is the set of camelCase names the form holds; a message keyed by
- * anything else joins the banner rather than vanishing.
- *
- * @deprecated `useAppForm` does not use this: it splits with api-errors and
- * resolves the banner through the registry. A bespoke form should do the
- * same — `splitFieldErrors` from
- * `@bc-solutions-coder/api-errors` for the fields, `useFailureMessage` from
- * `@bc-solutions-coder/ui/failure-messages` for the banner. This helper joins
- * unmatched messages into one string and echoes a thrown `Error`'s message,
- * both of which the failure model forbids. It stays only until its remaining
- * call sites move; do not add one.
- */
-export function splitServerError(
-  error: unknown,
-  knownFields: readonly string[],
-  fallback: string,
-): SplitServerError {
-  if (!isApiFailure(error)) {
-    // A thrown `Error` that carries its own sentence (a network fault, say) says
-    // more than the caller's generic fallback; an empty one says nothing.
-    const message: string =
-      error instanceof Error && error.message !== "" ? error.message : fallback;
-
-    return { fieldErrors: {}, formError: message };
-  }
-
-  const { fieldErrors: matched, unmatched }: SplitFieldErrors = splitFieldErrors(
-    error,
-    knownFields,
-  );
-
-  if (unmatched.length > 0) {
-    // A message the form cannot show next to an input still has to be shown.
-    return { fieldErrors: matched, formError: unmatched.join(" ") };
-  }
-
-  if (Object.keys(matched).length > 0) {
-    // Everything landed on a field, so a banner would only repeat it.
-    return { fieldErrors: matched, formError: null };
-  }
-
-  return { fieldErrors: matched, formError: error.detail ?? fallback };
 }

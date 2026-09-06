@@ -1,30 +1,7 @@
 /*
- * Public-API pin for Wallow-ov6w.2.5 (public barrel + package quality gate).
- *
- * `@bc-solutions-coder/forms` publishes exactly ONE entry — `src/index.ts` — so
- * that barrel *is* the package's contract. Everything the five migrating forms
- * are allowed to reach lives on it, and everything else (the raw TanStack
- * contexts, the shell's own React context, the field-part helpers) deliberately
- * does not: a form that imports `useFieldContext` or calls `createFormHook` a
- * second time gets a parallel binding whose fields read a different context, and
- * nothing catches that at review time.
- *
- * Three surfaces are pinned here, mirroring `packages/ui/src/index.test.ts`:
- *
- *   - runtime values, asserted as an EXACT set in both directions (a dropped
- *     export fails, and so does an accidentally widened one);
- *   - types, checked at COMPILE time by `PublicTypeExports` at the bottom —
- *     `tsconfig.json` includes all of `src`, so `pnpm --filter
- *     @bc-solutions-coder/forms typecheck` fails if a `type` re-export is lost,
- *     which no runtime assertion can see;
- *   - the BUILT artifact, because `package.json`'s exports map points consumers
- *     at `dist/index.js` and `dist/index.d.ts`, not at `src/`. A barrel that
- *     compiles but emits a different surface would break every consumer while
- *     leaving the source assertions green.
- *
- * This is a pure-logic `*.test.ts`, so it runs in the vitest NODE project. It
- * only imports the module graph (no rendering), which is safe: neither the
- * catalog fields nor the ui components they wrap touch the DOM at module scope.
+ * Pins the forms entry's runtime exports, public types, and built artifact.
+ * TanStack bindings and field helpers stay private because a second form-hook
+ * binding creates fields that cannot read the shell's context.
  */
 
 import { describe, expect, it } from "vitest";
@@ -41,7 +18,6 @@ import type {
   PasswordFieldProps,
   SelectFieldOption,
   SelectFieldProps,
-  SplitServerError,
   SubmitButtonProps,
   TextareaFieldProps,
   TextFieldProps,
@@ -60,9 +36,7 @@ import type {
  *   - the shell (`AppForm`) and the two children that read its context
  *     (`SubmitButton`, `FormError`);
  *   - the catalog fields, so a form can also render one outside `AppField`;
- *   - the two testid helpers plus the two DEPRECATED error readers
- *     (`splitServerError`, `errorText`), exported only until their remaining
- *     call sites move.
+ *   - the two testid helpers.
  */
 const PUBLIC_RUNTIME_EXPORTS = [
   "AppForm",
@@ -73,10 +47,8 @@ const PUBLIC_RUNTIME_EXPORTS = [
   "SubmitButton",
   "TextField",
   "TextareaField",
-  "errorText",
   "fieldErrorTestId",
   "fieldTestId",
-  "splitServerError",
   "useAppForm",
   "withForm",
 ];
@@ -157,7 +129,6 @@ export type PublicTypeExports = [
   PasswordFieldProps,
   SelectFieldOption,
   SelectFieldProps,
-  SplitServerError,
   SubmitButtonProps,
   TextareaFieldProps,
   TextFieldProps,
