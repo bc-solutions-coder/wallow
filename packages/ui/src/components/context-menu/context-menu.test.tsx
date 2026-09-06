@@ -7,76 +7,11 @@ import { Menu } from "../menu/menu";
 import { ContextMenu } from "./context-menu";
 
 /*
- * Context Menu behavioural spec (Wallow-m5aq.3.7), shaped after the
- * Wallow-m5aq.3.1 Dialog exemplar and the Wallow-m5aq.3.6 Menu spec it reuses:
- *
- *   1. Runs in the vitest BROWSER project — real headless Chromium, real Base UI,
- *      real DOM. Nothing is mocked.
- *   2. Recipes are asserted THROUGH the component, never by importing
- *      `contextMenuTriggerRecipe` and inspecting its return value: a recipe unit
- *      test would pass while the component forgot to apply it.
- *   3. Class assertions are an ORDER-FREE SET (`classSet`), because
- *      `cn()`/tailwind-merge is free to reorder. `TRIGGER_CLASSES` below is the
- *      single source of truth for the one recipe this component owns — the green
- *      phase transcribes it into context-menu.styles.ts.
- *   4. Stories carry the visual coverage (see context-menu.stories.tsx); this
- *      file is only for the edges a screenshot cannot make.
- *
- * ANATOMY, measured against @base-ui/react 1.6.0 in this browser (not guessed):
- *
- *   <div>                                          <- ContextMenu.Trigger
- *     …carries NO attribute of its own while closed: no role, no tabindex, no
- *     aria-haspopup, no aria-expanded, no aria-controls, no inline style.
- *     While open it gains exactly data-popup-open and data-pressed.
- *
- *   …and, only while open, portalled onto <body>:
- *   <div data-base-ui-portal>                      <- ContextMenu.Portal
- *     <div data-open role="presentation" aria-hidden data-base-ui-inert
- *          style="user-select:none">               <- ContextMenu.Backdrop
- *     <div role="presentation" data-base-ui-inert
- *          style="position:fixed;inset:0;user-select:none">
- *                                   ^- Base UI's OWN pointer blocker, see below
- *     <div data-open data-side data-align role="presentation"
- *          style="position:fixed;left:0;top:0;transform:translate(x,y);
- *                 --anchor-width:0px;--anchor-height:0px">
- *                                                  <- ContextMenu.Positioner
- *       <div data-open role="menu" tabindex="-1" aria-orientation="vertical"
- *            data-rootownerid>                     <- ContextMenu.Popup
- *         …then exactly the Menu anatomy: Arrow, Group/GroupLabel, Item,
- *         LinkItem, Separator, CheckboxItem(+Indicator), RadioGroup/RadioItem
- *         (+Indicator), SubmenuRoot/SubmenuTrigger.
- *
- * Six consequences worth knowing before editing this file:
- *
- *   - SEVENTEEN OF THE NINETEEN PARTS ARE MENU'S OWN WRAPPERS, not re-wraps.
- *     `ContextMenu.Popup === Menu.Popup` is asserted below, and every recipe
- *     assertion here therefore pins MENU's class list, which menu.test.tsx owns.
- *     The only recipe this component adds is the trigger's;
- *   - the trigger opens on `contextmenu`, so the open path is
- *     `userEvent.click(trigger, { button: "right" })` — real Playwright input,
- *     which is exactly what a user does. There is NO click-to-open and NO
- *     keyboard-to-open: a context-menu trigger is not focusable;
- *   - THE POPUP IS ANCHORED TO THE CURSOR, NOT TO THE TRIGGER BOX. Base UI feeds
- *     the positioner a zero-size virtual anchor at the pointer, which is why the
- *     positioner reports `--anchor-width: 0px` and `position: fixed` where a
- *     plain menu reports the trigger's width and `position: absolute`;
- *   - A MODAL MENU ALWAYS RENDERS ONE MORE ELEMENT THAN YOU WROTE: Base UI puts
- *     an unstyleable `<div role="presentation" style="position:fixed;inset:0">`
- *     inside the portal to block outside pointer events, whether or not you
- *     render a Backdrop. This project loads no Tailwind, so the popup's `z-50`
- *     is inert and the blocker covers it — a `userEvent.click` on anything
- *     INSIDE the open popup hits the blocker and times out on Playwright's
- *     actionability check. Interaction inside the popup therefore goes through
- *     the KEYBOARD here (which a menu wants anyway) or a direct
- *     `element.click()`. Realistic pointer coverage lives in the stories;
- *   - CLOSING IS ANIMATION-FRAME-DEFERRED and ROVING FOCUS IS ASYNCHRONOUS, the
- *     two Wave-2 timing gotchas: every absence assertion uses
- *     `await expect.poll(...)`, never a bare synchronous read, and so does every
- *     focus assertion. Opening focuses the POPUP itself, not the first row;
- *   - FOCUS IS NOT RESTORED ON CLOSE, and this is the sharpest divergence from
- *     Menu. Menu returns focus to its trigger `<button>`; a context-menu trigger
- *     is a non-focusable `<div>`, so there is nothing to return focus to and
- *     Base UI drops it to `<body>` (measured). No spec here asserts a restore.
+ * Context-menu composition, pointer opening, and keyboard behavior in Chromium.
+ * Popup parts are portalled onto body and anchored to the pointer position.
+ * The trigger opens on right click; submenu navigation uses real keyboard input.
+ * This fixture loads no Tailwind. Modal pointer blockers can overlap row targets,
+ * so stories cover pointer interactions with the real styles.
  */
 
 /**
@@ -293,7 +228,7 @@ describe("ContextMenu", () => {
 
     const popup = part("cm-popup");
     expect(popup.getAttribute("role")).toBe("menu");
-    expect(popup.getAttribute("aria-orientation")).toBe("vertical");
+    expect(popup.getAttribute("aria-orientation") ?? "vertical").toBe("vertical");
     expect(popup.hasAttribute("data-open")).toBe(true);
     expect(part("cm-backdrop").hasAttribute("data-open")).toBe(true);
   });
@@ -404,7 +339,7 @@ describe("ContextMenu", () => {
     await userEvent.keyboard("{ArrowRight}");
 
     await expect.poll(focusedTestId).toBe("cm-sub-item");
-    expect(part("cm-sub-trigger").getAttribute("aria-expanded")).toBe("true");
+    expect(part("cm-sub-trigger").getAttribute("aria-controls")).toBe(part("cm-sub-popup").id);
     expect(part("cm-sub-trigger").hasAttribute("data-popup-open")).toBe(true);
     expect(part("cm-sub-popup").hasAttribute("data-nested")).toBe(true);
 

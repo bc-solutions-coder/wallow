@@ -197,6 +197,17 @@ jobs:
       - name: Test
         run: pnpm test
 
+      - name: Upload browser failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-failures-${{ github.run_attempt }}
+          path: |
+            packages/**/__screenshots__/**
+            apps/**/__screenshots__/**
+          if-no-files-found: ignore
+          retention-days: 7
+
       # publint + @arethetypeswrong/cli over the built packages: the manifest's
       # exports map and every entrypoint's type resolution, checked against the
       # packed tarball rather than against the working tree. Stays outside turbo
