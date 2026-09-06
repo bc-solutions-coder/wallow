@@ -18,9 +18,9 @@ import { LoginScreen, type LoginScreenProps } from "./LoginScreen";
  * recorded request. The panel reports its result up; the shell's
  * `authDispositionOf` owns the ticket exchange and the refusals.
  *
- * Every failure is a non-2xx whose `error` sentence arrives through `readErrorCode`.
- * Verify's 401 carries three tokens with TWO meanings, so copy is keyed on the
- * token, never on the status alone.
+ * Every failure is a non-2xx problem the fetch layer turns into an `ApiFailure`.
+ * Verify's 401 carries two codes with the same meaning and the send's 429 carries a
+ * `Retry-After`, so copy is keyed on the code and the header, never on the status.
  */
 
 // Hoisted so the vi.mock factory and the test bodies share the same spy.
@@ -82,11 +82,20 @@ const EVIL_RETURN_URL = "https://evil.example.com/steal";
 /** The bail target for an unsafe returnUrl. */
 const ERROR_HREF = "/error?reason=invalid_redirect_uri";
 
-/** This endpoint's machine tokens — matched against, NEVER rendered. */
-const RATE_LIMITED_TOKEN = "Rate limit exceeded. Please try again later.";
-const EXPIRED_TOKEN = "Token expired or already used.";
-const INVALID_TOKEN = "Invalid token.";
-const INVALID_TOKEN_FORMAT_TOKEN = "Invalid token format.";
+/** These endpoints' problem codes — matched against, NEVER rendered. */
+const RATE_LIMITED_CODE = "RateLimit.Exceeded";
+const EXPIRED_CODE = "Auth.TokenExpired";
+const INVALID_CODE = "Auth.TokenInvalid";
+
+/** A code nobody wrote a sentence for, with the user-safe detail the API sends. */
+const UNKNOWN_CODE = "Auth.SomeNewCode";
+const UNKNOWN_DETAIL = "Some new user-safe sentence.";
+
+const TOO_MANY_REQUESTS_STATUS = 429;
+const SERVER_ERROR_STATUS = 500;
+
+/** What the throttle's `Retry-After` header names. */
+const RETRY_AFTER_SECONDS = 120;
 
 const BLANK_EMAIL_MESSAGE = "Please enter your email.";
 
@@ -94,19 +103,21 @@ const SENT_MESSAGE = "Check your email for a magic link.";
 
 const EXPIRED_MESSAGE =
   "This magic link has expired or has already been used. Please request a new one.";
-const VERIFY_FAILED_MESSAGE = "An error occurred verifying the magic link. Please try again.";
 
 /**
- * The ONLY send failure the service can produce is the rate limit, so the copy is
- * specific: a generic "please try again" tells a rate-limited user to do the one
- * thing that cannot work.
+ * The ONLY send failure the service can produce is the rate limit, and its copy
+ * comes from the model's `Retry-After` reading: a generic "please try again"
+ * tells a rate-limited user to do the one thing that cannot work.
  */
-const RATE_LIMITED_MESSAGE =
-  "Too many sign-in link requests. Please wait a few minutes and try again.";
+const RATE_LIMITED_MESSAGE = `Too many requests. Please wait ${RETRY_AFTER_SECONDS} seconds and try again.`;
 
-/** Shared with the password tab, not re-invented here. */
+/** The screen's own copy for a 200 body it cannot read. */
 const GENERIC_MESSAGE = "An error occurred. Please try again.";
-const UNREACHABLE_MESSAGE = "Unable to reach the server. Please try again later.";
+
+/** The model's shipped sentences: unknown 4xx, 5xx, and a request that never landed. */
+const UNKNOWN_FAILURE_MESSAGE = "Something went wrong. Please try again.";
+const SERVER_FAULT_MESSAGE = "Something went wrong on our side. Please try again later.";
+const UNREACHABLE_MESSAGE = "Unable to reach the server. Check your connection and try again.";
 
 let harness: SdkHarness;
 
@@ -130,22 +141,50 @@ function respondWithVerify(body: unknown): void {
 }
 
 /**
- * The REAL failure body these endpoints ship: a bare
- * `{ succeeded: false, error: "<token>" }` at the real status. They emit no
- * problem details, so no human-readable title ever arrives and the screen must
- * supply its own copy; the sentence under `error` reaches it through
- * `readErrorCode` (the SDK keeps it as the `ApiFailure`'s `title`).
+ * The failure body these endpoints ship: RFC 7807 problem details at the real
+ * status, the catalog code under `code` and its user-safe sentence under
+ * `detail`. `title` stays "Unknown error" so a screen echoing it is caught.
  */
-function failureResponse(status: number, token: string): Response {
-  return Response.json({ succeeded: false, error: token }, { status });
+function failureResponse(status: number, code: string, detail?: string): Response {
+  return Response.json(
+    {
+      type: "about:blank",
+      title: "Unknown error",
+      status,
+      code,
+      ...(detail === undefined ? {} : { detail }),
+    },
+    { status },
+  );
 }
 
-function rejectSend(status: number, token: string): void {
-  sendReply = () => failureResponse(status, token);
+/** The throttle's answer: a 429 problem with a `Retry-After` the copy reads. */
+function rateLimitedResponse(): Response {
+  return Response.json(
+    {
+      type: "about:blank",
+      title: "Too Many Requests",
+      status: TOO_MANY_REQUESTS_STATUS,
+      code: RATE_LIMITED_CODE,
+      detail: "Too many requests. Try again later.",
+    },
+    {
+      status: TOO_MANY_REQUESTS_STATUS,
+      headers: { "Retry-After": String(RETRY_AFTER_SECONDS) },
+    },
+  );
 }
 
-function rejectVerify(status: number, token: string): void {
-  verifyReply = () => failureResponse(status, token);
+function rejectSend(status: number, code: string, detail?: string): void {
+  sendReply = () => failureResponse(status, code, detail);
+}
+
+function rateLimitSend(): void {
+  sendReply = () => rateLimitedResponse();
+}
+
+function rejectVerify(status: number, code: string, detail?: string): void {
+  verifyReply = () => failureResponse(status, code, detail);
 }
 
 /**
@@ -444,8 +483,8 @@ describe("LoginScreen magic-link tab: sending", () => {
 });
 
 describe("LoginScreen magic-link tab: send failures", () => {
-  it("tells a rate-limited user to wait rather than to try again", async () => {
-    rejectSend(BAD_REQUEST_STATUS, RATE_LIMITED_TOKEN);
+  it("tells a rate-limited user how long to wait, read off Retry-After", async () => {
+    rateLimitSend();
     const user = userEvent.setup();
     await renderScreen();
 
@@ -456,10 +495,22 @@ describe("LoginScreen magic-link tab: send failures", () => {
     expect(page.getByTestId("login-magic-link-sent").query()).toBeNull();
   });
 
-  it("never renders the raw server sentence on a failed send", async () => {
-    // The token is a server-authored English sentence, which makes it TEMPTING to
-    // render — but it is still a machine token.
-    rejectSend(BAD_REQUEST_STATUS, RATE_LIMITED_TOKEN);
+  it("never renders the machine code or the reason phrase on a failed send", async () => {
+    rateLimitSend();
+    const user = userEvent.setup();
+    await renderScreen();
+
+    await openMagicLinkTab(user);
+    await submitEmail(user);
+
+    await expect.element(page.getByTestId("login-error")).not.toHaveTextContent(RATE_LIMITED_CODE);
+    await expect
+      .element(page.getByTestId("login-error"))
+      .not.toHaveTextContent("Too Many Requests");
+  });
+
+  it("falls back to the model's generic tail for a send failure it has never heard of", async () => {
+    rejectSend(BAD_REQUEST_STATUS, UNKNOWN_CODE);
     const user = userEvent.setup();
     await renderScreen();
 
@@ -468,18 +519,7 @@ describe("LoginScreen magic-link tab: send failures", () => {
 
     await expect
       .element(page.getByTestId("login-error"))
-      .not.toHaveTextContent("Rate limit exceeded");
-  });
-
-  it("falls back to the generic tail for a send failure it has never heard of", async () => {
-    rejectSend(BAD_REQUEST_STATUS, "some_new_token");
-    const user = userEvent.setup();
-    await renderScreen();
-
-    await openMagicLinkTab(user);
-    await submitEmail(user);
-
-    await expect.element(page.getByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
+      .toHaveTextContent(UNKNOWN_FAILURE_MESSAGE);
   });
 
   it("tells the user the server is unreachable when the send never lands", async () => {
@@ -565,7 +605,7 @@ describe("LoginScreen magic-link auto-verify", () => {
     // The failure sets the shell's banner, which re-renders this panel with fresh
     // `onAuthResult`/`onError` identities, so effect deps alone cannot hold the
     // line — only a ref latch can.
-    rejectVerify(UNAUTHORIZED_STATUS, EXPIRED_TOKEN);
+    rejectVerify(UNAUTHORIZED_STATUS, EXPIRED_CODE, "The token has expired.");
     await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
     await expect.element(page.getByTestId("login-error")).toBeInTheDocument();
@@ -634,53 +674,51 @@ describe("LoginScreen magic-link auto-verify", () => {
 });
 
 describe("LoginScreen magic-link verify failures", () => {
-  it("maps a spent token to the oracle's expired copy", async () => {
-    rejectVerify(UNAUTHORIZED_STATUS, EXPIRED_TOKEN);
+  it("maps Auth.TokenExpired to the oracle's expired copy", async () => {
+    rejectVerify(UNAUTHORIZED_STATUS, EXPIRED_CODE, "The token has expired.");
     await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
     await expect.element(page.getByTestId("login-error")).toHaveTextContent(EXPIRED_MESSAGE);
   });
 
-  it("maps a bad signature to the expired copy too", async () => {
-    // `"Invalid token."` is the live spelling for a failed HMAC comparison, and it
-    // means the same thing to the user as an expired link.
-    rejectVerify(UNAUTHORIZED_STATUS, INVALID_TOKEN);
+  it("maps Auth.TokenInvalid to the expired copy too", async () => {
+    // A failed HMAC comparison means the same thing to the user as an expired
+    // link: the one they hold will never work, and a new one will.
+    rejectVerify(UNAUTHORIZED_STATUS, INVALID_CODE, "The token is invalid.");
     await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
     await expect.element(page.getByTestId("login-error")).toHaveTextContent(EXPIRED_MESSAGE);
   });
 
-  it("does not promise a new link will help when the token is malformed", async () => {
-    // THE TEST THAT BINDS THE CODE MAP. `"Invalid token format."` rides the SAME
-    // 401 as the two tokens above but means something else. A blanket
-    // `401 -> expired` rule passes every other failure test here and fails THIS
-    // one, which is the whole reason it exists.
-    rejectVerify(UNAUTHORIZED_STATUS, INVALID_TOKEN_FORMAT_TOKEN);
+  it("reads the problem's detail for a code on the same 401 it has never heard of", async () => {
+    // THE TEST THAT BINDS THE CODE MAP. A blanket `401 -> expired` rule passes
+    // every other failure test here and fails THIS one: a new code must not be
+    // promised a fresh link when the API said something else.
+    rejectVerify(UNAUTHORIZED_STATUS, UNKNOWN_CODE, UNKNOWN_DETAIL);
     await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
-    await expect.element(page.getByTestId("login-error")).toHaveTextContent(VERIFY_FAILED_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(UNKNOWN_DETAIL);
   });
 
-  it("falls back to the verify tail for a token on the same status it has never heard of", async () => {
-    rejectVerify(UNAUTHORIZED_STATUS, "some_new_token");
+  it("reads the model's server-fault copy for a 5xx on verify", async () => {
+    rejectVerify(SERVER_ERROR_STATUS, "Shared.Unexpected", "Object reference not set.");
     await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
-    await expect.element(page.getByTestId("login-error")).toHaveTextContent(VERIFY_FAILED_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(SERVER_FAULT_MESSAGE);
   });
 
-  it("never renders the raw server sentence on a failed verify", async () => {
-    rejectVerify(UNAUTHORIZED_STATUS, EXPIRED_TOKEN);
+  it("never renders the machine code or the reason phrase on a failed verify", async () => {
+    rejectVerify(UNAUTHORIZED_STATUS, EXPIRED_CODE, "The token has expired.");
     await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
-    await expect
-      .element(page.getByTestId("login-error"))
-      .not.toHaveTextContent("Token expired or already used");
+    await expect.element(page.getByTestId("login-error")).not.toHaveTextContent(EXPIRED_CODE);
+    await expect.element(page.getByTestId("login-error")).not.toHaveTextContent("Unknown error");
   });
 
   it("never renders the token itself", async () => {
     // The token is a live credential until it is redeemed. It is in the URL, but
     // that is not a reason to paint it into the page.
-    rejectVerify(UNAUTHORIZED_STATUS, EXPIRED_TOKEN);
+    rejectVerify(UNAUTHORIZED_STATUS, EXPIRED_CODE, "The token has expired.");
     const { container } = await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
     await expect.element(page.getByTestId("login-error")).toBeInTheDocument();
@@ -696,7 +734,7 @@ describe("LoginScreen magic-link verify failures", () => {
 
   it("offers the send form again after a failed verify", async () => {
     // "Please request a new one" is only advice if the user can act on it.
-    rejectVerify(UNAUTHORIZED_STATUS, EXPIRED_TOKEN);
+    rejectVerify(UNAUTHORIZED_STATUS, EXPIRED_CODE, "The token has expired.");
     await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
     await expect.element(page.getByTestId("login-error")).toBeInTheDocument();
@@ -705,7 +743,7 @@ describe("LoginScreen magic-link verify failures", () => {
   });
 
   it("does not exchange a ticket when the verify fails", async () => {
-    rejectVerify(UNAUTHORIZED_STATUS, EXPIRED_TOKEN);
+    rejectVerify(UNAUTHORIZED_STATUS, EXPIRED_CODE, "The token has expired.");
     await renderScreen({ magicLinkToken: MAGIC_LINK_TOKEN });
 
     await expect.element(page.getByTestId("login-error")).toBeInTheDocument();

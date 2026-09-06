@@ -11,6 +11,8 @@ using Wallow.Identity.Api.Contracts.Requests;
 using Wallow.Identity.Api.Controllers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Errors;
+using Wallow.Shared.Api.Problems;
 using Wallow.Shared.Contracts.Identity.Events;
 using Wolverine;
 
@@ -117,14 +119,16 @@ public class AccountControllerEmailChangeTests
     #region ChangeEmail - Same email
 
     [Fact]
-    public async Task ChangeEmail_WhenSameEmail_ReturnsBadRequest()
+    public async Task ChangeEmail_WhenSameEmail_AnswersEmailUnchanged()
     {
         WallowUser user = CreateTestUser();
         _userManager.FindByIdAsync(_userId.ToString()).Returns(user);
 
         IActionResult result = await _controller.ChangeEmail(new ChangeEmailRequest(TestEmail));
 
-        result.Should().BeOfType<BadRequestObjectResult>();
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problem.Code.Should().Be(IdentityErrors.AuthEmailUnchanged.Code);
     }
 
     #endregion
@@ -179,7 +183,7 @@ public class AccountControllerEmailChangeTests
     #region ConfirmEmailChange - Expired token
 
     [Fact]
-    public async Task ConfirmEmailChange_WhenExpired_ReturnsBadRequestTokenExpired()
+    public async Task ConfirmEmailChange_WhenExpired_AnswersTokenExpired()
     {
         WallowUser user = CreateTestUser();
         // Set PendingEmailExpiry to past
@@ -190,9 +194,9 @@ public class AccountControllerEmailChangeTests
 
         IActionResult result = await _controller.ConfirmEmailChange("expired-token", _userId.ToString(), NewEmail);
 
-        BadRequestObjectResult bad = result.Should().BeOfType<BadRequestObjectResult>().Subject;
-        string json = System.Text.Json.JsonSerializer.Serialize(bad.Value);
-        json.Should().Contain("token_expired");
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problem.Code.Should().Be(IdentityErrors.AuthTokenExpired.Code);
     }
 
     #endregion
@@ -200,7 +204,7 @@ public class AccountControllerEmailChangeTests
     #region ConfirmEmailChange - Invalid token
 
     [Fact]
-    public async Task ConfirmEmailChange_WithInvalidToken_ReturnsBadRequestInvalidToken()
+    public async Task ConfirmEmailChange_WithInvalidToken_AnswersTokenInvalid()
     {
         WallowUser user = CreateTestUser();
         typeof(WallowUser).GetProperty(nameof(WallowUser.PendingEmailExpiry))!
@@ -211,9 +215,9 @@ public class AccountControllerEmailChangeTests
 
         IActionResult result = await _controller.ConfirmEmailChange("bad-token", _userId.ToString(), NewEmail);
 
-        BadRequestObjectResult bad = result.Should().BeOfType<BadRequestObjectResult>().Subject;
-        string json = System.Text.Json.JsonSerializer.Serialize(bad.Value);
-        json.Should().Contain("invalid_token");
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problem.Code.Should().Be(IdentityErrors.AuthTokenInvalid.Code);
     }
 
     #endregion
@@ -221,13 +225,15 @@ public class AccountControllerEmailChangeTests
     #region ConfirmEmailChange - User not found
 
     [Fact]
-    public async Task ConfirmEmailChange_WhenUserNotFound_ReturnsBadRequest()
+    public async Task ConfirmEmailChange_WhenUserNotFound_AnswersTokenInvalid()
     {
         _userManager.FindByIdAsync(_userId.ToString()).Returns((WallowUser?)null);
 
         IActionResult result = await _controller.ConfirmEmailChange("token", _userId.ToString(), NewEmail);
 
-        result.Should().BeOfType<BadRequestObjectResult>();
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problem.Code.Should().Be(IdentityErrors.AuthTokenInvalid.Code);
     }
 
     #endregion

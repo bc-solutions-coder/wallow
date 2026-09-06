@@ -429,7 +429,18 @@ public static class IdentityInfrastructureExtensions
     {
         services.Configure<PreRegisteredClientOptions>(configuration.GetSection(PreRegisteredClientOptions.SectionName));
         services.Configure<AdminBootstrapOptions>(configuration.GetSection(AdminBootstrapOptions.SectionName));
-        services.Configure<PasswordlessOptions>(configuration.GetSection(PasswordlessOptions.SectionName));
+        // Validated at start: the throttle answers a missing counter TTL with the window itself as
+        // Retry-After, and Error refuses a non-positive one, so a zero window would turn the 429
+        // into a 500 at the first throttled send.
+        services.AddOptions<PasswordlessOptions>()
+            .Bind(configuration.GetSection(PasswordlessOptions.SectionName))
+            .Validate(
+                options => options.RateLimitMaxRequests >= 0
+                    && options.RateLimitWindow > TimeSpan.Zero
+                    && options.MagicLinkTtl > TimeSpan.Zero
+                    && options.OtpTtl > TimeSpan.Zero,
+                "Passwordless:RateLimitMaxRequests must be non-negative and every Passwordless window and TTL must be positive.")
+            .ValidateOnStart();
         services.Configure<InvalidClientLockoutOptions>(configuration.GetSection(InvalidClientLockoutOptions.SectionName));
         services.AddScoped<IInvalidClientLockout, InvalidClientLockout>();
 

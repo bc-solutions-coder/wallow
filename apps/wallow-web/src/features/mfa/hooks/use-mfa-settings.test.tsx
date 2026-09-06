@@ -26,6 +26,15 @@ const ENABLED_STATUS = { enabled: true, method: "totp", backupCodeCount: 7 };
 /** What the probe's submit sends. The password itself is the form's business now. */
 const PASSWORD = "hunter2";
 
+/** `Mfa.PasswordInvalid`, as the disable and regenerate endpoints write it. */
+const INVALID_PASSWORD_PROBLEM = {
+  type: "about:blank",
+  title: "Unknown error",
+  status: 400,
+  code: "Mfa.PasswordInvalid",
+  detail: "The catalog's own sentence.",
+};
+
 let harness: SdkHarness;
 
 /** The app registry, so a raw MFA code resolves to its sentence the way the settings card shows it. */
@@ -96,7 +105,7 @@ describe("useMfaSettings", () => {
   });
 
   it("keeps the confirm panel open when the write fails, so the attempt can be retried", async () => {
-    program({ succeeded: false, error: "invalid_password" }, 400);
+    program(INVALID_PASSWORD_PROBLEM, 400);
     renderWithWallow(<Probe />, { harness, wrap: withRegistry });
 
     await userEvent.click(page.getByTestId("probe-open-disable"));
@@ -124,7 +133,7 @@ describe("useMfaSettings", () => {
   });
 
   it("clears the previous failure when the next confirm opens", async () => {
-    program({ succeeded: false, error: "invalid_password" }, 400);
+    program(INVALID_PASSWORD_PROBLEM, 400);
     renderWithWallow(<Probe />, { harness, wrap: withRegistry });
 
     await userEvent.click(page.getByTestId("probe-open-disable"));

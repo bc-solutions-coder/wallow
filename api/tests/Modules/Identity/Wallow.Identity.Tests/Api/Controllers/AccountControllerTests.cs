@@ -11,6 +11,8 @@ using Wallow.Identity.Api.Contracts.Requests;
 using Wallow.Identity.Api.Controllers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Errors;
+using Wallow.Shared.Api.Problems;
 using Wolverine;
 
 namespace Wallow.Identity.Tests.Api.Controllers;
@@ -80,9 +82,9 @@ public class AccountControllerTests
 
         IActionResult result = await _controller.Login(new AccountLoginRequest("unknown@test.com", "password", false), CancellationToken.None);
 
-        UnauthorizedObjectResult unauthorized = result.Should().BeOfType<UnauthorizedObjectResult>().Subject;
-        string json = System.Text.Json.JsonSerializer.Serialize(unauthorized.Value);
-        json.Should().Contain("invalid_credentials");
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+        problem.Code.Should().Be(IdentityErrors.AuthInvalidCredentials.Code);
     }
 
     [Fact]
@@ -145,7 +147,9 @@ public class AccountControllerTests
 
         IActionResult result = await _controller.Login(new AccountLoginRequest("test@test.com", "wrong", false), CancellationToken.None);
 
-        result.Should().BeOfType<UnauthorizedObjectResult>();
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+        problem.Code.Should().Be(IdentityErrors.AuthInvalidCredentials.Code);
     }
 
     #endregion
@@ -158,13 +162,13 @@ public class AccountControllerTests
         IActionResult result = await _controller.Register(
             new AccountRegisterRequest("test@test.com", "Password1!", "DifferentPassword1!"));
 
-        BadRequestObjectResult bad = result.Should().BeOfType<BadRequestObjectResult>().Subject;
-        string json = System.Text.Json.JsonSerializer.Serialize(bad.Value);
-        json.Should().Contain("passwords_do_not_match");
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problem.Code.Should().Be(IdentityErrors.AuthPasswordsDoNotMatch.Code);
     }
 
     [Fact]
-    public async Task Register_WithDuplicateEmail_ReturnsBadRequestWithEmailTaken()
+    public async Task Register_WithDuplicateEmail_AnswersEmailTaken()
     {
         _userManager.CreateAsync(Arg.Any<WallowUser>(), "Password1!")
             .Returns(IdentityResult.Failed(new IdentityError { Code = "DuplicateEmail", Description = "Email taken" }));
@@ -172,9 +176,9 @@ public class AccountControllerTests
         IActionResult result = await _controller.Register(
             new AccountRegisterRequest("test@test.com", "Password1!", "Password1!"));
 
-        BadRequestObjectResult bad = result.Should().BeOfType<BadRequestObjectResult>().Subject;
-        string json = System.Text.Json.JsonSerializer.Serialize(bad.Value);
-        json.Should().Contain("email_taken");
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status409Conflict);
+        problem.Code.Should().Be(IdentityErrors.AuthEmailTaken.Code);
     }
 
     [Fact]
@@ -234,9 +238,9 @@ public class AccountControllerTests
         IActionResult result = await _controller.ResetPassword(
             new AccountResetPasswordRequest("unknown@test.com", "token", "NewPassword1!"));
 
-        BadRequestObjectResult bad = result.Should().BeOfType<BadRequestObjectResult>().Subject;
-        string json = System.Text.Json.JsonSerializer.Serialize(bad.Value);
-        json.Should().Contain("invalid_token");
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problem.Code.Should().Be(IdentityErrors.AuthTokenInvalid.Code);
     }
 
     [Fact]
@@ -250,7 +254,9 @@ public class AccountControllerTests
         IActionResult result = await _controller.ResetPassword(
             new AccountResetPasswordRequest("test@test.com", "bad-token", "NewPassword1!"));
 
-        result.Should().BeOfType<BadRequestObjectResult>();
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problem.Code.Should().Be(IdentityErrors.AuthTokenInvalid.Code);
     }
 
     [Fact]
@@ -278,7 +284,9 @@ public class AccountControllerTests
 
         IActionResult result = await _controller.VerifyEmail("unknown@test.com", "token");
 
-        result.Should().BeOfType<BadRequestObjectResult>();
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problem.Code.Should().Be(IdentityErrors.AuthTokenInvalid.Code);
     }
 
     [Fact]
@@ -291,7 +299,9 @@ public class AccountControllerTests
 
         IActionResult result = await _controller.VerifyEmail("test@test.com", "bad-token");
 
-        result.Should().BeOfType<BadRequestObjectResult>();
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        problem.Code.Should().Be(IdentityErrors.AuthTokenInvalid.Code);
     }
 
     [Fact]
@@ -401,7 +411,9 @@ public class AccountControllerTests
 
         IActionResult result = await _controller.ExchangeTicket("invalid-ticket", null);
 
-        result.Should().BeOfType<BadRequestObjectResult>();
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+        problem.Code.Should().Be(IdentityErrors.AuthTicketInvalid.Code);
     }
 
     #endregion

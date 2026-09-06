@@ -1,46 +1,16 @@
 /**
- * The Register screen's RESULT LAYER: the five client-side guards and the
- * rejection→copy mapping, with no React in it.
+ * The Register screen's RESULT LAYER: the five client-side guards and this
+ * screen's own words for a rejection, with no React in it.
  *
- * ── THE ERROR BRANCHES (REVISED — see Wallow-vec7.7) ─────────────────────────
- *
- * `AccountController.Register` (api/.../Controllers/AccountController.cs:639-724)
- * fails in four ways, each a 400 with a bare `{ succeeded, error }` body (NOT
- * problem details), so `unwrap()` throws on all four:
- *
- *     400 error "passwords_do_not_match"        line 648
- *     400 error "invalid_client_id"             line 658
- *     400 error "email_taken"                   ~686, from DuplicateEmail/UserName
- *     400 error <raw IdentityResult sentence>   the `_ =>` fallback
- *
- * All four share a 400, so — unlike the sibling ResetPassword port, where one
- * failure reason made the status itself meaningful — status cannot narrow here.
- * What does is `readErrorCode`, which hands the API's token through intact (the
- * SDK parses the bare body under the OAuth grammar of
- * `@bc-solutions-coder/api-errors`, keeping the raw token as the failure's
- * `title`). Three of the four
- * branches are recoverable that way; the fourth stays generic on purpose,
- * because its "code" is a raw English sentence from Identity rather than a
- * stable token.
- *
- * The oracle's own switch is only partly worth porting:
- *
- *   - Its `"password_too_weak"` branch is DEAD CODE — the controller never emits
- *     that string. That case arrives as the raw sentence and lands on the
- *     generic tail here.
- *   - The API's error tail renders `result.Error` RAW, so a user really can be
- *     shown Identity's own prose ("Passwords must have at least one digit
- *     ('0'-'9')."). `code` is a machine member here: matched against KNOWN
- *     tokens and NEVER rendered, so anything unrecognised — including a token
- *     added tomorrow — falls to the generic message rather than guessing.
- *
- * Narrowing is STRUCTURAL rather than `instanceof ApiFailure`, so the screen
- * matches on the wire shape alone. A network-level rejection carries a
- * transport code no screen knows and must fall through to the generic message
- * rather than throw.
+ * `register` answers problems with catalog codes (`Auth.EmailTaken`,
+ * `Auth.ClientIdInvalid`, `Auth.PasswordsDoNotMatch`, `Validation.Failed`
+ * for a weak password) and the screen resolves them through `useFailureMessage`.
+ * Email-taken and client-id copy are the app registry's; the server-side echo of
+ * the local mismatch guard is this screen's, so it says the same thing the guard
+ * does. A weak-password rejection reads the policy's own `detail`.
  */
 
-import { readErrorCode } from "@shared/lib/error-code";
+import { ErrorCode, type FailureMessageRegistry } from "@bc-solutions-coder/api-errors";
 
 /** The oracle's client-side guards, in the oracle's own order. */
 const BLANK_EMAIL_MESSAGE = "Please enter your email address.";
@@ -49,28 +19,14 @@ export const PASSWORD_MISMATCH_MESSAGE = "Passwords do not match.";
 const TERMS_REQUIRED_MESSAGE = "You must agree to the Terms of Service.";
 const PRIVACY_REQUIRED_MESSAGE = "You must agree to the Privacy Policy.";
 
-/** The oracle's `"email_taken" =>` branch, reachable again as of Wallow-vec7.7. */
-const EMAIL_TAKEN_MESSAGE = "An account with this email already exists. Please sign in instead.";
+/** The oracle's `_ =>` tail, minus its raw-string leak. */
+export const REGISTER_FAILED_MESSAGE = "An error occurred. Please try again.";
 
-/**
- * `invalid_client_id`: the `client_id` came off the QUERY STRING, not the form.
- * Nothing the user typed is wrong and retyping it cannot help, so the copy points
- * at the link rather than blaming their input.
- */
-const INVALID_CLIENT_MESSAGE =
-  "The sign-up link you followed is not valid. Please go back to the application you came from and try again.";
-
-/**
- * The oracle's `_ =>` tail, minus its raw-string leak. Also the honest home of
- * the weak-password rejection, whose reason arrives as an English sentence
- * rather than a token — see the error-branch note above.
- */
-const GENERIC_FAILURE_MESSAGE = "An error occurred. Please try again.";
-
-/** The API's machine tokens for this endpoint. Matched against, never rendered. */
-const EMAIL_TAKEN = "email_taken";
-const PASSWORDS_DO_NOT_MATCH = "passwords_do_not_match";
-const INVALID_CLIENT_ID = "invalid_client_id";
+/** This screen's sentences, ahead of the app registry. */
+export const REGISTER_MESSAGES: FailureMessageRegistry = {
+  // The server-side echo of the local guard, so it says the same thing.
+  [ErrorCode.AUTH_PASSWORDS_DO_NOT_MATCH]: () => PASSWORD_MISMATCH_MESSAGE,
+};
 
 /** What the screen's form holds, and what the guards below read. */
 export interface RegisterValues {
@@ -120,24 +76,4 @@ export function registerGuardMessage(values: RegisterValues): string | null {
   }
 
   return null;
-}
-
-/** Map a `register` rejection onto user-facing copy — see the note above. */
-export function registerFailureMessage(cause: unknown): string {
-  const code: string | undefined = readErrorCode(cause);
-
-  if (code === EMAIL_TAKEN) {
-    return EMAIL_TAKEN_MESSAGE;
-  }
-
-  if (code === PASSWORDS_DO_NOT_MATCH) {
-    // The server-side echo of the local guard, so it says the same thing.
-    return PASSWORD_MISMATCH_MESSAGE;
-  }
-
-  if (code === INVALID_CLIENT_ID) {
-    return INVALID_CLIENT_MESSAGE;
-  }
-
-  return GENERIC_FAILURE_MESSAGE;
 }

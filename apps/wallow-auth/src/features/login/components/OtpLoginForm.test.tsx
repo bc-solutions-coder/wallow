@@ -65,7 +65,6 @@ const EXCHANGE_TICKET_PATH = "/v1/identity/auth/exchange-ticket";
 
 /** Wire statuses, named so the failure tests read as the API's contract. */
 const OK_STATUS = 200;
-const BAD_REQUEST_STATUS = 400;
 const UNAUTHORIZED_STATUS = 401;
 const SERVER_ERROR_STATUS = 500;
 
@@ -85,10 +84,18 @@ const EVIL_RETURN_URL = "https://evil.example.com/steal";
 /** The bail target for an unsafe returnUrl. */
 const ERROR_HREF = "/error?reason=invalid_redirect_uri";
 
-/** This endpoint's machine tokens — matched against, NEVER rendered. */
-const RATE_LIMITED_TOKEN = "Rate limit exceeded. Please try again later.";
-const CODE_EXPIRED_TOKEN = "Code expired or not found.";
-const INVALID_CODE_TOKEN = "Invalid code.";
+/** These endpoints' problem codes — matched against, NEVER rendered. */
+const RATE_LIMITED_CODE = "RateLimit.Exceeded";
+const OTP_INVALID_CODE = "Auth.OtpInvalid";
+
+/** A code nobody wrote a sentence for, with the user-safe detail the API sends. */
+const UNKNOWN_CODE = "Auth.SomeNewCode";
+const UNKNOWN_DETAIL = "Some new user-safe sentence.";
+
+const TOO_MANY_REQUESTS_STATUS = 429;
+
+/** What the throttle's `Retry-After` header names. */
+const RETRY_AFTER_SECONDS = 120;
 
 const BLANK_EMAIL_MESSAGE = "Please enter your email.";
 const BLANK_CODE_MESSAGE = "Please enter the verification code.";
@@ -96,15 +103,18 @@ const BLANK_CODE_MESSAGE = "Please enter the verification code.";
 const INVALID_CODE_MESSAGE = "Invalid or expired code. Please try again.";
 
 /**
- * The ONLY send failure the service can produce is the rate limit, so the copy is
- * specific: a generic "please try again" tells a rate-limited user to do the one
- * thing that cannot work.
+ * The ONLY send failure the service can produce is the rate limit, and its copy
+ * comes from the model's `Retry-After` reading: a generic "please try again"
+ * tells a rate-limited user to do the one thing that cannot work.
  */
-const RATE_LIMITED_MESSAGE = "Too many code requests. Please wait a few minutes and try again.";
+const RATE_LIMITED_MESSAGE = `Too many requests. Please wait ${RETRY_AFTER_SECONDS} seconds and try again.`;
 
-/** Shared with the other tabs, not re-invented here. */
+/** The screen's own copy for a 200 body it cannot read. */
 const GENERIC_MESSAGE = "An error occurred. Please try again.";
-const UNREACHABLE_MESSAGE = "Unable to reach the server. Please try again later.";
+
+/** The model's shipped sentences for a 5xx and for a request that never landed. */
+const SERVER_FAULT_MESSAGE = "Something went wrong on our side. Please try again later.";
+const UNREACHABLE_MESSAGE = "Unable to reach the server. Check your connection and try again.";
 
 let harness: SdkHarness;
 
@@ -143,9 +153,39 @@ function wireEndpoint(
   harness.respond((call: SdkCall) => (call.path === path ? respond(call) : defaultWire(call)));
 }
 
-/** A non-2xx from `path`, in this API's bare `{ succeeded, error }` shape. */
-function rejectAt(path: string, status: number, token: string): void {
-  wireEndpoint(path, () => Response.json({ succeeded: false, error: token }, { status }));
+/** A non-2xx from `path`: RFC 7807 problem details carrying `code` and `detail`. */
+function rejectAt(path: string, status: number, code: string, detail?: string): void {
+  wireEndpoint(path, () =>
+    Response.json(
+      {
+        type: "about:blank",
+        title: "Unknown error",
+        status,
+        code,
+        ...(detail === undefined ? {} : { detail }),
+      },
+      { status },
+    ),
+  );
+}
+
+/** The throttle's answer at `path`: a 429 problem with a `Retry-After` the copy reads. */
+function rateLimitAt(path: string): void {
+  wireEndpoint(path, () =>
+    Response.json(
+      {
+        type: "about:blank",
+        title: "Too Many Requests",
+        status: TOO_MANY_REQUESTS_STATUS,
+        code: RATE_LIMITED_CODE,
+        detail: "Too many requests. Try again later.",
+      },
+      {
+        status: TOO_MANY_REQUESTS_STATUS,
+        headers: { "Retry-After": String(RETRY_AFTER_SECONDS) },
+      },
+    ),
+  );
 }
 
 /** A 200 from `path` carrying exactly `body`. */
@@ -428,10 +468,10 @@ describe("LoginScreen OTP tab: sending", () => {
 });
 
 describe("LoginScreen OTP tab: send failures", () => {
-  it("tells a rate-limited user to wait, not to try again", async () => {
+  it("tells a rate-limited user how long to wait, read off Retry-After", async () => {
     // A generic "try again" is the one instruction guaranteed not to work here.
     const user = userEvent.setup();
-    rejectAt(OTP_SEND_ENDPOINT, BAD_REQUEST_STATUS, RATE_LIMITED_TOKEN);
+    rateLimitAt(OTP_SEND_ENDPOINT);
     renderScreen();
 
     await openOtpTab(user);
@@ -442,7 +482,7 @@ describe("LoginScreen OTP tab: send failures", () => {
 
   it("keeps the email form up after a send failure so the address can be fixed", async () => {
     const user = userEvent.setup();
-    rejectAt(OTP_SEND_ENDPOINT, BAD_REQUEST_STATUS, RATE_LIMITED_TOKEN);
+    rateLimitAt(OTP_SEND_ENDPOINT);
     renderScreen();
 
     await openOtpTab(user);
@@ -466,29 +506,28 @@ describe("LoginScreen OTP tab: send failures", () => {
     await expect.element(page.getByTestId("login-error")).toHaveTextContent(UNREACHABLE_MESSAGE);
   });
 
-  it("falls back to the generic tail for a failure it has never heard of", async () => {
+  it("reads the model's server-fault copy for a 5xx on send", async () => {
     const user = userEvent.setup();
-    rejectAt(OTP_SEND_ENDPOINT, SERVER_ERROR_STATUS, "something_new");
+    rejectAt(OTP_SEND_ENDPOINT, SERVER_ERROR_STATUS, "Shared.Unexpected", "Object reference.");
     renderScreen();
 
     await openOtpTab(user);
     await submitEmail(user);
 
-    await expect.element(page.getByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(SERVER_FAULT_MESSAGE);
   });
 
-  it("never renders the raw server sentence on a send failure", async () => {
-    // A server-authored English sentence is still a machine token: matched
-    // against, never shown.
+  it("never renders the machine code or the reason phrase on a send failure", async () => {
     const user = userEvent.setup();
-    rejectAt(OTP_SEND_ENDPOINT, BAD_REQUEST_STATUS, RATE_LIMITED_TOKEN);
+    rateLimitAt(OTP_SEND_ENDPOINT);
     const { container } = await renderScreen();
 
     await openOtpTab(user);
     await submitEmail(user);
 
     await expect.element(page.getByTestId("login-error")).toBeInTheDocument();
-    expect(container.textContent).not.toContain(RATE_LIMITED_TOKEN);
+    expect(container.textContent).not.toContain(RATE_LIMITED_CODE);
+    expect(container.textContent).not.toContain("Too Many Requests");
   });
 
   it("fails closed on a 200 body it cannot read, rather than promising a code", async () => {
@@ -694,41 +733,30 @@ describe("LoginScreen OTP tab: verify success hands off to the shell", () => {
 });
 
 describe("LoginScreen OTP tab: verify failures", () => {
-  it("maps a mistyped code onto the oracle's invalid-or-expired copy", async () => {
+  it("maps Auth.OtpInvalid onto this tab's invalid-or-expired copy", async () => {
+    // The API collapses a mistyped and an expired code into ONE code, so this
+    // tab's sentence covers both — and it beats the catalog's own `detail`.
     const user = userEvent.setup();
     renderScreen();
 
     await reachCodeForm(user);
-    rejectAt(OTP_VERIFY_ENDPOINT, UNAUTHORIZED_STATUS, INVALID_CODE_TOKEN);
+    rejectAt(OTP_VERIFY_ENDPOINT, UNAUTHORIZED_STATUS, OTP_INVALID_CODE, "The code is invalid.");
     await submitCode(user);
 
     await expect.element(page.getByTestId("login-error")).toHaveTextContent(INVALID_CODE_MESSAGE);
   });
 
-  it("maps an expired code onto the same copy", async () => {
-    // The copy covers both live tokens, which is why no code map earns its place.
+  it("reads the problem's detail for a code on the same 401 it has never heard of", async () => {
+    // A new code must not be reported as a bad code: the API's `detail` is
+    // user-safe by contract, so the banner shows it rather than guessing.
     const user = userEvent.setup();
     renderScreen();
 
     await reachCodeForm(user);
-    rejectAt(OTP_VERIFY_ENDPOINT, UNAUTHORIZED_STATUS, CODE_EXPIRED_TOKEN);
+    rejectAt(OTP_VERIFY_ENDPOINT, UNAUTHORIZED_STATUS, UNKNOWN_CODE, UNKNOWN_DETAIL);
     await submitCode(user);
 
-    await expect.element(page.getByTestId("login-error")).toHaveTextContent(INVALID_CODE_MESSAGE);
-  });
-
-  it("reads an unrecognised token on a 401 as a bad code, not a generic error", async () => {
-    // 401 identifies this failure ALONE, so the status carries the meaning. A token
-    // this screen has never heard of still means the code did not work, and
-    // dropping the user to "an error occurred" hides the retry they need.
-    const user = userEvent.setup();
-    renderScreen();
-
-    await reachCodeForm(user);
-    rejectAt(OTP_VERIFY_ENDPOINT, UNAUTHORIZED_STATUS, "some_future_token");
-    await submitCode(user);
-
-    await expect.element(page.getByTestId("login-error")).toHaveTextContent(INVALID_CODE_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(UNKNOWN_DETAIL);
   });
 
   it("keeps the code form up after a bad code so it can be retyped", async () => {
@@ -736,7 +764,7 @@ describe("LoginScreen OTP tab: verify failures", () => {
     renderScreen();
 
     await reachCodeForm(user);
-    rejectAt(OTP_VERIFY_ENDPOINT, UNAUTHORIZED_STATUS, INVALID_CODE_TOKEN);
+    rejectAt(OTP_VERIFY_ENDPOINT, UNAUTHORIZED_STATUS, OTP_INVALID_CODE, "The code is invalid.");
     await submitCode(user);
 
     await expect.element(page.getByTestId("login-error")).toBeInTheDocument();
@@ -754,30 +782,30 @@ describe("LoginScreen OTP tab: verify failures", () => {
     await expect.element(page.getByTestId("login-error")).toHaveTextContent(UNREACHABLE_MESSAGE);
   });
 
-  it("falls back to the generic tail for a non-401 failure", async () => {
+  it("reads the model's server-fault copy for a 5xx, never a bad-code sentence", async () => {
     // A 500 is not a bad code and must not be reported as one — that has the user
     // retyping a perfectly good code at a dead server.
     const user = userEvent.setup();
     renderScreen();
 
     await reachCodeForm(user);
-    rejectAt(OTP_VERIFY_ENDPOINT, SERVER_ERROR_STATUS, "server_exploded");
+    rejectAt(OTP_VERIFY_ENDPOINT, SERVER_ERROR_STATUS, "Shared.Unexpected", "Object reference.");
     await submitCode(user);
 
-    await expect.element(page.getByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(SERVER_FAULT_MESSAGE);
   });
 
-  it("never renders the raw server sentence, nor the code itself", async () => {
+  it("never renders the machine code, the reason phrase, nor the code itself", async () => {
     const user = userEvent.setup();
     const { container } = await renderScreen();
 
     await reachCodeForm(user);
-    rejectAt(OTP_VERIFY_ENDPOINT, UNAUTHORIZED_STATUS, INVALID_CODE_TOKEN);
+    rejectAt(OTP_VERIFY_ENDPOINT, UNAUTHORIZED_STATUS, OTP_INVALID_CODE, "The code is invalid.");
     await submitCode(user);
 
     await expect.element(page.getByTestId("login-error")).toBeInTheDocument();
-    expect(container.textContent).not.toContain(INVALID_CODE_TOKEN);
-    expect(container.textContent).not.toContain(CODE_EXPIRED_TOKEN);
+    expect(container.textContent).not.toContain(OTP_INVALID_CODE);
+    expect(container.textContent).not.toContain("Unknown error");
     // The banner must not echo the credential back as prose.
     expect(page.getByTestId("login-error").element().textContent).not.toContain(CODE);
   });
@@ -788,7 +816,7 @@ describe("LoginScreen OTP tab: tab switching", () => {
     // One banner is shared by all three tabs, so a magic-link failure must not
     // follow the user into the OTP tab and blame it for something it did not do.
     const user = userEvent.setup();
-    rejectAt(MAGIC_LINK_ENDPOINT, BAD_REQUEST_STATUS, RATE_LIMITED_TOKEN);
+    rateLimitAt(MAGIC_LINK_ENDPOINT);
     renderScreen();
 
     await user.click(page.getByTestId("login-tab-magic-link"));

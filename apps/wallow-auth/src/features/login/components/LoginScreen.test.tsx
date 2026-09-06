@@ -74,12 +74,17 @@ const API_ORIGIN = "localhost:5001";
 
 const BLANK_MESSAGE = "Please enter your email and password.";
 
-const INVALID_CREDENTIALS_MESSAGE = "Invalid email or password.";
-const LOCKED_OUT_MESSAGE = "Account locked. Try again later.";
-const EMAIL_NOT_CONFIRMED_MESSAGE = "Please verify your email before signing in.";
+/** The catalog's own `detail` sentences, which the problem path renders verbatim. */
+const INVALID_CREDENTIALS_MESSAGE = "The email address or password is incorrect.";
+const LOCKED_OUT_MESSAGE = "This account is locked. Try again later.";
+const EMAIL_NOT_CONFIRMED_MESSAGE = "Confirm your email address before signing in.";
+
+/** The screen's own copy for a 200 body it cannot read. */
 const GENERIC_MESSAGE = "An error occurred. Please try again.";
 
-const UNREACHABLE_MESSAGE = "Unable to reach the server. Please try again later.";
+/** The model's shipped sentences for a 5xx and for a request that never landed. */
+const SERVER_FAULT_MESSAGE = "Something went wrong on our side. Please try again later.";
+const UNREACHABLE_MESSAGE = "Unable to reach the server. Check your connection and try again.";
 
 const EXTERNAL_LOGIN_FAILED_MESSAGE =
   "External sign-in failed. Please try again or use a different method.";
@@ -110,26 +115,25 @@ function respondWithLogin(body: unknown): void {
 /**
  * Answer the login POST with RFC 7807 problem details at `status`.
  *
- * The token goes in the top-level `code` — where the API writes it — AND the
- * status is the real transport status, so these fixtures bind the copy
- * assertions whether the screen keys off the machine token or falls back to the
- * status. `title` stays "Unknown error": these endpoints ship no human-readable
- * title, so the screen must supply its own copy rather than echoing the server's.
+ * The catalog code goes in the top-level `code` and its user-safe sentence in
+ * `detail`, as the API writes them. `title` stays "Unknown error": it is the
+ * reason phrase, never copy, so a screen echoing it would be caught here.
  */
-function problemResponse(status: number, code: string): Response {
+function problemResponse(status: number, code: string, detail?: string): Response {
   return Response.json(
     {
       type: "about:blank",
       title: "Unknown error",
       status,
       code,
+      ...(detail === undefined ? {} : { detail }),
     },
     { status },
   );
 }
 
-function rejectLogin(status: number, code: string): void {
-  loginReply = () => problemResponse(status, code);
+function rejectLogin(status: number, code: string, detail?: string): void {
+  loginReply = () => problemResponse(status, code, detail);
 }
 
 /**
@@ -542,7 +546,11 @@ describe("LoginScreen password tab", () => {
     loginReply = () => {
       attempt += 1;
       if (attempt === 1) {
-        return problemResponse(UNAUTHORIZED_STATUS, "invalid_credentials");
+        return problemResponse(
+          UNAUTHORIZED_STATUS,
+          "Auth.InvalidCredentials",
+          INVALID_CREDENTIALS_MESSAGE,
+        );
       }
 
       return new Promise<Response>((resolve) => {
@@ -579,8 +587,8 @@ describe("LoginScreen password tab", () => {
 });
 
 describe("LoginScreen password failures", () => {
-  it("maps 401 invalid_credentials to the oracle's credentials message", async () => {
-    rejectLogin(UNAUTHORIZED_STATUS, "invalid_credentials");
+  it("renders the catalog's sentence for 401 Auth.InvalidCredentials", async () => {
+    rejectLogin(UNAUTHORIZED_STATUS, "Auth.InvalidCredentials", INVALID_CREDENTIALS_MESSAGE);
     const user = userEvent.setup();
     await renderScreen();
 
@@ -591,8 +599,8 @@ describe("LoginScreen password failures", () => {
       .toHaveTextContent(INVALID_CREDENTIALS_MESSAGE);
   });
 
-  it("maps 423 locked_out to the oracle's lockout message", async () => {
-    rejectLogin(LOCKED_STATUS, "locked_out");
+  it("renders the catalog's sentence for 423 Auth.LockedOut", async () => {
+    rejectLogin(LOCKED_STATUS, "Auth.LockedOut", LOCKED_OUT_MESSAGE);
     const user = userEvent.setup();
     await renderScreen();
 
@@ -601,8 +609,8 @@ describe("LoginScreen password failures", () => {
     await expect.element(page.getByTestId("login-error")).toHaveTextContent(LOCKED_OUT_MESSAGE);
   });
 
-  it("maps 403 email_not_confirmed to the oracle's verify-email message", async () => {
-    rejectLogin(FORBIDDEN_STATUS, "email_not_confirmed");
+  it("renders the catalog's sentence for 403 Auth.EmailNotConfirmed", async () => {
+    rejectLogin(FORBIDDEN_STATUS, "Auth.EmailNotConfirmed", EMAIL_NOT_CONFIRMED_MESSAGE);
     const user = userEvent.setup();
     await renderScreen();
 
@@ -613,36 +621,40 @@ describe("LoginScreen password failures", () => {
       .toHaveTextContent(EMAIL_NOT_CONFIRMED_MESSAGE);
   });
 
-  it("falls back to the status when the token is unrecognised", async () => {
-    // Known tokens first, HTTP status as a FALLBACK. A code-only map would drop
-    // this to generic and stop telling a locked-out user why retyping cannot help.
-    rejectLogin(LOCKED_STATUS, "some_new_token");
+  it("reads the problem's detail for a code nobody wrote a sentence for", async () => {
+    // A new catalog entry must not drop to the generic tail: the API's `detail`
+    // is user-safe by contract, so a 4xx the registry has no entry for shows it.
+    rejectLogin(LOCKED_STATUS, "Auth.SomeNewCode", "Some new user-safe sentence.");
     const user = userEvent.setup();
     await renderScreen();
 
     await submitCredentials(user);
 
-    await expect.element(page.getByTestId("login-error")).toHaveTextContent(LOCKED_OUT_MESSAGE);
+    await expect
+      .element(page.getByTestId("login-error"))
+      .toHaveTextContent("Some new user-safe sentence.");
   });
 
-  it("falls back to the generic tail for a status this endpoint never documents", async () => {
-    rejectLogin(SERVER_ERROR_STATUS, "boom");
+  it("reads the model's server-fault copy for a 5xx, never the problem's detail", async () => {
+    // A 5xx `detail` is a diagnostic, not copy for the user.
+    rejectLogin(SERVER_ERROR_STATUS, "Shared.Unexpected", "Object reference not set.");
     const user = userEvent.setup();
     await renderScreen();
 
     await submitCredentials(user);
 
-    await expect.element(page.getByTestId("login-error")).toHaveTextContent(GENERIC_MESSAGE);
+    await expect.element(page.getByTestId("login-error")).toHaveTextContent(SERVER_FAULT_MESSAGE);
   });
 
-  it("never renders the raw machine token", async () => {
-    rejectLogin(SERVER_ERROR_STATUS, "some_new_token");
+  it("never renders the raw machine code or the reason phrase", async () => {
+    rejectLogin(SERVER_ERROR_STATUS, "Auth.SomeNewCode");
     const user = userEvent.setup();
     await renderScreen();
 
     await submitCredentials(user);
 
-    await expect.element(page.getByTestId("login-error")).not.toHaveTextContent("some_new_token");
+    await expect.element(page.getByTestId("login-error")).not.toHaveTextContent("Auth.SomeNewCode");
+    await expect.element(page.getByTestId("login-error")).not.toHaveTextContent("Unknown error");
   });
 
   it("tells the user the server is unreachable when the request never lands", async () => {

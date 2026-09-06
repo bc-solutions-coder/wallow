@@ -89,6 +89,10 @@ export const ErrorCode = {
      */
     AUTH_LOCKED_OUT: 'Auth.LockedOut',
     /**
+     * The code is invalid or has expired.
+     */
+    AUTH_OTP_INVALID: 'Auth.OtpInvalid',
+    /**
      * The passwords do not match.
      */
     AUTH_PASSWORDS_DO_NOT_MATCH: 'Auth.PasswordsDoNotMatch',
@@ -420,6 +424,10 @@ export const ErrorCode = {
      * Multi-factor authentication is not enabled for this account.
      */
     MFA_NOT_ENABLED: 'Mfa.NotEnabled',
+    /**
+     * The password is incorrect.
+     */
+    MFA_PASSWORD_INVALID: 'Mfa.PasswordInvalid',
     /**
      * Start signing in again to continue with multi-factor authentication.
      */

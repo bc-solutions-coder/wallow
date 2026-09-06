@@ -9,6 +9,8 @@ using StackExchange.Redis;
 using Wallow.Identity.Api.Controllers;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Errors;
+using Wallow.Shared.Api.Problems;
 using Wolverine;
 using AccountLoginRequest = Wallow.Identity.Api.Contracts.Requests.AccountLoginRequest;
 using MfaVerifyRequest = Wallow.Identity.Api.Contracts.Requests.MfaVerifyRequest;
@@ -209,7 +211,9 @@ public class AccountControllerLoginTests
         IActionResult result = await _controller.VerifyMfaChallenge(
             new MfaVerifyRequest("123456"), CancellationToken.None);
 
-        result.Should().BeOfType<UnauthorizedObjectResult>();
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
+        problem.Code.Should().Be(IdentityErrors.MfaSessionMissing.Code);
     }
 
     #endregion

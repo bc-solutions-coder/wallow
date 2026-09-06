@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Wallow.Inquiries.Domain.Errors;
-using Wallow.Shared.Api.Problems;
 using Wallow.Shared.Contracts.Setup;
 using Wallow.Shared.Kernel.Errors;
 using Wallow.Tests.Common.Factories;
@@ -28,7 +27,6 @@ namespace Wallow.Api.Tests.Integration;
 public sealed class ErrorContractTests : IDisposable
 {
     private const string BrowserAccept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
-    private static readonly string[] _neverPresent = ["instance", "api", "version", ProblemContract.ExceptionMember];
 
     private readonly WallowApiFactory _factory;
     private readonly WebApplicationFactory<Program> _withProbe;
@@ -219,46 +217,13 @@ public sealed class ErrorContractTests : IDisposable
         request.Headers.TryAddWithoutValidation("X-Test-Roles", "admin");
     }
 
-    /// <summary>
-    /// Asserts the always-present members and the never-present ones, that <c>code</c> is the one
-    /// expected and catalogued (the drift check: a code on the wire the catalog does not list is
-    /// a bug wherever it was written), and returns the body for probe-specific assertions.
-    /// </summary>
-    private async Task<JsonElement> AssertProblemAsync(
+    /// <summary>The shared contract assertion (<see cref="ProblemAssertions"/>) with this sweep's catalog.</summary>
+    private Task<JsonElement> AssertProblemAsync(
         HttpResponseMessage response,
         int expectedStatus,
         string expectedCode,
-        bool expectErrors = false)
-    {
-        response.Content.Headers.ContentType.Should().NotBeNull();
-        response.Content.Headers.ContentType!.MediaType.Should().Be(ProblemContract.ContentType);
-
-        JsonElement body = await response.Content.ReadFromJsonAsync<JsonElement>();
-        body.ValueKind.Should().Be(JsonValueKind.Object);
-
-        body.GetProperty("type").GetString().Should().Be(ProblemContract.BlankType);
-        body.GetProperty("title").GetString().Should().Be(ProblemContract.TitleFor(expectedStatus));
-        body.GetProperty("status").GetInt32().Should().Be(expectedStatus);
-        body.GetProperty(ProblemContract.CodeMember).GetString().Should().Be(expectedCode);
-        body.GetProperty(ProblemContract.TraceIdMember).GetString().Should().NotBeNullOrWhiteSpace();
-        body.GetProperty("detail").GetString().Should().NotBeNullOrWhiteSpace();
-
-        _catalog.Entries.Select(entry => entry.Code).Should().Contain(
-            expectedCode, "every code on the wire must be catalogued");
-
-        foreach (string member in _neverPresent)
-        {
-            body.TryGetProperty(member, out _).Should().BeFalse("{0} is not part of the contract", member);
-        }
-
-        body.TryGetProperty("errors", out JsonElement errors).Should().Be(expectErrors);
-        if (expectErrors)
-        {
-            errors.ValueKind.Should().Be(JsonValueKind.Object);
-        }
-
-        return body;
-    }
+        bool expectErrors = false) =>
+        response.AssertProblemAsync(_catalog, expectedStatus, expectedCode, expectErrors);
 
     private sealed class SetupRequiredProvider : ISetupStatusProvider
     {

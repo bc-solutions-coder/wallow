@@ -15,10 +15,19 @@ import { MfaSettingsSection } from "./MfaSettingsSection";
  * both disable and regenerate, and the regenerated-codes reveal.
  *
  * The post-success sweep targets the status OPERATION, not its `Identity` tag,
- * which spans the whole identity module. MFA controllers return failures as a raw
- * `{ succeeded: false, error }` body rather than RFC 7807, so the error surface
- * maps the `error` code instead of reading a `.detail`.
+ * which spans the whole identity module. The MFA controller answers RFC 7807
+ * problems; the app registry's sentence for the `code` wins over the catalog's
+ * `detail`, which is why the fixture carries one.
  */
+
+/** `Mfa.PasswordInvalid`, as the disable and regenerate endpoints write it. */
+const INVALID_PASSWORD_PROBLEM = {
+  type: "about:blank",
+  title: "Unknown error",
+  status: 400,
+  code: "Mfa.PasswordInvalid",
+  detail: "The catalog's own sentence.",
+};
 
 const DISABLED_STATUS = { enabled: false, method: null, backupCodeCount: 0 };
 const ENABLED_STATUS = { enabled: true, method: "totp", backupCodeCount: 7 };
@@ -170,10 +179,10 @@ describe("MfaSettingsSection", () => {
     await expectSwept(invalidateSpy, mfaGetStatusQueryKey());
   });
 
-  it("surfaces the mapped error message in settings-mfa-error when disable rejects with the real { succeeded:false, error } body", async () => {
+  it("surfaces the registry's sentence in settings-mfa-error when disable answers Mfa.PasswordInvalid", async () => {
     // Only the disable POST fails; the status request keeps answering Enabled so
     // the card stays on the branch that owns the confirm panel.
-    renderStatus(ENABLED_STATUS, { succeeded: false, error: "invalid_password" }, 400);
+    renderStatus(ENABLED_STATUS, INVALID_PASSWORD_PROBLEM, 400);
 
     await expect.element(page.getByTestId("settings-mfa-disable")).toBeInTheDocument();
     await userEvent.click(page.getByTestId("settings-mfa-disable"));
@@ -184,8 +193,8 @@ describe("MfaSettingsSection", () => {
     await expect.element(error).toHaveTextContent("That password is incorrect.");
   });
 
-  it("surfaces the mapped error message in settings-mfa-error when regenerate rejects with the real { succeeded:false, error } body", async () => {
-    renderStatus(ENABLED_STATUS, { succeeded: false, error: "invalid_password" }, 400);
+  it("surfaces the registry's sentence in settings-mfa-error when regenerate answers Mfa.PasswordInvalid", async () => {
+    renderStatus(ENABLED_STATUS, INVALID_PASSWORD_PROBLEM, 400);
 
     await expect.element(page.getByTestId("settings-mfa-regenerate")).toBeInTheDocument();
     await userEvent.click(page.getByTestId("settings-mfa-regenerate"));

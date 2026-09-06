@@ -1,4 +1,5 @@
-import { Card, CardHeader, ErrorBanner } from "@bc-solutions-coder/ui";
+import type { FailureMessageRegistry } from "@bc-solutions-coder/api-errors";
+import { Card, CardHeader, ErrorBanner, useFailureMessage } from "@bc-solutions-coder/ui";
 import type { ReactElement, ReactNode } from "react";
 
 /** The banner slot, split out to stay inside the app's `jsx-max-depth` budget. */
@@ -25,8 +26,19 @@ export interface AuthScreenProps {
    * contract, not something a shell can derive.
    */
   readonly headingTestId?: string;
-  /** Form-level failure copy. `null` or absent renders no banner at all. */
+  /**
+   * Form-level copy the screen already has in words — a guard's sentence, a
+   * `?error=` parameter's. `null` or absent defers to `failure`; when both are
+   * given, this wins.
+   */
   readonly error?: string | null;
+  /**
+   * A rejected call, as thrown: the shell resolves its sentence through
+   * `useFailureMessage` and the app registry. `null` or absent renders nothing.
+   */
+  readonly failure?: unknown;
+  /** Sentences for this screen alone, ahead of the registry. */
+  readonly messages?: FailureMessageRegistry;
   /**
    * The banner's testid. Passed in rather than derived: it is an E2E contract
    * each screen already owns, and eight distinct values are in use.
@@ -58,15 +70,19 @@ export function AuthScreen({
   description,
   headingTestId,
   error,
+  failure,
+  messages,
   errorTestId,
   footer,
   children,
   spacing,
 }: AuthScreenProps): ReactElement {
+  const failureMessage: string | null = useFailureMessage(failure, { messages });
+
   return (
     <Card spacing={spacing}>
       <CardHeader title={title} description={description} titleTestId={headingTestId} />
-      <ScreenError error={error} testId={errorTestId} />
+      <ScreenError error={error ?? failureMessage} testId={errorTestId} />
       {children}
       {footer}
     </Card>

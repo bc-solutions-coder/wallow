@@ -10,6 +10,8 @@ using Wallow.Identity.Api.Controllers;
 using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Errors;
+using Wallow.Shared.Api.Problems;
 using Wallow.Shared.Contracts.Identity.Events;
 using Wolverine;
 using MfaVerifyRequest = Wallow.Identity.Api.Contracts.Requests.MfaVerifyRequest;
@@ -110,10 +112,9 @@ public class AccountControllerMfaLockoutTests
         IActionResult result = await _controller.VerifyMfaChallenge(
             new MfaVerifyRequest("123456"), CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
-        objectResult.StatusCode.Should().Be(423);
-        string json = System.Text.Json.JsonSerializer.Serialize(objectResult.Value);
-        json.Should().Contain("\"error\":\"mfa_locked_out\"");
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status423Locked);
+        problem.Code.Should().Be(IdentityErrors.MfaLockedOut.Code);
     }
 
     #endregion
@@ -142,10 +143,9 @@ public class AccountControllerMfaLockoutTests
         IActionResult result = await _controller.VerifyMfaChallenge(
             new MfaVerifyRequest("000000"), CancellationToken.None);
 
-        ObjectResult objectResult = result.Should().BeAssignableTo<ObjectResult>().Subject;
-        objectResult.StatusCode.Should().Be(423);
-        string json = System.Text.Json.JsonSerializer.Serialize(objectResult.Value);
-        json.Should().Contain("\"error\":\"mfa_locked_out\"");
+        ProblemResult problem = result.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(StatusCodes.Status423Locked);
+        problem.Code.Should().Be(IdentityErrors.MfaLockedOut.Code);
     }
 
     #endregion

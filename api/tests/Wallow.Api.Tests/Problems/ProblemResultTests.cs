@@ -51,18 +51,45 @@ public class ProblemResultTests
     }
 
     [Fact]
+    public void ControllerProblem_CarriesTheRetryAfter()
+    {
+        ControllerBase controller = Substitute.For<ControllerBase>();
+
+        ProblemResult result = controller.Problem(SharedErrors.RateLimitExceeded, retryAfter: TimeSpan.FromSeconds(90));
+
+        result.StatusCode.Should().Be(429);
+        result.RetryAfter.Should().Be(TimeSpan.FromSeconds(90));
+    }
+
+    [Fact]
+    public async Task ExecuteResultAsync_WritesRetryAfterInWholeSecondsRoundedUp()
+    {
+        DefaultHttpContext httpContext = BuildHttpContext();
+        ActionContext actionContext = new(httpContext, new RouteData(), new ActionDescriptor());
+        ProblemResult result = new(429, "RateLimit.Exceeded", "Too many.", TimeSpan.FromMilliseconds(1500));
+
+        await result.ExecuteResultAsync(actionContext);
+
+        httpContext.Response.StatusCode.Should().Be(429);
+        httpContext.Response.Headers.RetryAfter.ToString().Should().Be("2");
+    }
+
+    [Fact]
+    public async Task ExecuteResultAsync_WithoutRetryAfter_WritesNoHeader()
+    {
+        DefaultHttpContext httpContext = BuildHttpContext();
+        ActionContext actionContext = new(httpContext, new RouteData(), new ActionDescriptor());
+        ProblemResult result = new(429, "RateLimit.Exceeded", "Too many.");
+
+        await result.ExecuteResultAsync(actionContext);
+
+        httpContext.Response.Headers.ContainsKey("Retry-After").Should().BeFalse();
+    }
+
+    [Fact]
     public async Task ExecuteResultAsync_BuildsTheBodyThroughTheFactoryAndTheContract()
     {
-        IHostEnvironment hostEnvironment = Substitute.For<IHostEnvironment>();
-        hostEnvironment.EnvironmentName.Returns("Production");
-        ServiceCollection services = new();
-        services.AddLogging();
-        services.AddSingleton(hostEnvironment);
-        services.AddMvcCore();
-        services.AddWallowProblemDetails();
-        ServiceProvider provider = services.BuildServiceProvider();
-        DefaultHttpContext httpContext = new() { RequestServices = provider };
-        httpContext.Response.Body = new MemoryStream();
+        DefaultHttpContext httpContext = BuildHttpContext();
         ActionContext actionContext = new(httpContext, new RouteData(), new ActionDescriptor());
         ProblemResult result = new(422, "Billing.LimitExceeded", "Over limit.");
 
@@ -80,5 +107,20 @@ public class ProblemResultTests
         body.GetProperty("detail").GetString().Should().Be("Over limit.");
         body.GetProperty("traceId").GetString().Should().NotBeNullOrWhiteSpace();
         body.TryGetProperty("api", out _).Should().BeFalse();
+    }
+
+    private static DefaultHttpContext BuildHttpContext()
+    {
+        IHostEnvironment hostEnvironment = Substitute.For<IHostEnvironment>();
+        hostEnvironment.EnvironmentName.Returns("Production");
+        ServiceCollection services = new();
+        services.AddLogging();
+        services.AddSingleton(hostEnvironment);
+        services.AddMvcCore();
+        services.AddWallowProblemDetails();
+        ServiceProvider provider = services.BuildServiceProvider();
+        DefaultHttpContext httpContext = new() { RequestServices = provider };
+        httpContext.Response.Body = new MemoryStream();
+        return httpContext;
     }
 }

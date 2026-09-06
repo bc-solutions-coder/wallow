@@ -52,10 +52,10 @@ describe("reportUnhandledFailure", () => {
     warn.mockReset();
   });
 
-  it("toasts the registry's sentence for a raw MFA token, without a reference line", async () => {
+  it("toasts the registry's sentence for an MFA code, without a reference line", async () => {
     report(
       "mutation",
-      new ApiFailure({ status: 400, code: "OAuth.InvalidCode", title: "invalid_code" }),
+      new ApiFailure({ status: 400, code: "Mfa.CodeInvalid", title: "Bad Request" }),
     );
 
     await expect.poll(() => toasts().length).toBe(1);

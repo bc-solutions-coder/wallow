@@ -1,16 +1,25 @@
 import type { InvitationResponse } from "@bc-solutions-coder/sdk";
 import { forkBranding } from "@bc-solutions-coder/styles";
-import { Button, ErrorBanner, MutedText, QuietLink, Text } from "@bc-solutions-coder/ui";
+import {
+  Button,
+  ErrorBanner,
+  MutedText,
+  QuietLink,
+  Text,
+  useFailureMessage,
+} from "@bc-solutions-coder/ui";
 import { useMutation, useQuery } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
 import type { ReactElement, ReactNode } from "react";
 import { invitationsAcceptMutation, invitationsVerifyOptions } from "../api";
 import {
-  acceptFailureMessage,
+  ACCEPT_FAILED_MESSAGE,
+  ACCEPT_MESSAGES,
   EXPIRED_MESSAGE,
   isExpired,
   NO_TOKEN_MESSAGE,
-  verifyFailureMessage,
+  VERIFY_FAILED_MESSAGE,
+  VERIFY_MESSAGES,
 } from "../invitation-result";
 import { AuthScreen } from "@shared/components/auth-screen";
 import { toAppHref } from "@shared/lib/base-path";
@@ -28,9 +37,9 @@ import { toAppHref } from "@shared/lib/base-path";
  * `invitation-expired`, `invitation-accept-error`, `invitation-accept`,
  * `invitation-decline`, `invitation-create-account`, `invitation-sign-in`.
  *
- * The rejection→copy mapping and the expiry predicate live in
- * `../invitation-result`, which documents why they are keyed on HTTP status
- * rather than on a machine token.
+ * The screen's own rejection copy and the expiry predicate live in
+ * `../invitation-result`; each call's failure is resolved through
+ * `useFailureMessage` with those sentences as call-site `messages`.
  *
  * There is no `useAppForm` here because there is no form: the screen verifies a
  * token from the link and offers an accept BUTTON, and its one write takes the
@@ -345,6 +354,17 @@ export function InvitationScreen({ token, isAuthenticated }: InvitationScreenPro
     },
   });
 
+  // Both resolved unconditionally (hooks may not sit behind the early returns
+  // below) and each read only in its own branch; `null` in every other state.
+  const verifyMessage: string | null = useFailureMessage(query.isError ? query.error : null, {
+    messages: VERIFY_MESSAGES,
+    fallback: VERIFY_FAILED_MESSAGE,
+  });
+  const acceptError: string | null = useFailureMessage(
+    acceptMutation.isError ? acceptMutation.error : null,
+    { messages: ACCEPT_MESSAGES, fallback: ACCEPT_FAILED_MESSAGE },
+  );
+
   if (!tokenIsPresent || token === undefined) {
     return <ErrorScreen message={NO_TOKEN_MESSAGE} />;
   }
@@ -362,7 +382,7 @@ export function InvitationScreen({ token, isAuthenticated }: InvitationScreenPro
   // `data === undefined` is the unreachable queryFn narrow; treated as a failure
   // rather than crashed on, since there is nothing to render without it.
   if (query.isError || query.data === undefined) {
-    return <ErrorScreen message={verifyFailureMessage(query.isError ? query.error : null)} />;
+    return <ErrorScreen message={verifyMessage ?? VERIFY_FAILED_MESSAGE} />;
   }
 
   return (
@@ -372,7 +392,7 @@ export function InvitationScreen({ token, isAuthenticated }: InvitationScreenPro
         invitation={query.data}
         token={token}
         isAuthenticated={isAuthenticated}
-        acceptError={acceptMutation.isError ? acceptFailureMessage(acceptMutation.error) : null}
+        acceptError={acceptError}
         isSubmitting={acceptMutation.isPending}
         onAccept={() => {
           // The generated artifact's REQUEST object, not the bare token: this

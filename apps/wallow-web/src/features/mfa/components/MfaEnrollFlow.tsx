@@ -17,10 +17,10 @@
  *              Enabled.
  *
  * `mfa-enroll-error` surfaces any step's failure. There is no resolved-but-
- * rejected branch left: every MFA failure — RFC 7807 body or the controller's
- * raw `{ succeeded: false, error }` — arrives as a thrown `ApiFailure`, which
- * the shared `FailureBanner` words through the app registry (every token the
- * controller answers has an entry there). `mfa-enroll-cancel` is always visible.
+ * rejected branch left: every MFA failure is an RFC 7807 problem that arrives
+ * as a thrown `ApiFailure`, which the shared `FailureBanner` words through the
+ * app registry (every code the controller answers has an entry there).
+ * `mfa-enroll-cancel` is always visible.
  *
  * ONLY THE VERIFY STEP IS A FORM. "Begin setup" is a button that mints a secret,
  * not a submit — it collects nothing, so there is nothing to validate and nothing
@@ -129,9 +129,9 @@ function ConfirmCodeForm(props: {
     // exist until one has been minted.
     toVariables: (values: ConfirmValues) => ({ body: { secret, code: values.code } }),
     onSuccess: (data): void => {
-      // A rejected confirmation no longer resolves: the SDK's error interceptor
-      // turns the endpoint's `{ succeeded: false, error }` BadRequest into a
-      // thrown `ApiFailure`, so reaching here means the enrollment took.
+      // A rejected confirmation never resolves: the SDK's error interceptor
+      // turns the endpoint's problem response into a thrown `ApiFailure`, so
+      // reaching here means the enrollment took.
       //
       // The `??` survives the move to the generated type even though that type
       // declares `backupCodes` REQUIRED: the declaration is the schema's claim,

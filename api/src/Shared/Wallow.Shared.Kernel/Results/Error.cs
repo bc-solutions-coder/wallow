@@ -30,8 +30,13 @@ public sealed record Error
     /// A sentence replacing the entry's default, for a site that can say more than the catalog
     /// does. Keep it user-safe: it becomes the response's <c>detail</c>.
     /// </param>
+    /// <param name="retryAfter">
+    /// How long the caller should wait before trying again, for a throttled or locked outcome; it
+    /// becomes the response's <c>Retry-After</c> header. Must be positive when given.
+    /// </param>
     /// <exception cref="ArgumentException"><paramref name="message"/> is empty.</exception>
-    public Error(ErrorCatalogEntry entry, string? message = null)
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="retryAfter"/> is not positive.</exception>
+    public Error(ErrorCatalogEntry entry, string? message = null, TimeSpan? retryAfter = null)
     {
         ArgumentNullException.ThrowIfNull(entry);
 
@@ -40,9 +45,15 @@ public sealed record Error
             ArgumentException.ThrowIfNullOrWhiteSpace(message);
         }
 
+        if (retryAfter is { } wait)
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(wait, TimeSpan.Zero, nameof(retryAfter));
+        }
+
         Code = entry.Code;
         Kind = entry.Kind;
         Message = message ?? entry.DefaultMessage;
+        RetryAfter = retryAfter;
     }
 
     /// <summary>Gets the machine-readable code.</summary>
@@ -53,4 +64,7 @@ public sealed record Error
 
     /// <summary>Gets the user-safe sentence.</summary>
     public string Message { get; }
+
+    /// <summary>Gets how long the caller should wait before retrying, when the failure is temporary.</summary>
+    public TimeSpan? RetryAfter { get; }
 }

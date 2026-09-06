@@ -1,4 +1,5 @@
 import { renderWithWallow } from "@bc-solutions-coder/testing/render-with-wallow";
+import { FailureMessagesProvider } from "@bc-solutions-coder/ui";
 import {
   createPassthroughHarness,
   type SdkCall,
@@ -9,6 +10,7 @@ import { useState } from "react";
 import { page, userEvent } from "vitest/browser";
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { failureMessages } from "@shared/lib/failure-messages";
 import { useEnrollmentStart } from "./use-enrollment-start";
 
 /**
@@ -34,6 +36,7 @@ const EXCHANGE_ENDPOINT = "/v1/identity/mfa/enroll/exchange-token";
 
 const OK = 200;
 const BAD_REQUEST = 400;
+const UNAUTHORIZED = 401;
 
 type EndpointResponder = () => Response | Promise<Response>;
 
@@ -42,9 +45,31 @@ const okTotp: EndpointResponder = () =>
 
 const okExchange: EndpointResponder = () => Response.json({ succeeded: true }, { status: OK });
 
+/** A refusal as the endpoints write it: a problem carrying the catalog code and its detail. */
+function problem(status: number, code: string, detail: string): Response {
+  return Response.json(
+    { type: "about:blank", title: "Unknown error", status, code, detail },
+    {
+      status,
+    },
+  );
+}
+
 /** The 60-second hand-off token, missed. */
 const expiredExchange: EndpointResponder = () =>
-  Response.json({ succeeded: false, error: "invalid_or_expired_token" }, { status: BAD_REQUEST });
+  problem(
+    BAD_REQUEST,
+    "Mfa.EnrollmentTokenInvalid",
+    "The enrollment token is invalid or has expired.",
+  );
+
+/** `enroll/totp` with no partial-auth cookie to read. */
+const noSession: EndpointResponder = () =>
+  problem(
+    UNAUTHORIZED,
+    "Mfa.SessionMissing",
+    "Start signing in again to continue with multi-factor authentication.",
+  );
 
 /** A hop that never answers, which is how an in-flight state is held open to look at. */
 const neverAnswers: EndpointResponder = () => new Promise<Response>(() => {});
@@ -142,8 +167,13 @@ function Probe({
   );
 }
 
+/** The app registry the root mounts, so the expired hand-off link reads its sentence. */
+function withRegistry(tree: ReactElement): ReactElement {
+  return <FailureMessagesProvider registry={failureMessages}>{tree}</FailureMessagesProvider>;
+}
+
 function renderProbe(props: { enrollToken?: string; blocked?: boolean } = {}) {
-  return renderWithWallow(<Probe {...props} />, { harness });
+  return renderWithWallow(<Probe {...props} />, { harness, wrap: withRegistry });
 }
 
 /** Wait for `enroll/totp` to land. */
@@ -281,10 +311,10 @@ describe("useEnrollmentStart", () => {
     it("blames the session, not the code, when the start has none", async () => {
       // No number of retries mints a partial-auth cookie, so a "try again"
       // message would loop the user forever.
-      program({ totp: () => Response.json({ error: "no_auth_session" }, { status: 401 }) });
+      program({ totp: noSession });
       await renderProbe();
 
-      await expect.element(page.getByTestId("error")).toHaveTextContent("sign in again");
+      await expect.element(page.getByTestId("error")).toHaveTextContent("signing in again");
       await expect.element(page.getByTestId("loading")).toHaveTextContent("false");
     });
 
@@ -298,11 +328,11 @@ describe("useEnrollmentStart", () => {
             return neverAnswers();
           }
           failed = true;
-          return Response.json({ error: "no_auth_session" }, { status: 401 });
+          return noSession();
         },
       });
       await renderProbe();
-      await expect.element(page.getByTestId("error")).toHaveTextContent("sign in again");
+      await expect.element(page.getByTestId("error")).toHaveTextContent("signing in again");
 
       await userEvent.click(page.getByTestId("begin-setup"));
 

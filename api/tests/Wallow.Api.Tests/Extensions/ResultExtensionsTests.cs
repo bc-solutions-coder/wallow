@@ -174,6 +174,7 @@ public class ResultExtensionsTests
     [InlineData(ErrorKind.MethodNotAllowed, 405, "Method Not Allowed")]
     [InlineData(ErrorKind.Conflict, 409, "Conflict")]
     [InlineData(ErrorKind.BusinessRule, 422, "Unprocessable Entity")]
+    [InlineData(ErrorKind.Locked, 423, "Locked")]
     [InlineData(ErrorKind.RateLimited, 429, "Too Many Requests")]
     [InlineData(ErrorKind.Failure, 500, "Internal Server Error")]
     [InlineData(ErrorKind.Unavailable, 503, "Service Unavailable")]
@@ -194,5 +195,18 @@ public class ResultExtensionsTests
         problem.Title.Should().Be(expectedTitle);
         problem.Type.Should().Be("about:blank");
         problem.Extensions["code"].Should().Be("Test.Code");
+    }
+
+    [Fact]
+    public void ToActionResult_WhenTheErrorCarriesRetryAfter_ForwardsItToTheProblem()
+    {
+        TimeSpan retryAfter = TimeSpan.FromSeconds(30);
+        Result result = Result.Failure(new Error(SharedErrors.RateLimitExceeded, retryAfter: retryAfter));
+
+        IActionResult actionResult = result.ToActionResult();
+
+        ProblemResult problem = actionResult.Should().BeOfType<ProblemResult>().Subject;
+        problem.StatusCode.Should().Be(429);
+        problem.RetryAfter.Should().Be(retryAfter);
     }
 }

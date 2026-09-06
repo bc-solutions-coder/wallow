@@ -6,14 +6,22 @@ import {
   useAppForm,
 } from "@bc-solutions-coder/forms";
 import type { MfaEnrollmentConfirmedResponse } from "@bc-solutions-coder/sdk";
-import { Button, Card, ErrorBanner, MutedText, NoticeBanner, Text } from "@bc-solutions-coder/ui";
+import {
+  Button,
+  Card,
+  ErrorBanner,
+  MutedText,
+  NoticeBanner,
+  Text,
+  useFailureMessage,
+} from "@bc-solutions-coder/ui";
 import { useMutation } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
 import { QRCodeSVG } from "qrcode.react";
 import { type ReactElement, type ReactNode, useState } from "react";
 import { z } from "zod";
 import { mfaConfirmEnrollmentMutation } from "../api";
-import { confirmFailureMessage, confirmGuardMessage, type ConfirmValues } from "../enroll-result";
+import { CONFIRM_FAILED_MESSAGE, confirmGuardMessage, type ConfirmValues } from "../enroll-result";
 import { useEnrollmentStart } from "../hooks/use-enrollment-start";
 import { toAppHref } from "@shared/lib/base-path";
 import { useReturnUrlGuard } from "@shared/hooks/use-return-url-guard";
@@ -59,10 +67,10 @@ import { useReturnUrlGuard } from "@shared/hooks/use-return-url-guard";
  *
  * ── THE ERROR BRANCHES ────────────────────────────────────────────────────────
  *
- * All three endpoints' failure copy lives in `../enroll-result`, which documents
- * the matrix, the code-versus-status fallback and the divergences from the
- * oracle. This screen owns only the CONFIRM side of it; the start and the token
- * exchange report through `useEnrollmentStart`.
+ * All three endpoints answer problems with catalog codes, worded through
+ * `useFailureMessage`; `../enroll-result` holds only the two last-resort
+ * sentences. This screen owns only the CONFIRM side of it; the start and the
+ * token exchange report through `useEnrollmentStart`.
  *
  * `mfa-enroll-error` is stamped in TWO places, and that is deliberate rather than
  * a duplicate: the start-side banner sits at the card level, because a start that
@@ -75,13 +83,13 @@ import { useReturnUrlGuard } from "@shared/hooks/use-return-url-guard";
  * ── WHY THE CONFIRM RUNS THE FORMS PACKAGE "SIDEWAYS" ─────────────────────────
  *
  * `ConfirmForm` takes the plain-`onSubmit` escape hatch instead of handing
- * `useAppForm` the generated mutation, for this endpoint's own reasons:
- * `splitServerError` reads RFC 7807 members and `enroll/confirm` answers with a
- * bare `{ succeeded, error }` body, so only `confirmFailureMessage` can tell its
- * rejections apart; and the blank-code guard shares that one banner, which a zod
+ * `useAppForm` the generated mutation, for this endpoint's own reason: the
+ * blank-code guard shares one banner with the rejected-code copy, which a zod
  * rule could not do — it would abort `handleSubmit` before the callback ran. The
- * schema below is therefore rule-free, and the banner text is this component's
- * own `useState` handed to the shell as an EXPLICIT `serverError` prop.
+ * schema below is therefore rule-free; the raw rejection is kept as state and
+ * resolved through `useFailureMessage` (the catalog's `Mfa.CodeInvalid` and
+ * `Mfa.SessionMissing` copy, `CONFIRM_FAILED_MESSAGE` for anything else), and the
+ * banner text is handed to the shell as an EXPLICIT `serverError` prop.
  *
  * ── THE QR CODE ───────────────────────────────────────────────────────────────
  *
@@ -180,6 +188,10 @@ function ConfirmForm({
 }): ReactElement {
   const { sdk } = useRouteContext({ from: "__root__" });
   const [formError, setFormError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<unknown>(null);
+  const failureMessage: string | null = useFailureMessage(failure, {
+    fallback: CONFIRM_FAILED_MESSAGE,
+  });
 
   // Its own mutation, never folded into the start: different endpoint, different
   // lifetime (the start fires once on mount, the confirm once per submit and
@@ -196,12 +208,14 @@ function ConfirmForm({
       const guard: string | null = confirmGuardMessage(values);
 
       if (guard !== null) {
+        setFailure(null);
         setFormError(guard);
         return;
       }
 
       // The oracle's `_errorMessage = null;` at the top of `HandleConfirm`.
       setFormError(null);
+      setFailure(null);
 
       let result: MfaEnrollmentConfirmedResponse;
 
@@ -216,7 +230,7 @@ function ConfirmForm({
         // TOTP window rolls every 30 seconds, so a stale code is the common cause,
         // and re-enrolling behind the user's back would invalidate the authenticator
         // entry they just made.
-        setFormError(confirmFailureMessage(error));
+        setFailure(error);
         // The CODE, by contrast, is cleared — a DIVERGENCE from the oracle, which
         // leaves `_code` sitting in the box. A rejected TOTP is single-use and
         // time-boxed: it is guaranteed dead, so keeping it makes the user
@@ -242,7 +256,12 @@ function ConfirmForm({
   });
 
   return (
-    <AppForm form={form} testIdPrefix="mfa-enroll" serverError={formError} className="space-y-4">
+    <AppForm
+      form={form}
+      testIdPrefix="mfa-enroll"
+      serverError={formError ?? failureMessage}
+      className="space-y-4"
+    >
       <FormError />
       <form.AppField name="code">
         {(field) => <field.TextField label="Verification code" placeholder="Enter 6-digit code" />}

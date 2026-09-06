@@ -70,5 +70,5 @@ public static class ResultExtensions
     }
 
     private static ProblemResult ToErrorResult(Error error) =>
-        new(error.Kind.ToHttpStatusCode(), error.Code, error.Message);
+        new(error.Kind.ToHttpStatusCode(), error.Code, error.Message, error.RetryAfter);
 }

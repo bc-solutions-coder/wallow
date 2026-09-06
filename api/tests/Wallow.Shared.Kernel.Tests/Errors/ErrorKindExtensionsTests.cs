@@ -12,6 +12,7 @@ public class ErrorKindExtensionsTests
     [InlineData(ErrorKind.MethodNotAllowed, 405)]
     [InlineData(ErrorKind.Conflict, 409)]
     [InlineData(ErrorKind.BusinessRule, 422)]
+    [InlineData(ErrorKind.Locked, 423)]
     [InlineData(ErrorKind.RateLimited, 429)]
     [InlineData(ErrorKind.Failure, 500)]
     [InlineData(ErrorKind.Unavailable, 503)]

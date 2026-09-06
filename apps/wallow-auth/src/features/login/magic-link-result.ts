@@ -1,106 +1,44 @@
 /**
- * The magic-link tab's RESULT LAYER (Wallow-vec7.3.12 / 2.8b): everything that
- * turns an untyped `auth.sendMagicLink` / `auth.verifyMagicLink` response into
- * user-facing copy, with no React and no SDK in it.
+ * The magic-link tab's RESULT LAYER: what turns an untyped `sendMagicLink`
+ * response into a decision, plus this tab's own words for a failure, with no
+ * React and no SDK in it.
  *
- * WHY A SEPARATE MODULE FROM `./auth-result`. The oracle keeps ONE
- * `HandleSuccessfulAuth` and a DIFFERENT error switch per tab
- * (`api/src/Wallow.Auth/Components/Pages/Login.razor`). Wallow-vec7.3.11 split it
- * the same way: the shared branch table lives once in `./auth-result`, and each
- * panel owns its own error switch. This is the magic-link tab's switch. It stays
- * out of `auth-result.ts` so `.3.13` can add `otp-result.ts` beside it without
- * two beads editing the same function bodies, and it IMPORTS the shared copy
- * rather than restating it.
- *
- * ── THE WIRE, READ FROM THE CONTROLLER (not from a client DTO) ───────────────
- *
- * `AccountController` (api/.../Identity/Wallow.Identity.Api/Controllers/AccountController.cs):
- *
- *   POST /v1/identity/auth/passwordless/magic-link                        :824
- *     200 { succeeded: true }                                             :835
- *     400 { succeeded: false, error: "Rate limit exceeded. Please try again later." }
- *
- *   GET  /v1/identity/auth/passwordless/magic-link/verify                 :838
- *     200 { succeeded: true, email, signInTicket }                        :848
- *     401 { succeeded: false, error: "Invalid token format." }            PasswordlessService.cs:95
- *     401 { succeeded: false, error: "Invalid token." }                   PasswordlessService.cs:105
- *     401 { succeeded: false, error: "Token expired or already used." }   PasswordlessService.cs:112
- *
- * Unlike `auth.login` — where three of four outcomes ride inside a 200 — EVERY
- * failure here is a non-2xx, so `unwrap()` throws and the oracle's `else` arms are
- * reached through a REJECTION. The `error` member of the bare
- * `{ succeeded, error }` body arrives through `readErrorCode`. The SDK parses that bare body under the OAuth grammar of
- * `@bc-solutions-coder/api-errors` (code `OAuth.<Token>`, title = the raw
- * token), and `readErrorCode` hands the raw token back.
- *
- * ── THE TOKENS ARE ENGLISH SENTENCES, AND THAT CHANGES NOTHING ───────────────
- *
- * A server-authored sentence is still a MACHINE TOKEN: it is matched against and
- * never rendered. It is tempting to just show it — that temptation is exactly the
- * oracle's `_ => result.Error` leak, which this port does not reproduce. The copy
- * below is the screen's own.
+ * The shared branch table (`authDispositionOf`) lives once in `./auth-result`;
+ * each tab keeps only what the oracle kept per tab. Failures are not mapped
+ * here: a rejection is an `ApiFailure` the fetch layer built from the problem
+ * body, and the shell resolves its sentence through `useFailureMessage`. This
+ * module contributes only the sentences that are THIS tab's, keyed by catalog
+ * code, for the shell to pass as call-site `messages`.
  */
 
-import { readErrorCode, readMember } from "@shared/lib/error-code";
+import { ErrorCode, type FailureMessageRegistry } from "@bc-solutions-coder/api-errors";
 
-import { GENERIC_MESSAGE, isServerUnreachable, UNREACHABLE_MESSAGE } from "./auth-result";
+import { readMember } from "./auth-result";
 
-/** The oracle's blank-input guard (Login.razor:376) — note WHITEspace. */
+/** The oracle's blank-input guard — note WHITEspace. */
 export const BLANK_EMAIL_MESSAGE = "Please enter your email.";
 
-/** The oracle's `_magicLinkSent` alert (Login.razor:111). */
+/** The oracle's `_magicLinkSent` alert. */
 export const MAGIC_LINK_SENT_MESSAGE = "Check your email for a magic link.";
 
 /**
- * DIVERGENCE (disclosed on the bead). The oracle shows its GENERIC copy for every
- * send failure — but the rate limit is the ONLY failure the service can produce
- * (`PasswordlessService.SendMagicLinkAsync` :56-60; an address with no account
- * returns SUCCESS, to defeat enumeration). "An error occurred. Please try again."
- * therefore tells a rate-limited user to do the one thing guaranteed not to work.
- *
- * This is the same call `.3.11` made keeping a 423 status fallback under
- * `loginFailureMessage` ("a locked-out user must not be told to retype their
- * password"), for the same reason.
+ * The verify failure copy, naming the LINK: a tampered, spent or expired token
+ * all mean the same thing to the person holding it, so both catalog codes read
+ * the same sentence.
  */
-const MAGIC_LINK_RATE_LIMITED_MESSAGE =
-  "Too many sign-in link requests. Please wait a few minutes and try again.";
-
-/** The oracle's `HandleVerifyMagicLink` switch (Login.razor:419). */
-export const MAGIC_LINK_EXPIRED_MESSAGE =
+const MAGIC_LINK_EXPIRED_MESSAGE =
   "This magic link has expired or has already been used. Please request a new one.";
 
-/** The oracle's `_ =>` tail on the same switch (Login.razor:420). */
-export const MAGIC_LINK_VERIFY_FAILED_MESSAGE =
-  "An error occurred verifying the magic link. Please try again.";
-
-/** `SendMagicLinkAsync`'s only failure token (PasswordlessService.cs:59). */
-const RATE_LIMITED_TOKEN = "Rate limit exceeded. Please try again later.";
-
-/**
- * The verify tokens that mean "this link is spent — get a new one", as opposed to
- * "something else went wrong".
- *
- * `"invalid_token"`, which the ORACLE names here, is DEAD: `ValidateMagicLinkAsync`
- * never returns it. Its live spelling is `"Invalid token."` (PasswordlessService.cs:105
- * — a failed HMAC comparison, i.e. a tampered or truncated link). The dead literal
- * is not ported and the live one the author plainly meant is mapped in its place.
- *
- * `"Invalid token format."` (:95) is deliberately NOT in this set: it rides the same
- * 401 and is what BINDS this map against a blanket `401 -> expired` rule.
- *
- * A `ReadonlySet`, not a `Record` — the same habit as `auth-result`'s error-param
- * `ReadonlyMap` (bd memory `attacker-supplied-query-key-lookups-use-map-not-record`).
- */
-const SPENT_TOKENS: ReadonlySet<string> = new Set([
-  "Token expired or already used.",
-  "Invalid token.",
-]);
+/** This tab's sentences, ahead of the app registry when the shell renders them. */
+export const MAGIC_LINK_FAILURE_MESSAGES: FailureMessageRegistry = {
+  [ErrorCode.AUTH_TOKEN_INVALID]: () => MAGIC_LINK_EXPIRED_MESSAGE,
+  [ErrorCode.AUTH_TOKEN_EXPIRED]: () => MAGIC_LINK_EXPIRED_MESSAGE,
+};
 
 /**
- * Did the API actually accept the send? The facade types this `Promise<unknown>`
- * (the C# endpoint returns an anonymous `Ok(new { … })` with no OpenAPI schema), so
- * the narrowing belongs here, at the boundary (bd memory
- * `untyped-sdk-response-fail-closed-pattern-wallow-auth`).
+ * Did the API actually accept the send? The endpoint returns an anonymous
+ * `Ok(new { … })` with no OpenAPI schema, so the narrowing belongs here, at the
+ * boundary.
  *
  * STRICT `=== true`, reproducing C#'s `if (result.Succeeded)`: JS truthiness would
  * accept the string `"false"`. A body this screen cannot read is NOT a sent link —
@@ -108,46 +46,4 @@ const SPENT_TOKENS: ReadonlySet<string> = new Set([
  */
 export function magicLinkWasSent(body: unknown): boolean {
   return readMember(body, "succeeded") === true;
-}
-
-/**
- * The oracle's `HandleSendMagicLink` failure arms (Login.razor:388-396), reached
- * through a REJECTION rather than an `else` — see the module header.
- */
-export function sendMagicLinkFailureMessage(cause: unknown): string {
-  if (readErrorCode(cause) === RATE_LIMITED_TOKEN) {
-    return MAGIC_LINK_RATE_LIMITED_MESSAGE;
-  }
-
-  // A network-level rejection is identified by its CODE (see `isServerUnreachable`):
-  // the TS shape of the oracle's `catch (HttpRequestException)`, which it keeps
-  // DISTINCT from its generic tail.
-  if (isServerUnreachable(cause)) {
-    return UNREACHABLE_MESSAGE;
-  }
-
-  return GENERIC_MESSAGE;
-}
-
-/**
- * The oracle's `HandleVerifyMagicLink` switch (Login.razor:417-421).
- *
- * NO STATUS FALLBACK, unlike `loginFailureMessage`. The Wallow-vec7.7 rule keeps one
- * "only where status identifies a failure alone" — and 401 does not identify one
- * here: it carries three tokens with TWO meanings. That is also why code-keying is
- * observable on this endpoint at all (`.3.11` could not bind it on `login`, where
- * each failure status carries exactly one token).
- */
-export function verifyMagicLinkFailureMessage(cause: unknown): string {
-  const code: string | undefined = readErrorCode(cause);
-
-  if (typeof code === "string" && SPENT_TOKENS.has(code)) {
-    return MAGIC_LINK_EXPIRED_MESSAGE;
-  }
-
-  if (isServerUnreachable(cause)) {
-    return UNREACHABLE_MESSAGE;
-  }
-
-  return MAGIC_LINK_VERIFY_FAILED_MESSAGE;
 }

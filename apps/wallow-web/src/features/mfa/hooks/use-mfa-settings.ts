@@ -10,8 +10,8 @@
  *
  * Both failure surfaces come back as the RAW failure rather than as text:
  * deciding what a failure says is the shared `FailureBanner`'s job (the app's
- * registry resolves the MFA controllers' `{ succeeded: false, error }` codes
- * the same way it resolves any RFC 7807 problem). What this layer decides is
+ * registry has a sentence for each code the MFA controller's problems carry).
+ * What this layer decides is
  * WHICH surface a failure belongs to — the status READ's branch or the two
  * WRITES' banner.
  */

@@ -41,8 +41,19 @@ function renderWithClient(ui: ReactElement) {
  * on the wire so the "never leaks the raw rejection" case has something real to
  * catch.
  */
-function wallowErrorBody(status: number) {
-  return { status, code: "Test.Filler", title: "Unknown error" };
+function wallowErrorBody(status: number, code: string = "Test.Filler", detail?: string) {
+  return {
+    type: "about:blank",
+    title: "Unknown error",
+    status,
+    code,
+    ...(detail === undefined ? {} : { detail }),
+  };
+}
+
+/** The 400 problem a bad or spent token answers with. */
+function invalidTokenBody() {
+  return wallowErrorBody(INVALID_TOKEN_STATUS, "Auth.TokenInvalid", "The token is invalid.");
 }
 
 function verifyParamsOf(call: SdkHarness["last"]) {
@@ -168,7 +179,7 @@ describe("VerifyEmailConfirm — success state", () => {
 
 describe("VerifyEmailConfirm — error state", () => {
   it("shows the invalid-or-expired message when the endpoint rejects the token", async () => {
-    harness.rejectJson(wallowErrorBody(INVALID_TOKEN_STATUS), INVALID_TOKEN_STATUS);
+    harness.rejectJson(invalidTokenBody(), INVALID_TOKEN_STATUS);
 
     await renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
 
@@ -179,7 +190,7 @@ describe("VerifyEmailConfirm — error state", () => {
   });
 
   it("shows only the error surface once verification fails", async () => {
-    harness.rejectJson(wallowErrorBody(INVALID_TOKEN_STATUS), INVALID_TOKEN_STATUS);
+    harness.rejectJson(invalidTokenBody(), INVALID_TOKEN_STATUS);
 
     await renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
 
@@ -188,9 +199,10 @@ describe("VerifyEmailConfirm — error state", () => {
     await expectOnlyState("error");
   });
 
-  it("shows the generic message when the request fails for any other reason", async () => {
-    // A 500 is not a bad link, and must not tell the user their link expired.
-    harness.rejectJson(wallowErrorBody(SERVER_ERROR_STATUS), SERVER_ERROR_STATUS);
+  it("shows this screen's generic message for a code it has never heard of", async () => {
+    // A 400 with an unknown code and no detail is not a bad link, and must not
+    // tell the user their link expired.
+    harness.rejectJson(wallowErrorBody(INVALID_TOKEN_STATUS), INVALID_TOKEN_STATUS);
 
     await renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
 
@@ -200,10 +212,21 @@ describe("VerifyEmailConfirm — error state", () => {
     await expect.element(error).not.toHaveTextContent(/expired/iu);
   });
 
+  it("reads the model's server-fault copy for a 5xx", async () => {
+    harness.rejectJson(wallowErrorBody(SERVER_ERROR_STATUS), SERVER_ERROR_STATUS);
+
+    await renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
+
+    const error = page.getByTestId("verify-email-confirm-error");
+
+    await expect.element(error).toHaveTextContent(/something went wrong on our side/iu);
+    await expect.element(error).not.toHaveTextContent(/expired/iu);
+  });
+
   it("survives a rejection that is not ApiFailure-shaped at all", async () => {
-    // A bare Error has no `status` and must land on the generic arm rather than
-    // throwing inside the error branch. A transport that THROWS is the honest
-    // way to produce one — `fetch` rejecting is exactly a network failure.
+    // A bare Error has no `status` and must land on the transport arm rather
+    // than throwing inside the error branch. A transport that THROWS is the
+    // honest way to produce one — `fetch` rejecting is exactly a network failure.
     harness.respond(() => {
       throw new Error("network down");
     });
@@ -212,11 +235,11 @@ describe("VerifyEmailConfirm — error state", () => {
 
     const error = page.getByTestId("verify-email-confirm-error");
 
-    await expect.element(error).toHaveTextContent(/an error occurred/iu);
+    await expect.element(error).toHaveTextContent(/unable to reach the server/iu);
   });
 
   it("never leaks the raw rejection into the page", async () => {
-    harness.rejectJson(wallowErrorBody(INVALID_TOKEN_STATUS), INVALID_TOKEN_STATUS);
+    harness.rejectJson(invalidTokenBody(), INVALID_TOKEN_STATUS);
 
     await renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
 
@@ -280,7 +303,7 @@ describe("VerifyEmailConfirm — sign-in link", () => {
 
   it("links to sign in from the error state too", async () => {
     // The card footer is the one way out of the error state.
-    harness.rejectJson(wallowErrorBody(INVALID_TOKEN_STATUS), INVALID_TOKEN_STATUS);
+    harness.rejectJson(invalidTokenBody(), INVALID_TOKEN_STATUS);
 
     await renderWithClient(<VerifyEmailConfirm email={EMAIL} token={TOKEN} />);
 

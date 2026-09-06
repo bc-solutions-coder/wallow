@@ -5,11 +5,13 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
-using Wallow.Identity.Application.DTOs;
 using Wallow.Identity.Application.Interfaces;
 using Wallow.Identity.Domain.Entities;
+using Wallow.Identity.Domain.Errors;
 using Wallow.Identity.Infrastructure.Options;
 using Wallow.Shared.Contracts.Identity.Events;
+using Wallow.Shared.Kernel.Errors;
+using Wallow.Shared.Kernel.Results;
 using Wolverine;
 
 namespace Wallow.Identity.Infrastructure.Services;
@@ -49,12 +51,12 @@ public sealed partial class PasswordlessService : IPasswordlessService
         _protector = dataProtectionProvider.CreateProtector(ProtectorPurpose);
     }
 
-    public async Task<PasswordlessResult> SendMagicLinkAsync(string email, CancellationToken ct, string? returnUrl = null, string? clientId = null)
+    public async Task<Result> SendMagicLinkAsync(string email, CancellationToken ct, string? returnUrl = null, string? clientId = null)
     {
-        if (!await IsWithinRateLimitAsync(email))
+        Result throttle = await CheckRateLimitAsync(email);
+        if (throttle.IsFailure)
         {
-            LogRateLimited(email);
-            return new PasswordlessResult(false, email, "Rate limit exceeded. Please try again later.");
+            return throttle;
         }
 
         WallowUser? user = await _userManager.FindByEmailAsync(email);
@@ -62,7 +64,7 @@ public sealed partial class PasswordlessService : IPasswordlessService
         {
             // Return success to avoid email enumeration
             LogUserNotFound(email);
-            return new PasswordlessResult(true, email, null);
+            return Result.Success();
         }
 
         string rawToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
@@ -82,15 +84,15 @@ public sealed partial class PasswordlessService : IPasswordlessService
         });
 
         LogMagicLinkSent(email);
-        return new PasswordlessResult(true, email, null);
+        return Result.Success();
     }
 
-    public async Task<PasswordlessResult> ValidateMagicLinkAsync(string token, CancellationToken ct)
+    public async Task<Result<string>> ValidateMagicLinkAsync(string token, CancellationToken ct)
     {
         string[] parts = token.Split('.', 2);
         if (parts.Length != 2)
         {
-            return new PasswordlessResult(false, null, "Invalid token format.");
+            return Result.Failure<string>(IdentityErrors.AuthTokenInvalid);
         }
 
         string rawToken = parts[0];
@@ -104,12 +106,12 @@ public sealed partial class PasswordlessService : IPasswordlessService
         catch (CryptographicException)
         {
             LogInvalidSignature();
-            return new PasswordlessResult(false, null, "Invalid token.");
+            return Result.Failure<string>(IdentityErrors.AuthTokenInvalid);
         }
         catch (FormatException)
         {
             LogInvalidSignature();
-            return new PasswordlessResult(false, null, "Invalid token.");
+            return Result.Failure<string>(IdentityErrors.AuthTokenInvalid);
         }
 
         if (!CryptographicOperations.FixedTimeEquals(
@@ -117,7 +119,7 @@ public sealed partial class PasswordlessService : IPasswordlessService
                 Encoding.UTF8.GetBytes(rawToken)))
         {
             LogInvalidSignature();
-            return new PasswordlessResult(false, null, "Invalid token.");
+            return Result.Failure<string>(IdentityErrors.AuthTokenInvalid);
         }
 
         string redisKey = $"{MagicLinkKeyPrefix}{rawToken}";
@@ -125,22 +127,22 @@ public sealed partial class PasswordlessService : IPasswordlessService
 
         if (string.IsNullOrEmpty(email))
         {
-            return new PasswordlessResult(false, null, "Token expired or already used.");
+            return Result.Failure<string>(IdentityErrors.AuthTokenExpired);
         }
 
         // Delete token after use (one-time use)
         await _redis.KeyDeleteAsync(redisKey);
 
         LogMagicLinkValidated(email);
-        return new PasswordlessResult(true, email, null);
+        return email;
     }
 
-    public async Task<PasswordlessResult> SendOtpAsync(string email, CancellationToken ct)
+    public async Task<Result> SendOtpAsync(string email, CancellationToken ct)
     {
-        if (!await IsWithinRateLimitAsync(email))
+        Result throttle = await CheckRateLimitAsync(email);
+        if (throttle.IsFailure)
         {
-            LogRateLimited(email);
-            return new PasswordlessResult(false, email, "Rate limit exceeded. Please try again later.");
+            return throttle;
         }
 
         WallowUser? user = await _userManager.FindByEmailAsync(email);
@@ -148,7 +150,7 @@ public sealed partial class PasswordlessService : IPasswordlessService
         {
             // Return success to avoid email enumeration
             LogUserNotFound(email);
-            return new PasswordlessResult(true, email, null);
+            return Result.Success();
         }
 
         string code = RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
@@ -164,17 +166,17 @@ public sealed partial class PasswordlessService : IPasswordlessService
         });
 
         LogOtpSent(email);
-        return new PasswordlessResult(true, email, null);
+        return Result.Success();
     }
 
-    public async Task<PasswordlessResult> ValidateOtpAsync(string email, string code, CancellationToken ct)
+    public async Task<Result<string>> ValidateOtpAsync(string email, string code, CancellationToken ct)
     {
         string redisKey = $"{OtpKeyPrefix}{email}";
         string? storedCode = await _redis.StringGetAsync(redisKey);
 
         if (string.IsNullOrEmpty(storedCode))
         {
-            return new PasswordlessResult(false, email, "Code expired or not found.");
+            return Result.Failure<string>(IdentityErrors.AuthOtpInvalid);
         }
 
         if (!CryptographicOperations.FixedTimeEquals(
@@ -182,17 +184,21 @@ public sealed partial class PasswordlessService : IPasswordlessService
                 Encoding.UTF8.GetBytes(code)))
         {
             LogInvalidOtp(email);
-            return new PasswordlessResult(false, email, "Invalid code.");
+            return Result.Failure<string>(IdentityErrors.AuthOtpInvalid);
         }
 
         // Delete code after use (one-time use)
         await _redis.KeyDeleteAsync(redisKey);
 
         LogOtpValidated(email);
-        return new PasswordlessResult(true, email, null);
+        return email;
     }
 
-    private async Task<bool> IsWithinRateLimitAsync(string email)
+    /// <summary>
+    /// Counts the send against the per-address window and, once the window is exhausted,
+    /// fails with <see cref="SharedErrors.RateLimitExceeded"/> carrying the time left on it.
+    /// </summary>
+    private async Task<Result> CheckRateLimitAsync(string email)
     {
         string rateLimitKey = $"{RateLimitKeyPrefix}{email}";
         long count = await _redis.StringIncrementAsync(rateLimitKey);
@@ -202,7 +208,15 @@ public sealed partial class PasswordlessService : IPasswordlessService
             await _redis.KeyExpireAsync(rateLimitKey, _options.RateLimitWindow);
         }
 
-        return count <= _options.RateLimitMaxRequests;
+        if (count <= _options.RateLimitMaxRequests)
+        {
+            return Result.Success();
+        }
+
+        LogRateLimited(email);
+        TimeSpan? remaining = await _redis.KeyTimeToLiveAsync(rateLimitKey);
+        TimeSpan retryAfter = remaining is { } wait && wait > TimeSpan.Zero ? wait : _options.RateLimitWindow;
+        return Result.Failure(new Error(SharedErrors.RateLimitExceeded, retryAfter: retryAfter));
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Magic link sent to {Email}")]

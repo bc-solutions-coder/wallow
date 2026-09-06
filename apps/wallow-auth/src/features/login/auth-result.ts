@@ -1,6 +1,4 @@
-import { ClientErrorCode } from "@bc-solutions-coder/api-errors";
 import { asString } from "@bc-solutions-coder/utils/guards";
-import { readErrorCode, readMember } from "@shared/lib/error-code";
 import { ERROR_HREF, decideReturnUrl } from "@shared/lib/return-url";
 /**
  * The login screen's RESULT LAYER (Wallow-vec7.3.11 / 2.8a): everything that
@@ -26,12 +24,14 @@ import { ERROR_HREF, decideReturnUrl } from "@shared/lib/return-url";
  *     200 { succeeded: true, mfaEnrollmentRequired: true,
  *           mfaGraceDeadline: <DateTimeOffset>, signInTicket: <t> }     :118  (in grace)
  *     200 { succeeded: true, signInTicket: <t> }                        :138
- *     401 { succeeded: false, error: "invalid_credentials" }            :83, :164
- *     423 { succeeded: false, error: "locked_out" }                     :149
- *     403 { succeeded: false, error: "email_not_confirmed" }            :154
+ *     401 problem Auth.InvalidCredentials
+ *     423 problem Auth.LockedOut
+ *     403 problem Auth.EmailNotConfirmed
  *
  * So `unwrap()` does NOT throw for the MFA branches — unlike `mfa/verify`, where
- * every failure is a rejection. The facade types `login` as `Promise<unknown>`
+ * every failure is a rejection. The rejections are not mapped here at all: the
+ * shell hands the thrown `ApiFailure` to `useFailureMessage`, which reads the
+ * catalog's `detail`. The facade types `login` as `Promise<unknown>`
  * (the C# endpoint returns an anonymous `Ok(new { … })` with no OpenAPI schema),
  * so the narrowing is owned HERE, at this boundary, per bd memory
  * `untyped-sdk-response-fail-closed-pattern-wallow-auth`: structural `in`-style
@@ -39,24 +39,11 @@ import { ERROR_HREF, decideReturnUrl } from "@shared/lib/return-url";
  * than JS truthiness — which would happily accept `succeeded: "false"`.
  */
 
-/** The oracle's `result.Error` switch (Login.razor:345-350), minus its raw-token tail. */
-const INVALID_CREDENTIALS_MESSAGE = "Invalid email or password.";
-const LOCKED_OUT_MESSAGE = "Account locked. Try again later.";
-const EMAIL_NOT_CONFIRMED_MESSAGE = "Please verify your email before signing in.";
-
 /**
  * The oracle's `_ =>` tail. Also the FAIL-CLOSED answer for a 200 body this
  * screen cannot make sense of: a garbage body is not a sign-in.
  */
 export const GENERIC_MESSAGE = "An error occurred. Please try again.";
-
-/**
- * The oracle's `catch (HttpRequestException)` arm (Login.razor:355), kept
- * DISTINCT from the generic tail: "the server said no" and "the server never
- * answered" are different instructions to the user, and collapsing them tells a
- * user with no network to go re-read their password.
- */
-export const UNREACHABLE_MESSAGE = "Unable to reach the server. Please try again later.";
 
 /** The oracle's `Error` query-param switch (Login.razor:268-273). */
 const EXTERNAL_LOGIN_FAILED_MESSAGE =
@@ -66,61 +53,24 @@ const SESSION_EXPIRED_MESSAGE = "Your session has expired. Please try again.";
 /** The oracle's blank-input guard (Login.razor:327). */
 export const BLANK_CREDENTIALS_MESSAGE = "Please enter your email and password.";
 
-/** This endpoint's machine tokens. Matched against, NEVER rendered. */
-const INVALID_CREDENTIALS = "invalid_credentials";
-const LOCKED_OUT = "locked_out";
-const EMAIL_NOT_CONFIRMED = "email_not_confirmed";
-
-/**
- * The client-side code for a request that never produced a response — the TS
- * shape of the oracle's `catch (HttpRequestException)` arm.
- *
- * NOT codes the API sends: `@bc-solutions-coder/api-errors` synthesizes them
- * (`503 Transport.NetworkError`, `504 Transport.Timeout`) when the fetch itself
- * rejects, which is what makes a dead network tellable apart from a server that
- * answered. An abort is deliberately absent: a cancelled request is not a dead
- * server. `ApiFailure.status` is a REQUIRED number, so an absent status is
- * unreachable by construction and cannot be the signal — see
- * {@link isServerUnreachable}.
- */
-const NEVER_ANSWERED_CODES: ReadonlySet<string> = new Set([
-  ClientErrorCode.TRANSPORT_NETWORK_ERROR,
-  ClientErrorCode.TRANSPORT_TIMEOUT,
-]);
-
-/**
- * The statuses those tokens ride on, retained as a FALLBACK beneath them per the
- * Wallow-vec7.7 rule (match known tokens FIRST, keep HTTP status underneath).
- *
- * NOTE FOR REVIEWERS — code-keying is NOT observable on this endpoint. Unlike
- * `mfa/verify` (two meanings on one 401), each failure status here carries
- * exactly ONE token, so a code-keyed and a status-keyed map are observationally
- * IDENTICAL for every input the API can produce. The fallback earns its place on
- * the UNKNOWN token: a token the screen has never heard of on a 423 still means
- * a locked-out user, and dropping them to the generic "try again" would tell
- * them to retype a password that cannot possibly work.
- */
-const UNAUTHORIZED_STATUS = 401;
-const FORBIDDEN_STATUS = 403;
-const LOCKED_STATUS = 423;
-
 /** In-app destinations. Constant paths — see the guard note on `authDispositionOf`. */
 const MFA_CHALLENGE_PATH = "/mfa/challenge";
 const MFA_ENROLL_PATH = "/mfa/enroll";
 
 /**
- * Did this rejection never reach the server at all?
+ * Read a member off an unknown value without asserting its shape.
  *
- * Exported for `./magic-link-result` and `./otp-result`, which owe their users
- * the SAME distinction on their own endpoints: "the server said no" and "the
- * server never answered" are different instructions, and collapsing them tells a
- * user with no network to go re-read a password or an emailed code that is
- * perfectly fine. One predicate rather than three copies, so the three screens
- * cannot drift apart on what a dead network looks like.
+ * The membership test is `in` rather than a truthiness check: these endpoints
+ * answer `{ succeeded: false }`, and a real `false` has to stay distinguishable
+ * from an absent member. Exported for the sibling result modules, which narrow
+ * their own success bodies the same way.
  */
-export function isServerUnreachable(cause: unknown): boolean {
-  const code: string | undefined = readErrorCode(cause);
-  return code !== undefined && NEVER_ANSWERED_CODES.has(code);
+export function readMember(value: unknown, name: string): unknown {
+  if (typeof value !== "object" || value === null || !(name in value)) {
+    return undefined;
+  }
+
+  return (value as Record<string, unknown>)[name];
 }
 
 /** A member that is only meaningful as a string; anything else reads as absent. */
@@ -313,60 +263,6 @@ export function authDispositionOf(body: unknown, returnUrl: string | undefined):
     outcome: { kind: "exchange-ticket", ticket, returnUrl: destination.returnUrl },
     graceDeadline,
   };
-}
-
-/**
- * Map a REJECTION onto user-facing copy — the 401/423/403 arms, plus the
- * network arm.
- *
- * The `error` member of this endpoint's bare `{ succeeded, error }` body reaches
- * the screen through `readErrorCode`. The SDK parses that bare body under the OAuth grammar of
- * `@bc-solutions-coder/api-errors` (code `OAuth.<Token>`, title = the raw
- * token), and `readErrorCode` hands the raw token back. Narrowing is
- * STRUCTURAL rather than `instanceof ApiFailure`, so the screen matches on the
- * wire shape alone.
- *
- * A network-level rejection is identified by its `code` (`isServerUnreachable`),
- * NOT by an absent `status`: `ApiFailure.status` is a required number, so the
- * SDK synthesizes one for a fault that never landed and there is no absence left
- * to test for (Wallow-sx3r).
- */
-export function loginFailureMessage(cause: unknown): string {
-  if (isServerUnreachable(cause)) {
-    return UNREACHABLE_MESSAGE;
-  }
-
-  const code: string | undefined = readErrorCode(cause);
-
-  if (code === INVALID_CREDENTIALS) {
-    return INVALID_CREDENTIALS_MESSAGE;
-  }
-
-  if (code === LOCKED_OUT) {
-    return LOCKED_OUT_MESSAGE;
-  }
-
-  if (code === EMAIL_NOT_CONFIRMED) {
-    return EMAIL_NOT_CONFIRMED_MESSAGE;
-  }
-
-  const status: unknown = readMember(cause, "status");
-
-  if (status === LOCKED_STATUS) {
-    return LOCKED_OUT_MESSAGE;
-  }
-
-  if (status === UNAUTHORIZED_STATUS) {
-    return INVALID_CREDENTIALS_MESSAGE;
-  }
-
-  if (status === FORBIDDEN_STATUS) {
-    return EMAIL_NOT_CONFIRMED_MESSAGE;
-  }
-
-  // `code` is a machine token and is never rendered: the oracle's `_ => result.Error`
-  // tail leaks the raw string to the user, and that leak is not ported.
-  return GENERIC_MESSAGE;
 }
 
 /**

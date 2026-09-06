@@ -19,6 +19,7 @@ public static class ErrorKindExtensions
         ErrorKind.MethodNotAllowed => StatusCodes.Status405MethodNotAllowed,
         ErrorKind.Conflict => StatusCodes.Status409Conflict,
         ErrorKind.BusinessRule => StatusCodes.Status422UnprocessableEntity,
+        ErrorKind.Locked => StatusCodes.Status423Locked,
         ErrorKind.RateLimited => StatusCodes.Status429TooManyRequests,
         ErrorKind.Failure => StatusCodes.Status500InternalServerError,
         ErrorKind.Unavailable => StatusCodes.Status503ServiceUnavailable,

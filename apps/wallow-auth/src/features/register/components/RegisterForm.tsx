@@ -6,7 +6,7 @@ import {
   useAppForm,
 } from "@bc-solutions-coder/forms";
 import { useMutation, useQuery } from "@bc-solutions-coder/query";
-import { Button, Card, MutedText, Text } from "@bc-solutions-coder/ui";
+import { Button, Card, MutedText, Text, useFailureMessage } from "@bc-solutions-coder/ui";
 import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { type ReactElement, type ReactNode, useState } from "react";
 import { z } from "zod";
@@ -17,7 +17,8 @@ import {
 } from "../api";
 import {
   PASSWORD_MISMATCH_MESSAGE,
-  registerFailureMessage,
+  REGISTER_FAILED_MESSAGE,
+  REGISTER_MESSAGES,
   registerGuardMessage,
   type RegisterValues,
 } from "../register-result";
@@ -54,10 +55,11 @@ import { ERROR_HREF, decideReturnUrl } from "@shared/lib/return-url";
  * than handing `useAppForm` the generated mutation, for two reasons that are
  * this endpoint's own:
  *
- *  1. **The failures are not RFC 7807.** `splitServerError` reads problem-details
- *     members to decide field message vs banner, and this endpoint answers with a
- *     bare `{ succeeded, error }` body. `registerFailureMessage` is the only
- *     thing that can tell its four rejections apart.
+ *  1. **Every rejection is a banner, never a field message.** The endpoint's
+ *     problems (`Auth.EmailTaken`, `Auth.ClientIdInvalid`, a weak-password
+ *     `Validation.Failed`) all read as one sentence, so the raw failure is
+ *     kept as state and resolved through `useFailureMessage` with
+ *     `REGISTER_MESSAGES` ahead of the app registry.
  *  2. **The guards are ORDERED and share one banner.** A zod rule would abort
  *     `handleSubmit` before the callback ran and report every field at once —
  *     see `registerGuardMessage`. The schema below is therefore rule-free.
@@ -286,6 +288,11 @@ function RegisterFields({ clientId, returnUrl }: RegisterFormProps): ReactElemen
   const { sdk } = useRouteContext({ from: "__root__" });
   const navigate = useNavigate();
   const [formError, setFormError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<unknown>(null);
+  const failureMessage: string | null = useFailureMessage(failure, {
+    messages: REGISTER_MESSAGES,
+    fallback: REGISTER_FAILED_MESSAGE,
+  });
 
   const registerMutation = useMutation(accountRegisterMutation({ client: sdk.client }));
 
@@ -296,6 +303,7 @@ function RegisterFields({ clientId, returnUrl }: RegisterFormProps): ReactElemen
       const guard: string | null = registerGuardMessage(values);
 
       if (guard !== null) {
+        setFailure(null);
         setFormError(guard);
         return;
       }
@@ -304,6 +312,7 @@ function RegisterFields({ clientId, returnUrl }: RegisterFormProps): ReactElemen
       // past the guards so a guard's own message survives the submit that
       // produced it. A stale failure above a successful registration is a lie.
       setFormError(null);
+      setFailure(null);
 
       try {
         // The generated artifact's REQUEST object, not a bare body: the factory
@@ -321,7 +330,7 @@ function RegisterFields({ clientId, returnUrl }: RegisterFormProps): ReactElemen
       } catch (error: unknown) {
         // No account was created, and every reason this endpoint rejects for is
         // actionable only on the fields, so drop back to the form.
-        setFormError(registerFailureMessage(error));
+        setFailure(error);
         return;
       }
 
@@ -330,7 +339,12 @@ function RegisterFields({ clientId, returnUrl }: RegisterFormProps): ReactElemen
   });
 
   return (
-    <AppForm form={form} testIdPrefix="register" serverError={formError} className="space-y-4">
+    <AppForm
+      form={form}
+      testIdPrefix="register"
+      serverError={formError ?? failureMessage}
+      className="space-y-4"
+    >
       <FormError />
 
       <form.AppField name="email">
