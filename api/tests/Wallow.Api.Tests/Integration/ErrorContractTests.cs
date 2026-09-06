@@ -150,6 +150,17 @@ public sealed class ErrorContractTests : IDisposable
     }
 
     [Fact]
+    public async Task Missing_Tenant_Returns_A_Dedicated_403_With_User_Safe_Detail()
+    {
+        HttpResponseMessage response = await _probeClient.GetAsync(
+            $"{FailureProbeController.ProbePath}/tenant-required");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        JsonElement body = await AssertProblemAsync(response, 403, "Tenant.Required");
+        body.GetProperty("detail").GetString().Should().Be("An organization is required to do this.");
+    }
+
+    [Fact]
     public async Task Failed_Result_Returns_The_Catalogued_Status_And_Code()
     {
         HttpResponseMessage response = await _probeClient.GetAsync(
@@ -158,6 +169,18 @@ public sealed class ErrorContractTests : IDisposable
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
         JsonElement body = await AssertProblemAsync(response, 422, InquiriesErrors.InvalidStatusTransition.Code);
         body.GetProperty("detail").GetString().Should().Be(InquiriesErrors.InvalidStatusTransition.DefaultMessage);
+    }
+
+    [Fact]
+    public async Task Failure_Kind_Result_Redacts_The_Override_And_Preserves_The_Code()
+    {
+        HttpResponseMessage response = await _probeClient.GetAsync(
+            $"{FailureProbeController.ProbePath}/failure-result");
+
+        response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+        JsonElement body = await AssertProblemAsync(response, 500, "Mfa.UpdateFailed");
+        body.GetProperty("detail").GetString().Should().Be(SharedErrors.ServerError.DefaultMessage);
+        body.ToString().Should().NotContain("persistence");
     }
 
     [Fact]

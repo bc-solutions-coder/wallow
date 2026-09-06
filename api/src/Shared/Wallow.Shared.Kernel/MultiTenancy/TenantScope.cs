@@ -19,13 +19,11 @@ public static class TenantScope
     /// Returns <paramref name="tenantId"/>, or throws if it is the default value.
     /// </summary>
     /// <exception cref="ForbiddenAccessException">The tenant id is unset.</exception>
-    public static TenantId Require(TenantId tenantId, string entityName)
+    public static TenantId Require(TenantId tenantId)
     {
         if (tenantId == default)
         {
-            throw new ForbiddenAccessException(
-                SharedErrors.Forbidden,
-                $"Cannot create {entityName} without a resolved tenant");
+            throw new ForbiddenAccessException(SharedErrors.TenantRequired);
         }
 
         return tenantId;

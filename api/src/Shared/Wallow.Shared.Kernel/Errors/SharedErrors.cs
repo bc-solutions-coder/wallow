@@ -3,8 +3,8 @@ namespace Wallow.Shared.Kernel.Errors;
 /// <summary>
 /// The status-generic entries every host carries. These are the codes a response falls back to
 /// when nothing more specific applies (a framework 404, an authentication challenge, an
-/// unhandled exception) and the only entries the shared kernel owns; everything else belongs to
-/// the module that raises it.
+/// unhandled exception), plus the tenant-scope guard owned by the kernel. Module-specific
+/// conditions belong to the module that raises them.
 /// </summary>
 public static class SharedErrors
 {
@@ -25,6 +25,12 @@ public static class SharedErrors
         "Auth.Forbidden",
         ErrorKind.Forbidden,
         "You do not have permission to do this.");
+
+    /// <summary>A tenant-scoped operation has no resolved tenant (403).</summary>
+    public static readonly ErrorCatalogEntry TenantRequired = new(
+        "Tenant.Required",
+        ErrorKind.Forbidden,
+        "An organization is required to do this.");
 
     /// <summary>Nothing exists at the requested location (404).</summary>
     public static readonly ErrorCatalogEntry NotFound = new(

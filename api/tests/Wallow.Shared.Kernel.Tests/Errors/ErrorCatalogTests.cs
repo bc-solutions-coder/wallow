@@ -55,7 +55,7 @@ public class ErrorCatalogTests
     {
         ErrorCatalog catalog = ErrorCatalog.Aggregate([typeof(FakeModuleErrors), typeof(FakeModuleErrors), typeof(SharedErrors)]);
 
-        catalog.Entries.Should().HaveCount(9 + 2);
+        catalog.Entries.Should().HaveCount(10 + 2);
     }
 
     [Fact]

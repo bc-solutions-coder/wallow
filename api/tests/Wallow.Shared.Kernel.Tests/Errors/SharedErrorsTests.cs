@@ -5,7 +5,7 @@ namespace Wallow.Shared.Kernel.Tests.Errors;
 public class SharedErrorsTests
 {
     [Fact]
-    public void Catalog_HoldsExactlyTheNineStatusGenericEntries()
+    public void Catalog_HoldsTheStatusGenericEntriesAndTheTenantGuard()
     {
         IReadOnlyList<ErrorCatalogEntry> entries = ErrorCatalog.EntriesOf(typeof(SharedErrors));
 
@@ -14,6 +14,7 @@ public class SharedErrorsTests
             ("Validation.Failed", ErrorKind.Validation),
             ("Auth.Unauthenticated", ErrorKind.Unauthenticated),
             ("Auth.Forbidden", ErrorKind.Forbidden),
+            ("Tenant.Required", ErrorKind.Forbidden),
             ("Http.NotFound", ErrorKind.NotFound),
             ("Http.MethodNotAllowed", ErrorKind.MethodNotAllowed),
             ("RateLimit.Exceeded", ErrorKind.RateLimited),

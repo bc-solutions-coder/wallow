@@ -16827,6 +16827,7 @@
           "Setup.Required",
           "Sms.InvalidPhoneNumber",
           "Storage.QuotaExceeded",
+          "Tenant.Required",
           "TenantPushConfiguration.NotFound",
           "Validation.Failed"
         ],
@@ -16949,6 +16950,7 @@
           "The platform has not been set up yet.",
           "The phone number is invalid",
           "The upload would exceed the tenant storage quota",
+          "An organization is required to do this.",
           "Push configuration not found for this tenant and platform",
           "The request is invalid."
         ]

@@ -473,6 +473,10 @@ export const ErrorCode = {
      */
     STORAGE_QUOTA_EXCEEDED: 'Storage.QuotaExceeded',
     /**
+     * An organization is required to do this.
+     */
+    TENANT_REQUIRED: 'Tenant.Required',
+    /**
      * Push configuration not found for this tenant and platform
      */
     TENANT_PUSH_CONFIGURATION_NOT_FOUND: 'TenantPushConfiguration.NotFound',

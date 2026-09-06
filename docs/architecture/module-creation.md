@@ -433,6 +433,12 @@ Identity is the exception again: because `IdentityDbContext` implements `ITenant
 directly rather than extending `TenantAwareDbContext<T>`, it cannot use the generic helper and
 inlines the same factory-plus-`SetTenant` scoped registration by hand.
 
+Define the module's error catalog at `Wallow.{Module}.Domain/Errors/{Module}Errors.cs`
+following [catalog ownership](../development/api-development.md#catalog-ownership).
+`ModuleErrorCatalogTests` calls each registry module's `AddServices` directly and verifies
+that every catalog declared in its Domain assembly is registered. Module feature flags do
+not hide a missing registration from this check.
+
 **`{Module}ModuleExtensions.cs`** provides the single entry point the module's `IWallowModule`
 implementation calls from `AddServices` (Step 7):
 
@@ -440,6 +446,7 @@ implementation calls from `AddServices` (Step 7):
 public static IServiceCollection Add{Module}Module(
     this IServiceCollection services, IConfiguration configuration)
 {
+    services.AddErrorCatalog(typeof({Module}Errors));
     services.Add{Module}Application();
     services.Add{Module}Infrastructure(configuration);
     return services;

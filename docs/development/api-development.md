@@ -592,13 +592,19 @@ Result.Failure<InquiryDto>(entry, "Inquiry 'abc' is already closed");
 - **`Wallow.Shared.Api` owns `SettingsErrors`** (`Settings.SystemKeyBlocked`,
   `Settings.UnknownKey`): the setting-key checks are one condition whichever module's settings
   endpoint reaches them, and `SettingKeyValidationResult.ToResult(key)` answers with them.
-- **The shared kernel holds only the nine status-generic entries** in `SharedErrors`:
+- **The shared kernel holds the nine status-generic entries** in `SharedErrors`:
   `Validation.Failed`, `Auth.Unauthenticated`, `Auth.Forbidden`, `Http.NotFound`,
   `Http.MethodNotAllowed`, `Http.ClientError`, `RateLimit.Exceeded`, `Setup.Required`,
-  `Server.Error`. Anything a module means specifically goes in the module's catalog, never here.
+  `Server.Error`. It also owns `Tenant.Required`, the kernel's tenant-scope guard, with kind
+  `Forbidden` and fixed copy "An organization is required to do this." Missing scope prevents
+  a tenant-owned operation, so it remains 403 rather than a validation error or a server fault.
+  The guard accepts only the tenant id; entity type names never enter the problem's `detail`.
+  Module-specific conditions belong in the module's catalog.
 - **`Add<Module>Module` registers the catalog** as its first statement:
   `services.AddErrorCatalog(typeof(InquiriesErrors));`. The call validates the catalog eagerly
   and contributes it to the `ErrorCatalog` singleton the API aggregates.
+  `ModuleErrorCatalogTests` checks each registry module in isolation against the catalogs
+  declared in its Domain assembly, so a disabled feature flag cannot mask a missing call.
 
 ```csharp
 // api/src/Modules/Inquiries/Wallow.Inquiries.Domain/Errors/InquiriesErrors.cs

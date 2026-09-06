@@ -2,8 +2,10 @@ using Asp.Versioning;
 using FluentValidation.Results;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Wallow.Identity.Domain.Errors;
 using Wallow.Inquiries.Domain.Errors;
 using Wallow.Shared.Api.Extensions;
+using Wallow.Shared.Kernel.MultiTenancy;
 using Wallow.Shared.Kernel.Results;
 
 namespace Wallow.Api.Tests.Integration;
@@ -25,6 +27,17 @@ public sealed class FailureProbeController : ControllerBase
     [HttpGet("throw")]
     public IActionResult Throw() =>
         throw new InvalidOperationException("The probe's internal detail must never reach the client.");
+
+    [HttpGet("tenant-required")]
+    public IActionResult TenantRequired()
+    {
+        TenantScope.Require(default);
+        return NoContent();
+    }
+
+    [HttpGet("failure-result")]
+    public IActionResult FailureResult() =>
+        Result.Failure(IdentityErrors.MfaUpdateFailed, "Internal MFA persistence details.").ToActionResult();
 
     [HttpGet("business-rule")]
     public IActionResult BusinessRule() =>

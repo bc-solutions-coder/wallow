@@ -62,7 +62,7 @@ public sealed class OrganizationSettings : AuditableEntity<OrganizationSettingsI
     {
         return new OrganizationSettings(
             organizationId,
-            TenantScope.Require(tenantId, nameof(OrganizationSettings)),
+            TenantScope.Require(tenantId),
             requireMfa,
             allowPasswordlessLogin,
             mfaGracePeriodDays,
