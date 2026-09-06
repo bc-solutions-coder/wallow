@@ -1,4 +1,4 @@
-import { ClientErrorCode } from "@bc-solutions-coder/api-errors";
+import { ClientErrorCode, ErrorCode } from "@bc-solutions-coder/api-errors";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { discovery, type Configuration } from "openid-client";
 
@@ -206,36 +206,59 @@ describe("login handler", () => {
 });
 
 describe("callback handler", () => {
-  it("returns 400 when there is no tx cookie", async () => {
-    const config: BffConfig = makeConfig("https://cb-no-tx.example.com");
-    const handle = makeHandle(createBffHandlers(config));
+  it.each([
+    ["missing cookie", "missing", "?code=abc&state=expected-state"],
+    ["empty cookie", "empty", "?code=abc&state=expected-state"],
+    ["unsealable cookie", "invalid", "?code=abc&state=expected-state"],
+    ["missing code", "valid", "?state=expected-state"],
+    ["missing state", "valid", "?code=abc"],
+    ["state mismatch", "valid", "?code=abc&state=WRONG"],
+  ])(
+    "returns a correlated 400 problem for %s",
+    async (_reason: string, cookie: string, query: string) => {
+      const config: BffConfig = makeConfig("https://cb-invalid.example.com");
+      const tx: LoginTx = {
+        state: "expected-state",
+        nonce: "nonce-1",
+        verifier: "verifier-1",
+        returnTo: "/home",
+      };
+      const sealed: string = await sealTx(tx, config.cookiePassword);
+      const headers: Headers = new Headers({ "x-request-id": "req-callback" });
+      if (cookie !== "missing") {
+        let value: string = "";
+        if (cookie === "valid") {
+          value = sealed;
+        } else if (cookie === "invalid") {
+          value = "unsealable";
+        }
+        headers.set("cookie", `wallow_bff_tx=${value}`);
+      }
+      const handle = makeHandle(createBffHandlers(config));
+      const res: Response = await handle(
+        new Request(`http://localhost/bff/callback${query}`, { headers }),
+      );
 
-    const res: Response = await handle(
-      new Request("http://localhost/bff/callback?code=abc&state=xyz"),
-    );
-
-    expect(res.status).toBe(400);
-  });
-
-  it("returns 400 when the state does not match the tx cookie", async () => {
-    const config: BffConfig = makeConfig("https://cb-bad-state.example.com");
-    const tx: LoginTx = {
-      state: "expected-state",
-      nonce: "nonce-1",
-      verifier: "verifier-1",
-      returnTo: "/home",
-    };
-    const sealed: string = await sealTx(tx, config.cookiePassword);
-    const handle = makeHandle(createBffHandlers(config));
-
-    const res: Response = await handle(
-      new Request("http://localhost/bff/callback?code=abc&state=WRONG", {
-        headers: { cookie: `wallow_bff_tx=${sealed}` },
-      }),
-    );
-
-    expect(res.status).toBe(400);
-  });
+      expect(res.status).toBe(400);
+      expect(res.headers.get("content-type")).toBe("application/problem+json");
+      expect(res.headers.get("x-request-id")).toBe("req-callback");
+      expect(await res.json()).toEqual({
+        type: "about:blank",
+        title: "Validation failed",
+        status: 400,
+        code: ErrorCode.VALIDATION_FAILED,
+        detail: "The request is invalid. Check the request and try again.",
+        requestId: "req-callback",
+      });
+      if (cookie === "missing" || cookie === "empty") {
+        expect(res.headers.getSetCookie()).toEqual([]);
+      } else {
+        expect(res.headers.getSetCookie()).toHaveLength(1);
+        expect(setCookieFor(res, "wallow_bff_tx")).toContain("Max-Age=0");
+      }
+      expect(authorizationCodeGrantMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("exchanges the code via openid-client and 302s to returnTo on a valid callback", async () => {
     const config: BffConfig = makeConfig("https://cb-ok.example.com");
@@ -827,6 +850,17 @@ describe("logout CSRF gate", () => {
       );
 
       expect(res.status).toBe(405);
+      expect(res.headers.get("content-type")).toBe("application/problem+json");
+      const requestId: string | null = res.headers.get("x-request-id");
+      expect(requestId).toBeTruthy();
+      expect(await res.json()).toEqual({
+        type: "about:blank",
+        title: "Method not allowed",
+        status: 405,
+        code: ErrorCode.HTTP_METHOD_NOT_ALLOWED,
+        detail: "This HTTP method is not allowed for this endpoint.",
+        requestId,
+      });
       expect(res.headers.get("allow") ?? "").toContain("POST");
       // The session survives: nothing revoked, nothing cleared.
       expect(destroyed).toEqual([]);
@@ -1715,10 +1749,21 @@ describe("frontchannel logout handler", () => {
     const { handlers, destroyed } = fcSetup("https://fc-method.example.com");
 
     const res: Response = await handlers.frontchannelLogout(
-      new Request(FC_PATH, { method: "POST" }),
+      new Request(FC_PATH, { method: "POST", headers: { "x-request-id": "req-frontchannel" } }),
     );
 
     expect(res.status).toBe(405);
+    expect(res.headers.get("content-type")).toBe("application/problem+json");
+    expect(res.headers.get("x-request-id")).toBe("req-frontchannel");
+    expect(res.headers.getSetCookie()).toEqual([]);
+    expect(await res.json()).toEqual({
+      type: "about:blank",
+      title: "Method not allowed",
+      status: 405,
+      code: ErrorCode.HTTP_METHOD_NOT_ALLOWED,
+      detail: "This HTTP method is not allowed for this endpoint.",
+      requestId: "req-frontchannel",
+    });
     expect(res.headers.get("allow")).toBe("GET");
     expect(destroyed).toEqual([]);
   });

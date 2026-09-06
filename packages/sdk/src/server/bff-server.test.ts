@@ -1,3 +1,4 @@
+import { ErrorCode } from "@bc-solutions-coder/api-errors";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -602,6 +603,13 @@ describe("createWallowBffServer — BFF dispatch", () => {
     );
 
     expect(res.status).toBe(405);
+    expect(res.headers.get("content-type")).toBe("application/problem+json");
+    const requestId: string | null = res.headers.get("x-request-id");
+    expect(requestId).toBeTruthy();
+    const body: Record<string, unknown> = (await res.json()) as Record<string, unknown>;
+    expect(body["code"]).toBe(ErrorCode.HTTP_METHOD_NOT_ALLOWED);
+    expect(body["requestId"]).toBe(requestId);
+    expect(body).not.toHaveProperty("traceId");
     expect(res.headers.get("allow")).toBe("POST");
   });
 
@@ -661,32 +669,41 @@ describe("createWallowBffServer — BFF dispatch", () => {
     // No transaction cookie and no code/state: the handler refuses it. What
     // matters here is that it is the handler answering, not the router's 404.
     expect(res.status).toBe(400);
+    expect(res.headers.get("content-type")).toBe("application/problem+json");
+    const requestId: string | null = res.headers.get("x-request-id");
+    expect(requestId).toBeTruthy();
+    const body: Record<string, unknown> = (await res.json()) as Record<string, unknown>;
+    expect(body["code"]).toBe(ErrorCode.VALIDATION_FAILED);
+    expect(body["requestId"]).toBe(requestId);
+    expect(body).not.toHaveProperty("traceId");
   });
 
-  it("answers 404 for an unknown path under the BFF mount", async () => {
-    const server: WallowBffServer = createWallowBffServer({
-      config: makeConfig("https://issuer-bffunknown.test"),
-    });
+  it.each(["/bff/not-a-handler", "/dashboard", "/bffoo/user"])(
+    "answers an unknown BFF route %s with a correlated problem",
+    async (path: string) => {
+      const server: WallowBffServer = createWallowBffServer({
+        config: makeConfig("https://issuer-bffunknown.test"),
+      });
+      const res: Response = await server.handleBff(
+        new Request(`http://app.example.com${path}`, {
+          headers: { "x-request-id": "req-unknown" },
+        }),
+      );
 
-    const res: Response = await server.handleBff(
-      new Request(`http://app.example.com${WALLOW_BFF_MOUNT}/not-a-handler`),
-    );
-
-    expect(res.status).toBe(404);
-  });
-
-  it("answers 404 for a path outside the BFF mount, including a lookalike prefix", async () => {
-    const server: WallowBffServer = createWallowBffServer({
-      config: makeConfig("https://issuer-bffoutside.test"),
-    });
-
-    await expect(
-      server.handleBff(new Request("http://app.example.com/dashboard")).then((r) => r.status),
-    ).resolves.toBe(404);
-    await expect(
-      server.handleBff(new Request("http://app.example.com/bffoo/user")).then((r) => r.status),
-    ).resolves.toBe(404);
-  });
+      expect(res.status).toBe(404);
+      expect(res.headers.get("content-type")).toBe("application/problem+json");
+      expect(res.headers.get("x-request-id")).toBe("req-unknown");
+      expect(res.headers.getSetCookie()).toEqual([]);
+      expect(await res.json()).toEqual({
+        type: "about:blank",
+        title: "Not found",
+        status: 404,
+        code: ErrorCode.HTTP_NOT_FOUND,
+        detail: "That could not be found.",
+        requestId: "req-unknown",
+      });
+    },
+  );
 });
 
 /**

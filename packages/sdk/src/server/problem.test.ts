@@ -29,6 +29,43 @@ describe("problemResponse", () => {
     });
   });
 
+  it.each([
+    [
+      400,
+      ErrorCode.VALIDATION_FAILED,
+      "Validation failed",
+      "The request is invalid. Check the request and try again.",
+    ],
+    [
+      405,
+      ErrorCode.HTTP_METHOD_NOT_ALLOWED,
+      "Method not allowed",
+      "This HTTP method is not allowed for this endpoint.",
+    ],
+  ])(
+    "renders fixed copy and correlation for %i %s",
+    async (status: number, code: string, title: string, detail: string) => {
+      const res: Response = problemResponse(status, code, {
+        requestId: "req-rejected",
+        headers: new Headers({ allow: "POST", "cache-control": "no-store" }),
+      });
+
+      expect(res.status).toBe(status);
+      expect(res.headers.get("content-type")).toBe("application/problem+json");
+      expect(res.headers.get(REQUEST_ID_HEADER)).toBe("req-rejected");
+      expect(res.headers.get("allow")).toBe("POST");
+      expect(res.headers.get("cache-control")).toBe("no-store");
+      expect(await res.json()).toEqual({
+        type: "about:blank",
+        status,
+        code,
+        title,
+        detail,
+        requestId: "req-rejected",
+      });
+    },
+  );
+
   it("never names a traceId", async () => {
     const res: Response = problemResponse(503, ClientErrorCode.TRANSPORT_NETWORK_ERROR, {
       requestId: "req-503",

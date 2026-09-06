@@ -66,15 +66,19 @@ change here must keep all three true:
   consumers import the failure type and brand check from `api-errors`. A body without a code parses as
   `Client.UnrecognizedResponse`, so a spec that fakes a problem body must give it a `code`.
 - **Relayed vs originated.** An upstream failure is relayed byte for byte. Every failure the
-  `/api` proxy, the passthrough, `/bff/user`, and the logout CSRF gate answer THEMSELVES goes
-  through the ONE writer, `src/server/problem.ts`
+  `/api` proxy and passthrough originate, plus BFF routing, callback validation,
+  `/bff/user`, and logout method/CSRF rejections, goes through the ONE writer,
+  `src/server/problem.ts`
   (`problemResponse(status, code, { requestId, detail?, headers? })`): `about:blank`, fixed
   title/detail per code (the server twin of `api-errors`' shipped messages), `requestId` on
   body and header, never `traceId`, never a transport message (that goes to the redacted log).
   Passthrough imports it too, so it must never grow a handler/proxy import. No bodiless
   responses on those paths and no SDK-private code strings — codes come from
-  `ErrorCode`/`ClientErrorCode` (the remaining bare `/bff/*` 404/405/400s are a separate issue):
-  404 `Http.NotFound` (path outside `/api` / the allowlist / the API base); 401
+  `ErrorCode`/`ClientErrorCode`:
+  400 `Validation.Failed` (missing, unreadable, or mismatched callback transaction or missing
+  code/state); 404 `Http.NotFound` (unknown BFF route or path outside `/api` / the allowlist /
+  the API base); 405 `Http.MethodNotAllowed` (logout, front-channel, or back-channel method
+  rejection, retaining `Allow` and any existing `no-store`); 401
   `Bff.SessionMissing` (no or unreadable session); 401 `Bff.SessionRefreshFailed` (terminal
   refresh → teardown; a faulting freshness check → no teardown); 403 `Bff.CsrfInvalid`; 401
   `Auth.Unauthenticated` (login redirect survived the replay); 503 `Transport.NetworkError`;

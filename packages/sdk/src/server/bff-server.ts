@@ -14,6 +14,10 @@
  * import rather than by repeating string literals that can drift apart.
  */
 
+import { ErrorCode } from "@bc-solutions-coder/api-errors";
+
+import { resolveRequestId } from "../request-id";
+import { problemResponse } from "./problem";
 import { loadBffConfigFromEnv, type BffConfig } from "./config";
 import { createBffHandlers, type BffHandler, type BffHandlers } from "./handlers";
 import { resolveTrustedProxies, type PeerRequest, type TrustedProxies } from "./forwarded";
@@ -276,7 +280,11 @@ export function createWallowBffServer(options: WallowBffServerOptions = {}): Wal
       const subPath: string | null = bffSubPath(new URL(request.url).pathname);
       const handler: BffHandler | undefined = subPath === null ? undefined : routes[subPath];
       if (handler === undefined) {
-        return Promise.resolve(new Response(null, { status: NOT_FOUND_STATUS }));
+        return Promise.resolve(
+          problemResponse(NOT_FOUND_STATUS, ErrorCode.HTTP_NOT_FOUND, {
+            requestId: resolveRequestId(request.headers),
+          }),
+        );
       }
       return handler(request);
     },

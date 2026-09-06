@@ -44,6 +44,14 @@ const SESSION_EXPIRED_DETAIL: string = "Your session has expired. Please sign in
  * them (a BFF that cannot reach the API is not the user's connection).
  */
 const PROBLEM_COPY: Readonly<Record<string, ProblemCopy>> = {
+  [ErrorCode.VALIDATION_FAILED]: {
+    title: "Validation failed",
+    detail: "The request is invalid. Check the request and try again.",
+  },
+  [ErrorCode.HTTP_METHOD_NOT_ALLOWED]: {
+    title: "Method not allowed",
+    detail: "This HTTP method is not allowed for this endpoint.",
+  },
   [ErrorCode.HTTP_NOT_FOUND]: {
     title: "Not found",
     detail: "That could not be found.",

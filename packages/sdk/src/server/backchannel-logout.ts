@@ -11,9 +11,12 @@
  * "invalid_request"}` so nothing about the session population leaks.
  */
 
+import { ErrorCode } from "@bc-solutions-coder/api-errors";
 import { createRemoteJWKSet, jwtVerify, type JWTPayload, type JWTVerifyResult } from "jose";
 import { tokenRevocation, type Configuration } from "openid-client";
 
+import { resolveRequestId } from "../request-id";
+import { problemResponse } from "./problem";
 import type { BffConfig } from "./config";
 import type { BffHandler } from "./handlers";
 import { discover, type DiscoveryDoc } from "./oidc";
@@ -197,9 +200,9 @@ async function revokeUpstreamTokens(doc: DiscoveryDoc, revoked: BffSession[]): P
 export function createBackchannelLogoutHandler(config: BffConfig, store: SessionStore): BffHandler {
   return async (request: Request): Promise<Response> => {
     if (request.method.toUpperCase() !== BACKCHANNEL_METHOD) {
-      return new Response(null, {
-        status: METHOD_NOT_ALLOWED_STATUS,
-        headers: { ...NO_STORE_HEADERS, allow: BACKCHANNEL_METHOD },
+      return problemResponse(METHOD_NOT_ALLOWED_STATUS, ErrorCode.HTTP_METHOD_NOT_ALLOWED, {
+        requestId: resolveRequestId(request.headers),
+        headers: new Headers({ ...NO_STORE_HEADERS, allow: BACKCHANNEL_METHOD }),
       });
     }
 

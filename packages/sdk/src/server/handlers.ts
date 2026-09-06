@@ -12,7 +12,7 @@
  * Cookie parsing and serialization come from `cookie-es` — the same layer h3
  * used underneath `getCookie`/`setCookie`, so the wire format is unchanged.
  */
-import { ClientErrorCode } from "@bc-solutions-coder/api-errors";
+import { ClientErrorCode, ErrorCode } from "@bc-solutions-coder/api-errors";
 import { parse as parseCookies, serialize as serializeCookie } from "cookie-es";
 
 import { isSafeReturnUrl } from "../auth-oidc";
@@ -490,7 +490,9 @@ export function createBffHandlers(
       const txName: string = txCookieName(config.cookieName);
       const sealedTx: string | undefined = requestCookie(request, txName);
       if (sealedTx === undefined || sealedTx === "") {
-        return new Response(null, { status: BAD_REQUEST_STATUS });
+        return problemResponse(BAD_REQUEST_STATUS, ErrorCode.VALIDATION_FAILED, {
+          requestId: resolveRequestId(request.headers),
+        });
       }
 
       const tx: LoginTx | null = await unsealTx(
@@ -501,7 +503,10 @@ export function createBffHandlers(
       appendCookie(headers, txName, "", clearCookieOpts(config));
 
       if (tx === null || code === null || state === null || state !== tx.state) {
-        return new Response(null, { status: BAD_REQUEST_STATUS, headers });
+        return problemResponse(BAD_REQUEST_STATUS, ErrorCode.VALIDATION_FAILED, {
+          requestId: resolveRequestId(request.headers),
+          headers,
+        });
       }
 
       const doc: DiscoveryDoc = await discover(config);
@@ -580,9 +585,9 @@ export function createBffHandlers(
       // rejected logout that still cleared them is the same denial of service
       // wearing a 403.
       if (request.method.toUpperCase() !== LOGOUT_METHOD) {
-        return new Response(null, {
-          status: METHOD_NOT_ALLOWED_STATUS,
-          headers: { allow: LOGOUT_METHOD },
+        return problemResponse(METHOD_NOT_ALLOWED_STATUS, ErrorCode.HTTP_METHOD_NOT_ALLOWED, {
+          requestId: resolveRequestId(request.headers),
+          headers: new Headers({ allow: LOGOUT_METHOD }),
         });
       }
 
@@ -641,9 +646,9 @@ export function createBffHandlers(
       // what stops a forged teardown: an attacker who can make the browser GET
       // this URL still cannot know the OP-issued session id.
       if (request.method.toUpperCase() !== FRONTCHANNEL_METHOD) {
-        return new Response(null, {
-          status: METHOD_NOT_ALLOWED_STATUS,
-          headers: { allow: FRONTCHANNEL_METHOD },
+        return problemResponse(METHOD_NOT_ALLOWED_STATUS, ErrorCode.HTTP_METHOD_NOT_ALLOWED, {
+          requestId: resolveRequestId(request.headers),
+          headers: new Headers({ allow: FRONTCHANNEL_METHOD }),
         });
       }
 
