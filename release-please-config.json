@@ -26,6 +26,13 @@
       "component": "sdk",
       "include-component-in-tag": true,
       "changelog-path": "CHANGELOG.md"
+    },
+    "packages/telemetry": {
+      "release-type": "node",
+      "package-name": "@bc-solutions-coder/telemetry",
+      "component": "telemetry",
+      "include-component-in-tag": true,
+      "changelog-path": "CHANGELOG.md"
     }
   }
 }
