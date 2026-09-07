@@ -29,3 +29,9 @@ Use behavior-focused Python tests and actual temporary archives/HTTP responses, 
 ## Initial state
 
 The worktree starts at the shared-validation branch rebased onto main `72203c76`. Its 22 Python behavior tests and Actionlint pass, and dependency installation completed with the frozen lockfile. #280 is still open: private browser diagnosis, restricted tailnet grants, hosted-main signed cache evidence and protection/merge cutover remain. No publication capability has been enabled.
+
+## Image preparation progress
+
+The image inspector verifies exact local tags/platforms, content-addressed configurations and every uncompressed layer against configuration diff IDs without loading containers. It accepts the plain regular-file/directory Docker-save format produced by CI and rejects extended TAR headers before metadata parsing. Shared archive handling bounds decompressed bytes; image inspection also bounds member count and JSON metadata. Behavior checks cover altered layers, missing images, wrong platforms/tags, malformed configuration addresses, unsafe members and extended headers.
+
+The actual private acceptance infrastructure export from run `34167381437`, attempt 1, artifact `10034755096` passed inspection for Garage and Postgres Replica on both AMD64 and ARM64. This proves archive inspection only; registry copies, fresh scanning, release authorization and publication readback remain open. All publication capabilities remain disabled.
