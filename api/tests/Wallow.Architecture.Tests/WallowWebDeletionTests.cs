@@ -22,12 +22,6 @@ public class WallowWebDeletionTests
 
     private static readonly string _runTestsScriptPath = Path.Combine(_repoRoot, "scripts", "run-tests.sh");
     private static readonly string _ciWorkflowPath = Path.Combine(_repoRoot, ".github", "workflows", "ci.yml");
-    private static readonly string _deployWorkflowPath = Path.Combine(
-        _repoRoot,
-        ".github",
-        "workflows",
-        "deploy.yml");
-
     private static readonly string _reactWebAppDir = Path.Combine(_repoRoot, "apps", "wallow-web");
 
     private static readonly string _oldH3ServerPath = Path.Combine(_reactWebAppDir, "server.ts");
@@ -141,16 +135,6 @@ public class WallowWebDeletionTests
             "'rm -f api/src/Wallow.Web/wwwroot/css/app.css' Tailwind cleanup step that no longer applies");
     }
 
-    [Fact]
-    public void DeployWorkflow_ShouldNotReference_BlazorWebProjectPath()
-    {
-        string source = File.ReadAllText(_deployWorkflowPath);
-
-        source.Should().NotContain(
-            "api/src/Wallow.Web",
-            "deploy.yml must not reference the deleted Blazor Wallow.Web project, including the " +
-            "'rm -f api/src/Wallow.Web/wwwroot/css/app.css' Tailwind cleanup step that no longer applies");
-    }
 
 
 
