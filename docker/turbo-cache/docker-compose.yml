@@ -17,14 +17,16 @@ services:
       # key. Clients sign and verify; never give the server the signing key.
       TURBO_REMOTE_CACHE_SIGNATURE_KEY: enabled
       STORAGE_PROVIDER: local
-      STORAGE_PATH: /cache
-      # Default is true, which would prefix STORAGE_PATH with the system tmp
-      # dir - and lose the whole cache on reboot.
+      STORAGE_PATH: /tmp/turbo-cache
+      # Use this exact path inside the persistent volume.
       STORAGE_PATH_USE_TMP_FOLDER: "false"
       LOG_LEVEL: info
       ENABLE_STATUS_LOG: "false"
     volumes:
-      - turbo-cache-data:/cache
+      # /tmp exists in the image with mode 1777, so a fresh volume lets the
+      # non-root service create its own cache directory without host chown.
+      # Existing volumes retain their permissions and may need owner repair.
+      - turbo-cache-data:/tmp
     ports:
       - "${TURBO_CACHE_BIND_ADDR:-127.0.0.1}:3000:3000"
 
