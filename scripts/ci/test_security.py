@@ -1,4 +1,5 @@
 import copy
+import hashlib
 from datetime import datetime, timezone
 import unittest
 
@@ -56,6 +57,53 @@ class SecurityTests(unittest.TestCase):
         report['runs'][0]['invocations'] = [{'executionSuccessful': False}]
         with self.assertRaises(ValueError):
             security.codeql(report)
+
+    def test_codeql_exact_selector_preserves_neighboring_findings(self):
+        message = 'User-controlled consent guards an action.'
+        result = {'ruleId': 'cs/bypass', 'message': {'text': message},
+                  'partialFingerprints': {'primaryLocationLineHash': 'abc123:1'},
+                  'locations': [{'physicalLocation': {'artifactLocation': {'uri': 'api/A.cs'}}}]}
+        report = {'version': '2.1.0', 'runs': [{'tool': {'driver': {'name': 'CodeQL', 'rules': [
+            {'id': 'cs/bypass', 'properties': {'security-severity': '8.1'}}]}}, 'results': [result]}]}
+        exception = dict(scanner='codeql', id='cs/bypass', scope='api/A.cs',
+                         primary_location_line_hash='abc123:1',
+                         message_sha256=hashlib.sha256(message.encode()).hexdigest())
+        for changed in ('fingerprint', 'message', 'missing_fingerprint', 'missing_message'):
+            neighbor = copy.deepcopy(result)
+            if changed == 'fingerprint':
+                neighbor['partialFingerprints']['primaryLocationLineHash'] = 'def456:1'
+            elif changed == 'message':
+                neighbor['message']['text'] = 'User-controlled authentication guards an action.'
+            elif changed == 'missing_fingerprint':
+                del neighbor['partialFingerprints']
+            else:
+                del neighbor['message']
+            report['runs'][0]['results'] = [result, neighbor]
+            findings = security.apply_exceptions(security.codeql(report), [exception])
+            self.assertTrue(findings[0]['excepted'])
+            self.assertTrue(findings[1]['blocking'])
+            self.assertFalse(findings[1]['excepted'], changed)
+
+    def test_codeql_exception_requires_selectors_and_bounded_expiry(self):
+        now = datetime(2026, 9, 7, tzinfo=timezone.utc)
+        item = dict(scanner='codeql', id='cs/bypass', scope='api/A.cs', owner='maintainer',
+                    reason='Reviewed consent condition', tracking='https://github.com/a/b/issues/1',
+                    created='2026-09-01T00:00:00Z', expires='2026-10-01T00:00:00Z',
+                    primary_location_line_hash='abc123:1', message_sha256='a' * 64)
+        security.validate_exceptions({'exceptions': [item]}, now)
+        for key in ('primary_location_line_hash', 'message_sha256'):
+            bad = dict(item)
+            del bad[key]
+            with self.assertRaises(ValueError):
+                security.validate_exceptions({'exceptions': [bad]}, now)
+            with self.assertRaises(ValueError):
+                security.apply_exceptions([], [bad])
+        for field, value in [('primary_location_line_hash', '*'), ('message_sha256', 'invalid'),
+                             ('expires', '2026-10-01T00:00:01Z'), ('expires', '2026-09-07T00:00:00Z')]:
+            with self.assertRaises(ValueError, msg=field):
+                security.validate_exceptions({'exceptions': [dict(item, **{field: value})]}, now)
+        with self.assertRaises(ValueError):
+            security.validate_exceptions({'exceptions': [item, item]}, now)
 
     def test_trivy_only_fixable_high_blocks(self):
         report = {'SchemaVersion': 2, 'Results': [{'Target': 'pnpm-lock.yaml', 'Packages': [{'Name': 'a'}], 'Vulnerabilities': [
