@@ -96,6 +96,43 @@ class TransportTests(unittest.TestCase):
             self.client.get('/metadata')
         self.assertEqual(self.requests, [('/repos/example/repo/metadata', 'Bearer disposable-token')])
 
+    def producer_responses(self):
+        sha, main_sha = 'a' * 40, 'b' * 40
+        repository = {'id': 1, 'full_name': 'example/repo', 'default_branch': 'main'}
+        workflow = {'id': 10, 'path': '.github/workflows/ci.yml'}
+        run = {'id': 20, 'run_attempt': 2, 'workflow_id': 10, 'path': workflow['path'], 'event': 'push', 'head_branch': 'main', 'head_sha': sha, 'repository': repository, 'head_repository': repository, 'status': 'completed', 'conclusion': 'success'}
+        gate = {'id': 30, 'run_id': 20, 'run_attempt': 2, 'head_sha': sha, 'name': 'CI / required', 'status': 'completed', 'conclusion': 'success', 'check_run_url': 'https://api.github.com/repos/example/repo/check-runs/40'}
+        check = {'id': 40, 'name': 'CI / required', 'head_sha': sha, 'status': 'completed', 'conclusion': 'success', 'app': {'id': 15368, 'slug': 'github-actions'}}
+        values = {
+            '': repository, '/actions/workflows/ci.yml': workflow,
+            '/actions/runs/20/attempts/2': run,
+            '/actions/runs/20/attempts/2/jobs?per_page=100&page=1': {'total_count': 1, 'jobs': [gate]},
+            '/git/ref/heads/main': {'ref': 'refs/heads/main', 'object': {'type': 'commit', 'sha': main_sha}},
+            f'/compare/{sha}...{main_sha}': {'status': 'ahead', 'base_commit': {'sha': sha}, 'merge_base_commit': {'sha': sha}},
+            '/check-runs/40': check,
+        }
+        for path, value in values.items():
+            self.responses['/repos/example/repo' + path] = (200, {}, json.dumps(value).encode())
+        return values
+
+    def test_authorizes_exact_attempt_against_observed_main_tip(self):
+        self.producer_responses()
+        producer, jobs = self.client.producer(20, 2)
+        self.assertEqual((producer.run_id, producer.run_attempt, producer.source_sha), (20, 2, 'a' * 40))
+        self.assertEqual(len(jobs), 1)
+        paths = [path for path, _ in self.requests]
+        self.assertIn('/repos/example/repo/compare/' + 'a' * 40 + '...' + 'b' * 40, paths)
+        self.assertFalse(any('latest' in path for path in paths))
+
+    def test_rejects_foreign_check_url_without_requesting_it(self):
+        values = self.producer_responses()
+        path = '/actions/runs/20/attempts/2/jobs?per_page=100&page=1'
+        values[path]['jobs'][0]['check_run_url'] = 'https://api.github.com/repos/foreign/repo/check-runs/40'
+        self.responses['/repos/example/repo' + path] = (200, {}, json.dumps(values[path]).encode())
+        with self.assertRaises(PublicationError):
+            self.client.producer(20, 2)
+        self.assertFalse(any('/check-runs/' in path for path, _ in self.requests))
+
 
 if __name__ == '__main__':
     unittest.main()
