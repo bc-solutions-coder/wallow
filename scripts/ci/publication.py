@@ -1,6 +1,7 @@
 """Validate publication configuration and exact, authorized output identities."""
 
 import argparse
+from dataclasses import dataclass
 import json
 from pathlib import Path
 import re
@@ -8,6 +9,116 @@ import re
 
 class PublicationError(ValueError):
     pass
+
+
+@dataclass(frozen=True)
+class Producer:
+    repository: str
+    repository_id: int
+    source_sha: str
+    run_id: int
+    run_attempt: int
+    workflow_id: int
+    workflow_ref: str
+
+
+def positive_integer(value):
+    return type(value) is int and value > 0
+
+
+def main_ancestor(comparison, sha):
+    return (
+        isinstance(comparison, dict)
+        and comparison.get('status') in ('ahead', 'identical')
+        and isinstance(comparison.get('base_commit'), dict)
+        and comparison['base_commit'].get('sha') == sha
+        and isinstance(comparison.get('merge_base_commit'), dict)
+        and comparison['merge_base_commit'].get('sha') == sha
+    )
+
+
+def authorize_controller(context, repository, comparison):
+    """Comparison must be fetched for workflow_sha...the observed main tip."""
+    if not isinstance(context, dict) or not isinstance(repository, dict):
+        raise PublicationError('Missing controller or repository metadata')
+    name = repository.get('full_name')
+    if not matches(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', name) or repository.get('default_branch') != 'main':
+        raise PublicationError('Publication requires a repository with main as its default branch')
+    sha = context.get('workflow_sha')
+    if (
+        context.get('repository') != name
+        or context.get('ref') != 'refs/heads/main'
+        or context.get('workflow_ref') != name + '/.github/workflows/publish.yml@refs/heads/main'
+        or context.get('event_name') not in ('workflow_run', 'workflow_dispatch')
+        or not matches(r'[0-9a-f]{40}', sha)
+        or not main_ancestor(comparison, sha)
+    ):
+        raise PublicationError('Publication control code is not an approved main workflow revision')
+    return sha
+
+
+def authorize_main_producer(repository, workflow, run, run_id, attempt, jobs, required_check, comparison):
+    """Authorize API-fetched metadata; comparison is head_sha...observed main tip."""
+    if not all(isinstance(value, dict) for value in (repository, workflow, run, required_check)) or not isinstance(jobs, list):
+        raise PublicationError('Missing producer authorization metadata')
+    name = repository.get('full_name')
+    repository_id = repository.get('id')
+    workflow_id = workflow.get('id')
+    if not matches(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', name) or not positive_integer(repository_id) or repository.get('default_branch') != 'main':
+        raise PublicationError('Invalid producer repository')
+    if not positive_integer(workflow_id) or workflow.get('path') != '.github/workflows/ci.yml':
+        raise PublicationError('Unexpected CI workflow identity')
+    if not all(positive_integer(value) for value in (run_id, attempt, run.get('id'), run.get('run_attempt'))) or run['id'] != run_id or run['run_attempt'] != attempt:
+        raise PublicationError('Requested producer run or attempt does not match')
+    for key in ('repository', 'head_repository'):
+        identity = run.get(key)
+        if not isinstance(identity, dict) or not positive_integer(identity.get('id')) or identity['id'] != repository_id or identity.get('full_name') != name:
+            raise PublicationError('Producer belongs to a foreign repository')
+    sha = run.get('head_sha')
+    if (
+        not positive_integer(run.get('workflow_id'))
+        or run['workflow_id'] != workflow_id
+        or run.get('path') != workflow['path']
+        or run.get('event') != 'push'
+        or run.get('head_branch') != 'main'
+        or run.get('status') != 'completed'
+        or run.get('conclusion') != 'success'
+        or not matches(r'[0-9a-f]{40}', sha)
+        or not main_ancestor(comparison, sha)
+    ):
+        raise PublicationError('Producer is not a successful approved main CI push')
+    if any(not isinstance(job, dict) for job in jobs):
+        raise PublicationError('Malformed producer job metadata')
+    gates = [job for job in jobs if job.get('name') == 'CI / required']
+    if len(gates) != 1:
+        raise PublicationError('Producer must contain exactly one required aggregate job')
+    gate = gates[0]
+    if (
+        not positive_integer(gate.get('id'))
+        or not positive_integer(gate.get('run_id'))
+        or not positive_integer(gate.get('run_attempt'))
+        or gate.get('run_id') != run_id
+        or gate.get('run_attempt') != attempt
+        or gate.get('head_sha') != sha
+        or gate.get('status') != 'completed'
+        or gate.get('conclusion') != 'success'
+    ):
+        raise PublicationError('Required aggregate does not prove this producer attempt')
+    app = required_check.get('app')
+    if (
+        required_check.get('name') != 'CI / required'
+        or required_check.get('head_sha') != sha
+        or required_check.get('status') != 'completed'
+        or required_check.get('conclusion') != 'success'
+        or not isinstance(app, dict)
+        or not positive_integer(app.get('id'))
+        or app.get('id') != 15368
+        or app.get('slug') != 'github-actions'
+        or not positive_integer(required_check.get('id'))
+        or gate.get('check_run_url') != f"https://api.github.com/repos/{name}/check-runs/{required_check['id']}"
+    ):
+        raise PublicationError('Required check is not the expected GitHub Actions check for this job')
+    return Producer(name, repository_id, sha, run_id, attempt, workflow_id, name + '/.github/workflows/ci.yml@refs/heads/main')
 
 
 def fields(value, required, optional=()):
