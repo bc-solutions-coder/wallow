@@ -1,0 +1,138 @@
+{
+  "schema": 1,
+  "default_branch": "main",
+  "producer_workflow": ".github/workflows/ci.yml",
+  "package_registry": "https://npm.pkg.github.com",
+  "package_scope": "@bc-solutions-coder",
+  "components": [
+    {
+      "id": "platform",
+      "path": ".",
+      "tag_prefix": "v"
+    },
+    {
+      "id": "api-errors",
+      "path": "packages/api-errors",
+      "tag_prefix": "api-errors-v",
+      "package": {
+        "name": "@bc-solutions-coder/api-errors",
+        "tarball": "api-errors.tgz"
+      }
+    },
+    {
+      "id": "sdk",
+      "path": "packages/sdk",
+      "tag_prefix": "sdk-v",
+      "package": {
+        "name": "@bc-solutions-coder/sdk",
+        "tarball": "sdk.tgz"
+      }
+    },
+    {
+      "id": "telemetry",
+      "path": "packages/telemetry",
+      "tag_prefix": "telemetry-v",
+      "package": {
+        "name": "@bc-solutions-coder/telemetry",
+        "tarball": "telemetry.tgz"
+      }
+    }
+  ],
+  "images": [
+    {
+      "id": "api",
+      "repository_suffix": "",
+      "bundle": "app",
+      "component": "platform",
+      "tags": {
+        "linux/amd64": "wallow-api:test",
+        "linux/arm64": "wallow-api:test-arm64"
+      },
+      "build_args": {}
+    },
+    {
+      "id": "auth",
+      "repository_suffix": "-auth",
+      "bundle": "app",
+      "component": "platform",
+      "tags": {
+        "linux/amd64": "wallow-auth-react:test",
+        "linux/arm64": "wallow-auth-react:test-arm64"
+      },
+      "build_args": {
+        "AUTH_BASE_PATH": ""
+      }
+    },
+    {
+      "id": "web",
+      "repository_suffix": "-web",
+      "bundle": "app",
+      "component": "platform",
+      "tags": {
+        "linux/amd64": "wallow-web-react:test",
+        "linux/arm64": "wallow-web-react:test-arm64"
+      },
+      "build_args": {}
+    },
+    {
+      "id": "migrations",
+      "repository_suffix": "-migrations",
+      "bundle": "app",
+      "component": "platform",
+      "tags": {
+        "linux/amd64": "wallow-migrations:test",
+        "linux/arm64": "wallow-migrations:test-arm64"
+      },
+      "build_args": {}
+    },
+    {
+      "id": "seeder",
+      "repository_suffix": "-seeder",
+      "bundle": "app",
+      "component": "platform",
+      "tags": {
+        "linux/amd64": "wallow-seeder:test",
+        "linux/arm64": "wallow-seeder:test-arm64"
+      },
+      "build_args": {}
+    },
+    {
+      "id": "garage",
+      "repository_suffix": "-garage",
+      "bundle": "infra",
+      "component": "platform",
+      "tags": {
+        "linux/amd64": "wallow-garage:test",
+        "linux/arm64": "wallow-garage:test-arm64"
+      },
+      "build_args": {}
+    },
+    {
+      "id": "postgres-replica",
+      "repository_suffix": "-postgres-replica",
+      "bundle": "infra",
+      "component": "platform",
+      "tags": {
+        "linux/amd64": "wallow-postgres-replica:latest",
+        "linux/arm64": "wallow-postgres-replica:test-arm64"
+      },
+      "build_args": {}
+    },
+    {
+      "id": "docs",
+      "repository_suffix": "-docs",
+      "bundle": "docs",
+      "component": "platform",
+      "tags": {
+        "linux/amd64": "wallow-docs:test",
+        "linux/arm64": "wallow-docs:test-arm64"
+      },
+      "build_args": {}
+    }
+  ],
+  "docs": {
+    "bundle": "docs",
+    "payload": "site.tar.gz",
+    "variant": "docfx"
+  }
+}
