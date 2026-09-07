@@ -7,7 +7,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from publication import PublicationError, matches, positive_integer
+from publication import PublicationError, authorize_main_producer, matches, positive_integer
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -24,7 +24,7 @@ class GitHub:
         self.opener = opener or urllib.request.build_opener(NoRedirect())
 
     def request(self, path):
-        if not path.startswith('/') or any(part in ('.', '..') for part in path.split('/')) or any(character in path for character in ('#', '\\', '\r', '\n')):
+        if (path and not path.startswith('/')) or any(part in ('.', '..') for part in path.split('/')) or any(character in path for character in ('#', '\\', '\r', '\n')):
             raise PublicationError('Invalid GitHub API path')
         return urllib.request.Request('https://api.github.com/repos/' + self.repository + path, headers={
             'Authorization': 'Bearer ' + self.token,
@@ -65,6 +65,33 @@ class GitHub:
             if not data[key] or len(results) > expected:
                 break
         raise PublicationError('GitHub collection could not be read completely')
+
+    def producer(self, run_id, attempt):
+        """Resolve one explicit attempt; never substitute a newer successful run."""
+        if not positive_integer(run_id) or not positive_integer(attempt):
+            raise PublicationError('An explicit producer run and attempt are required')
+        repository = self.get('')
+        workflow = self.get('/actions/workflows/ci.yml')
+        run = self.get(f'/actions/runs/{run_id}/attempts/{attempt}')
+        jobs = self.list(f'/actions/runs/{run_id}/attempts/{attempt}/jobs', 'jobs')
+        if not isinstance(run, dict) or not matches(r'[0-9a-f]{40}', run.get('head_sha')):
+            raise PublicationError('Missing producer source revision')
+        main = self.get('/git/ref/heads/main')
+        if not isinstance(main, dict) or main.get('ref') != 'refs/heads/main' or not isinstance(main.get('object'), dict) or main['object'].get('type') != 'commit' or not matches(r'[0-9a-f]{40}', main['object'].get('sha')):
+            raise PublicationError('Could not resolve the current main revision')
+        comparison = self.get(f"/compare/{run['head_sha']}...{main['object']['sha']}")
+        gates = [job for job in jobs if isinstance(job, dict) and job.get('name') == 'CI / required']
+        if len(gates) != 1:
+            raise PublicationError('Missing or ambiguous producer aggregate')
+        prefix = f'https://api.github.com/repos/{self.repository}/check-runs/'
+        url = gates[0].get('check_run_url')
+        if not isinstance(url, str) or not url.startswith(prefix) or not matches(r'[1-9][0-9]*', url[len(prefix):]):
+            raise PublicationError('Required check does not belong to this repository')
+        check = self.get('/check-runs/' + url[len(prefix):])
+        producer = authorize_main_producer(repository, workflow, run, run_id, attempt, jobs, check, comparison)
+        if producer.repository != self.repository:
+            raise PublicationError('GitHub repository identity differs from the requested repository')
+        return producer, jobs
 
     def download(self, artifact, destination):
         if not positive_integer(artifact.id) or not positive_integer(artifact.size) or not matches(r'sha256:[0-9a-f]{64}', artifact.digest):
