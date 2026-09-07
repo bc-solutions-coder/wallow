@@ -6,10 +6,7 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.OAuth2;
 
 /// <summary>
-/// Covers OAuth2 token acquisition at OpenIddict's token endpoint: the client-credentials grant,
-/// and the refresh grant's rebuilding of the identity — which resolves roles afresh rather than
-/// carrying the incoming principal's forward, so a role held in one organization cannot ride a
-/// refresh into a token issued for another.
+/// Checks client-credentials acquisition and organization-role isolation in refreshed tokens.
 /// </summary>
 [Trait("Category", "Integration")]
 public class TokenAcquisitionTests(WallowApiFactory factory) : IdentityIntegrationTestBase(factory)
@@ -23,8 +20,7 @@ public class TokenAcquisitionTests(WallowApiFactory factory) : IdentityIntegrati
         string suffix = Guid.NewGuid().ToString("N");
         string email = $"refresh-{suffix}@wallow.dev";
 
-        // Creating an organization enrolls its creator as an admin, so owning A is how this user
-        // comes to hold a role that must not reach a token issued for B.
+        // Ownership grants admin in A; that role must not appear in the token for B.
         Guid userId = await AuthorizationCodeFlowHarness.CreateUserAsync(ScopedServices, email, Password);
         await AuthorizationCodeFlowHarness.CreateOrganizationAsync(
             ScopedServices, $"Refresh Org A {suffix}", userId);
@@ -114,7 +110,7 @@ public class TokenAcquisitionTests(WallowApiFactory factory) : IdentityIntegrati
 
     private async Task<HttpResponseMessage> PostTokenRequestAsync(string clientId, string clientSecret)
     {
-        // Use a separate HttpClient without the default test auth header
+        // Send the token request without synthetic authentication headers.
         HttpClient tokenClient = Factory.CreateClient();
         tokenClient.DefaultRequestHeaders.Remove("Authorization");
 

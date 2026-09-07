@@ -94,23 +94,21 @@ public static class ClaimsPrincipalExtensions
         principal?.FindFirst(ClaimTypes.Surname)?.Value;
 
     /// <summary>
-    /// Indicates whether the caller carries the explicit platform operator flag, granting
-    /// cross-tenant privileges such as the X-Tenant-Id override. Only the literal value
-    /// "true" on the "is_operator" claim grants it; absence or any other value does not.
+    /// Whether <c>is_operator</c> parses as true, allowing operator privileges.
+    /// Parsing ignores case and surrounding whitespace; missing or invalid values are false.
     /// </summary>
     public static bool IsOperator(this ClaimsPrincipal? principal) =>
         bool.TryParse(principal?.FindFirst(OperatorClaimType)?.Value, out bool isOperator) && isOperator;
 
     /// <summary>
-    /// Indicates whether the caller carries the explicit global administrator flag, granting
-    /// governance across every tenant. Only the literal value "true" on the "is_global_admin"
-    /// claim grants it; absence or any other value does not.
+    /// Whether <c>is_global_admin</c> parses as true, allowing global administration.
+    /// Parsing ignores case and surrounding whitespace; missing or invalid values are false.
     /// </summary>
     public static bool IsGlobalAdmin(this ClaimsPrincipal? principal) =>
         bool.TryParse(principal?.FindFirst(GlobalAdminClaimType)?.Value, out bool isGlobalAdmin) && isGlobalAdmin;
 
     /// <summary>
-    /// Returns all roles from both ClaimTypes.Role and OIDC "role" claims, deduplicated.
+    /// Returns all roles from both ClaimTypes.Role and OIDC "role" claims, deduplicated without regard to case.
     /// </summary>
     public static IReadOnlyList<string> GetRoles(this ClaimsPrincipal? principal)
     {
@@ -142,7 +140,7 @@ public static class ClaimsPrincipalExtensions
     }
 
     /// <summary>
-    /// Returns all OAuth2 scopes from "scope" (space-separated) and "oi_scp" (OpenIddict) claims, deduplicated.
+    /// Returns all OAuth2 scopes from "scope" (space-separated) and "oi_scp" (OpenIddict) claims, deduplicated without regard to case.
     /// </summary>
     public static IReadOnlyList<string> GetScopes(this ClaimsPrincipal? principal)
     {

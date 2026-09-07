@@ -3,8 +3,7 @@ namespace Wallow.Tests.Common.Helpers;
 public static class JwtTokenHelper
 {
     /// <summary>
-    /// Token prefix used to encode user information for TestAuthHandler.
-    /// Format: test-token:userId:role1,role2
+    /// Prefix for test credentials formatted as <c>test-token:userId:role1,role2</c>.
     /// </summary>
     public const string TokenPrefix = "test-token:";
 
@@ -12,17 +11,14 @@ public static class JwtTokenHelper
         string userId,
         string[]? roles = null)
     {
-        // With TestAuthHandler, tokens are no longer validated.
-        // Encode the user ID and roles in the token so TestAuthHandler can extract them.
-        // This is needed for SignalR tests where we can't use X-Test-User-Id headers.
-        // Format: test-token:userId:role1,role2
+        // SignalR tests carry the synthetic identity in the access token.
         string rolesString = roles != null ? string.Join(",", roles) : "admin";
         return $"{TokenPrefix}{userId}:{rolesString}";
     }
 
     /// <summary>
-    /// Parses a test token to extract user ID and roles.
-    /// Returns null if the token is not a valid test token.
+    /// Reads the user ID and comma-separated roles from a test-prefixed credential.
+    /// Missing or empty roles default to admin; a missing prefix returns null.
     /// </summary>
     public static (string UserId, string[] Roles)? ParseToken(string? token)
     {

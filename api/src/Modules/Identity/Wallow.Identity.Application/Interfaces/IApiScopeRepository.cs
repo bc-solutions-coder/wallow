@@ -3,7 +3,7 @@ using Wallow.Identity.Domain.Entities;
 namespace Wallow.Identity.Application.Interfaces;
 
 /// <summary>
-/// Repository for managing API scopes.
+/// Persistence boundary for the API scope catalog.
 /// </summary>
 public interface IApiScopeRepository
 {
@@ -13,17 +13,17 @@ public interface IApiScopeRepository
     Task<IReadOnlyList<ApiScope>> GetAllAsync(string? category = null, CancellationToken ct = default);
 
     /// <summary>
-    /// Gets API scopes by their codes.
+    /// Returns matching catalog entries; unknown codes are omitted.
     /// </summary>
     Task<IReadOnlyList<ApiScope>> GetByCodesAsync(IEnumerable<string> codes, CancellationToken ct = default);
 
     /// <summary>
-    /// Adds a new API scope.
+    /// Tracks a new scope for the next save.
     /// </summary>
     void Add(ApiScope scope);
 
     /// <summary>
-    /// Saves changes to the database.
+    /// Persists tracked scope changes.
     /// </summary>
     Task SaveChangesAsync(CancellationToken ct = default);
 }

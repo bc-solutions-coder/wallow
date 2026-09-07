@@ -8,11 +8,8 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.OrganizationClients;
 
 /// <summary>
-/// Secret rotation on the org-scoped client surface: the new secret is revealed once and works
-/// immediately, the old one stops working at the same moment, and the optional
-/// <c>revokeActiveTokens</c> flag ends every token the client was already issued. Proven against
-/// the real token endpoint and, for bearer calls, the real validation handler (the stub scheme is
-/// bypassed per request).
+/// Checks new and old secrets after rotation, secret omission from client reads,
+/// and optional revocation of issued tokens.
 /// </summary>
 [Trait("Category", "Integration")]
 public class ClientSecretRotationTests(WallowApiFactory factory) : OrganizationClientsTestBase(factory)
@@ -40,7 +37,7 @@ public class ClientSecretRotationTests(WallowApiFactory factory) : OrganizationC
         (await ClientCredentialsAsync(clientId, oldSecret)).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         (await ClientCredentialsAsync(clientId, newSecret)).StatusCode.Should().Be(HttpStatusCode.OK);
 
-        // The reveal is one-time: no read path carries the secret afterwards.
+        // The client read response must not repeat the new secret.
         HttpResponseMessage read = await Client.GetAsync($"/identity/organizations/{orgId}/clients/{clientId}");
         string readBody = await read.Content.ReadAsStringAsync();
         readBody.Should().NotContain(newSecret).And.NotContain("clientSecret");
@@ -60,7 +57,7 @@ public class ClientSecretRotationTests(WallowApiFactory factory) : OrganizationC
         refreshed.StatusCode.Should().Be(HttpStatusCode.OK, refreshed.Body);
         refreshed.AccessToken.Should().NotBeNullOrEmpty();
 
-        // The old secret is gone even for a refresh the grant would otherwise have allowed.
+        // Refresh must also reject the old client secret.
         TokenOutcome withOldSecret = await Harness.RefreshAsync(clientId, oldSecret, refreshed.RefreshToken!);
         withOldSecret.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         withOldSecret.Error.Should().Be("invalid_client");

@@ -1,10 +1,7 @@
 namespace Wallow.Api.Extensions;
 
 /// <summary>
-/// Fixed-window rate-limit settings, bound from the <c>RateLimiting</c> configuration
-/// section. Defaults come from <see cref="RateLimitDefaults"/>; the Testing environment
-/// overrides them with generous values in <c>appsettings.Testing.json</c> so functional
-/// suites exercise the limiter without tripping it.
+/// RateLimiting configuration for fixed-window policies, initialized from <see cref="RateLimitDefaults"/>.
 /// </summary>
 public sealed class RateLimitingOptions
 {

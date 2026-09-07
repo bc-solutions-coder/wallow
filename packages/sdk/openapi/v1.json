@@ -1109,7 +1109,7 @@
           "ApiKeys"
         ],
         "summary": "Create a new API key for the current user.",
-        "description": "Creates an API key that can be used for service-to-service authentication.\nThe full API key is only returned once in this response - store it securely!\n\nThe key will be scoped to the current user's tenant.\n\nExample request:\n```json\n{\n  \"name\": \"Production Backend\",\n  \"scopes\": [\"storage.read\", \"storage.write\"],\n  \"expiresAt\": \"2027-01-01T00:00:00Z\"\n}\n```",
+        "description": "The key belongs to the current user and tenant. Store the full key securely;\nthis is the only response that returns it.\n\nExample request:\n```json\n{\n  \"name\": \"Production Backend\",\n  \"scopes\": [\"storage.read\", \"storage.write\"],\n  \"expiresAt\": \"2027-01-01T00:00:00Z\"\n}\n```",
         "operationId": "ApiKeysCreateApiKey",
         "requestBody": {
           "content": {
@@ -1228,8 +1228,8 @@
         "tags": [
           "ApiKeys"
         ],
-        "summary": "List all API keys for the current user.",
-        "description": "Returns metadata for all API keys belonging to the authenticated user.\nThe actual key values are not returned - only the prefix for identification.",
+        "summary": "List unrevoked API keys for the current user and tenant.",
+        "description": "Returns metadata without plaintext key values.",
         "operationId": "ApiKeysListApiKeys",
         "responses": {
           "200": {
@@ -1330,7 +1330,7 @@
           "ApiKeys"
         ],
         "summary": "Revoke an API key.",
-        "description": "Permanently revokes an API key. This action cannot be undone.\nAny requests using this key will be rejected immediately.",
+        "description": "Revokes a key owned by the current user and removes its validation cache entries.\nRevocation cannot be undone.",
         "operationId": "ApiKeysRevokeApiKey",
         "parameters": [
           {
@@ -1512,7 +1512,7 @@
         "tags": [
           "Organization Client Branding"
         ],
-        "summary": "Replace the client's branding: display name, tagline, optional logo upload and the curated\ntheme (`primary` and `primaryForeground` per `light`/`dark` mode). A\nhalf-replace on purpose: an omitted tagline or theme CLEARS the stored value, while an\nomitted logo KEEPS the stored one — a logo is a file upload, and demanding it be resent on\nevery save would be hostile (`DELETE branding/logo` is the way to remove it). The\ndisplay name may never read as the platform itself.",
+        "summary": "Replaces display name, tagline and theme. Omitting tagline or theme clears it; omitting\nthe logo preserves it. Use `DELETE branding/logo` to remove the logo.\nThemes accept `primary` and `primaryForeground` in `light`/`dark` modes.\nThe display name cannot match the platform name.",
         "operationId": "OrganizationClientBrandingUpsertBranding",
         "parameters": [
           {
@@ -5461,7 +5461,7 @@
         "tags": [
           "Invitations"
         ],
-        "summary": "Joins the caller to the inviting organization. Refused unless the caller's own verified\nemail is the one the invitation names, so a forwarded token grants nothing.",
+        "summary": "Accepts an invitation for the authenticated user, whose verified email must match the invitation.",
         "operationId": "InvitationsAccept",
         "parameters": [
           {
@@ -5558,8 +5558,7 @@
         "tags": [
           "Me"
         ],
-        "summary": "The applications the caller has consented to.",
-        "description": "One entry per durable consent record, naming the client and the scopes the caller agreed\nto. First-party sign-ins never appear here — their authorizations are session bookkeeping,\nnot consent.",
+        "summary": "Lists valid permanent consent records for the caller.",
         "operationId": "MeAuthorizationsListConnectedApplications",
         "responses": {
           "200": {
@@ -5643,8 +5642,7 @@
         "tags": [
           "Me"
         ],
-        "summary": "Withdraws one consent, revoking the authorization and every token issued under it.",
-        "description": "Refresh tokens chained to the authorization fail with `invalid_grant`, and issued\naccess tokens are refused on their next request. Answers 404 for an authorization that\ndoes not exist or is not the caller's own.",
+        "summary": "Withdraws the caller consent and revokes associated user/client access.\nReturns 404 when the consent cannot be found for the caller.",
         "operationId": "MeAuthorizationsWithdrawConsent",
         "parameters": [
           {
@@ -5731,8 +5729,7 @@
         "tags": [
           "Me"
         ],
-        "summary": "The organizations the caller belongs to.",
-        "description": "This is the organization picker's data: a first-party app lists these and re-authorizes\nwith the `organization` hint to switch context. The token it holds still opens one\norganization's door at a time, so the switch is a new authorize round-trip, never a\nheader. Reachable without an organization, because a caller who belongs to three and\nhas picked none must be able to see them.\n\nAsks for no permission — the answer is about the caller, and demanding one would hide\nevery organization but the one their token is scoped to, which is the question.",
+        "summary": "Lists the caller active organization memberships without requiring a management permission.",
         "operationId": "MeGetOrganizations",
         "responses": {
           "200": {
@@ -6526,7 +6523,7 @@
         "tags": [
           "Identity"
         ],
-        "summary": "Issues a short-lived enrollment token for a fully-authenticated user.\nThe Web app calls this (with a bearer token) to get a token it can pass to the\nAuth app's /mfa/enroll page, which exchanges it for an Identity.MfaPartial cookie\nso the enrollment API calls can authenticate the user.",
+        "summary": "Issues a sixty-second token that the enrollment exchange endpoint accepts for partial authentication.",
         "operationId": "MfaIssueEnrollmentToken",
         "responses": {
           "200": {
@@ -6617,7 +6614,7 @@
         "tags": [
           "Identity"
         ],
-        "summary": "Exchanges a short-lived enrollment token for an Identity.MfaPartial cookie.\nCalled during Auth app prerender so the CookieForwardingHandler relays the\npartial cookie to the browser, enabling subsequent enrollment API calls.",
+        "summary": "Exchanges an unexpired enrollment token for an MFA partial-auth cookie.",
         "operationId": "MfaExchangeEnrollmentToken",
         "parameters": [
           {
@@ -6717,7 +6714,7 @@
         "tags": [
           "Organization Clients"
         ],
-        "summary": "Register a developer application or a service account for the organization. The response\ncarries the client secret exactly once. A service account ignores every URI field.",
+        "summary": "Registers an organization client and reveals its secret. Service accounts ignore URI fields.",
         "operationId": "OrganizationClientsRegister",
         "parameters": [
           {
@@ -6927,7 +6924,7 @@
         "tags": [
           "Organization Clients"
         ],
-        "summary": "Replace the client secret. The response carries the new secret exactly once; the old one\nstops working immediately. `revokeActiveTokens` also ends every token the client was\nalready issued.",
+        "summary": "Rotates and reveals the client secret. revokeActiveTokens also requests revocation of issued tokens.",
         "operationId": "OrganizationClientsRotateSecret",
         "parameters": [
           {
@@ -7140,7 +7137,7 @@
         "tags": [
           "Organization Clients"
         ],
-        "summary": "Replace a client's redirect URIs, logout URI and scopes. Name and client id are immutable;\na service account's URI fields are ignored.",
+        "summary": "Replaces redirect URIs, back-channel logout settings, and scopes. Null lifetime preserves\nthe current value; service accounts ignore URI fields.",
         "operationId": "OrganizationClientsUpdate",
         "parameters": [
           {
@@ -7263,7 +7260,7 @@
         "tags": [
           "Organization Clients"
         ],
-        "summary": "Delete one of the organization's clients for good: every credential it holds is revoked\nfirst, then the client, its consents and its branding are removed.",
+        "summary": "Deletes the client and its authorizations after access revocation; branding cleanup follows the deletion event.",
         "operationId": "OrganizationClientsDelete",
         "parameters": [
           {
@@ -7359,7 +7356,7 @@
         "tags": [
           "Organization Clients"
         ],
-        "summary": "Suspend a client: every token it was issued stops working now and its realtime connections\nare closed, while its configuration, branding and consents are kept for reinstatement.",
+        "summary": "Suspends a client and revokes its access while retaining registration, branding, and permanent consents.",
         "operationId": "OrganizationClientsSuspend",
         "parameters": [
           {
@@ -7469,7 +7466,7 @@
         "tags": [
           "Organization Clients"
         ],
-        "summary": "Reinstate a suspended client exactly as it was.",
+        "summary": "Lifts the organization client suspension. Revoked tokens remain revoked.",
         "operationId": "OrganizationClientsReinstate",
         "parameters": [
           {
@@ -7579,7 +7576,7 @@
         "tags": [
           "Organization Clients"
         ],
-        "summary": "Place the platform's own suspension on the client, with a reason (global admins only).\nWhile it stands the client is refused everywhere, whatever its own status says, and the\norganization can read the reason but not lift it.",
+        "summary": "Applies a client platform suspension with a reason. Requires global administrator authority.",
         "operationId": "OrganizationClientsPlacePlatformSuspension",
         "parameters": [
           {
@@ -7702,7 +7699,7 @@
         "tags": [
           "Organization Clients"
         ],
-        "summary": "Lift the platform suspension (global admins only). The client serves again unless the\norganization's own suspension still stands.",
+        "summary": "Lifts the client platform suspension. Other client and organization restrictions still apply.",
         "operationId": "OrganizationClientsLiftPlatformSuspension",
         "parameters": [
           {
@@ -7812,8 +7809,7 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "Create a new organization.",
-        "description": "Any account holder may found an organization without an operator, so this asks for no\npermission and answers an organization-less token: a permission would have to be\ngranted by an organization the caller does not yet have.",
+        "summary": "Creates an organization for the authenticated caller. No existing organization or tenant permission is required.",
         "operationId": "OrganizationsCreate",
         "requestBody": {
           "content": {
@@ -7907,7 +7903,7 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "Get all organizations with optional search filtering and pagination.",
+        "summary": "Returns the resolved tenant organization if present in the requested search-result page.",
         "operationId": "OrganizationsGetAll",
         "parameters": [
           {
@@ -8594,7 +8590,7 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "List the members whose access is currently taken away, most recently suspended first.",
+        "summary": "Lists suspended memberships by most recent update.",
         "operationId": "OrganizationsGetSuspendedMembers",
         "parameters": [
           {
@@ -8676,7 +8672,7 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "List the requests this organization turned away and has not taken back, most recently\nrefused first.",
+        "summary": "Lists denied memberships by most recent update.",
         "operationId": "OrganizationsGetDeniedMembers",
         "parameters": [
           {
@@ -9186,7 +9182,7 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "Give a suspended member their access back.",
+        "summary": "Reinstates membership using the current default role. Revoked tokens remain revoked.",
         "operationId": "OrganizationsReinstateMember",
         "parameters": [
           {
@@ -9293,8 +9289,7 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "Give up your own membership of an organization.",
-        "description": "Asks for no permission and consults no access policy: the caller is deciding about\nthemselves, and requiring one would shut out members of every organization that is not the\none their token is scoped to — which is most of them. Membership itself is the authority\nhere, so a caller who has none gets the same refusal a stranger does.",
+        "summary": "Removes the caller membership without requiring a management permission.\nThe service still enforces membership and last-owner rules.",
         "operationId": "OrganizationsLeave",
         "parameters": [
           {
@@ -9568,7 +9563,7 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "Place the platform's own suspension on the organization, with a reason (global admins\nonly). Every bound client's and every member's tokens are revoked, and every change to\nthe organization is refused while the suspension stands.",
+        "summary": "Applies an organization platform suspension and revokes associated access.\nRequires global administrator authority; global administrators may still make changes.",
         "operationId": "OrganizationsPlacePlatformSuspension",
         "parameters": [
           {
@@ -9679,7 +9674,7 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "Lift the organization's platform suspension (global admins only). Nothing is revoked\nback into place: people sign in again, and clients the organization suspended itself\nstay suspended.",
+        "summary": "Lifts the organization platform suspension. Revoked tokens and separate client suspensions remain unchanged.",
         "operationId": "OrganizationsLiftPlatformSuspension",
         "parameters": [
           {
@@ -10274,8 +10269,7 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "Set who may join this organization and the role they join with.",
-        "description": "Separate from the settings route above, and gated on managing members rather than on editing\nsettings: these three fields decide the organization's membership.",
+        "summary": "Replaces the enrollment policy, request-email address, and default role.\nRequires permission to manage members.",
         "operationId": "OrganizationsUpdateEnrollment",
         "parameters": [
           {
@@ -11023,7 +11017,7 @@
         "tags": [
           "Users"
         ],
-        "summary": "Get a paginated list of users with optional search filtering.",
+        "summary": "Searches users in the resolved tenant with pagination.",
         "operationId": "UsersGetUsers",
         "parameters": [
           {
@@ -11137,7 +11131,7 @@
         "tags": [
           "Users"
         ],
-        "summary": "Create a new user account.",
+        "summary": "Creates a user account and adds it to the resolved tenant with the user role.",
         "operationId": "UsersCreateUser",
         "requestBody": {
           "content": {
@@ -11233,7 +11227,7 @@
         "tags": [
           "Users"
         ],
-        "summary": "Get a specific user by their ID.",
+        "summary": "Gets a user who belongs to the resolved tenant.",
         "operationId": "UsersGetUserById",
         "parameters": [
           {
@@ -11582,7 +11576,7 @@
         "tags": [
           "Users"
         ],
-        "summary": "Assign a role to a user IN THE CALLER'S OWN ORGANIZATION. The organization is the ambient\ntenant rather than a parameter, so this route can never grant a role somewhere the caller\nwas not already authorized; the grant lands on the user's membership of that organization\nand confers nothing in any other. The reserved global-administrator name is rejected:\nglobal admin is a seeded claim, never a role, so it cannot be granted from inside a tenant.",
+        "summary": "Assigns a role within the resolved tenant. Reserved global-administrator names are rejected.",
         "operationId": "UsersAssignRole",
         "parameters": [
           {
@@ -11685,7 +11679,7 @@
         "tags": [
           "Users"
         ],
-        "summary": "Remove a role from a user in the caller's own organization. Revocation is scoped the same\nway the grant was, so it cannot reach a role the user holds elsewhere.",
+        "summary": "Removes the named role within the resolved tenant.",
         "operationId": "UsersRemoveRole",
         "parameters": [
           {
@@ -15920,7 +15914,7 @@
             ]
           }
         },
-        "description": "Result of a cookie-based sign-in attempt. A 200 covers four outcomes — signed in, MFA\nchallenge required, MFA enrollment required, and MFA enrollment required within a grace\nperiod — so every member beyond bool AccountLoginResponse.Succeeded is present only for the outcome it\ndescribes."
+        "description": "Password sign-in result. A successful response may carry a sign-in ticket, an MFA\nchallenge requirement, or an enrollment requirement with an optional grace deadline."
       },
       "AccountOperationResponse": {
         "required": [
@@ -15932,7 +15926,7 @@
             "type": "boolean"
           }
         },
-        "description": "Success envelope returned by the cookie-auth account endpoints that report only whether the\noperation was carried out (registration, password reset, e-mail verification, magic link and\nOTP dispatch)."
+        "description": "Success response for account operations that return no additional data."
       },
       "AccountRegisterRequest": {
         "required": [
@@ -16020,7 +16014,7 @@
             "type": "string"
           }
         },
-        "description": "Role is the name of the role this organization grants the member (\"admin\", \"manager\",\n\"user\"). It is required: roles are per (user, organization), so there is no default to fall\nback on."
+        "description": "User and required role name to add to the organization."
       },
       "AnnouncementResponse": {
         "required": [
@@ -16124,7 +16118,7 @@
             "format": "date-time"
           }
         },
-        "description": "Response when creating a new API key (includes the full key)."
+        "description": "Creation response containing the plaintext key, returned only once."
       },
       "ApiKeyResponse": {
         "required": [
@@ -16172,7 +16166,7 @@
             "format": "date-time"
           }
         },
-        "description": "Response containing API key metadata."
+        "description": "API key metadata without the plaintext secret."
       },
       "ApiScopeDto": {
         "required": [
@@ -16575,7 +16569,7 @@
           },
           "backchannelLogoutSessionRequired": {
             "type": "boolean",
-            "description": "The client's declaration that its logout tokens must carry `sid`. Wallow always\nincludes `sid`, so this is registration metadata echoed back, not a delivery switch."
+            "description": "Stored session-required registration flag. Wallow includes sid in logout tokens regardless of this value."
           },
           "refreshTokenLifetime": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -16584,7 +16578,7 @@
               "integer",
               "string"
             ],
-            "description": "Refresh-token lifetime in seconds, bounding newly issued refresh tokens. Absent on a\nclient registered before per-client lifetimes existed, where the global configuration\ndecides.",
+            "description": "Per-client refresh-token lifetime in seconds, or null when no parseable setting is present.",
             "format": "int32"
           }
         }
@@ -16607,7 +16601,7 @@
             ]
           }
         },
-        "description": "The tenant an OIDC client belongs to, used by the auth frontend to brand the login screen\nbefore any user is authenticated."
+        "description": "Organization binding resolved for an OIDC client before authentication."
       },
       "CompleteUploadResponse": {
         "required": [
@@ -16661,7 +16655,7 @@
             "format": "date-time"
           }
         },
-        "description": "An application the user has granted durable consent to: one Valid permanent authorization,\nnamed by the client it authorizes and the scopes the user agreed to."
+        "description": "One valid permanent authorization representing a user's consent to an application."
       },
       "CreateAdminRequest": {
         "required": [
@@ -16689,7 +16683,7 @@
             "type": "string"
           }
         },
-        "description": "First-run wizard input. The organization is part of it because roles are granted per\norganization: without one the new administrator would hold no permission anywhere."
+        "description": "First-run administrator credentials and the organization in which to grant ownership."
       },
       "CreateAnnouncementRequest": {
         "required": [
@@ -16784,8 +16778,7 @@
             ],
             "format": "date-time"
           }
-        },
-        "description": "Request to create a new API key."
+        }
       },
       "CreateBucketRequest": {
         "required": [
@@ -16927,7 +16920,7 @@
             "format": "int32"
           }
         },
-        "description": "Scopes is what the client may ever request at the authorize endpoint. Omitting it grants the\nOIDC sign-in baseline; API scopes are opt-in. FrontchannelLogoutUri is the absolute http(s)\naddress the logout page notifies (in a hidden iframe, with iss + sid) when the SSO session\nends; omitting it opts the client out of logout notifications. BackchannelLogoutUri is the\nabsolute address the server POSTs a signed logout token to over the back channel — plain http\nis acceptable here because admin-registered clients are confidential.\nBackchannelLogoutSessionRequired echoes the OIDC registration flag; Wallow always includes\n`sid` either way. RefreshTokenLifetime is seconds; unset, the client gets the third-party\ndefault of one day. It bounds new refresh tokens only."
+        "description": "Confidential client registration. Null or empty Scopes selects the OIDC sign-in baseline.\nOmitted logout URLs disable their respective channels; back-channel HTTP is allowed.\nBackchannelLogoutSessionRequired is stored metadata; logout tokens always carry sid.\nRefreshTokenLifetime is seconds for future tokens and defaults to one day."
       },
       "CreateInvitationRequest": {
         "required": [
@@ -17033,7 +17026,7 @@
           },
           "isGlobalAdmin": {
             "type": "boolean",
-            "description": "Whether the caller holds the platform operator's own authority — minted as its own\nclaim at sign-in, never derived from organization roles. The web app renders the\nplatform-suspension controls only for callers carrying it."
+            "description": "Whether the caller carries the global-administrator claim, independent of organization roles."
           }
         }
       },
@@ -17090,7 +17083,7 @@
       },
       "EnrollmentPolicy": {
         "type": "integer",
-        "description": "How an organization admits someone who is not already a member. Invitation acceptance is not\ngoverned by this — being invited by a member holding `OrganizationsManageMembers` is itself\nthe authorization."
+        "description": "Controls self-service enrollment. Invitation acceptance bypasses this policy."
       },
       "ErrorCode": {
         "enum": [
@@ -17632,7 +17625,7 @@
             }
           }
         },
-        "description": "Regenerated one-time backup codes. The plaintext codes are returned here and nowhere else —\nonly their hashes are persisted."
+        "description": "New plaintext backup codes. Only hashes are stored for later verification."
       },
       "MfaChallengeResponse": {
         "required": [
@@ -17648,7 +17641,7 @@
             "type": "string"
           }
         },
-        "description": "Result of answering an MFA challenge, carrying the single-use ticket the auth frontend\nexchanges for a sign-in cookie."
+        "description": "Successful MFA challenge result. The endpoint issues a browser sign-in ticket when the user has an email."
       },
       "MfaConfirmRequest": {
         "required": [
@@ -17693,7 +17686,7 @@
             }
           }
         },
-        "description": "Confirmation that TOTP enrollment completed, carrying the one-time backup codes. The plaintext\ncodes are returned here and nowhere else — only their hashes are persisted."
+        "description": "TOTP enrollment confirmation with plaintext backup codes. Only code hashes are stored."
       },
       "MfaEnrollmentSecretResponse": {
         "required": [
@@ -17721,7 +17714,7 @@
             "type": "string"
           }
         },
-        "description": "A short-lived token the web app hands to the auth app's enrollment screen, which exchanges it\nfor the partial-auth cookie the enrollment endpoints authenticate against."
+        "description": "Short-lived token exchangeable for the partial-auth cookie used during MFA enrollment."
       },
       "MfaOperationResponse": {
         "required": [
@@ -17812,7 +17805,7 @@
             "type": "boolean"
           }
         },
-        "description": "One organization the caller may sign in to. A client is bound to a single organization, so\nan app can only ever link to the others — the slug is what it links with, and the name is\nwhat it shows."
+        "description": "An active membership's organization, including its slug for navigation."
       },
       "NotificationResponse": {
         "required": [
@@ -17932,7 +17925,7 @@
             "type": "string"
           }
         },
-        "description": "The one-time reveal a registration or a secret rotation answers with: the client secret is\nreturned here and never again, and the issuer and API base URL are what the client's\nenvironment must point at."
+        "description": "Registration or rotation response revealing the new secret, issuer, and API base URL.\nRead endpoints do not return the stored secret."
       },
       "OrganizationClientResponse": {
         "required": [
@@ -17982,7 +17975,7 @@
           },
           "backchannelLogoutSessionRequired": {
             "type": "boolean",
-            "description": "The client's declaration that its logout tokens must carry `sid`. Wallow always\nincludes `sid`, so this is registration metadata echoed back, not a delivery switch."
+            "description": "Stored session-required registration flag. Wallow includes sid in logout tokens regardless of this value."
           },
           "scopes": {
             "type": "array",
@@ -18032,7 +18025,7 @@
               "null",
               "string"
             ],
-            "description": "The operator's reason, readable by the organization's admins but not liftable by them."
+            "description": "Platform suspension reason. Organization administrators cannot lift the platform suspension."
           },
           "refreshTokenLifetime": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -18041,7 +18034,7 @@
               "integer",
               "string"
             ],
-            "description": "Refresh-token lifetime in seconds, bounding newly issued refresh tokens. Absent on a\nclient registered before per-client lifetimes existed (the global configuration decides)\nand on service accounts, which hold no refresh grant.",
+            "description": "Per-client refresh-token lifetime in seconds, or null when no parseable setting is present.",
             "format": "int32"
           }
         }
@@ -18090,7 +18083,7 @@
             ]
           }
         },
-        "description": "The platform-suspension pair is present so the owning organization's admins can read the\noperator's reason; only a global admin can place or lift the suspension itself."
+        "description": "Organization details, including the platform suspension reason visible to its admins."
       },
       "OrganizationLogoResponse": {
         "required": [
@@ -18344,7 +18337,7 @@
             ]
           }
         },
-        "description": "Result of verifying a magic link or one-time code, carrying the single-use ticket the auth\nfrontend exchanges for a sign-in cookie."
+        "description": "Passwordless verification result with the email and ticket for browser sign-in."
       },
       "PlatformSuspensionRequest": {
         "required": [
@@ -18357,7 +18350,7 @@
             "type": "string"
           }
         },
-        "description": "Places a platform suspension. The reason is the operator's and travels with the suspension:\nthe affected organization's admins read it, only a global admin removes it. The length cap\nmatches the column both suspension marks persist the reason into."
+        "description": "Reason recorded with a platform suspension, limited to the storage column maximum of 1000 characters."
       },
       "PresignedUploadRequest": {
         "required": [
@@ -18498,7 +18491,7 @@
             "type": "boolean"
           }
         },
-        "description": "Whether a candidate post-login redirect URI is registered for the requesting client."
+        "description": "Whether the redirect URI has an allowed origin for the supplied client context."
       },
       "RegisterDeviceRequest": {
         "required": [
@@ -18549,7 +18542,7 @@
             ]
           }
         },
-        "description": "Optional initial branding for an application: the end-user-facing display name (defaults to\nthe client's name) and a tagline. Ignored for service accounts, which face no end user."
+        "description": "Initial application display name and tagline. Omitted display name uses the client name;\nservice accounts ignore branding."
       },
       "RegisterOrganizationClientRequest": {
         "required": [
@@ -18615,7 +18608,7 @@
             "format": "int32"
           }
         },
-        "description": "Registers a client on behalf of an organization. `Kind` is `application` for a\ndeveloper application a person signs in to or `service-account` for a client-credentials\nclient. Name and the derived client id are immutable once registered. An application needs at\nleast one redirect URI, absolute, fragment-free, and https or http://localhost; a service\naccount ignores every URI field. Both need at least one scope.\n`RefreshTokenLifetime` is seconds; unset, an application gets the third-party default of\none day. It bounds new refresh tokens only — tokens already issued keep their expiry."
+        "description": "Organization client registration: application or service-account. Both require scopes.\nApplications require an absolute, fragment-free HTTPS or loopback HTTP redirect;\nservice accounts ignore URI fields. Name and client id cannot be changed here after registration.\nRefreshTokenLifetime is seconds for future application refresh tokens, defaulting to one day."
       },
       "ResolvedSetting": {
         "required": [
@@ -18714,7 +18707,7 @@
             "default": false
           }
         },
-        "description": "Rotates a client's secret. `RevokeActiveTokens` additionally ends every token the client\nwas already issued, so a compromise response cuts every live session in the same step."
+        "description": "Rotates the secret. RevokeActiveTokens also requests revocation of issued client tokens."
       },
       "RotateWebPushKeyRequest": {
         "required": [
@@ -18911,7 +18904,7 @@
             ]
           }
         },
-        "description": "Whether first-run setup is still open and, while it is, the organization the bootstrap\nadministrator will own. OrganizationName is the one organization the seed\nalready created (the one the dashboard client is bound to) so the setup page can offer it\nrather than let the visitor type a name that creates a sibling; `null` when\nsetup is complete or when there is not exactly one organization to offer."
+        "description": "Whether first-run setup is open. OrganizationName is offered only while setup is open\nand exactly one organization exists."
       },
       "SubmitInquiryRequest": {
         "required": [
@@ -19124,7 +19117,7 @@
             "format": "int32"
           }
         },
-        "description": "A full replacement of the client's mutable registration — omitting FrontchannelLogoutUri or\nBackchannelLogoutUri un-registers the client from that logout channel, matching how the URI\nlists replace rather than merge. RefreshTokenLifetime is the one deliberate exception: a\n`null` keeps the client's current lifetime, because silently resetting a\nsecurity policy on an unrelated edit is a trap. A value (seconds) applies to newly issued\nrefresh tokens only."
+        "description": "Replaces name and URI fields. Omitted logout URLs disable those channels.\nNull RefreshTokenLifetime preserves the current lifetime; seconds apply to future tokens."
       },
       "UpdateInquiryStatusRequest": {
         "required": [
@@ -19211,7 +19204,7 @@
             "format": "int32"
           }
         },
-        "description": "Everything about a client its organization may change after registration. Name and client id\nare immutable and deliberately absent. A `null``RefreshTokenLifetime`\nkeeps the client's current lifetime; a value (seconds) applies to newly issued refresh tokens\nonly."
+        "description": "Replaces application URIs, back-channel settings, and scopes. Null RefreshTokenLifetime\npreserves the current lifetime; a value in seconds applies to future tokens."
       },
       "UpdateOrganizationEnrollmentRequest": {
         "required": [
@@ -19238,7 +19231,7 @@
             "format": "uuid"
           }
         },
-        "description": "Who may join an organization and on what terms. Separate from\nUpdateOrganizationSettingsRequest because these fields are gated on the right to\nmanage members, not the right to edit settings."
+        "description": "Enrollment policy, request-email address, and default role. Updating these requires\nmember-management permission; UpdateOrganizationSettingsRequest uses settings permission."
       },
       "UpdateOrganizationSettingsRequest": {
         "required": [

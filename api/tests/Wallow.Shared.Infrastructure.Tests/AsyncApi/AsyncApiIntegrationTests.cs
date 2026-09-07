@@ -106,7 +106,7 @@ public class AsyncApiIntegrationTests
         JsonObject doc = generator.GenerateDocument();
         string mermaid = MermaidFlowGenerator.Generate(flows);
 
-        // Every event in the AsyncAPI doc should also appear in the Mermaid diagram's source modules
+
         JsonObject operations = doc["operations"]!.AsObject();
         List<string> publishOps = operations
             .Select(kvp => kvp.Key)
@@ -115,7 +115,7 @@ public class AsyncApiIntegrationTests
 
         publishOps.Should().NotBeEmpty();
 
-        // Mermaid should mention every source module found in flows
+
         foreach (string module in flows.Select(f => f.SourceModule).Distinct())
         {
             mermaid.Should().Contain(module, $"Mermaid diagram should reference module {module}");

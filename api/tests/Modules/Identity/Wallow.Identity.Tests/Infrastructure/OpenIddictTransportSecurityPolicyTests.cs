@@ -6,11 +6,7 @@ using Wallow.Identity.Infrastructure.Extensions;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// OpenIddict's transport security requirement is what forces the authorization, token,
-/// userinfo and discovery endpoints onto HTTPS. Disabling it unconditionally lets any
-/// deployment serve authorization codes and tokens in the clear, so it must stay enabled
-/// everywhere except local development, the in-process test host, and deployments that
-/// explicitly opt in because TLS terminates in front of them.
+/// Checks environment and explicit-override rules for allowing HTTP at the OpenIddict transport boundary.
 /// </summary>
 public sealed class OpenIddictTransportSecurityPolicyTests
 {

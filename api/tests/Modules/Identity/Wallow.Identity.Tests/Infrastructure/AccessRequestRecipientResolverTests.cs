@@ -10,8 +10,7 @@ using Wallow.Shared.Kernel.Identity;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// Who is told that somebody asked to join: the address the organization nominated, else the
-/// active owners, else nobody — resolution never fails a request.
+/// Checks the configured address override and active-owner fallback for access-request notifications.
 /// </summary>
 public sealed class AccessRequestRecipientResolverTests : IDisposable
 {

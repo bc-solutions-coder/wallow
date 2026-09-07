@@ -23,7 +23,7 @@ public sealed class ClientTenantResolver(
         string? tenantIdString = descriptor.GetTenantId();
         if (tenantIdString is null || !Guid.TryParse(tenantIdString, out Guid tenantId))
         {
-            // Client exists but has no tenant association — return empty tenant
+            // Distinguish an existing unbound/invalidly bound client from a missing client.
             return new ClientTenantInfo(Guid.Empty, null);
         }
 

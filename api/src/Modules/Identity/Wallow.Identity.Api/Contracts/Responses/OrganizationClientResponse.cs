@@ -21,8 +21,7 @@ public record OrganizationClientResponse
     public string? BackchannelLogoutUri { get; init; }
 
     /// <summary>
-    /// The client's declaration that its logout tokens must carry <c>sid</c>. Wallow always
-    /// includes <c>sid</c>, so this is registration metadata echoed back, not a delivery switch.
+    /// Stored session-required registration flag. Wallow includes sid in logout tokens regardless of this value.
     /// </summary>
     public bool BackchannelLogoutSessionRequired { get; init; }
     public required IReadOnlyList<string> Scopes { get; init; }
@@ -35,13 +34,13 @@ public record OrganizationClientResponse
     /// <summary>When the platform operator suspended this client, or <see langword="null"/>.</summary>
     public DateTimeOffset? PlatformSuspendedAt { get; init; }
 
-    /// <summary>The operator's reason, readable by the organization's admins but not liftable by them.</summary>
+    /// <summary>
+    /// Platform suspension reason. Organization administrators cannot lift the platform suspension.
+    /// </summary>
     public string? PlatformSuspensionReason { get; init; }
 
     /// <summary>
-    /// Refresh-token lifetime in seconds, bounding newly issued refresh tokens. Absent on a
-    /// client registered before per-client lifetimes existed (the global configuration decides)
-    /// and on service accounts, which hold no refresh grant.
+    /// Per-client refresh-token lifetime in seconds, or null when no parseable setting is present.
     /// </summary>
     public int? RefreshTokenLifetime { get; init; }
 
@@ -81,9 +80,8 @@ public record OrganizationClientResponse
 }
 
 /// <summary>
-/// The one-time reveal a registration or a secret rotation answers with: the client secret is
-/// returned here and never again, and the issuer and API base URL are what the client's
-/// environment must point at.
+/// Registration or rotation response revealing the new secret, issuer, and API base URL.
+/// Read endpoints do not return the stored secret.
 /// </summary>
 public record OrganizationClientRegistrationResponse
 {

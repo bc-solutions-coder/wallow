@@ -4,8 +4,7 @@ using Microsoft.EntityFrameworkCore.Design;
 namespace Wallow.Storage.Infrastructure.Persistence;
 
 /// <summary>
-/// Design-time factory for StorageDbContext to enable EF Core migrations.
-/// Only used at design-time by dotnet ef commands.
+/// Creates the context for EF Core migration tooling.
 /// </summary>
 public class StorageDbContextFactory : IDesignTimeDbContextFactory<StorageDbContext>
 {

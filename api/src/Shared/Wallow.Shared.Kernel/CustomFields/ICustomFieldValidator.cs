@@ -16,9 +16,6 @@ public interface ICustomFieldValidator
         where T : IHasCustomFields;
 }
 
-/// <summary>
-/// Result of custom field validation.
-/// </summary>
 public sealed record CustomFieldValidationResult
 {
     public bool IsValid => Errors.Count == 0;
@@ -29,7 +26,4 @@ public sealed record CustomFieldValidationResult
         => new() { Errors = errors.ToList() };
 }
 
-/// <summary>
-/// A single custom field validation error.
-/// </summary>
 public sealed record CustomFieldValidationError(string FieldKey, string Message);

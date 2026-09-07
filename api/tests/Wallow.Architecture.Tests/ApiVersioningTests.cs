@@ -2,7 +2,7 @@ using System.Reflection;
 using Microsoft.AspNetCore.Mvc;
 using NetArchTest.Rules;
 
-#pragma warning disable CA1024 // MemberData source methods cannot be properties
+#pragma warning disable CA1024 // Keep callable MemberData factories.
 
 namespace Wallow.Architecture.Tests;
 
@@ -27,7 +27,7 @@ public class ApiVersioningTests
             .Inherit(typeof(ControllerBase))
             .GetTypes();
 
-        // OpenIddict OIDC controllers use standard OAuth2/OIDC routes, not API versioning
+        // OIDC protocol routes do not use the versioned REST convention.
         string[] oidcControllers = ["AuthorizationController", "TokenController", "LogoutController", "UserinfoController"];
 
         foreach (Type controller in controllers)
@@ -57,7 +57,7 @@ public class ApiVersioningTests
             .Inherit(typeof(ControllerBase))
             .GetTypes();
 
-        // OpenIddict OIDC controllers use standard OAuth2/OIDC routes (connect/*)
+        // Exclude the unversioned OIDC protocol routes.
         string[] excludedControllers = ["AuthorizationController", "TokenController", "LogoutController", "UserinfoController"];
         IEnumerable<Type> filtered = controllers.Where(c => !excludedControllers.Contains(c.Name, StringComparer.Ordinal));
 

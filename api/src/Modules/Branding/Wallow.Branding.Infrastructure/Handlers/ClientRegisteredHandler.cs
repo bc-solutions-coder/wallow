@@ -9,10 +9,8 @@ using Wallow.Shared.Kernel.Identity;
 namespace Wallow.Branding.Infrastructure.Handlers;
 
 /// <summary>
-/// Every developer application has exactly one end-user-facing display name from the moment it
-/// exists: Identity announces the registration and this module creates the branding row, defaulting
-/// the display name to the registered name when no branding was chosen. Service accounts face no
-/// end user and get no row. Idempotent — a redelivered event finds the row and leaves it alone.
+/// Creates branding for registered applications, defaulting to the registered name.
+/// Service accounts receive no row; existing branding is preserved on redelivery.
 /// </summary>
 public sealed partial class ClientRegisteredHandler(
     IClientBrandingRepository brandings,
@@ -34,9 +32,7 @@ public sealed partial class ClientRegisteredHandler(
             return;
         }
 
-        // The envelope restores the PUBLISHER'S tenant, which is the caller's organization — not
-        // necessarily the one the client was registered into (a global admin registers across
-        // organizations). The row belongs to the owning organization, so say so explicitly.
+        // The owning organization may differ from the publisher's ambient tenant.
         brandings.UseTenant(TenantId.Create(message.OrganizationId));
 
         ClientBranding branding = ClientBranding.Create(
@@ -51,14 +47,11 @@ public sealed partial class ClientRegisteredHandler(
         }
         catch (DuplicateClientBrandingException)
         {
-            // A concurrent branding PUT inserted the row between the check above and this save.
-            // The row exists with values the caller chose explicitly — this handler's goal state —
-            // and the repository already detached the losing insert; nothing left to do.
+            // A concurrent writer created the row; preserve its values. Our insert is detached.
             return;
         }
 
-        // The anonymous read caches misses too; without this a sign-in hitting the screen before
-        // registration finished keeps answering 404 for five minutes.
+        // Clear cached misses so branding becomes visible after registration.
         brandingService.InvalidateCache(message.ClientId);
 
         LogBrandingCreated(message.ClientId);

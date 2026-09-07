@@ -10,9 +10,8 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.Mfa;
 
 /// <summary>
-/// The gate that lets a cookie login skip the MFA challenge. It runs before any organization is
-/// known, so it has to hold for every organization the session can go on to get a token for: the
-/// strictest Active membership decides, and one organization asking for a second factor is enough.
+/// Checks exemption across active memberships before organization selection,
+/// including missing settings and organization-specific grace eligibility.
 /// </summary>
 [Trait("Category", "Integration")]
 public class MfaExemptionCheckerTests(WallowApiFactory factory) : IdentityIntegrationTestBase(factory)

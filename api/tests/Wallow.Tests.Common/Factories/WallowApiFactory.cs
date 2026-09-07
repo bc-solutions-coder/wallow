@@ -30,8 +30,7 @@ namespace Wallow.Tests.Common.Factories;
 
 public class WallowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
-    // Reset Serilog's static logger to avoid "logger is already frozen" error
-    // when multiple test classes create their own WebApplicationFactory
+    // Give test hosts an unfrozen Serilog logger.
     static WallowApiFactory()
     {
         Log.Logger = new LoggerConfiguration()
@@ -55,7 +54,7 @@ public class WallowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        // Reset Serilog before each test run to avoid "logger is already frozen" error
+        // Replace the shared logger before starting this fixture.
         await Log.CloseAndFlushAsync();
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Warning()
@@ -66,24 +65,13 @@ public class WallowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             _postgres.StartAsync(),
             _redis.StartAsync());
 
-        // Set environment variables so connection strings are available BEFORE
-        // WebApplication.CreateBuilder() runs in Program.cs. Modules capture connection
-        // strings at service registration time (before ConfigureAppConfiguration applies),
-        // so the in-memory override in ConfigureWebHost is too late. Environment variables
-        // are read by the default EnvironmentVariablesConfigurationProvider during builder
-        // creation, making them visible when modules call configuration.GetConnectionString().
-        //
-        // These vars are process-global and single-writer by design (Wallow-qck0): every
-        // assembly that consumes this factory sets parallelizeTestCollections: false, and
-        // xunit v2 disposes each collection fixture before the next collection starts, so
-        // DisposeAsync nulling them can never be observed by another live factory's hosts.
-        // Keep collection parallelization off in any assembly that takes this fixture.
+        // Modules capture these settings during host creation, before the later configuration override.
+        // Fixtures share process environment variables; consuming assemblies must disable collection parallelization.
         string redisConnection = _redis.GetConnectionString() + ",allowAdmin=true";
         Environment.SetEnvironmentVariable("ConnectionStrings__DefaultConnection", _postgres.GetConnectionString());
         Environment.SetEnvironmentVariable("ConnectionStrings__Redis", redisConnection);
 
-        // Generate ephemeral self-signed certificates for OpenIddict so the
-        // non-development code path in IdentityInfrastructureExtensions doesn't throw.
+        // The Testing environment uses configured OpenIddict certificates.
         const string certPassword = "test";
         _signingCertPath = GenerateEphemeralCert("CN=WallowTestSigning", certPassword);
         _encryptionCertPath = GenerateEphemeralCert("CN=WallowTestEncryption", certPassword);
@@ -92,26 +80,18 @@ public class WallowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         Environment.SetEnvironmentVariable("OpenIddict__EncryptionCertPath", _encryptionCertPath);
         Environment.SetEnvironmentVariable("OpenIddict__EncryptionCertPassword", certPassword);
 
-        // OpenIddict server options are also read at service registration time, so these must
-        // be environment variables for the same reason as the connection strings above.
-        // Leeway: the production default is 30 s; a reuse-detection spec waiting that long per
-        // case is unaffordable, and no other test replays a redeemed token. Lifetime: the
-        // global fallback defaults to 7 days, the same as the pinned first-party per-client
-        // default — shifting it lets a spec tell "the seeder wrote an explicit 7-day setting"
-        // apart from "the fallback happened to be 7".
+        // Set these before host creation as well. Short leeway keeps replay tests fast;
+        // a five-day fallback distinguishes it from an explicit seven-day client setting.
         Environment.SetEnvironmentVariable("OpenIddict__RefreshTokenReuseLeewaySeconds", "2");
         Environment.SetEnvironmentVariable("OpenIddict__RefreshTokenLifetimeDays", "5");
     }
 
-    // Virtual so a subclass's cleanup actually runs: xUnit disposes fixtures through
-    // IAsyncLifetime, whose interface map is fixed here — a `new` method on a subclass is
-    // never called through it.
+    // Allow derived fixtures to extend cleanup through IAsyncLifetime.
     public new virtual async Task DisposeAsync()
     {
         Console.WriteLine("[WallowApiFactory] DisposeAsync called");
 
-        // Stop the host gracefully to allow background services (e.g., Wolverine)
-        // to shut down before containers are disposed
+        // Stop background services before removing their containers.
         try
         {
             IHost? host = Services.GetService<IHost>();
@@ -126,7 +106,7 @@ public class WallowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             Console.WriteLine($"[WallowApiFactory] Host stop error: {ex.Message}");
         }
 
-        // Dispose the WebApplicationFactory (which disposes the host)
+
         try
         {
             await base.DisposeAsync();
@@ -136,7 +116,7 @@ public class WallowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             Console.WriteLine($"[WallowApiFactory] Base dispose error: {ex.Message}");
         }
 
-        // Clear environment variables set in InitializeAsync
+
         Environment.SetEnvironmentVariable("ConnectionStrings__DefaultConnection", null);
         Environment.SetEnvironmentVariable("ConnectionStrings__Redis", null);
         Environment.SetEnvironmentVariable("OpenIddict__SigningCertPath", null);
@@ -146,11 +126,11 @@ public class WallowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         Environment.SetEnvironmentVariable("OpenIddict__RefreshTokenReuseLeewaySeconds", null);
         Environment.SetEnvironmentVariable("OpenIddict__RefreshTokenLifetimeDays", null);
 
-        // Clean up ephemeral certificate files
+
         DeleteFileSafely(_signingCertPath);
         DeleteFileSafely(_encryptionCertPath);
 
-        // Dispose containers to prevent accumulation
+
         Console.WriteLine("[WallowApiFactory] Disposing containers...");
         await DisposeContainerSafelyAsync(_postgres, "postgres");
         await DisposeContainerSafelyAsync(_redis, "redis");
@@ -216,9 +196,7 @@ public class WallowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                 ["AdminBootstrap:Password"] = "Admin1234!",
                 ["AdminBootstrap:FirstName"] = "Test",
                 ["AdminBootstrap:LastName"] = "Admin",
-                // The shipped default scopes the auth cookie to .wallow.dev so sibling
-                // subdomains share it. The test host answers on localhost, where a cookie
-                // claiming that domain is discarded before it is ever sent back.
+                // Use a host-only cookie for localhost test requests.
                 ["Authentication:CookieDomain"] = string.Empty,
             });
         });
@@ -252,21 +230,17 @@ public class WallowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             services.AddSingleton<IUserManagementService, FakeUserManagementService>();
             services.AddSingleton<IApiKeyService>(new FakeApiKeyService());
 
-            // Replace real query services that depend on external systems (raw DB, etc.)
-            // with fakes so integration tests don't require those systems to be fully initialised.
+            // Keep user search independent of database contents.
             services.AddSingleton<IUserQueryService, FakeUserQueryService>();
 
-            // Seed roles and bootstrap admin at test startup so SetupMiddleware does not return 503.
-            // SeederService runs this in production; in tests we replicate it inline.
+            // The test host runs setup seeding without the separate seeder process.
             services.AddScoped<ApiScopeSeeder>();
             services.AddHostedService<TestSeedHostedService>();
         });
     }
 
     /// <summary>
-    /// Runs role seeding and admin bootstrap at test host startup so that
-    /// SetupMiddleware does not block requests with 503.
-    /// In production this is handled by the dedicated SeederService container.
+    /// Seeds roles and scopes, then bootstraps an admin when setup is required.
     /// </summary>
     private sealed class TestSeedHostedService(
         IServiceScopeFactory scopeFactory,
@@ -280,8 +254,7 @@ public class WallowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             DefaultRoleSeeder roleSeeder = sp.GetRequiredService<DefaultRoleSeeder>();
             await roleSeeder.SeedAsync();
 
-            // The scope catalog is what the org-scoped client surface validates requested scopes
-            // against; production seeds it from api/seed.json, the test host from the same defaults.
+            // Populate the catalog used to validate client scopes.
             ApiScopeSeeder scopeSeeder = sp.GetRequiredService<ApiScopeSeeder>();
             await scopeSeeder.SeedAsync(sp.GetRequiredService<IdentityDbContext>(), cancellationToken);
 
@@ -316,12 +289,8 @@ public class WallowApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         }
 
         /// <summary>
-        /// Enrols the identity <see cref="TestAuthHandler"/> authenticates as — user
-        /// <see cref="TestConstants.AdminUserId"/> in organization <see cref="TestConstants.TestOrgId"/>
-        /// — as an administrator. Authorization reads memberships, so without this every request
-        /// through the pipeline meets SetupMiddleware's 503 and no test reaches its endpoint.
-        /// The bootstrapped user above is a different, freshly minted id: it exists so a real user
-        /// row is present, not so a test can authenticate as it.
+        /// Adds an admin membership for the synthetic TestAuthHandler identity if absent.
+        /// This identity differs from the user created by admin bootstrap.
         /// </summary>
         private static async Task EnrollTestAdminAsync(IServiceProvider sp, CancellationToken ct)
         {

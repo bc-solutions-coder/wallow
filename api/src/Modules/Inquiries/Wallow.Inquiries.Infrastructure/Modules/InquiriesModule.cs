@@ -12,16 +12,9 @@ namespace Wallow.Inquiries.Infrastructure.Modules;
 public sealed class InquiriesModule : IWallowModule
 {
     /// <summary>
-    /// The one place this module's Postgres schema name is written. <see cref="SchemaName"/>, the
-    /// module's <c>HasDefaultSchema</c> and every host's <c>MigrationsHistoryTable</c> all resolve
-    /// to this constant, so the compiler rather than a convention is what keeps them equal.
+    /// Schema shared by the model and migration history table.
+    /// Internal to keep schema ownership within this module.
     /// </summary>
-    /// <remarks>
-    /// Internal on purpose: every consumer — this class, the module's <c>DbContext</c> and its
-    /// infrastructure extensions — lives in <c>Wallow.Inquiries.Infrastructure</c>. Keeping it
-    /// internal stops any other assembly, another module included, from taking a compile-time
-    /// dependency on this module's schema name.
-    /// </remarks>
     internal const string Schema = "inquiries";
 
     public string Name => "Inquiries";

@@ -18,7 +18,7 @@ public class DeliverPushHandlerTests
     private readonly Wolverine.IMessageBus _bus = Substitute.For<Wolverine.IMessageBus>();
     private readonly DeliverPushHandler _handler;
 
-#pragma warning disable CA2000 // LoggerFactory disposal not needed in tests
+#pragma warning disable CA2000 // Test logger factory is not disposed.
     public DeliverPushHandlerTests()
     {
         _timeProvider.GetUtcNow().Returns(DateTimeOffset.UtcNow);

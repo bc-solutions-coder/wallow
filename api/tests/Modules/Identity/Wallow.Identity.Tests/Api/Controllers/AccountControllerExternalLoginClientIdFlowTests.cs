@@ -18,40 +18,28 @@ using Wolverine;
 namespace Wallow.Identity.Tests.Api.Controllers;
 
 /// <summary>
-/// Wallow-9jab scoped every AccountController redirect check to a client id, but nothing on the
-/// external-login return path SUPPLIES one, so in production those endpoints still see
-/// <c>clientId = null</c> and fall back to the AuthUrl-only origin set. These tests pin the onward
-/// plumbing that makes the per-client scoping real:
-/// <list type="number">
-/// <item>ExternalLogin stashes the requesting client id in the challenge's
-/// <see cref="AuthenticationProperties"/> — which round-trip through the provider's OAuth state —
-/// rather than appending it to the callback URL. The callback URL is the <c>redirect_uri</c>
-/// presented to the third-party IdP and Google requires an EXACT registered match, so a query
-/// param there would break every configured provider.</item>
-/// <item>ExternalLoginCallback recovers that stashed id and validates the returnUrl against it.</item>
-/// <item>Every hand-off back to the auth app (accept-terms, mfa/challenge, the terms_required
-/// bounce) carries <c>client_id</c> so the wallow-auth screens can echo it to the endpoint that
-/// finishes the flow.</item>
-/// </list>
-/// The auth-app-facing redirects use the snake_case <c>client_id</c> spelling AuthorizationController
-/// already uses on its login redirect; the API endpoints keep binding the camelCase <c>clientId</c>
-/// query parameter they gained in Wallow-9jab.
+/// Checks client-ID propagation through external login. The challenge stores it in
+/// <see cref="AuthenticationProperties"/> so the provider callback URL remains unchanged.
+/// Redirects to the auth app carry client_id; controller arguments use clientId.
 /// </summary>
 public class AccountControllerExternalLoginClientIdFlowTests
 {
     private const string AuthUrl = "http://localhost:5002";
     private const string ClientId = "client-a";
 
-    /// <summary>An origin registered by client-a only.</summary>
+    /// <summary>
+    /// URL allowed only for client-a by the validator stub.
+    /// </summary>
     private const string ClientAUrl = "https://a.example.com/callback";
 
     /// <summary>
-    /// The key the challenge stashes the client id under and the callback reads it back from. The
-    /// value must survive the provider round trip in the OAuth state, not in the redirect_uri.
+    /// Challenge property used to carry the client ID through external login.
     /// </summary>
     private const string ClientIdItemKey = "client_id";
 
-    /// <summary>The spelling the auth app's screens receive on their query string.</summary>
+    /// <summary>
+    /// Client-ID query fragment expected on redirects to the auth app.
+    /// </summary>
     private const string ClientIdQueryParam = "client_id=client-a";
 
     private const string Provider = "Google";
@@ -66,7 +54,9 @@ public class AccountControllerExternalLoginClientIdFlowTests
     private readonly IMfaExemptionChecker _mfaExemptionChecker;
     private readonly IOrganizationMfaPolicyService _orgMfaPolicyService;
 
-    /// <summary>The context ExternalLogin handed IUrlHelper when it built the provider callback URL.</summary>
+    /// <summary>
+    /// Captured callback URL arguments from ExternalLogin.
+    /// </summary>
     private UrlActionContext? _callbackUrlContext;
 
     public AccountControllerExternalLoginClientIdFlowTests()
@@ -132,9 +122,7 @@ public class AccountControllerExternalLoginClientIdFlowTests
     }
 
     /// <summary>
-    /// Models the per-client allow list: <paramref name="uri"/> validates only when the validator is
-    /// told which client is asking. A call that omits the client id — today's behaviour on this path
-    /// — is refused, so an endpoint that fails to recover the stashed id cannot pass.
+    /// Allows only the specified URI and client ID pair.
     /// </summary>
     private void AllowOnlyForClient(string uri, string clientId)
     {
@@ -147,8 +135,7 @@ public class AccountControllerExternalLoginClientIdFlowTests
     }
 
     /// <summary>
-    /// Takes redirect validation out of the picture, so the redirect-shape tests fail only when the
-    /// client id is missing from the hand-off and never because the returnUrl was rejected.
+    /// Allows all return URLs so these tests can inspect redirect fields.
     /// </summary>
     private void AllowEveryReturnUrl()
     {
@@ -164,8 +151,7 @@ public class AccountControllerExternalLoginClientIdFlowTests
     }
 
     /// <summary>
-    /// Hands ExternalLogin a real properties bag to populate. The substituted SignInManager returns
-    /// null by default, which would leave nowhere to stash the client id.
+    /// Supplies a properties bag for ExternalLogin to populate.
     /// </summary>
     private void SetupExternalAuthenticationProperties()
     {
@@ -175,8 +161,7 @@ public class AccountControllerExternalLoginClientIdFlowTests
     }
 
     /// <summary>
-    /// The identity the provider hands back, optionally carrying the client id the challenge stashed.
-    /// A null <paramref name="stashedClientId"/> models a flow started before this plumbing existed.
+    /// Stubs external identity information with an optional client-ID property.
     /// </summary>
     private ExternalLoginInfo SetupExternalLoginInfo(string? stashedClientId)
     {
@@ -210,7 +195,9 @@ public class AccountControllerExternalLoginClientIdFlowTests
         return user;
     }
 
-    /// <summary>Path A: the external login is already linked and the sign-in succeeds.</summary>
+    /// <summary>
+    /// Stubs a linked account with successful external sign-in.
+    /// </summary>
     private void SetupLinkedAccount(string? stashedClientId, bool mfaEnabled = false, bool orgRequiresMfa = false)
     {
         SetupExternalLoginInfo(stashedClientId);
@@ -224,7 +211,9 @@ public class AccountControllerExternalLoginClientIdFlowTests
             .Returns(new OrgMfaPolicyResult(orgRequiresMfa, IsInGracePeriod: false));
     }
 
-    /// <summary>Path C: nobody owns this email yet, so the flow gates on accept-terms.</summary>
+    /// <summary>
+    /// Stubs an unknown account that must accept terms.
+    /// </summary>
     private void SetupUnknownAccount(string? stashedClientId)
     {
         SetupExternalLoginInfo(stashedClientId);
@@ -252,8 +241,7 @@ public class AccountControllerExternalLoginClientIdFlowTests
     }
 
     /// <summary>
-    /// Regression guard: a flow started without a client id must not stash an empty one, or the
-    /// callback would validate against a client that does not exist and fail closed to AuthUrl.
+    /// Omit the challenge property when no client ID was supplied.
     /// </summary>
     [Fact]
     public async Task ExternalLogin_WithoutClientId_StashesNothingInChallengeProperties()
@@ -270,10 +258,7 @@ public class AccountControllerExternalLoginClientIdFlowTests
     }
 
     /// <summary>
-    /// The design pin, and the reason this work was split out of Wallow-9jab: the callback URL is the
-    /// <c>redirect_uri</c> sent to the third-party IdP, and Google matches it EXACTLY against the
-    /// registered value. The client id must ride the challenge properties instead, so this must stay
-    /// green — a green phase that "threads" the id by appending it here breaks every provider.
+    /// Keep the client ID in challenge properties so it does not alter the provider callback URL.
     /// </summary>
     [Fact]
     public async Task ExternalLogin_DoesNotAddClientIdToTheProviderCallbackUrl()
@@ -301,8 +286,7 @@ public class AccountControllerExternalLoginClientIdFlowTests
         AllowOnlyForClient(ClientAUrl, ClientId);
         SetupLinkedAccount(stashedClientId: ClientId);
 
-        // The provider drove the browser here; there is no clientId on the query string, only the
-        // one the challenge stashed.
+        // Model a callback that receives its client ID only from challenge properties.
         IActionResult result = await _controller.ExternalLoginCallback(ClientAUrl, clientId: null);
 
         RedirectResult redirect = result.Should().BeOfType<RedirectResult>().Subject;
@@ -322,8 +306,7 @@ public class AccountControllerExternalLoginClientIdFlowTests
     }
 
     /// <summary>
-    /// Regression guard for Wallow-9jab: an explicit query parameter still wins where one is present
-    /// (the auth app's own hand-offs), so recovering from the stash must not displace it.
+    /// An explicit client ID must still reach redirect validation.
     /// </summary>
     [Fact]
     public async Task ExternalLoginCallback_WithExplicitClientId_StillValidatesAgainstIt()
@@ -355,8 +338,7 @@ public class AccountControllerExternalLoginClientIdFlowTests
     }
 
     /// <summary>
-    /// Regression guard: a flow with no client id must not grow an empty <c>client_id=</c>, which the
-    /// accept-terms screen would echo back and the endpoint would treat as an unknown client.
+    /// Omit client_id from the accept-terms redirect when no client ID was supplied.
     /// </summary>
     [Fact]
     public async Task ExternalLoginCallback_NewUserWithoutClientId_AcceptTermsRedirectCarriesNone()
@@ -398,8 +380,7 @@ public class AccountControllerExternalLoginClientIdFlowTests
     }
 
     /// <summary>
-    /// The terms_required bounce sends the user back to the accept-terms screen to try again. Losing
-    /// the client id there would silently downgrade the retry to the AuthUrl-only origin set.
+    /// Preserve the client ID when redirecting back to accept terms.
     /// </summary>
     [Fact]
     public async Task CompleteExternalRegistration_TermsRequiredBounce_CarriesClientId()

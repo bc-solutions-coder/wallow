@@ -24,7 +24,7 @@ public sealed class LocalPresignedUrlSignerTests
     [Fact]
     public void Validate_WhenExpiryHasPassed_ReturnsFalse()
     {
-        // A signature over a past timestamp is authentic but no longer honored.
+
         long expires = DateTimeOffset.UtcNow.AddMinutes(-1).ToUnixTimeSeconds();
         string signature = _signer.Sign(
             LocalPresignedUrlSigner.DownloadMethod, "tenant-1/bucket/file.txt", expires);
@@ -51,7 +51,7 @@ public sealed class LocalPresignedUrlSignerTests
     [Fact]
     public void Validate_WithDifferentExpiry_ReturnsFalse()
     {
-        // Extending the deadline invalidates the signature: expiry is signed, not advisory.
+
         long expires = FutureExpiry;
         string signature = _signer.Sign(
             LocalPresignedUrlSigner.DownloadMethod, "tenant-1/bucket/file.txt", expires);
@@ -65,7 +65,7 @@ public sealed class LocalPresignedUrlSignerTests
     [Fact]
     public void Validate_WithDownloadSignatureForUploadMethod_ReturnsFalse()
     {
-        // A download URL must not authorize a write.
+
         long expires = FutureExpiry;
         string signature = _signer.Sign(
             LocalPresignedUrlSigner.DownloadMethod, "tenant-1/bucket/file.txt", expires);
@@ -88,8 +88,7 @@ public sealed class LocalPresignedUrlSignerTests
     [Fact]
     public void Validate_WithSignatureFromAnotherSignerInstance_ReturnsFalse()
     {
-        // Each instance holds its own random key; only the process-wide singleton's
-        // signatures are honored, so URLs die with the process that minted them.
+        // Distinct instances have different keys; the registered singleton loses its key on restart.
         LocalPresignedUrlSigner other = new();
         long expires = FutureExpiry;
         string signature = other.Sign(

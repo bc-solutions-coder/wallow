@@ -7,13 +7,7 @@ using Wallow.Identity.Infrastructure.Persistence;
 namespace Wallow.Identity.Infrastructure.Services;
 
 /// <summary>
-/// Mirrors the <see cref="ApiScope"/> catalog into OpenIddict's own scope table, which is the
-/// only place the consent screen can read a description from: without a row there, a relying
-/// party's prompt lists bare protocol identifiers and asks the user to grant "storage.write"
-/// with no statement of what that means.
-///
-/// The protocol scopes are not <see cref="ApiScope"/> rows and never will be — nothing grants
-/// them and no service account holds them — so their wording lives here.
+/// Copies the <see cref="ApiScope"/> catalog and protocol scope descriptions into OpenIddict for consent display.
 /// </summary>
 public sealed partial class OpenIddictScopeSyncService(
     IdentityDbContext dbContext,
@@ -49,9 +43,7 @@ public sealed partial class OpenIddictScopeSyncService(
     }
 
     /// <summary>
-    /// Rewrites an existing descriptor rather than skipping it: the catalog is the source of
-    /// truth, so an edited description has to reach the consent screen without anyone dropping
-    /// the row by hand first.
+    /// Updates changed descriptions so catalog edits reach consent prompts on the next seed run.
     /// </summary>
     private async Task<bool> UpsertAsync(
         string name, string displayName, string? description, CancellationToken ct)

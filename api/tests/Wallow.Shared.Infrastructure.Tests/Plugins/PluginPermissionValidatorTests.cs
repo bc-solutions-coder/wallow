@@ -33,7 +33,7 @@ public class PluginPermissionValidatorTests
         _pluginOptions.Permissions[pluginId] = configuredPermissions;
     }
 
-    // --- HasPermission ---
+
 
     [Fact]
     public void HasPermission_PermissionGrantedAndRequested_ReturnsTrue()
@@ -91,7 +91,7 @@ public class PluginPermissionValidatorTests
         result.Should().BeFalse();
     }
 
-    // --- GetGrantedPermissions ---
+
 
     [Fact]
     public void GetGrantedPermissions_IntersectsManifestAndConfigured_ReturnsOnlyCommon()

@@ -69,10 +69,7 @@ public class DeleteFileHandlerTests
 
         await _handler.Handle(command, CancellationToken.None);
 
-        // An object-store delete is not undone by a database rollback, so deleting first and
-        // committing second lets a failed commit strand a row pointing at bytes that are already
-        // gone -- a permanent 404 on read. Committing first makes the worst case an orphaned
-        // object instead: garbage, but nothing points at it.
+        // Object deletes cannot roll back; commit metadata removals first.
         Received.InOrder(() =>
         {
             _fileRepository.Remove(file);

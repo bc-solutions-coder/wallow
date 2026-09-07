@@ -29,15 +29,7 @@ public class OrganizationsController(
     IOrganizationAccessPolicy accessPolicy) : ControllerBase
 {
 
-    // Organization IS the tenant, so every caller is scoped to the org matching their own
-    // tenant id. The is_global_admin claim is the only BLANKET cross-tenant escape hatch, matching
-    // TenantResolutionMiddleware and PermissionExpansionMiddleware; no role string grants it,
-    // otherwise any tenant-assignable "admin" could reach other tenants' orgs by guessing GUIDs.
-    //
-    // Creating an org mints a new tenant id that never equals the creator's own, so membership is
-    // the second, NARROW path — narrow because the permission travels with it. Each endpoint passes
-    // the permission it already demands, so a foreign member who may read this org still cannot
-    // delete it, and a member the org granted no role reaches nothing at all.
+    // Foreign organizations require global administration or a membership with the requested permission.
     private async Task<bool> CanAddressOrganizationAsync(Guid orgId, string requiredPermission, CancellationToken ct)
     {
         if (orgId == tenantContext.TenantId.Value || User.IsGlobalAdmin())
@@ -52,13 +44,8 @@ public class OrganizationsController(
     private Guid ActorId() => Guid.Parse(User.GetUserId()!);
 
     /// <summary>
-    /// Create a new organization.
+    /// Creates an organization for the authenticated caller. No existing organization or tenant permission is required.
     /// </summary>
-    /// <remarks>
-    /// Any account holder may found an organization without an operator, so this asks for no
-    /// permission and answers an organization-less token: a permission would have to be
-    /// granted by an organization the caller does not yet have.
-    /// </remarks>
     [HttpPost]
     [Authorize]
     [AllowWithoutOrganization]
@@ -74,7 +61,7 @@ public class OrganizationsController(
     }
 
     /// <summary>
-    /// Get all organizations with optional search filtering and pagination.
+    /// Returns the resolved tenant organization if present in the requested search-result page.
     /// </summary>
     [HttpGet]
     [HasPermission(PermissionType.OrganizationsRead)]
@@ -173,7 +160,7 @@ public class OrganizationsController(
     }
 
     /// <summary>
-    /// List the members whose access is currently taken away, most recently suspended first.
+    /// Lists suspended memberships by most recent update.
     /// </summary>
     [HttpGet("{id:guid}/members/suspended")]
     [HasPermission(PermissionType.OrganizationsManageMembers)]
@@ -190,8 +177,7 @@ public class OrganizationsController(
     }
 
     /// <summary>
-    /// List the requests this organization turned away and has not taken back, most recently
-    /// refused first.
+    /// Lists denied memberships by most recent update.
     /// </summary>
     [HttpGet("{id:guid}/members/denied")]
     [HasPermission(PermissionType.OrganizationsManageMembers)]
@@ -285,7 +271,7 @@ public class OrganizationsController(
     }
 
     /// <summary>
-    /// Give a suspended member their access back.
+    /// Reinstates membership using the current default role. Revoked tokens remain revoked.
     /// </summary>
     [HttpPost("{id:guid}/members/{userId:guid}/reinstate")]
     [HasPermission(PermissionType.OrganizationsManageMembers)]
@@ -304,14 +290,9 @@ public class OrganizationsController(
     }
 
     /// <summary>
-    /// Give up your own membership of an organization.
+    /// Removes the caller membership without requiring a management permission.
+    /// The service still enforces membership and last-owner rules.
     /// </summary>
-    /// <remarks>
-    /// Asks for no permission and consults no access policy: the caller is deciding about
-    /// themselves, and requiring one would shut out members of every organization that is not the
-    /// one their token is scoped to — which is most of them. Membership itself is the authority
-    /// here, so a caller who has none gets the same refusal a stranger does.
-    /// </remarks>
     [HttpPost("{id:guid}/leave")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
@@ -360,9 +341,8 @@ public class OrganizationsController(
     }
 
     /// <summary>
-    /// Place the platform's own suspension on the organization, with a reason (global admins
-    /// only). Every bound client's and every member's tokens are revoked, and every change to
-    /// the organization is refused while the suspension stands.
+    /// Applies an organization platform suspension and revokes associated access.
+    /// Requires global administrator authority; global administrators may still make changes.
     /// </summary>
     [HttpPost("{id:guid}/platform-suspension")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -381,9 +361,7 @@ public class OrganizationsController(
     }
 
     /// <summary>
-    /// Lift the organization's platform suspension (global admins only). Nothing is revoked
-    /// back into place: people sign in again, and clients the organization suspended itself
-    /// stay suspended.
+    /// Lifts the organization platform suspension. Revoked tokens and separate client suspensions remain unchanged.
     /// </summary>
     [HttpDelete("{id:guid}/platform-suspension")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -527,12 +505,9 @@ public class OrganizationsController(
     }
 
     /// <summary>
-    /// Set who may join this organization and the role they join with.
+    /// Replaces the enrollment policy, request-email address, and default role.
+    /// Requires permission to manage members.
     /// </summary>
-    /// <remarks>
-    /// Separate from the settings route above, and gated on managing members rather than on editing
-    /// settings: these three fields decide the organization's membership.
-    /// </remarks>
     [HttpPut("{id:guid}/enrollment")]
     [HasPermission(PermissionType.OrganizationsManageMembers)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

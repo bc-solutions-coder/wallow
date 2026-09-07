@@ -7,12 +7,8 @@ using Wallow.Tests.Common.Helpers;
 namespace Wallow.Identity.IntegrationTests.Organizations;
 
 /// <summary>
-/// POST /v1/identity/organizations creates a fully addressable tenant. Creating an org mints a
-/// NEW tenant id that never equals the creator's own <c>tenant_id</c> claim, so what re-grants
-/// access is the creator's admin membership of that one org — not their ambient tenant. The
-/// caller here REMAINS in their own realm-admin tenant context throughout.
-///
-/// Backend-dependent: requires the WallowApiFactory stack (Postgres + seeded identity data).
+/// Checks read, member-management, and settings access using a newly created organization ID
+/// without switching the caller tenant to that organization.
 /// </summary>
 [Trait("Category", "Integration")]
 public class CreateOrganizationAddressabilityTests(WallowApiFactory factory) : IdentityIntegrationTestBase(factory)
@@ -33,7 +29,7 @@ public class CreateOrganizationAddressabilityTests(WallowApiFactory factory) : I
     }
 
     /// <summary>
-    /// Read leg: GET /v1/identity/organizations/{id} returns the created org.
+    /// Reads the created organization by the returned ID.
     /// </summary>
     [Fact]
     public async Task PostOrganization_ThenGetById_ViaReturnedId_Succeeds()
@@ -49,8 +45,7 @@ public class CreateOrganizationAddressabilityTests(WallowApiFactory factory) : I
     }
 
     /// <summary>
-    /// Add-member leg: POST .../{id}/members then GET .../{id}/members reflects the new member.
-    /// Uses the seeded real test user so it materializes in the member listing.
+    /// Adds a seeded user and checks that the member listing includes them.
     /// </summary>
     [Fact]
     public async Task PostOrganization_ThenAddAndListMember_ViaReturnedId_Succeeds()
@@ -71,7 +66,7 @@ public class CreateOrganizationAddressabilityTests(WallowApiFactory factory) : I
     }
 
     /// <summary>
-    /// Update leg: PUT .../{id}/settings updates the created org.
+    /// Checks that a settings update to the created organization is accepted.
     /// </summary>
     [Fact]
     public async Task PostOrganization_ThenUpdateSettings_ViaReturnedId_Succeeds()

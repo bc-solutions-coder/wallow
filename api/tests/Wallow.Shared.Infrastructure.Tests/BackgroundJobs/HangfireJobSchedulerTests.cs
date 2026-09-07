@@ -85,9 +85,7 @@ public class HangfireJobSchedulerTests
 
         Action act = () => scheduler.AddRecurring("test-job", "0 * * * *", () => Task.CompletedTask);
 
-        // Hangfire validates the expression before checking storage, so the specific
-        // exception type depends on the expression. What matters is that the call
-        // delegates to Hangfire and does not silently succeed.
+        // This assertion allows either expression validation or unconfigured-storage failure.
         act.Should().Throw<Exception>();
     }
 

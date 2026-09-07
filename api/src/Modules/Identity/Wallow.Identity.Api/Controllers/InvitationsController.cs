@@ -81,8 +81,7 @@ public class InvitationsController(
     }
 
     /// <summary>
-    /// Joins the caller to the inviting organization. Refused unless the caller's own verified
-    /// email is the one the invitation names, so a forwarded token grants nothing.
+    /// Accepts an invitation for the authenticated user, whose verified email must match the invitation.
     /// </summary>
     [HttpPost("{token}/accept")]
     [Authorize]

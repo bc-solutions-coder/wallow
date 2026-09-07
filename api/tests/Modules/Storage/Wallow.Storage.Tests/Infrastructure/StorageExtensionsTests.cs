@@ -59,8 +59,7 @@ public sealed class StorageExtensionsTests
     [InlineData("S3")]
     public void AddStorageInfrastructure_RegistersPresignedUrlSignerRegardlessOfProvider(string provider)
     {
-        // LocalStorageController resolves the signer under every provider, so the
-        // registration must not sit inside the provider switch.
+        // LocalStorageController needs the signer even when another provider is selected.
         IConfiguration configuration = BuildConfiguration(new Dictionary<string, string?>
         {
             ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test",
@@ -320,7 +319,7 @@ public sealed class StorageExtensionsTests
         ServiceCollection services = CreateBaseServices(configuration);
         services.AddStorageModule(configuration);
 
-        // Verify infrastructure registrations exist
+
         bool hasStorageProvider = services.Any(d => d.ServiceType == typeof(IStorageProvider));
         bool hasFileScanner = services.Any(d => d.ServiceType == typeof(IFileScanner));
 
@@ -418,7 +417,7 @@ public sealed class StorageExtensionsTests
     [Fact]
     public async Task ClamAvHealthCheck_WhenUnreachable_ReturnsUnhealthy()
     {
-        // Use port 1 which nothing listens on
+        // This test expects no listener on port 1.
         ClamAvHealthCheck healthCheck = new ClamAvHealthCheck("127.0.0.1", 1);
         HealthCheckContext context = new HealthCheckContext();
 

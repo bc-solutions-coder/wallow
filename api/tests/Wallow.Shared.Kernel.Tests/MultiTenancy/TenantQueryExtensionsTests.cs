@@ -53,7 +53,6 @@ public class TenantQueryExtensionsTests
         List<TestEntity> filtered = context.Entities.ToList();
         filtered.Should().BeEmpty();
 
-        // With AllTenants, query filter is bypassed
         List<TestEntity> unfiltered = context.Entities.AllTenants().ToList();
         unfiltered.Should().HaveCount(2);
     }

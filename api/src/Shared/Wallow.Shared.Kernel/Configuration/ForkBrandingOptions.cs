@@ -1,9 +1,8 @@
 namespace Wallow.Shared.Kernel.Configuration;
 
 /// <summary>
-/// The fork's own product identity as the backend knows it. The frontends read the app name from
-/// their build-time branding; deployments mirror it here (section <c>Branding</c>) so the API can
-/// keep a developer application from dressing up as the platform itself.
+/// Backend product identity from <c>Branding</c>. Keep AppName aligned with frontend branding
+/// so client display names cannot impersonate the platform.
 /// </summary>
 public sealed class ForkBrandingOptions
 {

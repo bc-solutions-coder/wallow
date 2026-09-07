@@ -65,14 +65,14 @@ public class JsonSchemaGeneratorTests
         props.ContainsKey("amount").Should().BeTrue();
         props.ContainsKey("optionalField").Should().BeTrue();
 
-        // id is Guid -> string/uuid
+
         props["id"]!["type"]!.GetValue<string>().Should().Be("string");
         props["id"]!["format"]!.GetValue<string>().Should().Be("uuid");
 
-        // amount is decimal -> number
+
         props["amount"]!["type"]!.GetValue<string>().Should().Be("number");
 
-        // required should include non-nullable properties only
+
         List<string> required = schema["required"]!.AsArray().Select(n => n!.GetValue<string>()).ToList();
         required.Should().Contain("id");
         required.Should().Contain("name");
@@ -228,7 +228,7 @@ public class JsonSchemaGeneratorTests
         props.ContainsKey("baseId").Should().BeTrue();
     }
 
-    // Non-primitive struct (not a collection, not a known type) should fall through to GenerateSchema
+    // Exercise object-schema generation for an unrecognized value type.
     private struct CustomStruct
     {
         // ReSharper disable once UnusedMember.Local

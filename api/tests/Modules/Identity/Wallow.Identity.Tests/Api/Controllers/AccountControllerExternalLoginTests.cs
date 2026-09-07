@@ -80,7 +80,7 @@ public class AccountControllerExternalLoginTests
             TimeProvider.System,
             Substitute.For<IEmailChangeRateLimiter>());
 
-        // Set up HttpContext with a mock auth service so SignOutAsync works
+
         DefaultHttpContext httpContext = new();
         IAuthenticationService authService = Substitute.For<IAuthenticationService>();
         authService.SignOutAsync(Arg.Any<HttpContext>(), Arg.Any<string>(), Arg.Any<AuthenticationProperties>())
@@ -288,7 +288,7 @@ public class AccountControllerExternalLoginTests
         _signInManager.GetExternalAuthenticationSchemesAsync()
             .Returns(new List<AuthenticationScheme> { scheme });
 
-        // ExternalLogin resolves the provider by scheme NAME, so only the name resolves.
+        // Register the scheme name while rejecting its display label.
         _authSchemeProvider.GetSchemeAsync("google-oidc").Returns(scheme);
         _authSchemeProvider.GetSchemeAsync("Sign in with Google").Returns((AuthenticationScheme?)null);
         _redirectUriValidator.IsAllowedAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
@@ -379,20 +379,20 @@ public class AccountControllerExternalLoginTests
     [Fact]
     public async Task CompleteExternalRegistration_WhenNewUserInMfaRequiredOrg_SetsMfaGraceDeadline()
     {
-        // Set up the cookie with external login state
+
         IDataProtector protector = Substitute.For<IDataProtector>();
         _dataProtectionProvider.CreateProtector("ExternalLogin").Returns(protector);
         string cookieData = "Google|provider-key-123|newuser@example.com|New|User|true";
         protector.Unprotect(Arg.Any<byte[]>())
             .Returns(System.Text.Encoding.UTF8.GetBytes(cookieData));
 
-        // Mock the cookie to return a value
+
         _controller.ControllerContext.HttpContext.Request.Headers.Append("Cookie", "ExternalLoginState=encrypted-value");
 
-        // User doesn't exist yet (new registration)
+
         _userManager.FindByEmailAsync("newuser@example.com").Returns((WallowUser?)null);
 
-        // User creation succeeds
+
         _userManager.CreateAsync(Arg.Any<WallowUser>())
             .Returns(IdentityResult.Success);
         _userManager.GenerateEmailConfirmationTokenAsync(Arg.Any<WallowUser>())
@@ -404,7 +404,7 @@ public class AccountControllerExternalLoginTests
 
         _redirectUriValidator.IsAllowedAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns(true);
 
-        // Org requires MFA
+
         _orgMfaPolicyService.CheckAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(new OrgMfaPolicyResult(RequiresMfa: true, IsInGracePeriod: true));
 
@@ -412,7 +412,7 @@ public class AccountControllerExternalLoginTests
             acceptedTerms: true,
             returnUrl: "http://localhost:5002");
 
-        // Verify that the newly created user had MfaGraceDeadline set
+
         await _userManager.Received().UpdateAsync(Arg.Is<WallowUser>(u =>
             u.MfaGraceDeadline != null && u.MfaGraceDeadline > DateTimeOffset.UtcNow));
     }

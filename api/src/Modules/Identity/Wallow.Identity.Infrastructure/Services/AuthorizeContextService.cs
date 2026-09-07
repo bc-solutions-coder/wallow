@@ -7,11 +7,9 @@ using static OpenIddict.Abstractions.OpenIddictConstants;
 namespace Wallow.Identity.Infrastructure.Services;
 
 /// <summary>
-/// Resolves the client behind a pending authorize transaction. Answers only when the caller can
-/// present a redirect URI the client actually registered — the same exact-match check the
-/// authorize endpoint enforces — and the client is currently serviceable; every other case is an
-/// indistinguishable null, so the endpoint built on this cannot be used to enumerate clients or
-/// read branding outside a genuine transaction.
+/// Resolves branding and scope descriptions after redirect-URI validation and the client
+/// state policy. Unknown clients, invalid redirects and policy refusals return null.
+/// A registered redirect URI does not prove a live authorization transaction.
 /// </summary>
 public sealed class AuthorizeContextService(
     IOpenIddictApplicationManager applicationManager,

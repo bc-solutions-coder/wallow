@@ -8,18 +8,9 @@ using Wallow.Shared.Contracts.Realtime;
 namespace Wallow.Identity.Infrastructure.Services;
 
 /// <summary>
-/// Revocation walks OpenIddict's token index and ends what it finds, then hangs up the realtime
-/// connections that already-issued tokens keep open — revoking a token says nothing to a socket
-/// that is already open, and an open stream carries the roles it was opened with.
-///
-/// By membership, a token names its organization in one of two places. A bound client's tokens
-/// carry it through the client: the binding is what put an org_id on them. A first-party client
-/// is bound to none, so its sign-in writes the organization on the authorization its tokens chain
-/// to instead. Revoking access to one organization means revoking the subject's tokens found
-/// either way, and no others. By client, every token names the application it was issued to, so
-/// the whole revocation is one walk over that index. By session, every sign-in stamps its
-/// per-login authorization with the session's sid, so end-session revokes exactly the one
-/// browser session's tokens and no others.
+/// Revokes credentials by organization-stamped authorization, client binding, or session ID.
+/// Realtime disconnection is a separate call because revoking tokens does not close streams.
+/// Session-only revocation does not disconnect realtime streams here.
 /// </summary>
 public sealed partial class AccessRevoker(
     IOpenIddictTokenManager tokenManager,
@@ -68,8 +59,7 @@ public sealed partial class AccessRevoker(
         string subject = userId.ToString();
         HashSet<string> revokedTokenIds = [];
 
-        // Per-login authorizations die with the account; the permanent consent records survive,
-        // so a reactivated user signs back in without re-consenting.
+        // Preserve permanent consent while revoking per-login authorizations.
         await foreach (object authorization in authorizationManager.FindBySubjectAsync(subject, ct))
         {
             string? type = await authorizationManager.GetTypeAsync(authorization, ct);
@@ -81,8 +71,7 @@ public sealed partial class AccessRevoker(
             await RevokeAuthorizationWithTokensAsync(authorization, revokedTokenIds, ct);
         }
 
-        // The subject walk catches what the authorization walk cannot see: tokens chained to a
-        // consent record and tokens chained to nothing.
+        // Also cover tokens attached to permanent consent or to no authorization.
         await foreach (object token in tokenManager.FindBySubjectAsync(subject, ct))
         {
             await RevokeTokenAsync(token, revokedTokenIds, ct);

@@ -56,11 +56,9 @@ public sealed partial class RedisApiKeyService(
 
             await apiKeyRepository.AddAsync(domainKey, ct);
 
-            // The cache and every caller address the key by its domain id — the one identifier
-            // that survives a cache flush, so a listed key can always be revoked.
+            // Use the persisted domain ID so listed keys remain revocable after a cache flush.
             string keyId = domainKey.Id.Value.ToString();
 
-            // Then write to Valkey cache
             ApiKeyData metadata = new()
             {
                 KeyId = keyId,
@@ -137,7 +135,6 @@ public sealed partial class RedisApiKeyService(
         try
         {
             string keyHash = HashApiKey(apiKey);
-            // Check Valkey first
             RedisValue json = await db.StringGetAsync(ApiKeyCacheKeys.ByHash(keyHash));
             if (!json.IsNullOrEmpty)
             {
@@ -145,7 +142,7 @@ public sealed partial class RedisApiKeyService(
             }
 
             // Cache miss -- fall back to PostgreSQL
-            // We don't have tenantId in this path, so search across all tenants by hash
+            // No tenant argument is supplied; the repository's current tenant filter still applies.
             ApiKey? domainKey = await apiKeyRepository.GetByHashAsync(keyHash, ct);
             if (domainKey is null || domainKey.IsRevoked)
             {
@@ -158,7 +155,6 @@ public sealed partial class RedisApiKeyService(
                     Error: "API key not found");
             }
 
-            // Check expiration
             if (domainKey.ExpiresAt < timeProvider.GetUtcNow())
             {
                 return new ApiKeyValidationResult(
@@ -170,7 +166,6 @@ public sealed partial class RedisApiKeyService(
                     Error: "API key expired");
             }
 
-            // Repopulate Valkey cache
             ApiKeyData cacheData = new()
             {
                 KeyId = domainKey.Id.Value.ToString(),
@@ -215,7 +210,6 @@ public sealed partial class RedisApiKeyService(
     {
         try
         {
-            // Read from PostgreSQL only
             List<ApiKey> keys = await apiKeyRepository.ListByServiceAccountAsync(userId.ToString(), tenantId, ct);
 
             return keys
@@ -263,9 +257,7 @@ public sealed partial class RedisApiKeyService(
                 return false;
             }
 
-            // PostgreSQL is the source of truth: the row must die even when the cache entries
-            // have already expired, so the lookup goes to the repository and ownership is
-            // proved against the row, not against cached JSON.
+            // Verify ownership and revoke the database row even when its cache entries expired.
             ApiKey? domainKey = await apiKeyRepository.GetByIdAsync(new ApiKeyId(parsedKeyId), ct);
             if (domainKey is null || domainKey.ServiceAccountId != userId.ToString())
             {
@@ -277,7 +269,7 @@ public sealed partial class RedisApiKeyService(
                 await apiKeyRepository.RevokeAsync(domainKey.Id, domainKey.TenantId.Value, userId, ct);
             }
 
-            // Then drop the cache entries, every name derived from the row.
+            // Derive cache names from the row, including after cache expiry.
             string normalizedKeyId = parsedKeyId.ToString();
             await db.KeyDeleteAsync(ApiKeyCacheKeys.ByHash(domainKey.HashedKey));
             await db.KeyDeleteAsync(ApiKeyCacheKeys.ById(normalizedKeyId));
@@ -307,7 +299,6 @@ public sealed partial class RedisApiKeyService(
                 Error: "Invalid API key data");
         }
 
-        // Check expiration
         if (data.ExpiresAt < timeProvider.GetUtcNow())
         {
             return new ApiKeyValidationResult(

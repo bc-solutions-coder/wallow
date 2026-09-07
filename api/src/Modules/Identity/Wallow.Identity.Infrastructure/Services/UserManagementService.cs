@@ -51,9 +51,7 @@ public sealed partial class UserManagementService(
             throw new InvalidOperationException($"Failed to create user: {errors}");
         }
 
-        // An administrator creating a user creates them INTO the organization being administered:
-        // the membership is what carries the default role, and without one the new account
-        // resolves no roles anywhere.
+        // Enroll in the current organization when one is resolved, using the service's default role.
         Guid organizationId = tenantContext.TenantId.Value;
         if (organizationId != Guid.Empty)
         {
@@ -162,10 +160,8 @@ public sealed partial class UserManagementService(
     }
 
     /// <summary>
-    /// Batch role lookup for display. Roles are granted BY an organization, so this answers for
-    /// the one being administered and no other — a role held elsewhere confers nothing here and
-    /// showing it would misdescribe the account. Active memberships only, matching what
-    /// <see cref="IMembershipRoleResolver"/> resolves for authorization.
+    /// Resolves display roles for active memberships in the current organization,
+    /// matching <see cref="IMembershipRoleResolver"/> authorization scope.
     /// </summary>
     private async Task<Dictionary<Guid, List<string>>> GetRolesByUserIdsAsync(
         List<Guid> userIds,
@@ -173,8 +169,7 @@ public sealed partial class UserManagementService(
     {
         OrganizationId scope = OrganizationId.Create(tenantContext.TenantId.Value);
 
-        // Owned role rows come back with their membership, so this is one round trip and never
-        // more than one page's worth of members.
+        // Limit membership lookup to the displayed users in this organization.
         List<Membership> memberships = await dbContext.Memberships
             .Where(m => m.OrganizationId == scope
                 && m.Status == MembershipStatus.Active
@@ -183,8 +178,7 @@ public sealed partial class UserManagementService(
 
         List<Guid> roleIds = [.. memberships.SelectMany(m => m.Roles).Select(r => r.RoleId).Distinct()];
 
-        // The role catalog is global — seeded with an empty tenant id and addressed by id — so
-        // naming them bypasses the tenant filters.
+        // Resolve assignments against the global role catalog.
         Dictionary<Guid, string> roleNamesById = await dbContext.Roles
             .IgnoreQueryFilters()
             .Where(r => roleIds.Contains(r.Id) && r.Name != null)
@@ -212,8 +206,7 @@ public sealed partial class UserManagementService(
         await userManager.SetLockoutEnabledAsync(user, true);
         await userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
 
-        // The lockout only blocks the next sign-in; the sessions the user already holds keep
-        // working until their tokens are taken back.
+        // Account state alone does not revoke issued tokens or disconnect existing streams.
         await accessRevoker.RevokeUserAsync(userId, ct);
 
         LogUserDeactivated(userId);
@@ -347,9 +340,7 @@ public sealed partial class UserManagementService(
     }
 
     /// <summary>
-    /// The membership the role write lands on. Absent it there is nowhere to record the grant,
-    /// and inventing one here would let a role assignment double as an enrollment, bypassing the
-    /// organization's own enrollment policy.
+    /// Requires an existing membership so assigning a role cannot implicitly enroll a user.
     /// </summary>
     private async Task<Membership> RequiredMembershipAsync(Guid userId, Guid organizationId, CancellationToken ct)
     {
@@ -368,8 +359,7 @@ public sealed partial class UserManagementService(
             return [];
         }
 
-        // The role catalog is global: roles are seeded with an empty tenant id and addressed by
-        // id, so no tenant scoping applies to the lookup.
+        // Resolve assignment IDs against the global role catalog.
         return await dbContext.Roles
             .IgnoreQueryFilters()
             .Where(r => roleIds.Contains(r.Id) && r.Name != null)
@@ -379,8 +369,7 @@ public sealed partial class UserManagementService(
 
     private async Task<Guid> ResolveRoleIdAsync(string roleName, CancellationToken ct)
     {
-        // Identity's default normalizer upper-cases invariantly, so this matches what
-        // RoleManager wrote without paying for a case-insensitive collation scan.
+        // Match the stored normalized role name directly.
         string normalizedName = roleName.ToUpperInvariant();
 
         WallowRole? role = await dbContext.Roles

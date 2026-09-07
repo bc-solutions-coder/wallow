@@ -33,7 +33,7 @@ public partial class SseRedisSubscriber : BackgroundService
             new RedisChannel("sse:user:*", RedisChannel.PatternMode.Pattern),
             (channel, message) => HandleUserMessage(channel, message));
 
-        // Keep the service alive until shutdown is requested
+
         try
         {
             await Task.Delay(Timeout.Infinite, stoppingToken);

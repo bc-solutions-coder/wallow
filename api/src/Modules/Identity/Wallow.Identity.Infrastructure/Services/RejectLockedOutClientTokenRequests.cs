@@ -5,12 +5,8 @@ using static OpenIddict.Abstractions.OpenIddictConstants;
 namespace Wallow.Identity.Infrastructure.Services;
 
 /// <summary>
-/// A client_id that tripped the invalid_client lockout is refused at the token endpoint for the
-/// duration of the lockout, correct secret or not. It runs before OpenIddict validates the
-/// client's credentials, so a guesser who finally lands the right secret inside the lockout
-/// learns nothing: the answer is the same <c>invalid_client</c> every wrong guess got. The
-/// rejection stamps a transaction property so the audit handler can tell the lockout's own
-/// refusals apart from genuine authentication failures and not count them.
+/// Rejects locked-out client IDs before credential validation, even with the correct secret.
+/// Marks the rejection so the audit handler does not count it as another failed guess.
 /// </summary>
 public sealed class RejectLockedOutClientTokenRequests(IInvalidClientLockout invalidClientLockout)
     : IOpenIddictServerHandler<OpenIddictServerEvents.ValidateTokenRequestContext>

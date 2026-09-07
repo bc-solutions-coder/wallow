@@ -3,7 +3,7 @@ using Wolverine;
 
 namespace Wallow.Shared.Kernel.Tests.Messaging;
 
-#pragma warning disable CA2000 // WolverineOptions does not implement IDisposable
+#pragma warning disable CA2000 // These tests configure options without starting a Wolverine runtime.
 
 public class WolverineErrorHandlingExtensionsTests
 {

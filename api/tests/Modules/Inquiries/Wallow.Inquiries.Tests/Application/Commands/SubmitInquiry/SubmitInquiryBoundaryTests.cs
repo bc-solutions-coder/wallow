@@ -29,7 +29,7 @@ public class SubmitInquiryBoundaryTests
     [Fact]
     public void Should_Not_Have_Error_When_Email_Is_Exactly_254_Characters()
     {
-        // 254 total: local@domain format
+
         string local = new string('a', 243);
         string email = $"{local}@test.co.uk";
         SubmitInquiryCommand command = Valid() with { Email = email };

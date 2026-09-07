@@ -11,14 +11,8 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.OAuth2;
 
 /// <summary>
-/// What a membership status is worth at the authorize endpoint, and again at every refresh. Only
-/// Active signs a person in. Suspended and Denied refuse under their own reason so the auth app can
-/// say what happened rather than only that access was refused; Pending is not a refusal at all and
-/// goes to the request-submitted screen. Global admin is an authority no organization grants, so it
-/// passes the gate holding no membership at all.
-///
-/// Suspending also reaches backwards: a token already in someone's hands stops working on the next
-/// request, which is what the token-entry validation on the resource server buys.
+/// Checks membership status during first-party authorization and refresh,
+/// including global-admin admission without membership and token rejection after suspension.
 /// </summary>
 public sealed class MembershipStatusGateTests(WallowApiFactory factory)
     : IdentityIntegrationTestBase(factory)
@@ -30,11 +24,7 @@ public sealed class MembershipStatusGateTests(WallowApiFactory factory)
     private static readonly string[] _clientScopes =
         ["openid", "profile", "email", "roles", "offline_access"];
 
-    // The test host authenticates every other route through TestAuthHandler, which never consults
-    // OpenIddict. Userinfo authenticates against the OpenIddict server scheme itself, so it is where
-    // an issued access token is actually validated in-process. The absolute address matters: the
-    // issuer is stamped from the host a token was minted through, and the harness signs in over
-    // https://localhost.
+    // Userinfo uses OpenIddict authentication. Match the HTTPS issuer used by the harness.
     private static readonly Uri _userinfo = new("https://localhost/connect/userinfo");
 
     [Fact]
@@ -64,8 +54,7 @@ public sealed class MembershipStatusGateTests(WallowApiFactory factory)
 
         authorize.Code.Should().BeNull(authorize.Location?.ToString());
 
-        // A pending request is the one non-Active outcome that is not a refusal, so it lands on
-        // its own screen and carries no reason for the error page to render.
+        // Pending first-party enrollment redirects to the access-request screen.
         authorize.Location?.ToString().Should().EndWith("/access-request");
         authorize.Error.Should().BeNull();
     }
@@ -195,8 +184,7 @@ public sealed class MembershipStatusGateTests(WallowApiFactory factory)
     }
 
     /// <summary>
-    /// Someone else owns the organization, because creating one enrolls its creator as an active
-    /// admin and there would then be no status left to set.
+    /// Uses another organization owner so each test can arrange the caller membership status.
     /// </summary>
     private async Task<Seed> SeedAsync()
     {

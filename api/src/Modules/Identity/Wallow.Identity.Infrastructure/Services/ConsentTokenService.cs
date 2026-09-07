@@ -8,18 +8,13 @@ using Wallow.Identity.Application.Interfaces;
 namespace Wallow.Identity.Infrastructure.Services;
 
 /// <summary>
-/// Consent tokens are data-protected, time-limited payloads naming the user and the request
-/// fingerprint they were minted for, plus an id the redemption records in the cache so the token is
-/// good exactly once. The cache carries the redeemed ids for as long as a token could still be
-/// valid, after which the time limit refuses it on its own. The data protector is the same
-/// mechanism the MFA partial-auth cookie and ticket exchange rely on, so a token is unforgeable
-/// without the key ring and readable by every host sharing it.
+/// Protects user/request-bound consent tokens with an expiry and records redeemed IDs
+/// in HybridCache. Replay detection depends on retention and coordination of cache entries.
 /// </summary>
 public sealed partial class ConsentTokenService : IConsentTokenService
 {
     /// <summary>
-    /// How long a consent screen may sit before its decision is refused. Long enough to read the
-    /// scope list; short enough that a leaked link is not a standing invitation.
+    /// Validity window for a consent decision token.
     /// </summary>
     public static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(10);
 
@@ -81,8 +76,7 @@ public sealed partial class ConsentTokenService : IConsentTokenService
             return ConsentTokenOutcome.Mismatched;
         }
 
-        // First redemption creates the entry; every later one finds it. The factory runs only
-        // when the key is absent, which is what makes the redemption single-use.
+        // Only the call that runs the cache factory is accepted as a new redemption.
         bool redeemedNow = false;
         await _cache.GetOrCreateAsync(
             RedeemedKeyPrefix + payload.Id,
@@ -111,8 +105,7 @@ public sealed partial class ConsentTokenService : IConsentTokenService
         }
         catch (Exception e) when (e is CryptographicException or FormatException or JsonException)
         {
-            // Forged, tampered, expired, protected under a key this host does not hold, or not
-            // a token at all - every one of them is "not ours", never an error to surface.
+            // Invalid protection or payload formats all produce the same rejection outcome.
             LogInvalid();
             return null;
         }

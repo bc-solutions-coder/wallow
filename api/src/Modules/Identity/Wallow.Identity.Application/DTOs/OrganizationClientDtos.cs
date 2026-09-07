@@ -23,10 +23,8 @@ public sealed record OrganizationClientDto(
     int? RefreshTokenLifetime = null);
 
 /// <summary>
-/// What a client is given once, at registration and again at rotation: the client secret is
-/// never readable again, and the issuer and API base URL are what its environment has to point at.
-/// Either URL is <see langword="null"/> when the deployment configures none, in which case the
-/// caller substitutes the request origin, as OpenIddict itself does for the issuer.
+/// Registration or rotation result. The secret is disclosed here and cannot be read back.
+/// The API controller substitutes the request origin for a missing issuer or API URL.
 /// </summary>
 public sealed record OrganizationClientRegistrationResult(
     OrganizationClientDto Client,
@@ -35,12 +33,9 @@ public sealed record OrganizationClientRegistrationResult(
     string? ApiBaseUrl);
 
 /// <summary>
-/// Everything about a client its organization may set: the redirect URIs, the optional
-/// back-channel logout URI, the scopes it may request and the optional refresh-token lifetime
-/// in seconds (<see langword="null"/> keeps the client's current policy — at registration that
-/// means the third-party default). Name and client id live outside it because they are fixed at
-/// registration. A service account carries only the scopes; its URI lists are always empty
-/// because it never takes part in a browser flow.
+/// Mutable OAuth client configuration. A null refresh-token lifetime preserves current
+/// policy on update and selects the third-party default on registration. Service-account
+/// callers must supply no browser-flow URIs. Name and client ID are fixed at registration.
 /// </summary>
 public sealed record ClientConfigurationInput(
     IReadOnlyList<Uri> RedirectUris,
@@ -51,17 +46,12 @@ public sealed record ClientConfigurationInput(
     int? RefreshTokenLifetime = null);
 
 /// <summary>
-/// Who is performing a client operation and from where — carried into the integration event the
-/// operation publishes, which is what writes the audit row. The address is <see langword="null"/>
-/// when the surface knows none.
+/// Actor and optional IP address carried into client-operation audit events.
 /// </summary>
 public sealed record ClientActorContext(Guid ActorId, string? IpAddress);
 
 /// <summary>
-/// A registration request as the surface has already validated it: which kind of client, its
-/// immutable name, the configuration that kind accepts and — for an application — the optional
-/// initial branding. When <c>BrandingDisplayName</c> is null the application's end-user-facing
-/// display name defaults to <c>Name</c>.
+/// Validated client registration input. A null BrandingDisplayName defaults to Name.
 /// </summary>
 public sealed record RegisterClientInput(
     RegisteredClientKind Kind,

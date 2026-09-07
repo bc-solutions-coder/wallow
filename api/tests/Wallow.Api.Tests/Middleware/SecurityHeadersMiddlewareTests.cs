@@ -187,7 +187,7 @@ public sealed class SecurityHeadersMiddlewareTests
 
         public async Task FireOnStartingAsync()
         {
-            // Fire in reverse order, matching ASP.NET Core behavior
+
             for (int i = _onStarting.Count - 1; i >= 0; i--)
             {
                 await _onStarting[i].Callback(_onStarting[i].State);

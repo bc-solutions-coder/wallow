@@ -19,11 +19,7 @@ using Wolverine;
 namespace Wallow.Identity.Tests.Api.Controllers;
 
 /// <summary>
-/// Covers the returnUrl contract of the exchange-ticket endpoint (Wallow-vec7.3.18).
-/// The external-login callback hands /mfa/challenge an ABSOLUTE returnUrl (normalized through
-/// IRedirectUriValidator.IsAllowedAsync), and the MFA screen threads it straight back into
-/// exchange-ticket. exchange-ticket must therefore honour an allow-listed absolute returnUrl
-/// while still refusing a non-allow-listed one, and still honour local/relative returnUrls.
+/// Checks local, allowed absolute, and rejected return URLs during ticket exchange.
 /// </summary>
 public class AccountControllerExchangeTicketReturnUrlTests
 {
@@ -90,11 +86,11 @@ public class AccountControllerExchangeTicketReturnUrlTests
             HttpContext = httpContext
         };
 
-        // Real UrlHelper so IsLocalUrl keeps its production semantics (relative-only).
+        // Exercise real local-URL validation, including rejection of network-path URLs.
         _controller.Url = new UrlHelper(
             new ActionContext(httpContext, new RouteData(), new ActionDescriptor()));
 
-        // Ticket has not been exchanged before — replay guard lets it through.
+        // Simulate the replay guard accepting a first exchange.
         _redisDb.StringSetAsync(
                 Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(),
                 Arg.Any<bool>(), Arg.Any<When>(), Arg.Any<CommandFlags>())
@@ -102,8 +98,7 @@ public class AccountControllerExchangeTicketReturnUrlTests
     }
 
     /// <summary>
-    /// Mints a real sign-in ticket the same way the password login path does, so the
-    /// exchange-ticket assertions exercise the genuine protected payload.
+    /// Obtains a protected ticket through the login action for exchange assertions.
     /// </summary>
     private async Task<string> CreateTicketViaLogin()
     {

@@ -199,7 +199,7 @@ namespace Wallow.Shared.Infrastructure.Tests.AsyncApi
     }
 }
 
-// --- Fake event types in Contracts-style namespaces ---
+
 
 namespace Wallow.Shared.Contracts.TestSales.Events
 {
@@ -212,7 +212,7 @@ namespace Wallow.Shared.Contracts.Billing.Events
     public record TestOrphanEvent : IntegrationEvent;
 }
 
-// --- Fake handler in a module namespace ---
+
 
 namespace Wallow.TestBilling.Infrastructure.Consumers
 {
@@ -224,7 +224,7 @@ namespace Wallow.TestBilling.Infrastructure.Consumers
     }
 }
 
-// --- Fake saga (needs a base class named "Saga" to be detected) ---
+// Discovery recognizes the base-class name "Saga".
 
 namespace Wallow.TestBilling.Application.Sagas
 {
@@ -245,7 +245,7 @@ namespace Wallow.TestBilling.Application.Sagas
     }
 }
 
-// --- Fake handler in Shared namespace ---
+
 
 namespace Wallow.Shared.Handlers
 {
@@ -257,7 +257,7 @@ namespace Wallow.Shared.Handlers
     }
 }
 
-// --- Assembly stub that throws ReflectionTypeLoadException ---
+
 
 namespace Wallow.Shared.Infrastructure.Tests.AsyncApi.Stubs
 {

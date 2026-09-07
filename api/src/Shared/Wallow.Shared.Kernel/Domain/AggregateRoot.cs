@@ -3,8 +3,7 @@ using Wallow.Shared.Kernel.Identity;
 namespace Wallow.Shared.Kernel.Domain;
 
 /// <summary>
-/// Base class for aggregate roots. Aggregate roots are the entry point to an aggregate
-/// and are responsible for maintaining invariants. They can raise domain events.
+/// Auditable aggregate with a collection of raised domain events.
 /// </summary>
 /// <typeparam name="TId">The strongly-typed ID type for this aggregate</typeparam>
 public abstract class AggregateRoot<TId> : AuditableEntity<TId>
@@ -13,7 +12,7 @@ public abstract class AggregateRoot<TId> : AuditableEntity<TId>
     private readonly List<IDomainEvent> _domainEvents = [];
 
     /// <summary>
-    /// Domain events raised by this aggregate. Cleared after persistence.
+    /// Events collected by this aggregate until explicitly cleared.
     /// </summary>
     public IReadOnlyList<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();
 
@@ -22,7 +21,7 @@ public abstract class AggregateRoot<TId> : AuditableEntity<TId>
     protected AggregateRoot(TId id) : base(id) { }
 
     /// <summary>
-    /// Raises a domain event. Events are dispatched after the aggregate is persisted.
+    /// Collects an event; this method does not dispatch it.
     /// </summary>
     protected void RaiseDomainEvent(IDomainEvent domainEvent)
     {
@@ -30,7 +29,7 @@ public abstract class AggregateRoot<TId> : AuditableEntity<TId>
     }
 
     /// <summary>
-    /// Clears all domain events. Called by infrastructure after events are dispatched.
+    /// Clears the collected events.
     /// </summary>
     public void ClearDomainEvents()
     {

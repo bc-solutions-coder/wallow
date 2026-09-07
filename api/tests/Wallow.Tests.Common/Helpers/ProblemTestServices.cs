@@ -7,10 +7,7 @@ using Wallow.Shared.Api.Problems;
 namespace Wallow.Tests.Common.Helpers;
 
 /// <summary>
-/// Request services carrying the host's problem contract, for unit tests that drive a controller
-/// or middleware directly. With these on the <c>HttpContext</c>, <c>ValidationProblem</c>, a
-/// <c>ProblemResult</c>, and <c>IProblemDetailsService</c> all produce the same body the API
-/// serves, so a test can assert on status, code, and shape rather than on a bare object.
+/// Builds MVC and problem-details services for direct controller and middleware tests.
 /// </summary>
 public static class ProblemTestServices
 {

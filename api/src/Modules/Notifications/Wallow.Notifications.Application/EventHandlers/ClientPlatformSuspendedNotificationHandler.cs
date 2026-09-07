@@ -8,10 +8,8 @@ namespace Wallow.Notifications.Application.EventHandlers;
 public static class ClientPlatformSuspendedNotificationHandler
 {
     /// <summary>
-    /// One email per recipient, naming the client and carrying the operator's reason. An event
-    /// with no recipients sends nothing and is not an error: the suspension itself is the durable
-    /// record, and the reason stays readable on the client. Lifting a suspension sends no email —
-    /// this notice is the only one.
+    /// Invokes one email command per recipient with the operator's suspension reason.
+    /// An empty recipient list is valid. Reinstatement has no email handler.
     /// </summary>
     public static async Task Handle(
         ClientSuspendedByPlatformEvent message,

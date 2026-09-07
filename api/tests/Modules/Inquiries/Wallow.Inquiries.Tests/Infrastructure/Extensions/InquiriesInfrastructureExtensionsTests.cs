@@ -76,7 +76,7 @@ public class InquiriesModuleExtensionsTests
         bool hasValidators = services.Any(s =>
             s.ServiceType.IsGenericType &&
             s.ServiceType.GetGenericTypeDefinition().FullName?.Contains("FluentValidation") == true);
-        // At minimum, the module registration should not throw and should complete
+        // This asserts registration completed, not that validators were registered.
         services.Should().NotBeEmpty();
     }
 }

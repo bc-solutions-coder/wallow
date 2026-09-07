@@ -1,13 +1,14 @@
 namespace Wallow.Identity.Application.Interfaces;
 
 /// <summary>
-/// Tracks which relying parties participate in an SSO session (keyed by the <c>sid</c> claim on
-/// the identity cookie) and turns that participation into front-channel logout notification URLs
-/// at end-session time.
+/// Tracks client participation by SSO sid and resolves front- and back-channel logout recipients.
 /// </summary>
 public interface ISsoClientSessionService
 {
-    /// <summary>Records that <paramref name="clientId"/> joined session <paramref name="sid"/>. Idempotent.</summary>
+    /// <summary>
+    /// Records session participation unless the pair already exists. The implementation
+    /// swallows save failures, so successful return does not guarantee persistence.
+    /// </summary>
     Task RecordAsync(string sid, string clientId, Guid userId, CancellationToken ct);
 
     /// <summary>

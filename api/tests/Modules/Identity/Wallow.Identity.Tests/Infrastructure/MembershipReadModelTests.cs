@@ -8,10 +8,7 @@ using Wallow.Shared.Kernel.Identity;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// <see cref="OrganizationRepository.GetByUserIdAsync"/> — the source feeding the
-/// AuthorizationController membership gate — resolves from Membership rows, not from a user's
-/// <c>WallowUser.TenantId</c> (the home tenant set at registration) and not from any
-/// tenant-equality on the caller.
+/// Checks organization lookup through membership rows independently of the context tenant.
 /// </summary>
 public sealed class MembershipReadModelTests : IDisposable
 {
@@ -44,7 +41,7 @@ public sealed class MembershipReadModelTests : IDisposable
         Organization otherOrg = Organization.Create(
             TenantId.Create(Guid.NewGuid()), "Other Org", "other-org", Guid.NewGuid(), TimeProvider.System);
 
-        // Ambient tenant is an unrelated value — membership must NOT depend on tenant equality.
+        // Use an unrelated context tenant to detect accidental tenant filtering.
         _dbContext.SetTenant(new TenantId(Guid.NewGuid()));
         _dbContext.Organizations.AddRange(memberOrg, otherOrg);
         _dbContext.Memberships.Add(Membership.Enroll(userId, memberOrg.Id, Guid.NewGuid(), TimeProvider.System));

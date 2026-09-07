@@ -6,9 +6,8 @@ using Wallow.Shared.Kernel.Results;
 namespace Wallow.Shared.Api.Extensions;
 
 /// <summary>
-/// Extension methods for converting Result objects to ActionResult responses.
-/// Uses Problem Details format (RFC 7807) for errors; the status comes from the error's
-/// <see cref="ErrorKind"/>, never from the text of its code.
+/// Converts results to HTTP responses. Errors use Problem Details with status codes
+/// determined by <see cref="ErrorKind"/>.
 /// </summary>
 public static class ResultExtensions
 {

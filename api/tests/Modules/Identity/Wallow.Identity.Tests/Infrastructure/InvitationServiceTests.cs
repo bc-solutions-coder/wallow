@@ -39,14 +39,11 @@ public sealed class InvitationServiceTests : IDisposable
         _dbContext.SetTenant(new TenantId(_tenantId));
         _memberships = new MembershipRepository(_dbContext);
 
-        // The real InvitationRepository saves the same IdentityDbContext the membership repository
-        // does, which is what makes acceptance one transaction. The substitute has to do the same
-        // or the membership half of that write silently disappears.
+        // Persist membership changes through the same context when the invitation substitute saves.
         _invRepo.When(r => r.SaveChangesAsync(Arg.Any<CancellationToken>()))
             .Do(_ => _dbContext.SaveChanges());
 
-        // The real resolver rather than a substitute: the role a new member starts with is the
-        // thing several of these tests assert, and it is the seeded baseline role that answers.
+        // Use the real role resolver so tests observe the seeded baseline role.
         _sut = new InvitationService(
             _invRepo, _memberships, _messageBus, _tp, tc, new DefaultMemberRoleResolver(_dbContext), _dbContext);
     }
@@ -54,8 +51,7 @@ public sealed class InvitationServiceTests : IDisposable
     public void Dispose() { _dbContext.Dispose(); }
 
     /// <summary>
-    /// The accepting identity, verified unless told otherwise. Acceptance reads the user straight
-    /// off the context, so it has to exist there rather than only as a bare id.
+    /// Seeds the user read during invitation acceptance, with email confirmation enabled by default.
     /// </summary>
     private async Task<Guid> SeedUserAsync(string email, bool emailConfirmed = true)
     {
@@ -139,8 +135,7 @@ public sealed class InvitationServiceTests : IDisposable
     }
 
     /// <summary>
-    /// A leaked or forwarded token is otherwise a join credential for whoever holds it, which in an
-    /// invite-only organization is the whole perimeter.
+    /// Requires the accepting user to own the invited email address.
     /// </summary>
     [Fact]
     public async Task AcceptInvitation_ByAnotherEmail_IsRefusedAndGrantsNothing()
@@ -170,8 +165,7 @@ public sealed class InvitationServiceTests : IDisposable
     }
 
     /// <summary>
-    /// The inviter types the address; Identity stores it upper-invariant. Comparing raw would
-    /// reject a legitimate acceptance over nothing but casing.
+    /// Accepts email addresses that differ only in case.
     /// </summary>
     [Fact]
     public async Task AcceptInvitation_WhenTheEmailDiffersOnlyInCase_Succeeds()
@@ -186,7 +180,7 @@ public sealed class InvitationServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Between an invitation lapsing and the next sweep, Pending is not the same thing as live.
+    /// Rejects an expired invitation even while its stored status is Pending.
     /// </summary>
     [Fact]
     public async Task AcceptInvitation_PastItsExpiry_IsRefusedAndSettlesTheInvitation()
@@ -205,8 +199,7 @@ public sealed class InvitationServiceTests : IDisposable
     }
 
     /// <summary>
-    /// An invitation supersedes a request the same person already made. Leaving the row Pending
-    /// strands it: it blocks the next legitimate request and outlives a later denial.
+    /// Acceptance activates an existing pending membership for the organization.
     /// </summary>
     [Fact]
     public async Task AcceptInvitation_ClosesAPendingAccessRequestForTheSameOrganization()
@@ -275,8 +268,7 @@ public sealed class InvitationServiceTests : IDisposable
     }
 
     /// <summary>
-    /// The sweep is a background job, so nothing has resolved a tenant for it. An unresolved tenant
-    /// matches no row, which would make the job a silent no-op rather than a failure.
+    /// Checks expiration cleanup without a resolved tenant.
     /// </summary>
     [Fact]
     public async Task CleanupExpired_MarksExpired_WhenNoTenantIsResolved()

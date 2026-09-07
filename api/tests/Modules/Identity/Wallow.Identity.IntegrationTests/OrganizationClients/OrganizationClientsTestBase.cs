@@ -12,9 +12,7 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.OrganizationClients;
 
 /// <summary>
-/// What every org-scoped client suite needs: an organization someone else owns, a member enrolled
-/// under a role and acting as the caller, clients of both kinds registered through the API, the
-/// real sign-in through the authorization-code harness, and the audit row a lifecycle event lands.
+/// Helpers for organization clients, enrolled callers, token flows, and audit polling.
 /// </summary>
 public abstract class OrganizationClientsTestBase(WallowApiFactory factory) : IdentityIntegrationTestBase(factory)
 {
@@ -62,12 +60,8 @@ public abstract class OrganizationClientsTestBase(WallowApiFactory factory) : Id
     }
 
     /// <summary>
-    /// Presents the bearer token to userinfo, the one endpoint the test host still validates
-    /// through OpenIddict itself (the stub scheme would accept any bearer string). Only for
-    /// tokens minted through the default http client (client-credentials grants) — a token from
-    /// <see cref="Harness"/> carries the https issuer and dies here with an issuer-mismatch 401
-    /// whether or not it was revoked; present those through
-    /// <see cref="HarnessBearerCallAsync"/> instead.
+    /// Calls userinfo using the default HTTP test address.
+    /// Use <see cref="HarnessBearerCallAsync"/> for tokens issued through the HTTPS <see cref="Harness"/>.
     /// </summary>
     protected async Task<HttpResponseMessage> BearerCallAsync(string accessToken)
     {
@@ -77,11 +71,7 @@ public abstract class OrganizationClientsTestBase(WallowApiFactory factory) : Id
     }
 
     /// <summary>
-    /// The same userinfo call for a token minted through the authorization-code harness. The
-    /// harness runs over "https://localhost" and no fixed issuer is configured, so its tokens
-    /// carry the https issuer — presented through the default http client they die with an
-    /// issuer-mismatch 401 whether or not they were revoked. Matching origins keeps the
-    /// assertion honest: 200 while the token lives, 401 only once it is actually revoked.
+    /// Calls userinfo on the HTTPS origin used by the harness so issuer matching does not mask revocation.
     /// </summary>
     protected async Task<HttpResponseMessage> HarnessBearerCallAsync(string accessToken)
     {
@@ -94,8 +84,7 @@ public abstract class OrganizationClientsTestBase(WallowApiFactory factory) : Id
     }
 
     /// <summary>
-    /// The pre-revocation sanity check that makes a later 401 falsifiable: a live harness token
-    /// answers userinfo 200.
+    /// Requires a successful userinfo response before testing later revocation.
     /// </summary>
     protected async Task HarnessTokenShouldBeAliveAsync(string accessToken, string because)
     {
@@ -103,7 +92,7 @@ public abstract class OrganizationClientsTestBase(WallowApiFactory factory) : Id
     }
 
     /// <summary>
-    /// Revocation may land off the request, so wait for the 401 before asserting it.
+    /// Polls for userinfo rejection, then asserts a fresh response is unauthorized.
     /// </summary>
     protected async Task HarnessTokenShouldDieAsync(string accessToken, string because)
     {
@@ -113,7 +102,9 @@ public abstract class OrganizationClientsTestBase(WallowApiFactory factory) : Id
             .Should().Be(HttpStatusCode.Unauthorized, because);
     }
 
-    /// <summary>Waits for the audit handler, which runs off the request, to land the row.</summary>
+    /// <summary>
+    /// Polls for an audit row matching event type and client ID.
+    /// </summary>
     protected async Task<AuthAuditEntry> AuditRowAsync(string eventType, string clientId)
     {
         IDbContextFactory<AuthAuditDbContext> contexts =
@@ -129,7 +120,9 @@ public abstract class OrganizationClientsTestBase(WallowApiFactory factory) : Id
         return row ?? throw new InvalidOperationException($"No '{eventType}' audit row for '{clientId}' arrived.");
     }
 
-    /// <summary>The same wait, keyed by the organization instead of a client.</summary>
+    /// <summary>
+    /// Polls for an audit row matching event type and organization.
+    /// </summary>
     protected async Task<AuthAuditEntry> OrganizationAuditRowAsync(string eventType, Guid orgId)
     {
         IDbContextFactory<AuthAuditDbContext> contexts =
@@ -179,7 +172,9 @@ public abstract class OrganizationClientsTestBase(WallowApiFactory factory) : Id
             scopes = ReadScopes,
         });
 
-    /// <summary>Registers a client and hands back the id and the once-shown secret.</summary>
+    /// <summary>
+    /// Registers a client and returns the ID and secret from the creation response.
+    /// </summary>
     protected async Task<(string ClientId, string Secret)> RegisterAsync(Guid orgId, object body)
     {
         HttpResponseMessage response = await Client.PostAsJsonAsync($"/identity/organizations/{orgId}/clients", body);
@@ -225,8 +220,7 @@ public abstract class OrganizationClientsTestBase(WallowApiFactory factory) : Id
     }
 
     /// <summary>
-    /// Enrolls a fresh user under <paramref name="roleName"/> and makes the test client act as
-    /// them; the email lets a test also sign that person in through the real login.
+    /// Enrolls a fresh user and sets synthetic caller headers; returns the user ID and email.
     /// </summary>
     protected async Task<(Guid UserId, string Email)> EnrollAndActAsync(Guid orgId, string roleName)
     {
@@ -239,8 +233,7 @@ public abstract class OrganizationClientsTestBase(WallowApiFactory factory) : Id
     }
 
     /// <summary>
-    /// Acts as a fresh user carrying the global-admin claim: a platform operator, not a member
-    /// of any organization under test.
+    /// Creates a user and configures synthetic authentication with the global-admin claim.
     /// </summary>
     protected async Task<Guid> ActAsGlobalAdminAsync()
     {

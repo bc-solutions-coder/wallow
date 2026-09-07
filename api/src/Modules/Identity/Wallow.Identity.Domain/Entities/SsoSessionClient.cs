@@ -4,11 +4,9 @@ using Wallow.Shared.Kernel.Domain;
 namespace Wallow.Identity.Domain.Entities;
 
 /// <summary>
-/// Records that a relying party joined an SSO session: one row per (session id, client). The
-/// authorize endpoint writes a row when it issues a code to a client, and the end-session page
-/// reads the session's rows to know which relying parties to notify via front-channel logout.
-/// Deliberately NOT tenant-scoped — one SSO session can span clients from different
-/// organizations, and logout runs with no tenant context.
+/// Client participation in an SSO session, unique by (sid, client). Authorization
+/// records participation; logout uses it to notify clients. No tenant filter applies
+/// because one session can span organizations and logout may have no tenant context.
 /// </summary>
 public sealed class SsoSessionClient : Entity<SsoSessionClientId>
 {

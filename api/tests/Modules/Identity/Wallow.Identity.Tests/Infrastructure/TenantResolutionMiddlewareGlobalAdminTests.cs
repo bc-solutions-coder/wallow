@@ -8,10 +8,8 @@ using Wallow.Shared.Kernel.MultiTenancy;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// The cross-tenant X-Tenant-Id override must be gated on the non-assignable global-admin
-/// claim (or the platform operator flag), never on the "admin" ROLE string: that role is
-/// handed out freely by UsersController.AssignRole to any member of the caller's own tenant,
-/// so trusting it turns a same-tenant role grant into cross-tenant reach (finding F5).
+/// Cross-tenant header overrides require a global-admin or operator claim.
+/// An organization admin role alone must not authorize the override.
 /// </summary>
 public sealed class TenantResolutionMiddlewareGlobalAdminTests
 {

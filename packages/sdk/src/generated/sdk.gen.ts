@@ -115,10 +115,9 @@ export const changelogGetLatestChangelog = <ThrowOnError extends boolean = true>
 });
 
 /**
- * List all API keys for the current user.
+ * List unrevoked API keys for the current user and tenant.
  *
- * Returns metadata for all API keys belonging to the authenticated user.
- * The actual key values are not returned - only the prefix for identification.
+ * Returns metadata without plaintext key values.
  */
 export const apiKeysListApiKeys = <ThrowOnError extends boolean = true>(options?: Options<ApiKeysListApiKeysData, ThrowOnError>): RequestResult<ApiKeysListApiKeysResponses, ApiKeysListApiKeysErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<ApiKeysListApiKeysResponses, ApiKeysListApiKeysErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -130,10 +129,8 @@ export const apiKeysListApiKeys = <ThrowOnError extends boolean = true>(options?
 /**
  * Create a new API key for the current user.
  *
- * Creates an API key that can be used for service-to-service authentication.
- * The full API key is only returned once in this response - store it securely!
- *
- * The key will be scoped to the current user's tenant.
+ * The key belongs to the current user and tenant. Store the full key securely;
+ * this is the only response that returns it.
  *
  * Example request:
  * ```json
@@ -158,8 +155,8 @@ export const apiKeysCreateApiKey = <ThrowOnError extends boolean = true>(options
 /**
  * Revoke an API key.
  *
- * Permanently revokes an API key. This action cannot be undone.
- * Any requests using this key will be rejected immediately.
+ * Revokes a key owned by the current user and removes its validation cache entries.
+ * Revocation cannot be undone.
  */
 export const apiKeysRevokeApiKey = <ThrowOnError extends boolean = true>(options: Options<ApiKeysRevokeApiKeyData, ThrowOnError>): RequestResult<ApiKeysRevokeApiKeyResponses, ApiKeysRevokeApiKeyErrors, ThrowOnError, 'data'> => (options.client ?? client).delete<ApiKeysRevokeApiKeyResponses, ApiKeysRevokeApiKeyErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -179,12 +176,10 @@ export const organizationClientBrandingGetBranding = <ThrowOnError extends boole
 });
 
 /**
- * Replace the client's branding: display name, tagline, optional logo upload and the curated
- * theme (`primary` and `primaryForeground` per `light`/`dark` mode). A
- * half-replace on purpose: an omitted tagline or theme CLEARS the stored value, while an
- * omitted logo KEEPS the stored one — a logo is a file upload, and demanding it be resent on
- * every save would be hostile (`DELETE branding/logo` is the way to remove it). The
- * display name may never read as the platform itself.
+ * Replaces display name, tagline and theme. Omitting tagline or theme clears it; omitting
+ * the logo preserves it. Use `DELETE branding/logo` to remove the logo.
+ * Themes accept `primary` and `primaryForeground` in `light`/`dark` modes.
+ * The display name cannot match the platform name.
  */
 export const organizationClientBrandingUpsertBranding = <ThrowOnError extends boolean = true>(options: Options<OrganizationClientBrandingUpsertBrandingData, ThrowOnError>): RequestResult<OrganizationClientBrandingUpsertBrandingResponses, OrganizationClientBrandingUpsertBrandingErrors, ThrowOnError, 'data'> => (options.client ?? client).put<OrganizationClientBrandingUpsertBrandingResponses, OrganizationClientBrandingUpsertBrandingErrors, ThrowOnError, 'data'>({
   ...formDataBodySerializer,
@@ -536,8 +531,7 @@ export const invitationsVerify = <ThrowOnError extends boolean = true>(options: 
 });
 
 /**
- * Joins the caller to the inviting organization. Refused unless the caller's own verified
- * email is the one the invitation names, so a forwarded token grants nothing.
+ * Accepts an invitation for the authenticated user, whose verified email must match the invitation.
  */
 export const invitationsAccept = <ThrowOnError extends boolean = true>(options: Options<InvitationsAcceptData, ThrowOnError>): RequestResult<InvitationsAcceptResponses, InvitationsAcceptErrors, ThrowOnError, 'data'> => (options.client ?? client).post<InvitationsAcceptResponses, InvitationsAcceptErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -547,11 +541,7 @@ export const invitationsAccept = <ThrowOnError extends boolean = true>(options: 
 });
 
 /**
- * The applications the caller has consented to.
- *
- * One entry per durable consent record, naming the client and the scopes the caller agreed
- * to. First-party sign-ins never appear here — their authorizations are session bookkeeping,
- * not consent.
+ * Lists valid permanent consent records for the caller.
  */
 export const meAuthorizationsListConnectedApplications = <ThrowOnError extends boolean = true>(options?: Options<MeAuthorizationsListConnectedApplicationsData, ThrowOnError>): RequestResult<MeAuthorizationsListConnectedApplicationsResponses, MeAuthorizationsListConnectedApplicationsErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<MeAuthorizationsListConnectedApplicationsResponses, MeAuthorizationsListConnectedApplicationsErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -561,11 +551,8 @@ export const meAuthorizationsListConnectedApplications = <ThrowOnError extends b
 });
 
 /**
- * Withdraws one consent, revoking the authorization and every token issued under it.
- *
- * Refresh tokens chained to the authorization fail with `invalid_grant`, and issued
- * access tokens are refused on their next request. Answers 404 for an authorization that
- * does not exist or is not the caller's own.
+ * Withdraws the caller consent and revokes associated user/client access.
+ * Returns 404 when the consent cannot be found for the caller.
  */
 export const meAuthorizationsWithdrawConsent = <ThrowOnError extends boolean = true>(options: Options<MeAuthorizationsWithdrawConsentData, ThrowOnError>): RequestResult<MeAuthorizationsWithdrawConsentResponses, MeAuthorizationsWithdrawConsentErrors, ThrowOnError, 'data'> => (options.client ?? client).delete<MeAuthorizationsWithdrawConsentResponses, MeAuthorizationsWithdrawConsentErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -575,16 +562,7 @@ export const meAuthorizationsWithdrawConsent = <ThrowOnError extends boolean = t
 });
 
 /**
- * The organizations the caller belongs to.
- *
- * This is the organization picker's data: a first-party app lists these and re-authorizes
- * with the `organization` hint to switch context. The token it holds still opens one
- * organization's door at a time, so the switch is a new authorize round-trip, never a
- * header. Reachable without an organization, because a caller who belongs to three and
- * has picked none must be able to see them.
- *
- * Asks for no permission — the answer is about the caller, and demanding one would hide
- * every organization but the one their token is scoped to, which is the question.
+ * Lists the caller active organization memberships without requiring a management permission.
  */
 export const meGetOrganizations = <ThrowOnError extends boolean = true>(options?: Options<MeGetOrganizationsData, ThrowOnError>): RequestResult<MeGetOrganizationsResponses, MeGetOrganizationsErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<MeGetOrganizationsResponses, MeGetOrganizationsErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -655,10 +633,7 @@ export const mfaAdminClearLockout = <ThrowOnError extends boolean = true>(option
 });
 
 /**
- * Issues a short-lived enrollment token for a fully-authenticated user.
- * The Web app calls this (with a bearer token) to get a token it can pass to the
- * Auth app's /mfa/enroll page, which exchanges it for an Identity.MfaPartial cookie
- * so the enrollment API calls can authenticate the user.
+ * Issues a sixty-second token that the enrollment exchange endpoint accepts for partial authentication.
  */
 export const mfaIssueEnrollmentToken = <ThrowOnError extends boolean = true>(options?: Options<MfaIssueEnrollmentTokenData, ThrowOnError>): RequestResult<MfaIssueEnrollmentTokenResponses, MfaIssueEnrollmentTokenErrors, ThrowOnError, 'data'> => (options?.client ?? client).post<MfaIssueEnrollmentTokenResponses, MfaIssueEnrollmentTokenErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -668,9 +643,7 @@ export const mfaIssueEnrollmentToken = <ThrowOnError extends boolean = true>(opt
 });
 
 /**
- * Exchanges a short-lived enrollment token for an Identity.MfaPartial cookie.
- * Called during Auth app prerender so the CookieForwardingHandler relays the
- * partial cookie to the browser, enabling subsequent enrollment API calls.
+ * Exchanges an unexpired enrollment token for an MFA partial-auth cookie.
  */
 export const mfaExchangeEnrollmentToken = <ThrowOnError extends boolean = true>(options?: Options<MfaExchangeEnrollmentTokenData, ThrowOnError>): RequestResult<MfaExchangeEnrollmentTokenResponses, MfaExchangeEnrollmentTokenErrors, ThrowOnError, 'data'> => (options?.client ?? client).post<MfaExchangeEnrollmentTokenResponses, MfaExchangeEnrollmentTokenErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -690,8 +663,7 @@ export const organizationClientsList = <ThrowOnError extends boolean = true>(opt
 });
 
 /**
- * Register a developer application or a service account for the organization. The response
- * carries the client secret exactly once. A service account ignores every URI field.
+ * Registers an organization client and reveals its secret. Service accounts ignore URI fields.
  */
 export const organizationClientsRegister = <ThrowOnError extends boolean = true>(options: Options<OrganizationClientsRegisterData, ThrowOnError>): RequestResult<OrganizationClientsRegisterResponses, OrganizationClientsRegisterErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationClientsRegisterResponses, OrganizationClientsRegisterErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -705,9 +677,7 @@ export const organizationClientsRegister = <ThrowOnError extends boolean = true>
 });
 
 /**
- * Replace the client secret. The response carries the new secret exactly once; the old one
- * stops working immediately. `revokeActiveTokens` also ends every token the client was
- * already issued.
+ * Rotates and reveals the client secret. revokeActiveTokens also requests revocation of issued tokens.
  */
 export const organizationClientsRotateSecret = <ThrowOnError extends boolean = true>(options: Options<OrganizationClientsRotateSecretData, ThrowOnError>): RequestResult<OrganizationClientsRotateSecretResponses, OrganizationClientsRotateSecretErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationClientsRotateSecretResponses, OrganizationClientsRotateSecretErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -721,8 +691,7 @@ export const organizationClientsRotateSecret = <ThrowOnError extends boolean = t
 });
 
 /**
- * Delete one of the organization's clients for good: every credential it holds is revoked
- * first, then the client, its consents and its branding are removed.
+ * Deletes the client and its authorizations after access revocation; branding cleanup follows the deletion event.
  */
 export const organizationClientsDelete = <ThrowOnError extends boolean = true>(options: Options<OrganizationClientsDeleteData, ThrowOnError>): RequestResult<OrganizationClientsDeleteResponses, OrganizationClientsDeleteErrors, ThrowOnError, 'data'> => (options.client ?? client).delete<OrganizationClientsDeleteResponses, OrganizationClientsDeleteErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -742,8 +711,8 @@ export const organizationClientsGetById = <ThrowOnError extends boolean = true>(
 });
 
 /**
- * Replace a client's redirect URIs, logout URI and scopes. Name and client id are immutable;
- * a service account's URI fields are ignored.
+ * Replaces redirect URIs, back-channel logout settings, and scopes. Null lifetime preserves
+ * the current value; service accounts ignore URI fields.
  */
 export const organizationClientsUpdate = <ThrowOnError extends boolean = true>(options: Options<OrganizationClientsUpdateData, ThrowOnError>): RequestResult<OrganizationClientsUpdateResponses, OrganizationClientsUpdateErrors, ThrowOnError, 'data'> => (options.client ?? client).patch<OrganizationClientsUpdateResponses, OrganizationClientsUpdateErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -757,8 +726,7 @@ export const organizationClientsUpdate = <ThrowOnError extends boolean = true>(o
 });
 
 /**
- * Suspend a client: every token it was issued stops working now and its realtime connections
- * are closed, while its configuration, branding and consents are kept for reinstatement.
+ * Suspends a client and revokes its access while retaining registration, branding, and permanent consents.
  */
 export const organizationClientsSuspend = <ThrowOnError extends boolean = true>(options: Options<OrganizationClientsSuspendData, ThrowOnError>): RequestResult<OrganizationClientsSuspendResponses, OrganizationClientsSuspendErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationClientsSuspendResponses, OrganizationClientsSuspendErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -768,7 +736,7 @@ export const organizationClientsSuspend = <ThrowOnError extends boolean = true>(
 });
 
 /**
- * Reinstate a suspended client exactly as it was.
+ * Lifts the organization client suspension. Revoked tokens remain revoked.
  */
 export const organizationClientsReinstate = <ThrowOnError extends boolean = true>(options: Options<OrganizationClientsReinstateData, ThrowOnError>): RequestResult<OrganizationClientsReinstateResponses, OrganizationClientsReinstateErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationClientsReinstateResponses, OrganizationClientsReinstateErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -778,8 +746,7 @@ export const organizationClientsReinstate = <ThrowOnError extends boolean = true
 });
 
 /**
- * Lift the platform suspension (global admins only). The client serves again unless the
- * organization's own suspension still stands.
+ * Lifts the client platform suspension. Other client and organization restrictions still apply.
  */
 export const organizationClientsLiftPlatformSuspension = <ThrowOnError extends boolean = true>(options: Options<OrganizationClientsLiftPlatformSuspensionData, ThrowOnError>): RequestResult<OrganizationClientsLiftPlatformSuspensionResponses, OrganizationClientsLiftPlatformSuspensionErrors, ThrowOnError, 'data'> => (options.client ?? client).delete<OrganizationClientsLiftPlatformSuspensionResponses, OrganizationClientsLiftPlatformSuspensionErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -789,9 +756,7 @@ export const organizationClientsLiftPlatformSuspension = <ThrowOnError extends b
 });
 
 /**
- * Place the platform's own suspension on the client, with a reason (global admins only).
- * While it stands the client is refused everywhere, whatever its own status says, and the
- * organization can read the reason but not lift it.
+ * Applies a client platform suspension with a reason. Requires global administrator authority.
  */
 export const organizationClientsPlacePlatformSuspension = <ThrowOnError extends boolean = true>(options: Options<OrganizationClientsPlacePlatformSuspensionData, ThrowOnError>): RequestResult<OrganizationClientsPlacePlatformSuspensionResponses, OrganizationClientsPlacePlatformSuspensionErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationClientsPlacePlatformSuspensionResponses, OrganizationClientsPlacePlatformSuspensionErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -805,7 +770,7 @@ export const organizationClientsPlacePlatformSuspension = <ThrowOnError extends 
 });
 
 /**
- * Get all organizations with optional search filtering and pagination.
+ * Returns the resolved tenant organization if present in the requested search-result page.
  */
 export const organizationsGetAll = <ThrowOnError extends boolean = true>(options?: Options<OrganizationsGetAllData, ThrowOnError>): RequestResult<OrganizationsGetAllResponses, OrganizationsGetAllErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<OrganizationsGetAllResponses, OrganizationsGetAllErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -815,11 +780,7 @@ export const organizationsGetAll = <ThrowOnError extends boolean = true>(options
 });
 
 /**
- * Create a new organization.
- *
- * Any account holder may found an organization without an operator, so this asks for no
- * permission and answers an organization-less token: a permission would have to be
- * granted by an organization the caller does not yet have.
+ * Creates an organization for the authenticated caller. No existing organization or tenant permission is required.
  */
 export const organizationsCreate = <ThrowOnError extends boolean = true>(options: Options<OrganizationsCreateData, ThrowOnError>): RequestResult<OrganizationsCreateResponses, OrganizationsCreateErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationsCreateResponses, OrganizationsCreateErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -901,7 +862,7 @@ export const organizationsGetPendingMembers = <ThrowOnError extends boolean = tr
 });
 
 /**
- * List the members whose access is currently taken away, most recently suspended first.
+ * Lists suspended memberships by most recent update.
  */
 export const organizationsGetSuspendedMembers = <ThrowOnError extends boolean = true>(options: Options<OrganizationsGetSuspendedMembersData, ThrowOnError>): RequestResult<unknown, OrganizationsGetSuspendedMembersErrors, ThrowOnError, 'data'> => (options.client ?? client).get<unknown, OrganizationsGetSuspendedMembersErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -911,8 +872,7 @@ export const organizationsGetSuspendedMembers = <ThrowOnError extends boolean = 
 });
 
 /**
- * List the requests this organization turned away and has not taken back, most recently
- * refused first.
+ * Lists denied memberships by most recent update.
  */
 export const organizationsGetDeniedMembers = <ThrowOnError extends boolean = true>(options: Options<OrganizationsGetDeniedMembersData, ThrowOnError>): RequestResult<unknown, OrganizationsGetDeniedMembersErrors, ThrowOnError, 'data'> => (options.client ?? client).get<unknown, OrganizationsGetDeniedMembersErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -963,7 +923,7 @@ export const organizationsSuspendMember = <ThrowOnError extends boolean = true>(
 });
 
 /**
- * Give a suspended member their access back.
+ * Reinstates membership using the current default role. Revoked tokens remain revoked.
  */
 export const organizationsReinstateMember = <ThrowOnError extends boolean = true>(options: Options<OrganizationsReinstateMemberData, ThrowOnError>): RequestResult<OrganizationsReinstateMemberResponses, OrganizationsReinstateMemberErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationsReinstateMemberResponses, OrganizationsReinstateMemberErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -973,12 +933,8 @@ export const organizationsReinstateMember = <ThrowOnError extends boolean = true
 });
 
 /**
- * Give up your own membership of an organization.
- *
- * Asks for no permission and consults no access policy: the caller is deciding about
- * themselves, and requiring one would shut out members of every organization that is not the
- * one their token is scoped to — which is most of them. Membership itself is the authority
- * here, so a caller who has none gets the same refusal a stranger does.
+ * Removes the caller membership without requiring a management permission.
+ * The service still enforces membership and last-owner rules.
  */
 export const organizationsLeave = <ThrowOnError extends boolean = true>(options: Options<OrganizationsLeaveData, ThrowOnError>): RequestResult<OrganizationsLeaveResponses, OrganizationsLeaveErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationsLeaveResponses, OrganizationsLeaveErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1008,9 +964,7 @@ export const organizationsReactivate = <ThrowOnError extends boolean = true>(opt
 });
 
 /**
- * Lift the organization's platform suspension (global admins only). Nothing is revoked
- * back into place: people sign in again, and clients the organization suspended itself
- * stay suspended.
+ * Lifts the organization platform suspension. Revoked tokens and separate client suspensions remain unchanged.
  */
 export const organizationsLiftPlatformSuspension = <ThrowOnError extends boolean = true>(options: Options<OrganizationsLiftPlatformSuspensionData, ThrowOnError>): RequestResult<OrganizationsLiftPlatformSuspensionResponses, OrganizationsLiftPlatformSuspensionErrors, ThrowOnError, 'data'> => (options.client ?? client).delete<OrganizationsLiftPlatformSuspensionResponses, OrganizationsLiftPlatformSuspensionErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1020,9 +974,8 @@ export const organizationsLiftPlatformSuspension = <ThrowOnError extends boolean
 });
 
 /**
- * Place the platform's own suspension on the organization, with a reason (global admins
- * only). Every bound client's and every member's tokens are revoked, and every change to
- * the organization is refused while the suspension stands.
+ * Applies an organization platform suspension and revokes associated access.
+ * Requires global administrator authority; global administrators may still make changes.
  */
 export const organizationsPlacePlatformSuspension = <ThrowOnError extends boolean = true>(options: Options<OrganizationsPlacePlatformSuspensionData, ThrowOnError>): RequestResult<OrganizationsPlacePlatformSuspensionResponses, OrganizationsPlacePlatformSuspensionErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationsPlacePlatformSuspensionResponses, OrganizationsPlacePlatformSuspensionErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1099,10 +1052,8 @@ export const organizationsUpdateSettings = <ThrowOnError extends boolean = true>
 });
 
 /**
- * Set who may join this organization and the role they join with.
- *
- * Separate from the settings route above, and gated on managing members rather than on editing
- * settings: these three fields decide the organization's membership.
+ * Replaces the enrollment policy, request-email address, and default role.
+ * Requires permission to manage members.
  */
 export const organizationsUpdateEnrollment = <ThrowOnError extends boolean = true>(options: Options<OrganizationsUpdateEnrollmentData, ThrowOnError>): RequestResult<OrganizationsUpdateEnrollmentResponses, OrganizationsUpdateEnrollmentErrors, ThrowOnError, 'data'> => (options.client ?? client).put<OrganizationsUpdateEnrollmentResponses, OrganizationsUpdateEnrollmentErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1178,7 +1129,7 @@ export const setupCreateAdmin = <ThrowOnError extends boolean = true>(options: O
 });
 
 /**
- * Get a paginated list of users with optional search filtering.
+ * Searches users in the resolved tenant with pagination.
  */
 export const usersGetUsers = <ThrowOnError extends boolean = true>(options?: Options<UsersGetUsersData, ThrowOnError>): RequestResult<UsersGetUsersResponses, UsersGetUsersErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<UsersGetUsersResponses, UsersGetUsersErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1188,7 +1139,7 @@ export const usersGetUsers = <ThrowOnError extends boolean = true>(options?: Opt
 });
 
 /**
- * Create a new user account.
+ * Creates a user account and adds it to the resolved tenant with the user role.
  */
 export const usersCreateUser = <ThrowOnError extends boolean = true>(options: Options<UsersCreateUserData, ThrowOnError>): RequestResult<UsersCreateUserResponses, UsersCreateUserErrors, ThrowOnError, 'data'> => (options.client ?? client).post<UsersCreateUserResponses, UsersCreateUserErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1202,7 +1153,7 @@ export const usersCreateUser = <ThrowOnError extends boolean = true>(options: Op
 });
 
 /**
- * Get a specific user by their ID.
+ * Gets a user who belongs to the resolved tenant.
  */
 export const usersGetUserById = <ThrowOnError extends boolean = true>(options: Options<UsersGetUserByIdData, ThrowOnError>): RequestResult<UsersGetUserByIdResponses, UsersGetUserByIdErrors, ThrowOnError, 'data'> => (options.client ?? client).get<UsersGetUserByIdResponses, UsersGetUserByIdErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1242,11 +1193,7 @@ export const usersActivateUser = <ThrowOnError extends boolean = true>(options: 
 });
 
 /**
- * Assign a role to a user IN THE CALLER'S OWN ORGANIZATION. The organization is the ambient
- * tenant rather than a parameter, so this route can never grant a role somewhere the caller
- * was not already authorized; the grant lands on the user's membership of that organization
- * and confers nothing in any other. The reserved global-administrator name is rejected:
- * global admin is a seeded claim, never a role, so it cannot be granted from inside a tenant.
+ * Assigns a role within the resolved tenant. Reserved global-administrator names are rejected.
  */
 export const usersAssignRole = <ThrowOnError extends boolean = true>(options: Options<UsersAssignRoleData, ThrowOnError>): RequestResult<UsersAssignRoleResponses, UsersAssignRoleErrors, ThrowOnError, 'data'> => (options.client ?? client).post<UsersAssignRoleResponses, UsersAssignRoleErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1260,8 +1207,7 @@ export const usersAssignRole = <ThrowOnError extends boolean = true>(options: Op
 });
 
 /**
- * Remove a role from a user in the caller's own organization. Revocation is scoped the same
- * way the grant was, so it cannot reach a role the user holds elsewhere.
+ * Removes the named role within the resolved tenant.
  */
 export const usersRemoveRole = <ThrowOnError extends boolean = true>(options: Options<UsersRemoveRoleData, ThrowOnError>): RequestResult<UsersRemoveRoleResponses, UsersRemoveRoleErrors, ThrowOnError, 'data'> => (options.client ?? client).delete<UsersRemoveRoleResponses, UsersRemoveRoleErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',

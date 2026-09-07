@@ -43,7 +43,7 @@ public sealed class S3StorageProviderTests : IDisposable
     [Fact]
     public async Task UploadAsync_SendsPutObjectRequest()
     {
-        // Arrange
+
         string key = "test-tenant/bucket/test-file.txt";
         byte[] content = "Hello, World!"u8.ToArray();
         using MemoryStream stream = new(content);
@@ -57,10 +57,10 @@ public sealed class S3StorageProviderTests : IDisposable
             Arg.Any<CancellationToken>())
             .Returns(_ => new PutObjectResponse { ETag = etag });
 
-        // Act
+
         string result = await _provider.UploadAsync(stream, key, "text/plain");
 
-        // Assert
+
         result.Should().Be(etag);
         await _mockS3Client.Received(1).PutObjectAsync(
             Arg.Any<PutObjectRequest>(),
@@ -70,7 +70,7 @@ public sealed class S3StorageProviderTests : IDisposable
     [Fact]
     public async Task UploadAsync_PassesCorrectContentType()
     {
-        // Arrange
+
         string key = "images/photo.jpg";
         using MemoryStream stream = new([1, 2, 3]);
 
@@ -79,10 +79,10 @@ public sealed class S3StorageProviderTests : IDisposable
             Arg.Any<CancellationToken>())
             .Returns(_ => new PutObjectResponse { ETag = "\"xyz\"" });
 
-        // Act
+
         await _provider.UploadAsync(stream, key, "image/jpeg");
 
-        // Assert
+
         await _mockS3Client.Received(1).PutObjectAsync(
             Arg.Is<PutObjectRequest>(r => r.ContentType == "image/jpeg"),
             Arg.Any<CancellationToken>());
@@ -91,7 +91,7 @@ public sealed class S3StorageProviderTests : IDisposable
     [Fact]
     public async Task DownloadAsync_ReturnsStream()
     {
-        // Arrange
+
         string key = "test/download.txt";
         byte[] content = "Download test content"u8.ToArray();
         MemoryStream responseStream = new(content);
@@ -104,12 +104,12 @@ public sealed class S3StorageProviderTests : IDisposable
             Arg.Any<CancellationToken>())
             .Returns(getObjectResponse);
 
-        // Act
+
         Stream downloadStream = await _provider.DownloadAsync(key);
         using MemoryStream memoryStream = new();
         await downloadStream.CopyToAsync(memoryStream);
 
-        // Assert
+
         memoryStream.ToArray().Should().BeEquivalentTo(content);
         await _mockS3Client.Received(1).GetObjectAsync(
             Arg.Any<GetObjectRequest>(),
@@ -119,7 +119,7 @@ public sealed class S3StorageProviderTests : IDisposable
     [Fact]
     public async Task DownloadAsync_WhenFileNotFound_ThrowsException()
     {
-        // Arrange
+
         string key = "non-existent/file.txt";
         AmazonS3Exception s3Exception = new("Not found")
         {
@@ -131,10 +131,10 @@ public sealed class S3StorageProviderTests : IDisposable
             Arg.Any<CancellationToken>())
             .Returns<GetObjectResponse>(_ => throw s3Exception);
 
-        // Act
+
         Func<Task<Stream>> act = () => _provider.DownloadAsync(key);
 
-        // Assert
+
         await act.Should().ThrowAsync<AmazonS3Exception>()
             .Where(ex => ex.StatusCode == HttpStatusCode.NotFound);
     }
@@ -142,7 +142,7 @@ public sealed class S3StorageProviderTests : IDisposable
     [Fact]
     public async Task DeleteAsync_SendsDeleteObjectRequest()
     {
-        // Arrange
+
         string key = "test/delete.txt";
 
         _mockS3Client.DeleteObjectAsync(
@@ -152,10 +152,10 @@ public sealed class S3StorageProviderTests : IDisposable
             Arg.Any<CancellationToken>())
             .Returns(_ => new DeleteObjectResponse());
 
-        // Act
+
         await _provider.DeleteAsync(key);
 
-        // Assert
+
         await _mockS3Client.Received(1).DeleteObjectAsync(
             Arg.Any<DeleteObjectRequest>(),
             Arg.Any<CancellationToken>());
@@ -164,7 +164,7 @@ public sealed class S3StorageProviderTests : IDisposable
     [Fact]
     public async Task DeleteAsync_WhenFileNotFound_DoesNotThrow()
     {
-        // Arrange
+
         string key = "non-existent/file.txt";
 
         _mockS3Client.DeleteObjectAsync(
@@ -172,17 +172,17 @@ public sealed class S3StorageProviderTests : IDisposable
             Arg.Any<CancellationToken>())
             .Returns(_ => new DeleteObjectResponse());
 
-        // Act
+
         Func<Task> act = () => _provider.DeleteAsync(key);
 
-        // Assert
+
         await act.Should().NotThrowAsync();
     }
 
     [Fact]
     public async Task ExistsAsync_WhenFileExists_ReturnsTrue()
     {
-        // Arrange
+
         string key = "test/exists.txt";
 
         _mockS3Client.GetObjectMetadataAsync(
@@ -192,17 +192,17 @@ public sealed class S3StorageProviderTests : IDisposable
             Arg.Any<CancellationToken>())
             .Returns(_ => new GetObjectMetadataResponse());
 
-        // Act
+
         bool exists = await _provider.ExistsAsync(key);
 
-        // Assert
+
         exists.Should().BeTrue();
     }
 
     [Fact]
     public async Task ExistsAsync_WhenFileNotExists_ReturnsFalse()
     {
-        // Arrange
+
         string key = "non-existent/file.txt";
         AmazonS3Exception s3Exception = new("Not found")
         {
@@ -214,17 +214,17 @@ public sealed class S3StorageProviderTests : IDisposable
             Arg.Any<CancellationToken>())
             .Returns<GetObjectMetadataResponse>(_ => throw s3Exception);
 
-        // Act
+
         bool exists = await _provider.ExistsAsync(key);
 
-        // Assert
+
         exists.Should().BeFalse();
     }
 
     [Fact]
     public async Task ExistsAsync_WhenOtherException_Throws()
     {
-        // Arrange
+
         string key = "test/error.txt";
         AmazonS3Exception s3Exception = new("Internal server error")
         {
@@ -236,10 +236,10 @@ public sealed class S3StorageProviderTests : IDisposable
             Arg.Any<CancellationToken>())
             .Returns<GetObjectMetadataResponse>(_ => throw s3Exception);
 
-        // Act
+
         Func<Task<bool>> act = () => _provider.ExistsAsync(key);
 
-        // Assert
+
         await act.Should().ThrowAsync<AmazonS3Exception>()
             .Where(ex => ex.StatusCode == HttpStatusCode.InternalServerError);
     }
@@ -247,7 +247,7 @@ public sealed class S3StorageProviderTests : IDisposable
     [Fact]
     public async Task GetPresignedUrlAsync_ForDownload_ReturnsUrl()
     {
-        // Arrange
+
         string key = "test/presigned.txt";
         string expectedUrl = $"{TestEndpoint}/{TestBucket}/{key}?signature=xyz";
 
@@ -258,10 +258,10 @@ public sealed class S3StorageProviderTests : IDisposable
                 r.Verb == HttpVerb.GET))
             .Returns(expectedUrl);
 
-        // Act
+
         string url = await _provider.GetPresignedUrlAsync(key, TimeSpan.FromHours(1), forUpload: false);
 
-        // Assert
+
         url.Should().Be(expectedUrl);
         await _mockS3Client.Received(1).GetPreSignedURLAsync(
             Arg.Is<GetPreSignedUrlRequest>(r => r.Verb == HttpVerb.GET));
@@ -270,7 +270,7 @@ public sealed class S3StorageProviderTests : IDisposable
     [Fact]
     public async Task GetPresignedUrlAsync_ForUpload_ReturnsUrl()
     {
-        // Arrange
+
         string key = "test/upload-target.txt";
         string expectedUrl = $"{TestEndpoint}/{TestBucket}/{key}?signature=abc";
 
@@ -281,10 +281,10 @@ public sealed class S3StorageProviderTests : IDisposable
                 r.Verb == HttpVerb.PUT))
             .Returns(expectedUrl);
 
-        // Act
+
         string url = await _provider.GetPresignedUrlAsync(key, TimeSpan.FromMinutes(15), forUpload: true);
 
-        // Assert
+
         url.Should().Be(expectedUrl);
         await _mockS3Client.Received(1).GetPreSignedURLAsync(
             Arg.Is<GetPreSignedUrlRequest>(r => r.Verb == HttpVerb.PUT));
@@ -293,7 +293,7 @@ public sealed class S3StorageProviderTests : IDisposable
     [Fact]
     public async Task GetPresignedUrlAsync_SetsExpiryCorrectly()
     {
-        // Arrange
+
         string key = "test/expiry.txt";
         TimeSpan expiry = TimeSpan.FromMinutes(30);
         DateTime before = DateTime.UtcNow.Add(expiry).AddSeconds(-5);
@@ -303,10 +303,10 @@ public sealed class S3StorageProviderTests : IDisposable
             Arg.Any<GetPreSignedUrlRequest>())
             .Returns("http://test-url");
 
-        // Act
+
         await _provider.GetPresignedUrlAsync(key, expiry, forUpload: false);
 
-        // Assert
+
         await _mockS3Client.Received(1).GetPreSignedURLAsync(
             Arg.Is<GetPreSignedUrlRequest>(r =>
                 r.Expires >= before && r.Expires <= after));
@@ -315,7 +315,7 @@ public sealed class S3StorageProviderTests : IDisposable
     [Fact]
     public async Task ListAsync_PaginatesUntilNoLongerTruncated()
     {
-        // Arrange
+
         DateTime lastModified = new(2026, 8, 1, 0, 0, 0, DateTimeKind.Utc);
         ListObjectsV2Response firstPage = new()
         {
@@ -340,10 +340,10 @@ public sealed class S3StorageProviderTests : IDisposable
             Arg.Any<CancellationToken>())
             .Returns(secondPage);
 
-        // Act
+
         List<StorageObjectInfo> objects = await _provider.ListAsync("tenant-").ToListAsync();
 
-        // Assert
+
         objects.Select(o => o.Key).Should().Equal("tenant-1/bucket/a.txt", "tenant-1/bucket/b.txt");
         objects[0].LastModified.Should().Be(new DateTimeOffset(lastModified));
     }

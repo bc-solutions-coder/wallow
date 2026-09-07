@@ -16,7 +16,6 @@ public sealed record ClientRegisteredEvent : IntegrationEvent
 
     public required OrganizationClientKind Kind { get; init; }
 
-    /// <summary>Who registered it.</summary>
     public required Guid ActorId { get; init; }
 
     /// <summary>Optional branded display name chosen at registration (applications only).</summary>

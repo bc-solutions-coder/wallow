@@ -12,9 +12,7 @@ using Wallow.Shared.Contracts.Identity;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// The user list is one organization's list: the controller resolves the ambient tenant and hands
-/// it in. Role names on it therefore have to come from the membership of THAT organization, not
-/// from a directory that spans all of them.
+/// Checks that displayed roles come from active membership in the requested organization.
 /// </summary>
 public sealed class UserQueryServiceTests : IDisposable
 {
@@ -107,8 +105,7 @@ public sealed class UserQueryServiceTests : IDisposable
 
         UserSearchPageResult result = await _sut.SearchUsersAsync(_organizationId, null, 0, 20);
 
-        // The row still appears — scoping the list itself is a separate question — but claiming
-        // an administrator role this user does not hold here would be a lie on the screen.
+        // The directory row remains visible, but its roles from another organization do not.
         result.Items.Should().ContainSingle()
             .Which.Roles.Should().BeEmpty();
     }

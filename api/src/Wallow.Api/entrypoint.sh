@@ -1,9 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# -------------------------------------------------------
-# 1. Generate OpenIddict certificates if missing
-# -------------------------------------------------------
+
 SIGNING_CERT_PATH="${OPENIDDICT_SIGNING_CERT_PATH:-${OpenIddict__SigningCertPath:-/app/certs/signing.pfx}}"
 SIGNING_CERT_PASSWORD="${OPENIDDICT_SIGNING_CERT_PASSWORD:-${OpenIddict__SigningCertPassword:-changeit}}"
 ENCRYPTION_CERT_PATH="${OPENIDDICT_ENCRYPTION_CERT_PATH:-${OpenIddict__EncryptionCertPath:-/app/certs/encryption.pfx}}"
@@ -32,8 +30,6 @@ else
     echo "Encryption certificate already exists at ${ENCRYPTION_CERT_PATH}, skipping."
 fi
 
-# -------------------------------------------------------
-# 2. Start the API
-# -------------------------------------------------------
+
 echo "Starting Wallow API..."
 exec dotnet Wallow.Api.dll

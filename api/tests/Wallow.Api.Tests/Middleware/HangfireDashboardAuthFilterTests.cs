@@ -8,9 +8,7 @@ using Wallow.Shared.Kernel.Identity.Authorization;
 namespace Wallow.Api.Tests.Middleware;
 
 /// <summary>
-/// Who reaches the Hangfire dashboard. The decision is a permission, not a role claim: roles are
-/// granted per organization and the dashboard belongs to none, so the only claim that can answer
-/// here is the one permission expansion has already minted from those roles.
+/// Checks anonymous-access configuration and permission-based dashboard authorization.
 /// </summary>
 public class HangfireDashboardAuthFilterTests
 {

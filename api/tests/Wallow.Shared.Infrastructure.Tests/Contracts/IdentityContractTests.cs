@@ -4,7 +4,7 @@ namespace Wallow.Shared.Infrastructure.Tests.Contracts;
 
 public class IdentityContractTests
 {
-    // ── ScopeValidationResult ─────────────────────────────────────────────
+
 
     [Fact]
     public void ScopeValidationResult_Success_ReturnsIsSuccessTrueAndNullErrorMessage()
@@ -33,7 +33,7 @@ public class IdentityContractTests
         result.ErrorMessage.Should().Be("some message");
     }
 
-    // ── UserSearchItem ────────────────────────────────────────────────────
+
 
     [Fact]
     public void UserSearchItem_ActiveUserWithRoles_HasCorrectValues()
@@ -69,7 +69,7 @@ public class IdentityContractTests
         item.Roles.Should().BeEmpty();
     }
 
-    // ── UserSearchPageResult ──────────────────────────────────────────────
+
 
     [Fact]
     public void UserSearchPageResult_WithMultipleItems_PreservesAllProperties()

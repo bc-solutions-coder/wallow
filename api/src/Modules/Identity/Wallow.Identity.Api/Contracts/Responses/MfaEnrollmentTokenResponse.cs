@@ -1,7 +1,6 @@
 namespace Wallow.Identity.Api.Contracts.Responses;
 
 /// <summary>
-/// A short-lived token the web app hands to the auth app's enrollment screen, which exchanges it
-/// for the partial-auth cookie the enrollment endpoints authenticate against.
+/// Short-lived token exchangeable for the partial-auth cookie used during MFA enrollment.
 /// </summary>
 public sealed record MfaEnrollmentTokenResponse(string Token);

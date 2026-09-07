@@ -4,11 +4,9 @@ using Wallow.Identity.Infrastructure.Persistence;
 namespace Wallow.Identity.Infrastructure.Services;
 
 /// <summary>
-/// Revocation loads a client's tokens into the context, and EF fixes them up onto the
-/// application's navigations. OpenIddict's delete removes tokens and authorizations in SQL
-/// first and then attaches the application graph, so any token still hanging off it is
-/// updated as an orphan of a row that no longer exists and reported as a concurrency
-/// conflict. Hand the delete a bare application: nothing tracked, nothing reachable.
+/// Clears tracked state and application token/authorization navigations before deletion.
+/// This prevents previously loaded tokens from being reattached after bulk deletion.
+/// Callers must save pending changes before clearing the context.
 /// </summary>
 internal static class RevokedTokenDetacher
 {

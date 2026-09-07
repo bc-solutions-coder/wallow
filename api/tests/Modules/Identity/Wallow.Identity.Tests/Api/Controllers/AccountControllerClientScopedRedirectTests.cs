@@ -19,18 +19,16 @@ using Wolverine;
 namespace Wallow.Identity.Tests.Api.Controllers;
 
 /// <summary>
-/// IRedirectUriValidator.IsAllowedAsync scopes redirect validation to a client_id, but every
-/// AccountController call site still calls it without one, so each falls back to the union of
-/// EVERY registered client's origins. These tests pin the contract: each endpoint that validates
-/// a redirect must pass the requesting client's id, so an origin registered by another client
-/// cannot be admitted.
+/// Checks that redirect validation receives the requesting client ID.
 /// </summary>
 public class AccountControllerClientScopedRedirectTests
 {
     private const string AuthUrl = "http://localhost:5002";
     private const string ClientId = "client-a";
 
-    /// <summary>An origin registered by client-a only — allowed for client-a, denied for anyone else.</summary>
+    /// <summary>
+    /// URL allowed only for client-a by the validator stub.
+    /// </summary>
     private const string ClientAUrl = "https://a.example.com/callback";
 
     private const string TestEmail = "client-scoped@test.com";
@@ -110,7 +108,7 @@ public class AccountControllerClientScopedRedirectTests
             .Returns("http://localhost:5001/v1/identity/auth/external-login-callback");
         _controller.Url = urlHelper;
 
-        // Ticket has not been exchanged before — the replay guard lets it through.
+        // Simulate the replay guard accepting a first exchange.
         _redisDb.StringSetAsync(
                 Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(),
                 Arg.Any<bool>(), Arg.Any<When>(), Arg.Any<CommandFlags>())
@@ -118,10 +116,7 @@ public class AccountControllerClientScopedRedirectTests
     }
 
     /// <summary>
-    /// Models the per-client allow list: <paramref name="uri"/> validates only when the validator
-    /// is told which client is asking, and only for <paramref name="clientId"/>. A call that omits
-    /// the client id (today's behaviour) is refused, so any endpoint that fails to thread the
-    /// request's client id through cannot pass.
+    /// Allows only the specified URI and client ID pair; all other calls return false.
     /// </summary>
     private void AllowOnlyForClient(string uri, string clientId)
     {
@@ -154,7 +149,9 @@ public class AccountControllerClientScopedRedirectTests
         _userManager.FindByEmailAsync(TestEmail).Returns((WallowUser?)null);
     }
 
-    /// <summary>Mints a real sign-in ticket the way the password login path does.</summary>
+    /// <summary>
+    /// Obtains a protected sign-in ticket through the login action.
+    /// </summary>
     private async Task<string> CreateTicketViaLogin()
     {
         WallowUser user = WallowUser.Create("Test", "User", TestEmail, TimeProvider.System);

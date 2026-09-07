@@ -9,16 +9,13 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.Users;
 
 /// <summary>
-/// Role writes land on the membership of one organization. A grant in org A confers nothing in
-/// org B, and a revocation reaches only the organization it named. The service refuses to write
-/// where there is no membership, so a grant can never double as an enrollment.
+/// Checks organization-specific role grants and removals and refusal without membership.
 /// </summary>
 [Trait("Category", "Integration")]
 public class RoleAssignmentTests(WallowApiFactory factory) : IdentityIntegrationTestBase(factory)
 {
     /// <summary>
-    /// Built by hand: the test host registers a no-op fake for <see cref="IUserManagementService"/>,
-    /// so resolving the interface would assert nothing.
+    /// Constructs the real service because the fixture registers a fake <see cref="IUserManagementService"/>.
     /// </summary>
     private UserManagementService UserManagement =>
         ActivatorUtilities.CreateInstance<UserManagementService>(ScopedServices);

@@ -177,8 +177,7 @@ public class RedisPresenceServiceTests(RedisFixture fixture) : IAsyncLifetime
         await _sut.TrackConnectionAsync(_testTenantId, "user-1", "conn-1");
         await _sut.SetPageContextAsync(_testTenantId, "conn-1", "/tasks");
 
-        // Remove the connection but not the page viewers set
-        // This simulates a stale entry
+        // Leave the page-viewer entry stale by removing only the connection mapping.
         IDatabase db = _multiplexer.GetDatabase();
         await db.HashDeleteAsync($"presence:{_testTenantId}:conn2user", "conn-1");
 

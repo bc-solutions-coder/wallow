@@ -11,20 +11,19 @@ public interface IUserManagementService
     Task DeactivateUserAsync(Guid userId, CancellationToken ct = default);
     Task ActivateUserAsync(Guid userId, CancellationToken ct = default);
     /// <summary>
-    /// Roles are held per <c>(user, organization)</c>, so every one of these takes the
-    /// organization it acts in. A role granted in one organization confers nothing in another,
-    /// and a revocation that named no organization could only revoke everywhere or nowhere.
-    /// <para>
-    /// <c>actorId</c> is who granted or revoked it. The subject cannot stand in for the actor here:
-    /// a role somebody was given and a role somebody took for themselves are different events.
-    /// </para>
+    /// Assigns a role within the named organization. actorId identifies the grantor
+    /// for audit events and is distinct from the user receiving the role.
     /// </summary>
     Task AssignRoleAsync(Guid userId, Guid organizationId, string roleName, Guid actorId, CancellationToken ct = default);
 
-    /// <inheritdoc cref="AssignRoleAsync"/>
+    /// <summary>
+    /// Removes an organization-scoped role and records actorId as the revoking user.
+    /// </summary>
     Task RemoveRoleAsync(Guid userId, Guid organizationId, string roleName, Guid actorId, CancellationToken ct = default);
 
-    /// <inheritdoc cref="AssignRoleAsync"/>
+    /// <summary>
+    /// Resolves role names from this user's active membership in the organization.
+    /// </summary>
     Task<IReadOnlyList<string>> GetUserRolesAsync(Guid userId, Guid organizationId, CancellationToken ct = default);
     Task DeleteUserAsync(Guid userId, CancellationToken ct = default);
 }

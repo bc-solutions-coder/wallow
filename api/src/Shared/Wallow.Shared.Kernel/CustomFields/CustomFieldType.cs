@@ -14,13 +14,12 @@ public enum CustomFieldType
     /// <summary>Integer number</summary>
     Number = 2,
 
-    /// <summary>Decimal number with precision</summary>
+    /// <summary>Decimal number</summary>
     Decimal = 3,
 
     /// <summary>Date only (no time)</summary>
     Date = 4,
 
-    /// <summary>Date and time</summary>
     DateTime = 5,
 
     /// <summary>True/false toggle</summary>
@@ -38,6 +37,5 @@ public enum CustomFieldType
     /// <summary>URL with format validation</summary>
     Url = 10,
 
-    /// <summary>Phone number</summary>
     Phone = 11
 }

@@ -9,16 +9,14 @@ namespace Wallow.Identity.Infrastructure.Services;
 public sealed class AccessRequestRecipientResolver(IdentityDbContext dbContext) : IAccessRequestRecipientResolver
 {
     /// <summary>
-    /// The address the organization nominated, else the people who can actually act on the
-    /// request. An organization with neither yields nothing: the pending membership is the
-    /// durable record, so there is nothing here worth failing a join over.
+    /// Uses the nominated address, otherwise active owners' email addresses.
+    /// An empty result is valid; the saved membership remains the access-request record.
     /// </summary>
     public async Task<IReadOnlyList<string>> ResolveAsync(Guid organizationId, CancellationToken ct = default)
     {
         OrganizationId orgId = OrganizationId.Create(organizationId);
 
-        // Every read here runs at authorize time, before a tenant is resolved, so the filter
-        // would hide the only rows that matter.
+        // Authorize-time callers may have no tenant; select settings by organization explicitly.
         string? nominated = await dbContext.OrganizationSettings
             .IgnoreQueryFilters()
             .Where(s => s.OrganizationId == orgId)

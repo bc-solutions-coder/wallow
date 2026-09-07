@@ -10,11 +10,8 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.Memberships;
 
 /// <summary>
-/// Every membership transition reaches the audit table with the actor on it. The service publishes
-/// and a Wolverine handler writes, so the two halves only meet in a running host: a unit test of
-/// either one passes with the other missing.
-///
-/// The local queue is buffered, so the write lands after the call returns and every assertion polls.
+/// Checks persisted audit actors for approval, denial, suspension, reinstatement, and leaving.
+/// Poll for audit rows because buffered message handling can finish after the service call.
 /// </summary>
 [Trait("Category", "Integration")]
 public class MembershipTransitionAuditTests(WallowApiFactory factory) : IdentityIntegrationTestBase(factory)
@@ -65,8 +62,7 @@ public class MembershipTransitionAuditTests(WallowApiFactory factory) : Identity
     }
 
     /// <summary>
-    /// Leaving has no reviewer, so the actor is the leaver. That is the record, not a placeholder:
-    /// "nobody" would make a departure indistinguishable from a removal with the actor lost.
+    /// Leaving records the leaver as the audit actor.
     /// </summary>
     [Fact]
     public async Task LeaveAsync_AuditsTheLeaverAsTheirOwnActor()

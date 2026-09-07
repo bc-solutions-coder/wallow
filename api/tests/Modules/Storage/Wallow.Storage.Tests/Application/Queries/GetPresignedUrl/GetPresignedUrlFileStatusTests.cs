@@ -91,7 +91,7 @@ public class GetPresignedUrlFileStatusTests
         StorageBucket bucket = StorageBucket.Create(tenantId, "bucket");
         StoredFile file = StoredFile.Create(
             tenantId, bucket.Id, "file.pdf", "application/pdf", 1000, "key", Guid.NewGuid());
-        // Configure max expiry to 30 minutes, request 2 hours
+
         PresignedUrlOptions options = new() { MaxDownloadExpiryMinutes = 30 };
         GetPresignedUrlHandler handlerWithMaxExpiry = new(
             _fileRepository, _storageProvider, Options.Create(options));
@@ -106,7 +106,7 @@ public class GetPresignedUrlFileStatusTests
         Result<PresignedUrlResult> result = await handlerWithMaxExpiry.Handle(query, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        // Should have capped at 30 minutes
+
         await _storageProvider.Received(1).GetPresignedUrlAsync(
             "key",
             Arg.Is<TimeSpan>(t => t <= TimeSpan.FromMinutes(30)),

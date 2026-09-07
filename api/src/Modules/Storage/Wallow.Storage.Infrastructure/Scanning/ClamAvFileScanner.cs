@@ -29,7 +29,7 @@ public sealed partial class ClamAvFileScanner : IFileScanner
 
         await using NetworkStream stream = client.GetStream();
 
-        // Send INSTREAM command
+
         byte[] command = "zINSTREAM\0"u8.ToArray();
         await stream.WriteAsync(command, cancellationToken);
 
@@ -54,7 +54,7 @@ public sealed partial class ClamAvFileScanner : IFileScanner
         byte[] terminator = new byte[4];
         await stream.WriteAsync(terminator, cancellationToken);
 
-        // Read response
+
         byte[] responseBuffer = new byte[MaxResponseSize];
         int responseLength = await stream.ReadAsync(responseBuffer, cancellationToken);
         string response = Encoding.UTF8.GetString(responseBuffer, 0, responseLength).TrimEnd('\0', '\n', '\r');
@@ -69,7 +69,7 @@ public sealed partial class ClamAvFileScanner : IFileScanner
 
         if (response.EndsWith("FOUND", StringComparison.OrdinalIgnoreCase))
         {
-            // Extract threat name from "stream: <threat> FOUND"
+
             int colonIndex = response.IndexOf(':', StringComparison.Ordinal);
             int foundIndex = response.LastIndexOf(" FOUND", StringComparison.OrdinalIgnoreCase);
             if (colonIndex >= 0 && foundIndex > colonIndex)

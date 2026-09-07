@@ -1,4 +1,4 @@
-#pragma warning disable CA2012 // Use ValueTasks correctly - NSubstitute requires ValueTask in Returns()
+#pragma warning disable CA2012 // Configure and verify ValueTask-returning substitutes.
 using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
 using OpenIddict.Abstractions;
@@ -12,10 +12,7 @@ using Wallow.Shared.Contracts.Realtime;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// A token names its organization in one of two places: on the client it was issued through, when
-/// that client is bound to an organization, or on the authorization it chains to, when a
-/// first-party client ran the sign-in under an organization hint. Revoking a membership has to
-/// reach both, and must leave the person's tokens for other organizations alone.
+/// Checks revocation through client-bound and authorization-bound organizations, preserving unrelated access.
 /// </summary>
 public sealed class AccessRevokerTests
 {
@@ -119,8 +116,7 @@ public sealed class AccessRevokerTests
     [Fact]
     public async Task RevokeSessionAsync_LeavesOtherSessionsAndConsentRecordsAlone()
     {
-        // Another browser session's authorization carries its own sid; the permanent consent
-        // record carries none. Ending one session may touch neither.
+        // Other-session and consent authorizations do not carry the target session ID.
         object otherSession = SessionAuthorization("auth-other", "some-other-session");
         object consentRecord = SessionAuthorization("auth-consent", sid: null);
         _authorizations.FindBySubjectAsync(_userId.ToString(), Arg.Any<CancellationToken>())

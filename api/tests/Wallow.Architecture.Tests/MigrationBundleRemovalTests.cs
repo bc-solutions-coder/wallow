@@ -10,16 +10,16 @@ public sealed class MigrationBundleRemovalTests
     [Fact]
     public void ApiCsproj_ShouldNotContain_BuildMigrationBundlesTarget()
     {
-        // Arrange
+
         string csprojPath = Path.Combine(_repoRoot, "api", "src", "Wallow.Api", "Wallow.Api.csproj");
         XDocument document = XDocument.Load(csprojPath);
         XNamespace ns = document.Root!.GetDefaultNamespace();
 
-        // Act
+
         IEnumerable<XElement> buildMigrationBundleTargets = document.Descendants(ns + "Target")
             .Where(t => t.Attribute("Name")?.Value == "BuildMigrationBundles");
 
-        // Assert
+
         buildMigrationBundleTargets.Should().BeEmpty(
             "the BuildMigrationBundles MSBuild target should be removed from Wallow.Api.csproj");
     }
@@ -27,11 +27,11 @@ public sealed class MigrationBundleRemovalTests
     [Fact]
     public void Entrypoint_ShouldNotContain_EfBundleReferences()
     {
-        // Arrange
+
         string entrypointPath = Path.Combine(_repoRoot, "api", "src", "Wallow.Api", "entrypoint.sh");
         string content = File.ReadAllText(entrypointPath);
 
-        // Assert
+
         content.Should().NotContain("efbundle",
             "entrypoint.sh should not reference efbundle after migration bundle removal");
     }
@@ -39,11 +39,11 @@ public sealed class MigrationBundleRemovalTests
     [Fact]
     public void Entrypoint_ShouldNotContain_BundleDirReferences()
     {
-        // Arrange
+
         string entrypointPath = Path.Combine(_repoRoot, "api", "src", "Wallow.Api", "entrypoint.sh");
         string content = File.ReadAllText(entrypointPath);
 
-        // Assert
+
         content.Should().NotContain("BUNDLE_DIR",
             "entrypoint.sh should not reference BUNDLE_DIR after migration bundle removal");
     }

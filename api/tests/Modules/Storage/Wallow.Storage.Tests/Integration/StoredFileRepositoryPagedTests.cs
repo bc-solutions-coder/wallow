@@ -106,7 +106,7 @@ public sealed class StoredFileRepositoryPagedTests(PostgresContainerFixture fixt
         _repository.Add(myFile);
         await _repository.SaveChangesAsync();
 
-        // Add a file for a different tenant using a separate context
+
         TenantId otherTenant = TenantId.New();
         await using StorageDbContext otherContext = CreateDbContextForTenant(otherTenant);
         StoredFileRepository otherRepository = new(otherContext);

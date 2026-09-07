@@ -3,9 +3,7 @@ using Wallow.Identity.Infrastructure.Options;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// Seed sync applies the same redirect-URI rule as the organization and admin surfaces: an
-/// absolute, fragment-free HTTPS URI, or HTTP only on loopback. A seed that breaks it fails
-/// before any client is written, naming the client and the URI.
+/// Checks seed validation of redirect and post-logout URIs, including client-specific errors.
 /// </summary>
 public sealed class PreRegisteredClientRedirectUriTests
 {

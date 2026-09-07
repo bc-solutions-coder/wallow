@@ -10,10 +10,8 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.OrganizationClients;
 
 /// <summary>
-/// A platform suspension is the operator's own axis on a client, separate from the organization's
-/// suspend/reinstate: only a global admin places or lifts it, it carries a reason the organization
-/// can read but not remove, and while it stands the client behaves exactly as a suspended client —
-/// no authorize, no tokens, no live streams.
+/// Checks platform suspension separately from organization suspension, including reason visibility,
+/// global-admin controls, token refusal, and SSE registry cancellation.
 /// </summary>
 [Trait("Category", "Integration")]
 public class ClientPlatformSuspensionTests(WallowApiFactory factory) : OrganizationClientsTestBase(factory)
@@ -50,9 +48,7 @@ public class ClientPlatformSuspensionTests(WallowApiFactory factory) : Organizat
         refresh.Error.Should().Be("invalid_client");
         stream.IsCancellationRequested.Should().BeTrue("a platform-suspended client's realtime stream is hung up");
 
-        // The organization's admin sees the reason on the client, but none of its own controls
-        // lift a platform suspension: its reinstate answers as "nothing to reinstate", and the
-        // platform-suspension resource itself is not theirs to touch.
+        // Organization administrators can read the reason but cannot lift platform suspension.
         await ActAsEnrolledAsync(orgId, "admin");
         JsonElement seen = await GetClientAsync(orgId, clientId);
         seen.GetProperty("platformSuspensionReason").GetString().Should().Be("Terms of service violation");

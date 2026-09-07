@@ -1,10 +1,7 @@
 namespace Wallow.Identity.Infrastructure.Options;
 
 /// <summary>
-/// How many failed client authentications a client_id may accumulate before the token endpoint
-/// temporarily rejects it, and for how long. The counting window and the lockout are both fixed
-/// windows, deliberately: a sliding window would let a slow, patient guesser keep a client locked
-/// forever, while a fixed one guarantees the legitimate owner gets the client back.
+/// Failure-counting window, rejection threshold, and lockout duration for client authentication.
 /// </summary>
 public sealed class InvalidClientLockoutOptions
 {
@@ -16,6 +13,8 @@ public sealed class InvalidClientLockoutOptions
     /// <summary>How long the failure counter lives before it resets.</summary>
     public int WindowMinutes { get; set; } = 5;
 
-    /// <summary>How long a tripped client stays rejected.</summary>
+    /// <summary>
+    /// Lockout duration written when the failure count meets or exceeds the threshold.
+    /// </summary>
     public int LockoutMinutes { get; set; } = 5;
 }

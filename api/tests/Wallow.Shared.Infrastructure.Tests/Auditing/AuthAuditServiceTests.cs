@@ -35,7 +35,7 @@ public sealed class AuthAuditServiceTests : IDisposable
         ILogger<AuthAuditService> logger = Substitute.For<ILogger<AuthAuditService>>();
         AuthAuditService service = new(factory, logger);
 
-        // Separate context for verification queries
+
         AuthAuditDbContext verifyContext = new(_options);
         return (service, verifyContext);
     }
@@ -124,7 +124,7 @@ public sealed class AuthAuditServiceTests : IDisposable
             OccurredAt = DateTimeOffset.UtcNow
         };
 
-        // Should not throw -- audit is non-blocking
+
         await sut.Invoking(s => s.RecordAsync(record, CancellationToken.None))
             .Should().NotThrowAsync();
     }
@@ -150,8 +150,7 @@ public sealed class AuthAuditServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Who did it has to reach the table, not just the record: an actor the service drops on the
-    /// floor makes every administrative entry indistinguishable from one the subject made alone.
+    /// Checks that actor and subject IDs both reach the stored audit entry.
     /// </summary>
     [Fact]
     public async Task RecordAsync_PersistsTheActorAlongsideTheSubject()

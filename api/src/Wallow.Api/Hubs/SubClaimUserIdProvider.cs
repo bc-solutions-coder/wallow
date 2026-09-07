@@ -4,8 +4,7 @@ using Wallow.Shared.Kernel.Extensions;
 namespace Wallow.Api.Hubs;
 
 /// <summary>
-/// Resolves the SignalR user identifier from NameIdentifier or the OIDC "sub" claim,
-/// ensuring Clients.User(userId) matches the connected user's identity.
+/// Uses the shared NameIdentifier/sub lookup for SignalR user addressing.
 /// </summary>
 internal sealed class SubClaimUserIdProvider : IUserIdProvider
 {

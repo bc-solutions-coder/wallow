@@ -62,11 +62,8 @@ public static class RolePermissionMapping
             PermissionType.ConfigurationManage,
             PermissionType.InquiriesRead,
         ],
-        // Read-only on organizations. A plain member holding OrganizationsUpdate can rewrite the
-        // settings of any organization they belong to; granting it by default hands every member
-        // the administrative surface the per-organization roles exist to withhold. Founding an
-        // organization needs no permission at all: any account holder may, even with a token that
-        // names no organization, so there is nothing here to grant or withhold for it.
+        // Members may read organization data but cannot administer it by default.
+        // Creating an organization requires no organization permission.
         ["user"] =
         [
             PermissionType.OrganizationsRead,

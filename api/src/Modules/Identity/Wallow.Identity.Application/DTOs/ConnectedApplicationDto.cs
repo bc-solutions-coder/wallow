@@ -1,8 +1,7 @@
 namespace Wallow.Identity.Application.DTOs;
 
 /// <summary>
-/// An application the user has granted durable consent to: one Valid permanent authorization,
-/// named by the client it authorizes and the scopes the user agreed to.
+/// One valid permanent authorization representing a user's consent to an application.
 /// </summary>
 public record ConnectedApplicationDto(
     string Id,

@@ -15,16 +15,9 @@ public static class UserinfoClaims
     private const string OrgNameClaim = "org_name";
 
     /// <summary>
-    /// Builds the userinfo response for <paramref name="principal"/>, including only the claims
-    /// the scopes it was granted cover.
-    /// <para>
-    /// The organization a user is signed in as travels under <c>profile</c>. Which org the
-    /// session belongs to is a fact about the user this token describes, and no scope in the API
-    /// catalog answers it; a relying party that asks for the profile is the one that needs it.
-    /// </para>
+    /// Always includes sub. Adds profile and organization claims for profile, email for email,
+    /// and role claims for roles, omitting optional claims that are absent.
     /// </summary>
-    /// <param name="principal">The principal the userinfo request authenticated as.</param>
-    /// <returns>The claim names and values to serialize, keyed by claim name.</returns>
     public static Dictionary<string, object> Project(ClaimsPrincipal principal)
     {
         ArgumentNullException.ThrowIfNull(principal);

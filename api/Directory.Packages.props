@@ -1,10 +1,5 @@
 <Project>
-  <!-- ===========================================
-       PACKAGE VERSIONS - UPDATE HERE FOR UPGRADES
-       When upgrading .NET, check for package updates:
-       - Run: dotnet outdated (requires dotnet-outdated-tool)
-       - Or check NuGet for latest versions
-       =========================================== -->
+  <!-- Central package versions; review these when upgrading the framework. -->
   <PropertyGroup>
     <!-- .NET Version-Coupled Packages -->
     <!-- These should match the .NET version (e.g., 10.0.x for .NET 10) -->
@@ -13,9 +8,7 @@
     <AspNetCoreVersion>10.0.11</AspNetCoreVersion>
   </PropertyGroup>
   <ItemGroup>
-    <!-- ======================================
-         ASP.NET Core & Hosting
-         ====================================== -->
+    <!-- ASP.NET Core & Hosting -->
     <PackageVersion Include="Asp.Versioning.Mvc" Version="10.2.1" />
     <PackageVersion Include="Asp.Versioning.Mvc.ApiExplorer" Version="10.2.1" />
     <PackageVersion Include="Asp.Versioning.OpenApi" Version="10.2.3" />
@@ -24,20 +17,14 @@
     <PackageVersion Include="Microsoft.Extensions.ApiDescription.Server" Version="10.0.0" />
     <PackageVersion Include="MimeKit" Version="4.17.0" />
     <PackageVersion Include="Scalar.AspNetCore" Version="2.16.12" />
-    <!-- ======================================
-         Health Checks
-         ====================================== -->
+    <!-- Health Checks -->
     <PackageVersion Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
     <PackageVersion Include="AspNetCore.HealthChecks.Hangfire" Version="9.0.0" />
-    <!-- ======================================
-         Logging
-         ====================================== -->
+    <!-- Logging -->
     <PackageVersion Include="Serilog.AspNetCore" Version="10.0.0" />
     <PackageVersion Include="Serilog.Expressions" Version="5.0.0" />
     <PackageVersion Include="Serilog.Sinks.Console" Version="6.1.1" />
-    <!-- ======================================
-         OpenTelemetry
-         ====================================== -->
+    <!-- OpenTelemetry -->
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.16.0" />
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.16.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.16.0" />
@@ -47,15 +34,11 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.16.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.StackExchangeRedis" Version="1.16.0-beta.1" />
     <PackageVersion Include="Serilog.Sinks.OpenTelemetry" Version="4.2.0" />
-    <!-- ======================================
-         Background Jobs (Hangfire)
-         ====================================== -->
+    <!-- Background Jobs (Hangfire) -->
     <PackageVersion Include="Hangfire.Core" Version="1.8.25" />
     <PackageVersion Include="Hangfire.AspNetCore" Version="1.8.25" />
     <PackageVersion Include="Hangfire.PostgreSql" Version="1.21.1" />
-    <!-- ======================================
-         CQRS & Messaging (Wolverine)
-         ====================================== -->
+    <!-- CQRS & Messaging (Wolverine) -->
     <PackageVersion Include="WolverineFx" Version="6.33.0" />
     <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.33.0" />
     <PackageVersion Include="WolverineFx.FluentValidation" Version="6.33.0" />
@@ -63,19 +46,13 @@
     <PackageVersion Include="WolverineFx.Postgresql" Version="6.33.0" />
     <PackageVersion Include="FluentValidation" Version="12.1.1" />
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
-    <!-- ======================================
-         Entity Framework Core
-         ====================================== -->
+    <!-- Entity Framework Core -->
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="$(EfCoreVersion)" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="$(EfCoreVersion)" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="$(EfCoreVersion)" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
-    <!-- ======================================
-         Messaging (handled by Wolverine in-memory bus)
-         ====================================== -->
-    <!-- ======================================
-         Authentication & Security
-         ====================================== -->
+
+    <!-- Authentication & Security -->
     <PackageVersion Include="Microsoft.AspNetCore.DataProtection.StackExchangeRedis" Version="$(AspNetCoreVersion)" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="$(AspNetCoreVersion)" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="$(AspNetCoreVersion)" />
@@ -88,34 +65,22 @@
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.MicrosoftAccount" Version="$(AspNetCoreVersion)" />
     <PackageVersion Include="AspNet.Security.OAuth.GitHub" Version="10.0.0" />
     <PackageVersion Include="AspNet.Security.OAuth.Apple" Version="10.0.0" />
-    <!-- ======================================
-         Real-time (SignalR)
-         ====================================== -->
+    <!-- Real-time (SignalR) -->
     <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="$(AspNetCoreVersion)" />
     <PackageVersion Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" Version="$(AspNetCoreVersion)" />
     <PackageVersion Include="StackExchange.Redis" Version="3.0.17" />
     <PackageVersion Include="AspNetCore.HealthChecks.Redis" Version="9.0.0" />
-    <!-- ======================================
-         Rate Limiting (Redis-backed)
-         ====================================== -->
+    <!-- Rate Limiting (Redis-backed) -->
     <PackageVersion Include="RedisRateLimiting" Version="1.2.1" />
-    <!-- ======================================
-         Distributed Caching
-         ====================================== -->
+    <!-- Distributed Caching -->
     <PackageVersion Include="Microsoft.Extensions.Caching.Hybrid" Version="10.8.0" />
     <PackageVersion Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="$(MicrosoftExtensionsVersion)" />
-    <!-- ======================================
-         Email
-         ====================================== -->
+    <!-- Email and Web Push -->
     <PackageVersion Include="Lib.Net.Http.WebPush" Version="3.3.1" />
     <PackageVersion Include="MailKit" Version="4.17.0" />
-    <!-- ======================================
-         Cloud Storage (AWS S3)
-         ====================================== -->
+    <!-- Cloud Storage (AWS S3) -->
     <PackageVersion Include="AWSSDK.S3" Version="4.0.102.5" />
-    <!-- ======================================
-         Microsoft.Extensions.*
-         ====================================== -->
+    <!-- Microsoft.Extensions.* -->
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="$(MicrosoftExtensionsVersion)" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="$(MicrosoftExtensionsVersion)" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="$(MicrosoftExtensionsVersion)" />
@@ -123,9 +88,7 @@
     <PackageVersion Include="Microsoft.Extensions.Http" Version="$(MicrosoftExtensionsVersion)" />
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.8.0" />
     <PackageVersion Include="Microsoft.Extensions.Resilience" Version="10.8.0" />
-    <!-- ======================================
-         Aspire
-         ====================================== -->
+    <!-- Aspire -->
     <PackageVersion Include="Aspire.Hosting" Version="13.4.6" />
     <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.4.6" />
     <PackageVersion Include="Aspire.Hosting.JavaScript" Version="13.4.6" />
@@ -133,25 +96,14 @@
     <PackageVersion Include="Aspire.Hosting.Redis" Version="13.4.6" />
     <PackageVersion Include="Aspire.Hosting.Testing" Version="13.4.6" />
     <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery" Version="10.8.0" />
-    <!-- ======================================
-         HTML Processing
-         ====================================== -->
-    <!-- 9.1.968-beta pulls patched AngleSharp 1.5.2, resolving GHSA-pgww-w46g-26qg
-         (NU1902, mXSS via annotation-xml integration-point bypass in AngleSharp 0.17.1,
-         which 9.0.x exact-pins). No stable HtmlSanitizer release targets AngleSharp >=1.5
-         yet; tracked for promotion to stable once upstream ships one (Wallow-c6nd). -->
+    <!-- HTML Processing -->
+    <!-- Keep AngleSharp on a patched version when updating HtmlSanitizer (GHSA-pgww-w46g-26qg). -->
     <PackageVersion Include="HtmlSanitizer" Version="9.2.1039" />
     <PackageVersion Include="Humanizer.Core" Version="3.0.10" />
-    <!-- ======================================
-         Reverse Proxy (YARP)
-         ====================================== -->
-    <!-- ======================================
-         Benchmarking
-         ====================================== -->
+
+    <!-- Benchmarking -->
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
-    <!-- ======================================
-         Testing
-         ====================================== -->
+    <!-- Testing -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />
@@ -166,33 +118,20 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="$(EfCoreVersion)" />
     <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.8.0" />
     <PackageVersion Include="WireMock.Net" Version="2.12.0" />
-    <!-- ======================================
-         TOTP (Time-based One-Time Password)
-         ====================================== -->
+    <!-- TOTP (Time-based One-Time Password) -->
     <PackageVersion Include="Otp.NET" Version="1.4.1" />
-    <!-- ======================================
-         Code Coverage
-         ====================================== -->
+    <!-- Code Coverage -->
     <PackageVersion Include="coverlet.collector" Version="10.0.1" />
-    <!-- ======================================
-         Architecture Testing
-         ====================================== -->
+    <!-- Architecture Testing -->
     <PackageVersion Include="NetArchTest.Rules" Version="1.3.2" />
-    <!-- ======================================
-         Annotations
-         ====================================== -->
+    <!-- Annotations -->
     <PackageVersion Include="JetBrains.Annotations" Version="2026.2.0" />
-    <!-- ======================================
-         Code Analysis
-         ====================================== -->
+    <!-- Code Analysis -->
     <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.302" />
     <PackageVersion Include="StyleCop.Analyzers" Version="1.2.0-beta.556" />
     <PackageVersion Include="Meziantou.Analyzer" Version="3.0.123" />
     <PackageVersion Include="Roslynator.Analyzers" Version="4.15.0" />
-    <!-- Pin all Roslyn packages to 5.0.0 to resolve version conflict between
-         Lamar/Wolverine (transitively pulls Microsoft.CodeAnalysis 4.14.0) and
-         NetAnalyzers (pulls Common/CSharp 5.0.0). Mixed versions cause TypeLoadException
-         in dotnet-ef migrations. CentralPackageTransitivePinningEnabled forces these. -->
+    <!-- Keep Roslyn assemblies on one version to avoid type-loading conflicts in EF tooling. -->
     <PackageVersion Include="Microsoft.CodeAnalysis" Version="5.0.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Common" Version="5.0.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" />
@@ -204,21 +143,14 @@
     <PackageVersion Include="Microsoft.CodeAnalysis.VisualBasic.Workspaces" Version="5.0.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.Common" Version="5.0.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="5.0.0" />
-    <!-- ======================================
-         Transitive Security Pins
-         These packages are not referenced directly; they arrive as transitive
-         dependencies that carry known vulnerabilities. CentralPackageTransitivePinningEnabled
-         forces the patched versions below. Each notes the advisory and pulling parent.
-         Revisit when the parent package ships a fix and drop the pin if no longer needed.
-         ====================================== -->
-    <!-- GHSA-hv8m-jj95-wg3x (high): patched in 2.5.301; via SignalR.StackExchangeRedis / StreamJsonRpc -->
+    <!-- Transitive security pins. Revisit each pin when its parent dependency no longer needs it. -->
+    <!-- GHSA-hv8m-jj95-wg3x: MessagePack 2.5.301 fixes the vulnerable 2.x releases. -->
     <PackageVersion Include="MessagePack" Version="2.5.302" />
-    <!-- GHSA-v5pm-xwqc-g5wc (high): patched in 2.7.5; via Microsoft.AspNetCore.OpenApi -->
+    <!-- GHSA-v5pm-xwqc-g5wc: Microsoft.OpenApi 2.7.5 contains the fix. -->
     <PackageVersion Include="Microsoft.OpenApi" Version="2.10.0" />
-    <!-- GHSA-2m69-gcr7-jv3q (high): patched in 2.1.12; test-only via EF Core Sqlite bundle -->
+    <!-- GHSA-2m69-gcr7-jv3q: SQLitePCLRaw.lib.e_sqlite3 2.1.12 contains the fix. -->
     <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.12" />
-    <!-- GHSA-5crp-9r3c-p9vr (high): patched in 13.0.1; via WolverineFx 6 in non-Hangfire projects.
-         Floor is 13.0.4 (Aspire.Hosting.AppHost / WireMock.Net.OpenApiParser require >= 13.0.4). -->
+    <!-- GHSA-5crp-9r3c-p9vr: Newtonsoft.Json 13.0.1 contains the fix; current dependencies require 13.0.4. -->
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
   </ItemGroup>
 </Project>

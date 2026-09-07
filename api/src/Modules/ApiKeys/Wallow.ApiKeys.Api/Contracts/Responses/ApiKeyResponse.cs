@@ -1,7 +1,7 @@
 namespace Wallow.ApiKeys.Api.Contracts.Responses;
 
 /// <summary>
-/// Response containing API key metadata.
+/// API key metadata without the plaintext secret.
 /// </summary>
 public sealed record ApiKeyResponse(
     string KeyId,
@@ -13,7 +13,7 @@ public sealed record ApiKeyResponse(
     DateTimeOffset? LastUsedAt);
 
 /// <summary>
-/// Response when creating a new API key (includes the full key).
+/// Creation response containing the plaintext key, returned only once.
 /// </summary>
 public sealed record ApiKeyCreatedResponse(
     string KeyId,

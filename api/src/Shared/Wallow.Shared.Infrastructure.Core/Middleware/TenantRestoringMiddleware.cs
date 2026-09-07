@@ -12,7 +12,7 @@ public static class TenantRestoringMiddleware
 
     public static void Before(Envelope envelope, ITenantContextSetter tenantContextSetter)
     {
-        // Primary: read from envelope header (stamped by TenantStampingMiddleware)
+        // Prefer the header stamped by TenantStampingMiddleware.
         if (envelope.Headers.TryGetValue("X-Tenant-Id", out string? tenantHeader)
             && Guid.TryParse(tenantHeader, out Guid tenantGuid))
         {
@@ -20,8 +20,7 @@ public static class TenantRestoringMiddleware
             return;
         }
 
-        // Fallback: read TenantId from message body (for integration events published
-        // via bus.PublishAsync where the outgoing envelope doesn't carry the header)
+        // Without a valid header, accept a non-empty Guid TenantId from the message body.
         if (envelope.Message is not null && TryGetTenantIdFromMessage(envelope.Message, out Guid messageTenantId))
         {
             tenantContextSetter.SetTenant(TenantId.Create(messageTenantId));

@@ -32,9 +32,7 @@ public sealed class ClientBrandingUpdatedHandlerTests
     };
 
     /// <summary>
-    /// The event is a trigger, not a payload: two rapid writes delivered out of order must still
-    /// leave the OpenIddict application at the row's CURRENT name, so the handler applies what
-    /// the Branding read contract says now — not what the (possibly older) event carried.
+    /// Reads the current branding name when applying an event, so a stale payload does not restore an old name.
     /// </summary>
     [Fact]
     public async Task HandleAsync_AppliesTheCurrentDisplayName_NotTheEventPayload()
@@ -77,8 +75,7 @@ public sealed class ClientBrandingUpdatedHandlerTests
     }
 
     /// <summary>
-    /// A redelivered event can arrive after the client (and its branding row) were deleted; the
-    /// deletion cascade owns the OpenIddict cleanup, so the sync backs off instead of writing.
+    /// Skips updates when the branding row is absent, including after deletion.
     /// </summary>
     [Fact]
     public async Task HandleAsync_WhenTheBrandingRowIsGone_DoesNotUpdate()

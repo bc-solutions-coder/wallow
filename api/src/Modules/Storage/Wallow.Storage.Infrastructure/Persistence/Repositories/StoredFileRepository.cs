@@ -64,8 +64,7 @@ public sealed class StoredFileRepository(StorageDbContext context) : IStoredFile
 
     public Task<long> GetTotalSizeBytesAsync(CancellationToken cancellationToken = default)
     {
-        // Every row counts against the quota, PendingValidation reservations and Rejected
-        // rows included — a rejected row keeps holding its bytes until it is deleted.
+        // PendingValidation and Rejected rows reserve quota until their metadata is deleted.
         return context.Files.SumAsync(f => f.SizeBytes, cancellationToken);
     }
 

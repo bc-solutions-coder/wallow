@@ -29,8 +29,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     private static readonly string _testUserId = Guid.NewGuid().ToString();
     private static readonly Guid _testOrganizationId = Guid.NewGuid();
     private const string ThirdPartyClientId = "my-external-app";
-    // Deliberately NOT prefixed "wallow-": first-party status is the application's consent type,
-    // written by the seed, and the authorize endpoint must never infer it from the id.
+    // Avoid the wallow- prefix so the test cannot pass by inferring first-party status from the ID.
     private const string FirstPartyClientId = "first-party-web";
     private const string ApplicationId = "app-id-123";
 
@@ -69,21 +68,19 @@ public sealed class AuthorizationControllerTests : IDisposable
         _ssoClientSessionService = Substitute.For<ISsoClientSessionService>();
         _authenticationService = Substitute.For<IAuthenticationService>();
 
-        // A user with no memberships is the default; a test about the single-membership default
-        // for an org-less first-party login supplies one.
+        // Tests override the empty membership list when selecting a default organization.
         _organizations = Substitute.For<IOrganizationService>();
         _organizations.GetMyOrganizationsAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns([]);
 
-        // Minting is opaque here; redemption defaults to the happy path and a test that is about
-        // a refused token overrides it.
+        // Consent redemption succeeds by default; refusal cases override it.
         _consentTokens = Substitute.For<IConsentTokenService>();
         _consentTokens.Issue(Arg.Any<string>(), Arg.Any<string>()).Returns(ConsentToken);
         _consentTokens
             .RedeemAsync(Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(ConsentTokenOutcome.Redeemed);
 
-        // These tests are about consent, not scope gating: let every requested scope through.
+        // Bypass client scope registration checks in these consent and session tests.
         _scopeSubsetValidator = Substitute.For<IScopeSubsetValidator>();
         _scopeSubsetValidator
             .ValidateAsync(Arg.Any<string>(), Arg.Any<IEnumerable<string>>(), Arg.Any<CancellationToken>())
@@ -125,7 +122,7 @@ public sealed class AuthorizationControllerTests : IDisposable
 
         DefaultHttpContext httpContext = new() { User = user };
 
-        // Set up the OpenIddict server transaction on the feature collection
+
         OpenIddictServerTransaction transaction = new() { Request = request };
         httpContext.Features.Set(new OpenIddictServerAspNetCoreFeature { Transaction = transaction });
 
@@ -133,8 +130,7 @@ public sealed class AuthorizationControllerTests : IDisposable
         httpContext.Request.Path = "/connect/authorize";
         httpContext.Request.QueryString = new QueryString(queryString ?? "?client_id=" + (request.ClientId ?? ThirdPartyClientId));
 
-        // Sid minting re-issues the identity cookie through IAuthenticationService, which the
-        // HttpContext.AuthenticateAsync/SignInAsync extensions resolve from RequestServices.
+        // Supply authentication services for SID creation and cookie reissuance.
         _authenticationService
             .AuthenticateAsync(Arg.Any<HttpContext>(), IdentityConstants.ApplicationScheme)
             .Returns(AuthenticateResult.Success(
@@ -148,15 +144,14 @@ public sealed class AuthorizationControllerTests : IDisposable
             HttpContext = httpContext
         };
 
-        // Mock Url helper for IsLocalUrl
+
         IUrlHelper urlHelper = Substitute.For<IUrlHelper>();
         urlHelper.IsLocalUrl(Arg.Any<string>()).Returns(true);
         _controller.Url = urlHelper;
     }
 
     /// <summary>
-    /// The same request plumbing with nobody signed in: the identity cookie has lapsed (or was
-    /// never there), so authorize has to bounce to login without losing the request.
+    /// Builds the request fixture with an unauthenticated principal.
     /// </summary>
     private void SetupAnonymousHttpContext(OpenIddictRequest request, string method)
     {
@@ -215,11 +210,8 @@ public sealed class AuthorizationControllerTests : IDisposable
     }
 
     /// <summary>
-    /// Binds the client to an organization the signed-in user is admitted to. Both halves are
-    /// required: authorize refuses a client bound to no organization, and refuses a caller the
-    /// enrollment service does not admit, so a consent test never reaches consent without them.
+    /// Stubs a client with no organization binding.
     /// </summary>
-    /// <summary>An unbound (first-party) client: the resolver answers with no organization.</summary>
     private void SetupUnboundClientTenantResolver(string clientId)
     {
         _clientTenantResolver.ResolveAsync(clientId, Arg.Any<CancellationToken>())
@@ -263,7 +255,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     [Fact]
     public async Task Authorize_WithConsentDenied_ThirdPartyClient_ReturnsForbidWithConsentRequired()
     {
-        // Arrange
+
         OpenIddictRequest request = ConsentDecision(AuthorizationController.ConsentDenied);
 
         SetupAuthenticatedHttpContext(request, method: "POST");
@@ -272,10 +264,10 @@ public sealed class AuthorizationControllerTests : IDisposable
         SetupNoExistingAuthorizations();
         SetupClientTenantResolver(ThirdPartyClientId);
 
-        // Act
+
         IActionResult result = await _controller.Authorize();
 
-        // Assert - a denial is delivered to the relying party as consent_required
+
         ForbidResult forbidResult = result.Should().BeOfType<ForbidResult>().Subject;
         forbidResult.AuthenticationSchemes.Should().Contain(OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
         forbidResult.Properties!.Items[OpenIddictServerAspNetCoreConstants.Properties.Error]
@@ -285,7 +277,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     [Fact]
     public async Task Authorize_WithConsentGranted_NoExistingAuthorization_CreatesAuthorizationAndReturnsSignIn()
     {
-        // Arrange
+
         OpenIddictRequest request = ConsentDecision(AuthorizationController.ConsentGranted);
 
         SetupAuthenticatedHttpContext(request, method: "POST");
@@ -294,11 +286,10 @@ public sealed class AuthorizationControllerTests : IDisposable
         SetupNoExistingAuthorizations();
         SetupClientTenantResolver(ThirdPartyClientId);
 
-        // Act
+
         IActionResult result = await _controller.Authorize();
 
-        // Assert - the grant is recorded once as a permanent consent record, and the sign-in
-        // mints its own per-login ad-hoc authorization for the tokens to chain to.
+        // Permanent consent and per-sign-in token authorization are separate records.
         result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>();
         await _authorizationManager.Received(1).CreateAsync(
             Arg.Is<OpenIddictAuthorizationDescriptor>(d => d.Type == AuthorizationTypes.Permanent),
@@ -311,7 +302,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     [Fact]
     public async Task Authorize_WithConsentGranted_ExistingValidAuthorization_DoesNotCreateDuplicateAuthorization()
     {
-        // Arrange
+
         OpenIddictRequest request = ConsentDecision(AuthorizationController.ConsentGranted);
 
         SetupAuthenticatedHttpContext(request, method: "POST");
@@ -320,11 +311,10 @@ public sealed class AuthorizationControllerTests : IDisposable
         SetupExistingValidAuthorization(ApplicationId, ["openid", "profile"]);
         SetupClientTenantResolver(ThirdPartyClientId);
 
-        // Act
+
         IActionResult result = await _controller.Authorize();
 
-        // Assert - a valid consent record already covers the scopes, so no second one is added;
-        // the only creation is the sign-in's own per-login ad-hoc authorization.
+        // Reuse stored consent while creating a new per-sign-in authorization.
         result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>();
         await _authorizationManager.DidNotReceive().CreateAsync(
             Arg.Is<OpenIddictAuthorizationDescriptor>(d => d.Type == AuthorizationTypes.Permanent),
@@ -339,8 +329,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     [InlineData("denied")]
     public async Task Authorize_WithAConsentDecisionOnTheGet_IgnoresItAndShowsTheConsentScreen(string decision)
     {
-        // Arrange - a decision smuggled onto a link. The token is even "valid" here, so the GET
-        // being refused is down to the method alone.
+        // A GET decision must be ignored even when the token stub would accept it.
         OpenIddictRequest request = ConsentDecision(decision);
 
         SetupAuthenticatedHttpContext(request);
@@ -349,10 +338,10 @@ public sealed class AuthorizationControllerTests : IDisposable
         SetupNoExistingAuthorizations();
         SetupClientTenantResolver(ThirdPartyClientId);
 
-        // Act
+
         IActionResult result = await _controller.Authorize();
 
-        // Assert - neither recorded nor delivered: the screen is shown
+
         result.Should().BeOfType<RedirectResult>()
             .Which.Url.Should().StartWith("https://auth.example.com/consent?");
         await _authorizationManager.DidNotReceive().CreateAsync(
@@ -369,7 +358,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     public async Task Authorize_WithAConsentDecisionWhoseTokenIsRefused_ShowsTheConsentScreenAgain(
         ConsentTokenOutcome outcome)
     {
-        // Arrange
+
         OpenIddictRequest request = ConsentDecision(AuthorizationController.ConsentGranted);
         _consentTokens
             .RedeemAsync(Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
@@ -381,10 +370,10 @@ public sealed class AuthorizationControllerTests : IDisposable
         SetupNoExistingAuthorizations();
         SetupClientTenantResolver(ThirdPartyClientId);
 
-        // Act
+
         IActionResult result = await _controller.Authorize();
 
-        // Assert - a fresh token, nothing granted
+        // Return a consent token without creating an authorization.
         RedirectResult redirect = result.Should().BeOfType<RedirectResult>().Subject;
         Dictionary<string, StringValues> query = QueryHelpers.ParseQuery(new Uri(redirect.Url).Query);
         query[AuthorizationController.ConsentTokenParameter].ToString().Should().Be(ConsentToken);
@@ -395,9 +384,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     [Fact]
     public async Task Authorize_WithAConsentDecision_RedeemsTheTokenForTheSignedInUserAndTheRequest()
     {
-        // Arrange - the binding the token exists for: the redemption names the user who is
-        // answering and digests the request being answered, and the digest excludes the decision
-        // itself so it matches the one the token was minted against.
+        // Redemption must bind the same user and request fingerprint used at issuance.
         OpenIddictRequest shown = new() { ClientId = ThirdPartyClientId, Scope = "openid profile" };
         SetupAuthenticatedHttpContext(shown);
         SetupUser();
@@ -412,10 +399,10 @@ public sealed class AuthorizationControllerTests : IDisposable
         OpenIddictRequest answered = ConsentDecision(AuthorizationController.ConsentGranted);
         SetupAuthenticatedHttpContext(answered, method: "POST");
 
-        // Act
+
         await _controller.Authorize();
 
-        // Assert
+
         await _consentTokens.Received(1).RedeemAsync(ConsentToken, _testUserId, mintedFor, Arg.Any<CancellationToken>());
     }
 
@@ -426,7 +413,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     [Fact]
     public async Task Authorize_FirstPartyClient_WithConsentParameter_SkipsConsentLogicAndReturnsSignIn()
     {
-        // Arrange
+
         OpenIddictRequest request = new()
         {
             ClientId = FirstPartyClientId,
@@ -440,19 +427,18 @@ public sealed class AuthorizationControllerTests : IDisposable
         SetupApplication(FirstPartyClientId, consentType: ConsentTypes.Implicit);
         SetupClientTenantResolver(FirstPartyClientId);
 
-        // Act
+
         IActionResult result = await _controller.Authorize();
 
-        // Assert - a client registered with implicit consent skips consent entirely
-        // and goes directly to token issuance. No consent is recorded.
+        // Implicit consent bypasses permanent-consent persistence and lookup.
         result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>();
 
-        // First-party clients never record a permanent (consent) authorization
+
         await _authorizationManager.DidNotReceive().CreateAsync(
             Arg.Is<OpenIddictAuthorizationDescriptor>(d => d.Type == AuthorizationTypes.Permanent),
             Arg.Any<CancellationToken>());
 
-        // Consent-related authorization lookups should not happen for first-party clients
+
         _authorizationManager.DidNotReceive().FindBySubjectAsync(
             Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
@@ -460,9 +446,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     [Fact]
     public async Task Authorize_FirstPartyClient_BoundToNoOrganization_SignsInWithAnOrgLessToken()
     {
-        // A first-party client is bound to no organization, so "no organization" is not an
-        // error for it: for a user who belongs to no organization the login completes with no
-        // org claims and no roles, and nothing is enrolled anywhere.
+        // With no organization selected, issue no organization claims or roles.
         OpenIddictRequest request = new() { ClientId = FirstPartyClientId, Scope = "openid profile" };
 
         SetupAuthenticatedHttpContext(request);
@@ -484,9 +468,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     [Fact]
     public async Task Authorize_FirstPartyClient_UserWithASingleMembership_SignsInWithThatOrganization()
     {
-        // A first-party client names no organization, so the user's own memberships decide the
-        // organization context: exactly one active membership is unambiguous and becomes the
-        // token's org_id, with the roles that organization grants.
+        // A single available organization supplies the default context and its roles.
         Guid organizationId = Guid.NewGuid();
         OpenIddictRequest request = new() { ClientId = FirstPartyClientId, Scope = "openid profile" };
 
@@ -513,8 +495,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     [Fact]
     public async Task Authorize_FirstPartyClient_UserWithSeveralMemberships_SignsInWithAnOrgLessToken()
     {
-        // Several memberships and no hint is ambiguous; the token names no organization rather
-        // than guessing one.
+        // Multiple memberships need a hint to select an organization.
         OpenIddictRequest request = new() { ClientId = FirstPartyClientId, Scope = "openid profile" };
 
         SetupAuthenticatedHttpContext(request);
@@ -539,8 +520,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     [Fact]
     public async Task Authorize_ThirdPartyClient_BoundToNoOrganization_RedirectsToClientNotBoundError()
     {
-        // The id looks first-party; the consent type says otherwise, and only the consent type
-        // counts. A third-party client with no organization is a registration defect.
+        // A wallow- prefix cannot replace the explicit consent type or organization binding.
         const string lookalikeClientId = "wallow-lookalike";
         OpenIddictRequest request = new() { ClientId = lookalikeClientId, Scope = "openid" };
 
@@ -563,9 +543,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     [Fact]
     public async Task Authorize_FirstPartyClient_WithAnOrganizationHint_RunsThatOrganizationsPolicy()
     {
-        // The hint is what lets a first-party login name an organization: the transaction runs
-        // the hinted organization's enrollment policy exactly as a bound client's would, and the
-        // token is scoped to it — even when the user belongs to several and no default applies.
+        // The hint selects which organization enrollment and role services are queried.
         Guid hinted = Guid.NewGuid();
         OpenIddictRequest request = FirstPartyRequestWithHint(hinted.ToString());
 
@@ -600,8 +578,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     [Fact]
     public async Task Authorize_FirstPartyClient_WithAHintTheUserIsNoMemberOf_RedirectsToTheErrorPage()
     {
-        // A first-party refusal stays on the auth host: the hinted organization's policy said no,
-        // and the error page is where that is explained.
+        // First-party enrollment refusals use the auth host error page.
         Guid hinted = Guid.NewGuid();
         OpenIddictRequest request = FirstPartyRequestWithHint(hinted.ToString());
 
@@ -623,8 +600,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     [Fact]
     public async Task Authorize_ThirdPartyClient_WithAHintOtherThanItsBoundOrganization_IsInvalidRequest()
     {
-        // A bound client's organization is fixed by registration; a hint naming any other one is
-        // a malformed request, answered to the relying party as such.
+        // A hint cannot override a registered organization binding.
         OpenIddictRequest request = new()
         {
             ClientId = ThirdPartyClientId,
@@ -650,8 +626,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     [Fact]
     public async Task Authorize_ThirdPartyClient_WithAHintNamingItsOwnOrganization_SignsIn()
     {
-        // The one code path: a bound client is "hint fixed by registration", so restating that
-        // organization is not a contradiction.
+        // A matching hint preserves the registered organization context.
         OpenIddictRequest request = new()
         {
             ClientId = ThirdPartyClientId,
@@ -691,8 +666,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     [Fact]
     public async Task Authorize_FirstPartyClient_WithAnOrganization_LinksTheTokensToAnAuthorizationNamingIt()
     {
-        // A first-party client is bound to no organization, so its tokens' organization has to be
-        // recorded somewhere revocation can find it: the authorization the tokens chain to.
+        // Store the selected organization on the authorization so revocation can find its tokens.
         OpenIddictRequest request = FirstPartyRequestWithHint(_testOrganizationId.ToString());
 
         SetupAuthenticatedHttpContext(request);
@@ -729,8 +703,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     [Fact]
     public async Task Authorize_FirstPartyClient_WithoutAnOrganization_RecordsASessionScopedAuthorization()
     {
-        // An org-less sign-in still mints the per-login ad-hoc authorization — stamped with the
-        // session's sid so end-session can find its tokens — it just names no organization.
+        // Organization-less authorizations still need a SID for session revocation.
         OpenIddictRequest request = new() { ClientId = FirstPartyClientId, Scope = "openid profile" };
 
         SetupAuthenticatedHttpContext(request);
@@ -777,9 +750,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     public async Task Authorize_ThirdPartyClient_WhenTheOrganizationRefuses_SendsAccessDeniedToTheRelyingParty(
         string reason)
     {
-        // A third-party user the organization refuses is the relying party's to handle: the
-        // refusal goes back to its redirect URI as access_denied, with the reason as the
-        // description, rather than stranding the person on the auth host.
+        // Return organization refusal reasons through the OpenIddict error result.
         OpenIddictRequest request = new() { ClientId = ThirdPartyClientId, Scope = "openid profile" };
 
         SetupAuthenticatedHttpContext(request);
@@ -802,8 +773,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     [Fact]
     public async Task Authorize_ThirdPartyClient_WhenTheRequestIsPending_SendsAccessDeniedMembershipPending()
     {
-        // Pending is still recorded (the enrollment service did that); the relying party is told
-        // the person is waiting rather than shown the auth host's request-submitted screen.
+        // Translate the pending outcome into membership_pending for the relying party.
         OpenIddictRequest request = new() { ClientId = ThirdPartyClientId, Scope = "openid profile" };
 
         SetupAuthenticatedHttpContext(request);
@@ -825,8 +795,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     [Fact]
     public async Task Authorize_ThirdPartyClient_WhenTheEmailIsUnverified_StaysOnTheAuthHost()
     {
-        // Verifying an email is the auth host's job, not the relying party's, so this one
-        // precondition is not an organization's refusal and keeps its error page.
+        // Email verification errors stay on the auth host.
         OpenIddictRequest request = new() { ClientId = ThirdPartyClientId, Scope = "openid profile" };
 
         SetupAuthenticatedHttpContext(request);
@@ -870,10 +839,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     [Fact]
     public async Task Authorize_ThirdPartyClient_NoExistingAuthorization_RedirectsToConsentCarryingRequestedScopes()
     {
-        // Arrange - a third-party client with no consent decision yet: the branch
-        // that hands the user to the consent screen. The scopes the client asked
-        // for are the entire substance of the decision the screen asks the user to
-        // make, so the redirect has to carry them.
+        // The consent screen needs the requested scopes to display the decision.
         OpenIddictRequest request = new()
         {
             ClientId = ThirdPartyClientId,
@@ -886,23 +852,22 @@ public sealed class AuthorizationControllerTests : IDisposable
         SetupNoExistingAuthorizations();
         SetupClientTenantResolver(ThirdPartyClientId);
 
-        // Act
+
         IActionResult result = await _controller.Authorize();
 
-        // Assert
+
         RedirectResult redirectResult = result.Should().BeOfType<RedirectResult>().Subject;
         redirectResult.Url.Should().StartWith("https://auth.example.com/consent?");
 
         Dictionary<string, StringValues> query =
             QueryHelpers.ParseQuery(new Uri(redirectResult.Url).Query);
 
-        // Space-delimited, matching OAuth's own scope convention and the
-        // space-split the authorize-context endpoint already parses with.
+        // Preserve the space-delimited scope format.
         query.Should().ContainKey("scope");
         query["scope"].ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries)
             .Should().BeEquivalentTo("openid", "profile");
 
-        // The token the decision has to come back with, minted for this user.
+
         query[AuthorizationController.ConsentTokenParameter].ToString().Should().Be(ConsentToken);
         _consentTokens.Received(1).Issue(_testUserId, Arg.Any<string>());
     }
@@ -910,10 +875,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     [Fact]
     public async Task Authorize_ThirdPartyClient_NoExistingAuthorization_KeepsReturnUrlAndClientIdOnTheConsentRedirect()
     {
-        // Arrange - the two parameters the consent screen relies on. The returnUrl is rebuilt
-        // from the authorize request's own parameters, not read off the URL: a decision that
-        // arrives by POST carries them in its body, and a link may carry a decision that must
-        // not come back.
+        // Rebuild the return URL from protocol parameters, excluding the consent decision.
         OpenIddictRequest request = new()
         {
             ClientId = ThirdPartyClientId,
@@ -929,10 +891,10 @@ public sealed class AuthorizationControllerTests : IDisposable
         SetupNoExistingAuthorizations();
         SetupClientTenantResolver(ThirdPartyClientId);
 
-        // Act
+
         IActionResult result = await _controller.Authorize();
 
-        // Assert
+
         RedirectResult redirectResult = result.Should().BeOfType<RedirectResult>().Subject;
 
         Dictionary<string, StringValues> query =
@@ -946,17 +908,14 @@ public sealed class AuthorizationControllerTests : IDisposable
     [Fact]
     public async Task Authorize_AnonymousConsentPost_SendsTheWholeRequestBackThroughLogin()
     {
-        // Arrange - the identity cookie lapsed while the consent screen sat open, so the decision
-        // arrives from nobody. A POST carries the authorize request in its body, not the URL,
-        // so the login returnUrl has to be rebuilt from the request rather than the query string
-        // - and the stale decision must not come back with it.
+        // An anonymous POST must preserve request parameters for login without replaying its decision.
         OpenIddictRequest request = ConsentDecision(AuthorizationController.ConsentGranted);
         SetupAnonymousHttpContext(request, "POST");
 
-        // Act
+
         IActionResult result = await _controller.Authorize();
 
-        // Assert
+
         RedirectResult redirectResult = result.Should().BeOfType<RedirectResult>().Subject;
         redirectResult.Url.Should().StartWith("https://auth.example.com/login?");
 
@@ -974,8 +933,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     [Fact]
     public async Task Authorize_CookieWithoutSid_MintsSidAndReissuesCookie()
     {
-        // Arrange - a session signed in before front-channel logout existed carries no sid,
-        // so authorize has to mint one and write it back onto the identity cookie.
+        // A cookie without a SID needs a session and an updated cookie.
         OpenIddictRequest request = new() { ClientId = FirstPartyClientId, Scope = "openid" };
 
         SetupAuthenticatedHttpContext(request);
@@ -983,10 +941,10 @@ public sealed class AuthorizationControllerTests : IDisposable
         SetupApplication(FirstPartyClientId, consentType: ConsentTypes.Implicit);
         SetupClientTenantResolver(FirstPartyClientId);
 
-        // Act
+
         IActionResult result = await _controller.Authorize();
 
-        // Assert
+
         Microsoft.AspNetCore.Mvc.SignInResult signIn =
             result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>().Subject;
         string? sid = signIn.Principal.GetSessionId();
@@ -1002,9 +960,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     [Fact]
     public async Task Authorize_CookieWithLiveSid_ReusesItWithoutReissuingCookie()
     {
-        // Arrange - the sid identifies the SSO session for its whole lifetime; a second
-        // authorize (another RP joining the session) must reuse it, not rotate it — as long
-        // as its ledger row is still live.
+        // Reuse the SID while its session remains active.
         OpenIddictRequest request = new() { ClientId = FirstPartyClientId, Scope = "openid" };
 
         ActiveSession session = ArrangeLiveSession();
@@ -1013,10 +969,10 @@ public sealed class AuthorizationControllerTests : IDisposable
         SetupApplication(FirstPartyClientId, consentType: ConsentTypes.Implicit);
         SetupClientTenantResolver(FirstPartyClientId);
 
-        // Act
+
         IActionResult result = await _controller.Authorize();
 
-        // Assert
+
         Microsoft.AspNetCore.Mvc.SignInResult signIn =
             result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>().Subject;
         signIn.Principal.GetSessionId().Should().Be(session.Sid);
@@ -1031,9 +987,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     [Fact]
     public async Task Authorize_CookieWithRevokedSid_MintsAFreshSessionAndReissuesCookie()
     {
-        // Arrange - the cookie outlived its session: the ledger row behind its sid was revoked
-        // (session DELETE, eviction), so authorize must not keep minting tokens under the dead
-        // sid. The stub's ledger is empty — exactly what the liveness check sees then.
+        // An empty active-session result models a cookie whose SID is no longer live.
         OpenIddictRequest request = new() { ClientId = FirstPartyClientId, Scope = "openid" };
         string deadSid = Guid.NewGuid().ToString("N");
 
@@ -1042,10 +996,10 @@ public sealed class AuthorizationControllerTests : IDisposable
         SetupApplication(FirstPartyClientId, consentType: ConsentTypes.Implicit);
         SetupClientTenantResolver(FirstPartyClientId);
 
-        // Act
+
         IActionResult result = await _controller.Authorize();
 
-        // Assert - a fresh sid, and the re-issued cookie carries only the fresh one.
+
         Microsoft.AspNetCore.Mvc.SignInResult signIn =
             result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>().Subject;
         string? sid = signIn.Principal.GetSessionId();
@@ -1062,8 +1016,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     [Fact]
     public async Task Authorize_RecordsClientParticipationInTheSsoSession()
     {
-        // Arrange - logout can only notify the RPs it knows joined the session, so every
-        // successful authorize records (sid, client) participation.
+        // Record participation so logout can find this relying party.
         OpenIddictRequest request = new() { ClientId = FirstPartyClientId, Scope = "openid" };
 
         ActiveSession session = ArrangeLiveSession();
@@ -1072,10 +1025,10 @@ public sealed class AuthorizationControllerTests : IDisposable
         SetupApplication(FirstPartyClientId, consentType: ConsentTypes.Implicit);
         SetupClientTenantResolver(FirstPartyClientId);
 
-        // Act
+
         await _controller.Authorize();
 
-        // Assert
+
         await _ssoClientSessionService.Received(1).RecordAsync(
             session.Sid,
             FirstPartyClientId,
@@ -1083,7 +1036,9 @@ public sealed class AuthorizationControllerTests : IDisposable
             Arg.Any<CancellationToken>());
     }
 
-    /// <summary>A live ledger row for the test user, so its sid survives the liveness check.</summary>
+    /// <summary>
+    /// Returns an active session from the session-service stub.
+    /// </summary>
     private ActiveSession ArrangeLiveSession()
     {
         ActiveSession session = ActiveSession.Create(
@@ -1097,8 +1052,7 @@ public sealed class AuthorizationControllerTests : IDisposable
     [Fact]
     public async Task Authorize_SidClaimIsDestinedForTheIdentityTokenOnly()
     {
-        // Arrange - sid exists for the RP to match logout notifications against; access-token
-        // consumers have no use for it, so it must not leak there.
+        // This contract exposes the logout SID only in the identity token.
         OpenIddictRequest request = new() { ClientId = FirstPartyClientId, Scope = "openid" };
 
         SetupAuthenticatedHttpContext(request, existingSid: "sid-already-minted");
@@ -1106,10 +1060,10 @@ public sealed class AuthorizationControllerTests : IDisposable
         SetupApplication(FirstPartyClientId, consentType: ConsentTypes.Implicit);
         SetupClientTenantResolver(FirstPartyClientId);
 
-        // Act
+
         IActionResult result = await _controller.Authorize();
 
-        // Assert
+
         Microsoft.AspNetCore.Mvc.SignInResult signIn =
             result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>().Subject;
         Claim sidClaim = signIn.Principal!.Claims

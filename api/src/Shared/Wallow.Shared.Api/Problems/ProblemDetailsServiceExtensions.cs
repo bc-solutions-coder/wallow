@@ -5,9 +5,8 @@ using Wallow.Shared.Kernel.Errors;
 namespace Wallow.Shared.Api.Problems;
 
 /// <summary>
-/// The middleware-side entry points into the problem writer. Each sets the response status and
-/// hands a problem to <see cref="IProblemDetailsService.TryWriteAsync"/>; the contract fills the
-/// remaining members.
+/// Sets the response status and delegates middleware errors to
+/// <see cref="IProblemDetailsService.TryWriteAsync"/> for contract normalization.
 /// </summary>
 public static class ProblemDetailsServiceExtensions
 {

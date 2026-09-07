@@ -29,7 +29,7 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
     private Guid ActorId() => Guid.Parse(User.GetUserId()!);
 
     /// <summary>
-    /// Get a paginated list of users with optional search filtering.
+    /// Searches users in the resolved tenant with pagination.
     /// </summary>
     [HttpGet]
     [HasPermission(PermissionType.UsersRead)]
@@ -50,7 +50,7 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
     }
 
     /// <summary>
-    /// Get a specific user by their ID.
+    /// Gets a user who belongs to the resolved tenant.
     /// </summary>
     [HttpGet("{id:guid}")]
     [HasPermission(PermissionType.UsersRead)]
@@ -90,7 +90,7 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
     }
 
     /// <summary>
-    /// Create a new user account.
+    /// Creates a user account and adds it to the resolved tenant with the user role.
     /// </summary>
     [HttpPost]
     [HasPermission(PermissionType.UsersCreate)]
@@ -148,11 +148,7 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
     }
 
     /// <summary>
-    /// Assign a role to a user IN THE CALLER'S OWN ORGANIZATION. The organization is the ambient
-    /// tenant rather than a parameter, so this route can never grant a role somewhere the caller
-    /// was not already authorized; the grant lands on the user's membership of that organization
-    /// and confers nothing in any other. The reserved global-administrator name is rejected:
-    /// global admin is a seeded claim, never a role, so it cannot be granted from inside a tenant.
+    /// Assigns a role within the resolved tenant. Reserved global-administrator names are rejected.
     /// </summary>
     [HttpPost("{userId:guid}/roles")]
     [HasPermission(PermissionType.RolesUpdate)]
@@ -177,8 +173,7 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
     }
 
     /// <summary>
-    /// Remove a role from a user in the caller's own organization. Revocation is scoped the same
-    /// way the grant was, so it cannot reach a role the user holds elsewhere.
+    /// Removes the named role within the resolved tenant.
     /// </summary>
     [HttpDelete("{userId:guid}/roles/{roleName}")]
     [HasPermission(PermissionType.RolesUpdate)]
@@ -196,10 +191,8 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
     }
 
     /// <summary>
-    /// Matches every spelling of the reserved global-administrator name. Comparison is on the
-    /// letters and digits alone, so casing, spacing, hyphens, and underscores cannot slip a
-    /// variant past it. This is a deny list, not an allow list: custom roles minted through
-    /// RolesController must stay assignable.
+    /// Rejects globaladmin and isglobaladmin after removing non-alphanumeric characters
+    /// and lowercasing; other role names proceed to service validation.
     /// </summary>
     private static bool IsReservedRoleName(string? roleName)
     {

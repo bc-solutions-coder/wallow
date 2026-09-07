@@ -4,11 +4,8 @@ using Wallow.Identity.Infrastructure.Options;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// Both shipped seed files must satisfy the client/organization invariant the seeder enforces at
-/// boot (first-party => no organization; every other client => exactly one), so a fresh database
-/// seeds without the boot-time rejection ever firing on the reference files. The production seed
-/// is further pinned to its documented shape: first-party clients only, and no organization,
-/// membership, or bootstrap admin, all of which first-run setup creates instead.
+/// Checks organization bindings in both shipped seed files.
+/// The production seed contains first-party clients without organizations, members, or an admin.
 /// </summary>
 public sealed class SeedJsonClientOrganizationInvariantTests
 {
@@ -39,8 +36,7 @@ public sealed class SeedJsonClientOrganizationInvariantTests
     [Fact]
     public void ProductionSeed_SatisfiesTheClientOrganizationInvariant()
     {
-        // Production ships secret-less and receives secrets from ClientSecrets__<clientId>; stand
-        // one in so the public/confidential rule does not mask the organization invariant.
+        // Supply a secret so confidential-client validation does not mask organization validation.
         PreRegisteredClientOptions options = LoadClients(ProductionSeedPath(), withPlaceholderSecrets: true);
 
         Action validate = options.Validate;

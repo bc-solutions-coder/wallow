@@ -7,9 +7,7 @@ using Wallow.Shared.Contracts.Storage;
 namespace Wallow.Branding.Infrastructure.Handlers;
 
 /// <summary>
-/// Branding belongs to a client, so it goes when the client goes. Identity announces the deletion
-/// and this module drops its own row, the logo object behind it and the cached copy — Identity
-/// never reaches into Branding's persistence, and Branding never learns how clients are deleted.
+/// Deletes the client's branding row, logo object and cached copy after Identity reports deletion.
 /// </summary>
 public sealed partial class ClientDeletedHandler(
     IClientBrandingRepository brandings,

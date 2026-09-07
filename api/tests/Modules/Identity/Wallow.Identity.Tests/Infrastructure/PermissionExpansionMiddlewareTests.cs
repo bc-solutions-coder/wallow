@@ -8,18 +8,17 @@ namespace Wallow.Identity.Tests.Infrastructure;
 public class PermissionExpansionMiddlewareTests
 {
     /// <summary>
-    /// The organization the principal names. Expansion is refused for a principal that
-    /// names none, so every fixture asserting a mapping has to carry one.
+    /// Organization claim used by these tenant-scoped expansion fixtures.
     /// </summary>
     private const string TenantId = "0f3a1c2e-5b8d-4a71-9c62-7e4d0a1b3f56";
 
     [Fact]
     public async Task InvokeAsync_WithUnauthenticatedUser_DoesNotAddPermissions()
     {
-        // Arrange
+
         DefaultHttpContext context = new DefaultHttpContext()
         {
-            User = new ClaimsPrincipal() // Not authenticated
+            User = new ClaimsPrincipal()
         };
         bool nextCalled = false;
 
@@ -29,10 +28,10 @@ public class PermissionExpansionMiddlewareTests
             return Task.CompletedTask;
         });
 
-        // Act
+
         await middleware.InvokeAsync(context);
 
-        // Assert
+
         nextCalled.Should().BeTrue();
         context.User.Claims.Should().NotContain(c => c.Type == "permission");
     }
@@ -40,7 +39,7 @@ public class PermissionExpansionMiddlewareTests
     [Fact]
     public async Task InvokeAsync_WithServiceAccount_MapsOAuth2ScopesToPermissions()
     {
-        // Arrange
+
         Claim[] claims = new[]
         {
             new Claim("org_id", TenantId),
@@ -56,10 +55,10 @@ public class PermissionExpansionMiddlewareTests
 
         PermissionExpansionMiddleware middleware = new(_ => Task.CompletedTask);
 
-        // Act
+
         await middleware.InvokeAsync(context);
 
-        // Assert
+
         List<string> permissions = context.User.FindAll("permission").Select(c => c.Value).ToList();
         permissions.Should().Contain(PermissionType.StorageRead);
         permissions.Should().Contain(PermissionType.StorageWrite);
@@ -68,7 +67,7 @@ public class PermissionExpansionMiddlewareTests
     [Fact]
     public async Task InvokeAsync_WithServiceAccount_HandlesMultipleScopeClaims()
     {
-        // Arrange
+
         Claim[] claims = new[]
         {
             new Claim("org_id", TenantId),
@@ -85,10 +84,10 @@ public class PermissionExpansionMiddlewareTests
 
         PermissionExpansionMiddleware middleware = new(_ => Task.CompletedTask);
 
-        // Act
+
         await middleware.InvokeAsync(context);
 
-        // Assert
+
         List<string> permissions = context.User.FindAll("permission").Select(c => c.Value).ToList();
         permissions.Should().Contain(PermissionType.StorageRead);
         permissions.Should().Contain(PermissionType.InquiriesWrite);
@@ -97,7 +96,7 @@ public class PermissionExpansionMiddlewareTests
     [Fact]
     public async Task InvokeAsync_WithServiceAccount_IgnoresUnknownScopes()
     {
-        // Arrange
+
         Claim[] claims = new[]
         {
             new Claim("org_id", TenantId),
@@ -113,10 +112,10 @@ public class PermissionExpansionMiddlewareTests
 
         PermissionExpansionMiddleware middleware = new(_ => Task.CompletedTask);
 
-        // Act
+
         await middleware.InvokeAsync(context);
 
-        // Assert
+
         List<string> permissions = context.User.FindAll("permission").Select(c => c.Value).ToList();
         permissions.Should().ContainSingle();
         permissions.Should().Contain(PermissionType.StorageRead);
@@ -125,7 +124,7 @@ public class PermissionExpansionMiddlewareTests
     [Fact]
     public async Task InvokeAsync_WithServiceAccount_MapsAllCommunicationScopes()
     {
-        // Arrange
+
         Claim[] claims = new[]
         {
             new Claim("org_id", TenantId),
@@ -141,10 +140,10 @@ public class PermissionExpansionMiddlewareTests
 
         PermissionExpansionMiddleware middleware = new(_ => Task.CompletedTask);
 
-        // Act
+
         await middleware.InvokeAsync(context);
 
-        // Assert
+
         List<string> permissions = context.User.FindAll("permission").Select(c => c.Value).ToList();
         permissions.Should().Contain(PermissionType.AnnouncementRead);
         permissions.Should().Contain(PermissionType.AnnouncementManage);
@@ -156,7 +155,7 @@ public class PermissionExpansionMiddlewareTests
     [Fact]
     public async Task InvokeAsync_WithServiceAccount_MapsIdentityScopes()
     {
-        // Arrange
+
         Claim[] claims = new[]
         {
             new Claim("org_id", TenantId),
@@ -172,10 +171,10 @@ public class PermissionExpansionMiddlewareTests
 
         PermissionExpansionMiddleware middleware = new(_ => Task.CompletedTask);
 
-        // Act
+
         await middleware.InvokeAsync(context);
 
-        // Assert
+
         List<string> permissions = context.User.FindAll("permission").Select(c => c.Value).ToList();
         permissions.Should().Contain(PermissionType.UsersRead);
         permissions.Should().Contain(PermissionType.UsersUpdate); // users.write maps to UsersUpdate
@@ -184,7 +183,7 @@ public class PermissionExpansionMiddlewareTests
     [Fact]
     public async Task InvokeAsync_WithServiceAccount_MapsNotificationScopes()
     {
-        // Arrange
+
         Claim[] claims = new[]
         {
             new Claim("org_id", TenantId),
@@ -200,10 +199,10 @@ public class PermissionExpansionMiddlewareTests
 
         PermissionExpansionMiddleware middleware = new(_ => Task.CompletedTask);
 
-        // Act
+
         await middleware.InvokeAsync(context);
 
-        // Assert
+
         List<string> permissions = context.User.FindAll("permission").Select(c => c.Value).ToList();
         permissions.Should().Contain(PermissionType.NotificationRead);
         permissions.Should().Contain(PermissionType.NotificationsWrite);
@@ -212,7 +211,7 @@ public class PermissionExpansionMiddlewareTests
     [Fact]
     public async Task InvokeAsync_WithServiceAccount_MapsWebhooksScope()
     {
-        // Arrange
+
         Claim[] claims = new[]
         {
             new Claim("org_id", TenantId),
@@ -228,10 +227,10 @@ public class PermissionExpansionMiddlewareTests
 
         PermissionExpansionMiddleware middleware = new(_ => Task.CompletedTask);
 
-        // Act
+
         await middleware.InvokeAsync(context);
 
-        // Assert
+
         List<string> permissions = context.User.FindAll("permission").Select(c => c.Value).ToList();
         permissions.Should().Contain(PermissionType.WebhooksManage);
     }
@@ -239,11 +238,11 @@ public class PermissionExpansionMiddlewareTests
     [Fact]
     public async Task InvokeAsync_WithNonServiceAccountClient_ExpandsUserRoles()
     {
-        // Arrange
+
         Claim[] claims = new[]
         {
             new Claim("org_id", TenantId),
-            new Claim("azp", "web-client"), // Not a service account
+            new Claim("azp", "web-client"),
             new Claim(ClaimTypes.Role, "admin")
         };
 
@@ -255,18 +254,18 @@ public class PermissionExpansionMiddlewareTests
 
         PermissionExpansionMiddleware middleware = new(_ => Task.CompletedTask);
 
-        // Act
+
         await middleware.InvokeAsync(context);
 
-        // Assert
+
         List<Claim> permissions = context.User.FindAll("permission").ToList();
-        permissions.Should().NotBeEmpty(); // Admin role should expand to many permissions
+        permissions.Should().NotBeEmpty();
     }
 
     [Fact]
     public async Task InvokeAsync_WithNoAzpClaim_TreatsAsRegularUser()
     {
-        // Arrange
+
         Claim[] claims = new[]
         {
             new Claim("org_id", TenantId),
@@ -281,18 +280,18 @@ public class PermissionExpansionMiddlewareTests
 
         PermissionExpansionMiddleware middleware = new(_ => Task.CompletedTask);
 
-        // Act
+
         await middleware.InvokeAsync(context);
 
-        // Assert
+
         List<Claim> permissions = context.User.FindAll("permission").ToList();
-        permissions.Should().NotBeEmpty(); // User role should expand to permissions
+        permissions.Should().NotBeEmpty();
     }
 
     [Fact]
     public async Task InvokeAsync_CallsNextMiddleware()
     {
-        // Arrange
+
         DefaultHttpContext context = new DefaultHttpContext();
         bool nextCalled = false;
 
@@ -302,10 +301,10 @@ public class PermissionExpansionMiddlewareTests
             return Task.CompletedTask;
         });
 
-        // Act
+
         await middleware.InvokeAsync(context);
 
-        // Assert
+
         nextCalled.Should().BeTrue();
     }
 }

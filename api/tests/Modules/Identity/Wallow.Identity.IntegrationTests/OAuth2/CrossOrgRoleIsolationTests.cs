@@ -11,10 +11,8 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.OAuth2;
 
 /// <summary>
-/// One person, admin in one organization and a plain member of another. Every path a token can
-/// take through the second organization's client — authorize, refresh, and a privileged scope
-/// request — must carry only what that membership grants. The assertions read the issued token
-/// and run the real permission expansion over it, because an HTTP 200 says nothing about either.
+/// Checks that authorization, refresh, and privileged-scope requests use the selected organization roles.
+/// Reads issued token claims and passes them through permission expansion.
 /// </summary>
 [Trait("Category", "CrossTenant")]
 public sealed class CrossOrgRoleIsolationTests(WallowApiFactory factory)
@@ -23,7 +21,9 @@ public sealed class CrossOrgRoleIsolationTests(WallowApiFactory factory)
     private const string Password = "Harness1234!";
     private const string ClientSecret = "cross-org-client-secret";
 
-    /// <summary>Maps to UsersDelete, which only "admin" holds.</summary>
+    /// <summary>
+    /// Permission scope mapping to UsersDelete, outside the baseline user role.
+    /// </summary>
     private const string PrivilegedScope = "users.manage";
 
     private static readonly string[] _clientScopes =
@@ -108,8 +108,8 @@ public sealed class CrossOrgRoleIsolationTests(WallowApiFactory factory)
     }
 
     /// <summary>
-    /// Runs the real middleware over the real token: the permission claim is minted downstream,
-    /// so what a role is worth is only visible after expansion, never in the token itself.
+    /// Reconstructs a principal from selected token claims and runs permission expansion.
+    /// This helper does not perform JWT authentication.
     /// </summary>
     private static async Task<IReadOnlyList<string>> ExpandPermissionsAsync(string accessToken)
     {
@@ -148,8 +148,7 @@ public sealed class CrossOrgRoleIsolationTests(WallowApiFactory factory)
     }
 
     /// <summary>
-    /// Creating an organization enrolls its creator as an admin, so the organization the caller is
-    /// only a member of has to be owned by someone else.
+    /// Uses another owner so the test user can have only a baseline membership in this organization.
     /// </summary>
     private async Task<Seed> SeedAsync()
     {

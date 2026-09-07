@@ -10,10 +10,7 @@ using Wallow.Shared.Kernel.Results;
 namespace Wallow.Identity.Tests.Application.Commands;
 
 /// <summary>
-/// The first administrator is only an administrator because of a membership: roles resolve per
-/// organization, so bootstrap has to create the organization the wizard names and enroll the new
-/// user into it as owner. Creating the user and stopping there produced an account holding no
-/// permission anywhere, and left the setup gate open forever (Wallow-cr20).
+/// Checks user bootstrap with organization ownership and reuse of a matching organization.
 /// </summary>
 public class BootstrapAdminCommandTests
 {
@@ -25,7 +22,7 @@ public class BootstrapAdminCommandTests
 
     public BootstrapAdminCommandTests()
     {
-        // No organization exists yet: the default first-run shape, where bootstrap creates one.
+        // Default to the first-run case with no matching organization.
         _organizationService
             .GetOrganizationsAsync(Arg.Any<string?>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns([]);
@@ -95,8 +92,7 @@ public class BootstrapAdminCommandTests
 
         result.IsSuccess.Should().BeTrue();
 
-        // creatorUserId is what mints the owner membership carrying the admin role — the only
-        // thing that makes this user an administrator, and the only thing the setup gate reads.
+        // Organization creation needs the new user ID to enroll its owner.
         await _organizationService.Received(1).CreateOrganizationAsync(
             OrganizationName,
             Arg.Any<string?>(),
@@ -142,8 +138,7 @@ public class BootstrapAdminCommandTests
 
         await CreateHandler().Handle(command, CancellationToken.None);
 
-        // The organization resolves the admin role by name to enroll its creator, so the catalog
-        // entry has to exist before it runs.
+        // Owner enrollment resolves the admin role by name.
         callOrder.Should().ContainInOrder("EnsureRole", "CreateUser", "CreateOrganization");
     }
 
@@ -267,9 +262,7 @@ public class BootstrapAdminCommandTests
     }
 
     /// <summary>
-    /// The production seed creates the organization the dashboard client is bound to before any
-    /// administrator exists. Creating a second organization alongside it left the new admin owning
-    /// an organization no client pointed at, so the first sign-in parked them on /access-request.
+    /// Reuses a case-insensitive name match so bootstrap can enroll into a seeded organization.
     /// </summary>
     [Fact]
     public async Task Handle_WhenAnOrganizationWithThatNameExists_EnrollsTheAdminAsItsOwnerInsteadOfCreatingAnother()
@@ -291,8 +284,7 @@ public class BootstrapAdminCommandTests
         Result result = await CreateHandler().Handle(command, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        // Case-insensitive, like the seeder's own name match: "Wallow" typed as "wallow" is the
-        // same organization, not a sibling.
+
         await _organizationService.Received(1).EnrollOwnerAsync(seeded.Id, createdUserId, Arg.Any<CancellationToken>());
         await _organizationService.DidNotReceive().CreateOrganizationAsync(
             Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>());

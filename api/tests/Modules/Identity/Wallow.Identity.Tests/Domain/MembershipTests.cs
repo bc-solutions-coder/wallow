@@ -7,8 +7,7 @@ using Wallow.Shared.Kernel.Domain;
 namespace Wallow.Identity.Tests.Domain;
 
 /// <summary>
-/// Membership is the entity that carries authorization: roles hang off the (user, organization)
-/// pair, so a role granted by one organization confers nothing in another.
+/// Checks membership transitions and organization-scoped role grants.
 /// </summary>
 public class MembershipTests
 {

@@ -10,11 +10,8 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.OrganizationClients;
 
 /// <summary>
-/// The branding sub-resource on an organization's developer application: registration creates the
-/// branding row through the integration event, the organization edits it over multipart PUT with
-/// a validated logo, a foreign organization sees nothing, and every write lands an audit row.
-/// Backend-dependent because the row is created by a Wolverine handler off the registration
-/// request and the logo round-trips through the real (local) storage provider.
+/// Checks branding creation after registration, multipart updates, logo validation,
+/// organization access boundaries, and audit records for exercised writes.
 /// </summary>
 [Trait("Category", "Integration")]
 public class ClientBrandingTests(WallowApiFactory factory) : OrganizationClientsTestBase(factory)
@@ -115,9 +112,8 @@ public class ClientBrandingTests(WallowApiFactory factory) : OrganizationClients
     }
 
     /// <summary>
-    /// The display-name sync runs off the request through Wolverine; polls OpenIddict — a fresh
-    /// scope per probe, so EF identity resolution cannot pin the pre-sync row — until the
-    /// application carries the expected name, and hands back whatever it last observed.
+    /// Polls with a fresh scope per probe to avoid reading a previously tracked application.
+    /// Returns the last observed display name when polling ends.
     /// </summary>
     private async Task<string?> OpenIddictDisplayNameAsync(string clientId, string expected)
     {
@@ -135,10 +131,7 @@ public class ClientBrandingTests(WallowApiFactory factory) : OrganizationClients
     }
 
     /// <summary>
-    /// The PUT is a half-replace on purpose: the text fields are a full replace (an omitted
-    /// tagline or theme clears the stored value) while an omitted logo keeps the stored one — a
-    /// logo is a file upload, and demanding it be resent on every save would be hostile. Nothing
-    /// but this test pins the asymmetry; a refactor flipping either side must fail here.
+    /// Omitted text fields clear their values; an omitted logo preserves the existing upload.
     /// </summary>
     [Fact]
     public async Task Put_WithoutTaglineThemeOrLogo_ClearsTheTextFields_ButKeepsTheLogo()
@@ -285,8 +278,7 @@ public class ClientBrandingTests(WallowApiFactory factory) : OrganizationClients
     }
 
     /// <summary>
-    /// The branding row lands through the registration event's Wolverine handler, off the request;
-    /// polls the sub-resource until it appears and hands the row back.
+    /// Polls for event-created branding, then reads and asserts the sub-resource response.
     /// </summary>
     private async Task<JsonElement> BrandingRowAsync(Guid orgId, string clientId)
     {
@@ -310,8 +302,7 @@ public class ClientBrandingTests(WallowApiFactory factory) : OrganizationClients
         string? themeJson = null,
         (byte[] Bytes, string ContentType, string FileName)? logo = null)
     {
-        // MultipartFormDataContent takes ownership of its parts, but CA2000 cannot see that;
-        // the using declarations dispose after the awaited send, and double-dispose is harmless.
+        // Dispose parts explicitly for CA2000; the form also disposes them after the awaited send.
         using MultipartFormDataContent form = new();
         using StringContent displayNameContent = new(displayName);
         form.Add(displayNameContent, "DisplayName");

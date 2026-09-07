@@ -11,13 +11,7 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.Organizations;
 
 /// <summary>
-/// An organization must never be left with no active owner. Two owners are two aggregates, so the
-/// rule cannot be checked inside either one: the interesting case is two departures happening at
-/// once, each counting the owner the other is about to take away.
-///
-/// Backend-dependent by necessity. What makes the count trustworthy is a FOR UPDATE row lock held
-/// across a transaction, and no in-memory provider has one — run against anything but real Postgres
-/// these tests would assert the mechanism they exist to prove is absent.
+/// Checks last-owner departure refusal and overlapping departures against PostgreSQL transactions.
 /// </summary>
 [Trait("Category", "Integration")]
 public class LastOwnerGuardTests(WallowApiFactory factory) : IdentityIntegrationTestBase(factory)
@@ -54,9 +48,7 @@ public class LastOwnerGuardTests(WallowApiFactory factory) : IdentityIntegration
     }
 
     /// <summary>
-    /// The case a count taken before the write cannot survive: both owners leave at once, each on
-    /// its own connection, and the second is still inside the first one's open transaction when it
-    /// takes its count. Without the row lock it reads two owners and both departures commit.
+    /// Starts two departures in separate scopes while holding the first inside its transaction.
     /// </summary>
     [Fact]
     public async Task TwoOwnersLeavingAtOnce_LeaveOneBehind()
@@ -85,8 +77,8 @@ public class LastOwnerGuardTests(WallowApiFactory factory) : IdentityIntegration
                 secondScope.ServiceProvider.GetRequiredService<IdentityDbContext>(),
                 orgId, secondOwner, token));
 
-        // Long enough for the second departure to reach the lock and block on it. Shorter, and the
-        // test still passes for the uninteresting reason that the first one had already committed.
+        // Give the second departure time to contend before releasing the first.
+        // This delay does not confirm that the second has reached the database lock.
         await Task.Delay(TimeSpan.FromMilliseconds(500));
         releaseFirst.SetResult();
 

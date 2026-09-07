@@ -163,9 +163,7 @@ public sealed class RepositoryTests : IDisposable
     }
 
     /// <summary>
-    /// The two callers that resolve a token are an anonymous verification, where no tenant resolves,
-    /// and acceptance by the invited person, whose ambient tenant is some organization other than the
-    /// inviting one. Both would come up empty if the token lookup honoured the filter.
+    /// Invitation token lookup must work when the ambient tenant differs from the inviting organization.
     /// </summary>
     [Fact]
     public async Task InvitationRepository_GetByTokenAsync_ResolvesAnInvitationFromAnotherTenant()
@@ -307,8 +305,7 @@ public sealed class RepositoryTests : IDisposable
     public async Task OrganizationRepository_GetByIdAsync_WhenExists_ReturnsOrganization()
     {
         Organization org = CreateOrganization();
-        // org IS the tenant: Organization.Create mints TenantId == org.Id, so the
-        // ambient tenant must be org.Id for the query filter to match this row.
+        // Match the organization tenant so the query filter includes this row.
         _dbContext.SetTenant(new TenantId(org.Id.Value));
         _dbContext.Organizations.Add(org);
         await _dbContext.SaveChangesAsync();
@@ -377,7 +374,7 @@ public sealed class RepositoryTests : IDisposable
         Guid userId = Guid.NewGuid();
         Organization org1 = CreateOrganization("Org A", "org-a");
         Organization org2 = CreateOrganization("Org B", "org-b");
-        // org IS the tenant: set the ambient tenant to the org whose membership we query.
+        // Select the tenant whose membership is queried.
         _dbContext.SetTenant(new TenantId(org1.Id.Value));
         _dbContext.Organizations.AddRange(org1, org2);
         _dbContext.Memberships.Add(Membership.Enroll(userId, org1.Id, Guid.NewGuid(), TimeProvider.System));
@@ -394,7 +391,7 @@ public sealed class RepositoryTests : IDisposable
     public async Task OrganizationRepository_Add_PersistsOrganization()
     {
         Organization org = CreateOrganization("New Org", "new-org");
-        // org IS the tenant: align the ambient tenant to org.Id so the persisted row is visible.
+        // Select the tenant before reading back the persisted organization.
         _dbContext.SetTenant(new TenantId(org.Id.Value));
 
         OrganizationRepository repo = new(_dbContext);

@@ -14,12 +14,8 @@ using Wallow.Tests.Common.Helpers;
 namespace Wallow.Identity.IntegrationTests.Invitations;
 
 /// <summary>
-/// One live token per address per organization. Revoke acts on a single invitation by id, so a
-/// second token minted by a second click is one the admin cannot see in the list and cannot take
-/// back — re-inviting refreshes the outstanding invitation instead. Inviting a sitting member is
-/// refused outright.
-///
-/// Backend-dependent: requires the WallowApiFactory stack (Postgres + seeded identity data).
+/// Checks that repeated invitation requests refresh one outstanding invitation,
+/// and that invitations for existing members are refused.
 /// </summary>
 [Trait("Category", "Integration")]
 public class InvitationIssuanceTests(WallowApiFactory factory) : IdentityIntegrationTestBase(factory)

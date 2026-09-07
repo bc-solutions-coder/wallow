@@ -19,7 +19,7 @@ public static class ApiScopes
         "organizations.write",
         "organizations.manage",
 
-        // Identity - API Keys
+        // API Keys
         "apikeys.read",
         "apikeys.write",
         "apikeys.manage",

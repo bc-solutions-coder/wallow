@@ -101,7 +101,7 @@ internal sealed partial class RealtimeHub(
         Guid tenantId = tenantContext.TenantId.Value;
         string newPageGroup = $"page:{tenantId}:{pageContext}";
 
-        // Remove from old page group if switching contexts
+
         if (Context.Items.TryGetValue("CurrentPageGroup", out object? oldGroupObj) && oldGroupObj is string oldPageGroup)
         {
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, oldPageGroup);

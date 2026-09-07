@@ -5,13 +5,8 @@ using static OpenIddict.Abstractions.OpenIddictConstants;
 namespace Wallow.Identity.Infrastructure.Services;
 
 /// <summary>
-/// A client the platform will not serve is refused at the token endpoint whatever it asks for — a
-/// code exchange, a refresh, its own credentials — with <c>invalid_client</c> and the refusal's
-/// own sentence: suspended by its organization or by the platform, or bound to an organization
-/// that is archived or platform-suspended. It runs before OpenIddict authenticates the request,
-/// which is where the client secret and the presented grant are checked together, so a refresh
-/// token a revocation ended is answered as "this client is out of service" rather than "this
-/// token is dead". Nothing about the client is disclosed that its id alone does not already name.
+/// Applies client-state refusals before OpenIddict authentication, for every token grant.
+/// Returns invalid_client with the policy description before validating credentials.
 /// </summary>
 public sealed class RefuseUnserviceableClientTokenRequests(IClientAccessPolicy clientAccessPolicy)
     : IOpenIddictServerHandler<OpenIddictServerEvents.ValidateTokenRequestContext>

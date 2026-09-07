@@ -11,8 +11,7 @@ using Wallow.Storage.Domain.ValueObjects;
 namespace Wallow.Storage.Domain.Entities;
 
 /// <summary>
-/// Logical grouping of files with shared settings.
-/// Tenant-scoped to ensure proper isolation.
+/// Tenant-scoped logical grouping of files with shared settings.
 /// </summary>
 public sealed class StorageBucket : AggregateRoot<StorageBucketId>, ITenantScoped
 {
@@ -104,7 +103,7 @@ public sealed class StorageBucket : AggregateRoot<StorageBucketId>, ITenantScope
     }
 
     /// <summary>
-    /// Checks if the given file size is within the allowed limit.
+    /// A zero maximum disables the size limit.
     /// </summary>
     public bool IsFileSizeAllowed(long sizeBytes)
     {

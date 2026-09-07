@@ -1,32 +1,35 @@
 namespace Wallow.Identity.Application.Interfaces;
 
 /// <summary>
-/// Why a consent token was, or was not, accepted. Only <see cref="Redeemed"/> lets a consent
-/// decision through; the rest name the reason for the audit trail and are otherwise all handled
-/// alike, by asking again.
+/// Consent-token validation result. Only <see cref="Redeemed"/> permits the decision.
 /// </summary>
 public enum ConsentTokenOutcome
 {
-    /// <summary>The token was minted for this user and request and had not been used before.</summary>
+    /// <summary>
+    /// The token matched the user/request and created a redemption-cache entry.
+    /// </summary>
     Redeemed,
 
     /// <summary>The decision carried no token at all.</summary>
     Missing,
 
-    /// <summary>The token was not minted by this server, or has expired.</summary>
+    /// <summary>
+    /// The token could not be unprotected or decoded, or has expired.
+    /// </summary>
     Invalid,
 
     /// <summary>The token was minted for another user or another authorize request.</summary>
     Mismatched,
 
-    /// <summary>The token had already been redeemed.</summary>
+    /// <summary>
+    /// A redemption entry was already visible in the cache.
+    /// </summary>
     Replayed,
 }
 
 /// <summary>
-/// Mints and redeems the single-use token a consent decision must carry. The token binds the
-/// decision to the signed-in user and to one pending authorize request, so a decision cannot be
-/// forged onto a link, replayed, or carried from one request or user to another.
+/// Binds consent decisions to a user and request fingerprint. Replay detection uses
+/// a redemption cache and depends on that cache retaining and coordinating entries.
 /// </summary>
 public interface IConsentTokenService
 {
@@ -39,8 +42,8 @@ public interface IConsentTokenService
     string Issue(string userId, string requestFingerprint);
 
     /// <summary>
-    /// Redeems a token once. A second redemption of the same token is <see cref="ConsentTokenOutcome.Replayed"/>
-    /// even when everything else about it still matches.
+    /// Checks the protected user/request binding and records redemption in the cache.
+    /// Returns Replayed when the redemption factory does not run because an entry exists.
     /// </summary>
     ValueTask<ConsentTokenOutcome> RedeemAsync(
         string? token,

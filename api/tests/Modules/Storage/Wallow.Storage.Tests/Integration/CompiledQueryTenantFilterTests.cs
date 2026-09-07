@@ -8,27 +8,10 @@ using Wallow.Tests.Common.Fixtures;
 namespace Wallow.Storage.Tests.Integration;
 
 /// <summary>
-/// Security regression suite for the multi-tenant query filter on statically compiled EF Core
-/// queries.
+/// Checks that compiled queries use the executing context's current tenant.
+/// Covers separate contexts and SetTenant on a reused context, guarding against
+/// filters that retain the tenant from model creation or an earlier execution.
 /// </summary>
-/// <remarks>
-/// <para>
-/// <c>StoredFileRepository._getByIdQuery</c> is a <b>static</b> <c>EF.CompileAsyncQuery</c>, so the
-/// query — including the global tenant filter that
-/// <c>TenantAwareDbContext.ApplyTenantQueryFilters</c> installs — is compiled once per process and
-/// then reused by every <c>StorageDbContext</c> instance, for every tenant.
-/// </para>
-/// <para>
-/// The filter is built as <c>e.TenantId == ((TenantAwareDbContext)constantContextInstance)._tenantId</c>,
-/// closing over the <i>specific context instance</i> that happened to trigger model building.
-/// EF Core's model cache is keyed on the context type, so every later instance reuses that model.
-/// The comment in <c>ApplyTenantQueryFilters</c> asserts that EF's
-/// <c>QueryFilterRewritingExpressionVisitor</c> rebinds that captured instance to the executing
-/// context. These tests prove that claim rather than trusting it: if the rebinding did not happen,
-/// every tenant would silently be filtered against — and therefore able to read — the rows of
-/// whichever tenant warmed the compiled query first.
-/// </para>
-/// </remarks>
 [Collection("PostgresDatabase")]
 [Trait("Category", "Integration")]
 [Trait("Category", "CrossTenant")]
@@ -53,8 +36,7 @@ public sealed class CompiledQueryTenantFilterTests(PostgresContainerFixture fixt
         StoredFileRepository otherRepository = new(otherDbContext);
         StoredFile otherFile = await SeedFileAsync(otherDbContext, otherRepository, "other-tenant.txt");
 
-        // Warm the static compiled query from this test's tenant first, so any tenant id baked in
-        // at compile time would be this one.
+        // Query this tenant before attempting the cross-tenant lookup.
         StoredFile? ownLookup = await _repository.GetByIdAsync(ownFile.Id);
         ownLookup.Should().NotBeNull();
 
@@ -111,8 +93,7 @@ public sealed class CompiledQueryTenantFilterTests(PostgresContainerFixture fixt
     [Fact]
     public async Task GetByIdAsync_CompiledQuery_TracksSetTenantOnAReusedContextInstance()
     {
-        // Models the pooled DbContextFactory path the ApplyTenantQueryFilters comment calls out:
-        // one context instance is leased, used, and re-leased under a different tenant.
+        // Reuse one context under a second tenant, as a pooled factory can do.
         StoredFile firstTenantFile = await SeedFileAsync(DbContext, _repository, "lease-one.txt");
 
         StoredFile? beforeRelease = await _repository.GetByIdAsync(firstTenantFile.Id);

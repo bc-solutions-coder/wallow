@@ -4,30 +4,12 @@ using Wallow.Modules.Registry;
 namespace Wallow.Architecture.Tests.Modules;
 
 /// <summary>
-/// Guards the correspondence between each shipped appsettings file's <c>FeatureManagement</c>
-/// <c>Modules.*</c> keys and the modules <see cref="WallowModuleRegistry.All"/> actually ships.
+/// Compares module keys in merged settings with the non-core registry modules.
 /// </summary>
-/// <remarks>
-/// <para>
-/// The real, checked-in files are loaded through the same
-/// <see cref="ConfigurationBuilder"/>/<c>AddJsonFile</c> pipeline the host uses, and the
-/// assertions read <see cref="IConfiguration"/> keys — never file text. That makes this a
-/// runtime-configuration assertion rather than a source-structure check; see
-/// <c>Wallow.Identity.Tests/Infrastructure/DevelopmentIssuerOriginTests.cs</c> for the precedent.
-/// </para>
-/// <para>
-/// The flag set is load-bearing in three ways at once: a module the host does not enable gets no
-/// DI registration, no Wolverine handler discovery, and (since its <c>.Api</c> ApplicationPart is
-/// pruned) no HTTP surface at all. A key naming a module that does not exist is therefore dead
-/// weight, and a core module's key is inert because <c>ResolveEnabledModules</c> short-circuits on
-/// <c>IsCore</c> before it ever reads the key.
-/// </para>
-/// </remarks>
 public sealed class ModuleFeatureFlagTests
 {
     /// <summary>
-    /// Gets every shipped environment overlay, each of which is merged over the base
-    /// <c>appsettings.json</c> exactly as the host merges it.
+    /// Settings overlays included in the module-key comparison.
     /// </summary>
     public static TheoryData<string> EnvironmentOverlays =>
         new()

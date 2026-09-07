@@ -7,7 +7,7 @@ public enum SettingKeyValidationResult
     CustomKeyLimitExceeded,
     SystemKeyUnauthorized,
 
-    // Legacy values used by existing controllers
+    // Classifications returned by the overload without authorization or limits.
     CodeDefined,
     Custom,
     System,

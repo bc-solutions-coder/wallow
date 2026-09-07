@@ -29,7 +29,7 @@ public sealed class QueryBenchmarks : IDisposable
     {
         BenchmarkTenantContext tenantContext = new();
 
-        // Storage
+
         _storageConnection = new SqliteConnection("DataSource=:memory:");
         _storageConnection.Open();
         DbContextOptions<StorageDbContext> storageOptions = new DbContextOptionsBuilder<StorageDbContext>()
@@ -41,7 +41,7 @@ public sealed class QueryBenchmarks : IDisposable
         _storageBucketRepo = new StorageBucketRepository(_storageDbContext);
         _storedFileRepo = new StoredFileRepository(_storageDbContext);
 
-        // Seed storage data
+
         _testBucketName = "bench-bucket";
         StorageBucket bucket = StorageBucket.Create(tenantContext.TenantId, _testBucketName);
         _storageDbContext.Buckets.Add(bucket);

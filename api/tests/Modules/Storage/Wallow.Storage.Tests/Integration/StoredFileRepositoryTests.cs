@@ -120,8 +120,7 @@ public sealed class StoredFileRepositoryTests(PostgresContainerFixture fixture) 
         await _repository.SaveChangesAsync();
         DbContext.ChangeTracker.Clear();
 
-        // The save interceptor stamps the ambient tenant, so the other tenant's row must be
-        // seeded through a context whose ambient tenant IS that tenant.
+        // Seed through the other tenant's context so the save interceptor stamps its tenant ID.
         TenantId otherTenantId = TenantId.New();
         await using StorageDbContext otherDbContext = CreateDbContextForTenant(otherTenantId);
         StoredFile otherTenantFile = StoredFile.Create(otherTenantId, bucket.Id, "c.txt", "text/plain", 999, Guid.NewGuid().ToString(), Guid.NewGuid());

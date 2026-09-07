@@ -13,16 +13,12 @@ public sealed class AdminBootstrapOptions
     public string LastName { get; set; } = string.Empty;
 
     /// <summary>
-    /// The organization the bootstrap admin is created as owner of. Required because roles are
-    /// granted per organization: an administrator with no organization holds no permission
-    /// anywhere and the setup gate never closes.
+    /// Organization in which the bootstrap administrator receives the owner role.
     /// </summary>
     public string OrganizationName { get; set; } = string.Empty;
 
     /// <summary>
-    /// Provisions the bootstrap admin as a global administrator, granting governance across
-    /// every tenant. It is deliberately settable only from seeded configuration: no runtime
-    /// endpoint grants it.
+    /// Seeds global administrator access. Runtime user-management endpoints do not grant this flag.
     /// </summary>
     public bool IsGlobalAdmin { get; set; }
 

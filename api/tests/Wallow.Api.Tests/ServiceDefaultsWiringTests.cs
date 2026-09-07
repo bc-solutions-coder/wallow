@@ -10,7 +10,7 @@ public class ServiceDefaultsWiringTests
     [Fact]
     public void AddObservability_ShouldNotExist_OnServiceCollectionExtensions()
     {
-        // The AddObservability method should be removed in favor of ServiceDefaults
+
         Type extensionsType = typeof(ServiceCollectionExtensions);
 
         MethodInfo? addObservabilityMethod = extensionsType.GetMethod(
@@ -25,7 +25,7 @@ public class ServiceDefaultsWiringTests
     [Fact]
     public void WallowApi_ShouldReference_ServiceDefaultsAssembly()
     {
-        // Wallow.Api must reference Wallow.ServiceDefaults for centralized observability
+
         AssemblyName[] referencedAssemblies = _apiAssembly.GetReferencedAssemblies();
 
         bool referencesServiceDefaults = referencedAssemblies

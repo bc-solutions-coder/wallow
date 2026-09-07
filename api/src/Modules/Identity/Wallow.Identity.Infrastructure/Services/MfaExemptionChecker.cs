@@ -8,11 +8,9 @@ using Wallow.Identity.Infrastructure.Persistence;
 namespace Wallow.Identity.Infrastructure.Services;
 
 /// <summary>
-/// Decides whether a login may skip the MFA challenge. This runs during cookie login, before any
-/// client or organization is known, so it cannot consult "the" organization: the answer has to hold
-/// for every organization the session can go on to acquire a token for. It therefore takes the
-/// STRICTEST policy across every Active membership — one organization that asks for a second factor
-/// is enough to ask for it here.
+/// Allows exemption only when every active membership has settings that exempt this user.
+/// Cookie login may have no selected organization, so checking just one could bypass another
+/// organization's requirement. No memberships or missing settings deny exemption.
 /// </summary>
 public sealed class MfaExemptionChecker : IMfaExemptionChecker
 {
@@ -54,10 +52,8 @@ public sealed class MfaExemptionChecker : IMfaExemptionChecker
     }
 
     /// <summary>
-    /// Whether this one organization asks nothing of the user. The grace deadline lives on the user
-    /// but is granted by an organization that turned MFA on, so only an organization that offers a
-    /// grace period may honour it — otherwise one organization's deadline excuses the user from
-    /// another organization's requirement.
+    /// Accepts passwordless exemption or an unexpired user grace deadline.
+    /// Grace applies only when this organization permits a positive grace period.
     /// </summary>
     private bool ExemptsThisUser(OrganizationSettings settings, WallowUser user)
     {

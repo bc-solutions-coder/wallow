@@ -34,10 +34,7 @@ public sealed partial class TokenController(
     ILogger<TokenController> logger) : Controller
 {
     /// <summary>
-    /// The resource every issued access token is restricted to; OpenIddict turns the principal's
-    /// resources into the token's aud claim. Deliberately spelled out here and again in the
-    /// validation handler's AddAudiences call rather than shared as a constant — the two sides are
-    /// a contract, and a shared symbol would let them agree without the value reaching a token.
+    /// Audience assigned to issued access tokens and accepted by local token validation.
     /// </summary>
     private const string ApiAudience = "wallow-api";
 
@@ -107,17 +104,14 @@ public sealed partial class TokenController(
         identity.SetClaim(Claims.GivenName, user.FirstName);
         identity.SetClaim(Claims.FamilyName, user.LastName);
 
-        // Read from the user's own claim store rather than carrying the flag forward from the
-        // incoming principal: a refresh token must never be able to keep a revoked global admin
-        // alive, and nothing a tenant controls may introduce it.
+        // Re-read global administration so refresh does not preserve a removed grant.
         bool isGlobalAdmin = GlobalAdminClaims.IsGranted(await userManager.GetClaimsAsync(user));
         if (isGlobalAdmin)
         {
             identity.SetClaim(WallowClaims.GlobalAdminClaimType, "true");
         }
 
-        // Carry forward tenant claims from the original principal. The organization has to be
-        // settled before the roles, because it is what decides them.
+        // Preserve organization context before resolving its current roles.
         string? orgId = principal.GetClaim("org_id");
         if (orgId is not null)
         {
@@ -128,9 +122,7 @@ public sealed partial class TokenController(
             ? parsedOrganizationId
             : null;
 
-        // The membership is re-read, never trusted from the incoming principal: a refresh token
-        // must not outlive the organization's decision about the person holding it. Global admin
-        // governs across organizations, so no organization gates it.
+        // Re-check active membership on exchange; global administrators are exempt.
         if (!isGlobalAdmin && organizationId is not null)
         {
             Membership? membership = await memberships.GetAsync(
@@ -151,9 +143,7 @@ public sealed partial class TokenController(
             }
         }
 
-        // Re-resolved from the membership rather than carried forward, for the same reason: a
-        // refresh token must not keep a role alive after the organization has taken it away. A
-        // token naming no organization earns no roles at all.
+        // Resolve current roles instead of preserving roles removed since the original sign-in.
         if (organizationId is not null)
         {
             IReadOnlyList<string> roles =
@@ -171,11 +161,7 @@ public sealed partial class TokenController(
             identity.SetClaim("org_name", orgName);
         }
 
-        // The SSO session id must survive the exchange: the id_token is the only place a
-        // relying party learns its sid, and front-/back-channel logout both name the session
-        // by that same sid — without it the RP can never match a logout notification to a
-        // session. Carried forward (code and refresh alike keep the session's identity)
-        // rather than re-derived; only end-session mints a new browser session.
+        // Preserve sid across code and refresh exchanges for logout correlation.
         string? sid = principal.GetClaim(WallowClaims.SessionIdClaimType);
         if (sid is not null)
         {
@@ -219,8 +205,7 @@ public sealed partial class TokenController(
                 && tenant.ValueKind == JsonValueKind.String
                 && tenant.GetString() is { Length: > 0 } tenantId)
             {
-                // "org_id" is the one spelling ClaimsPrincipalExtensions.GetTenantId reads, so
-                // it is the one spelling that makes a service account resolve to a tenant.
+                // Tenant resolution reads the org_id claim.
                 identity.SetClaim("org_id", tenantId);
             }
 
@@ -297,10 +282,7 @@ public sealed partial class TokenController(
 
             "org_id" or "org_name" => [Destinations.AccessToken, Destinations.IdentityToken],
 
-            // The id_token is where an RP learns the sid it must match logout notifications
-            // against (OIDC Front-/Back-Channel Logout: the logout token's sid MUST match the
-            // one from the id_token). Never the access token — resource servers have no
-            // business tying a bearer token to a browser session.
+            // Publish sid in ID tokens for relying-party logout correlation.
             WallowClaims.SessionIdClaimType => [Destinations.IdentityToken],
 
             _ => [Destinations.AccessToken]

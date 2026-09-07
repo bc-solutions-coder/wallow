@@ -44,7 +44,7 @@ public sealed partial class ServiceAccountTrackingBackgroundService : Background
                 List<string> clientIds = entries.Keys.ToList();
                 List<DateTimeOffset> timestamps = clientIds.Select(id => entries[id]).ToList();
 
-                // Batch update using raw SQL with unnest for efficiency
+                // Pair client IDs and timestamps in one database update.
                 int updated = await dbContext.Database.ExecuteSqlRawAsync(
                     """
                     UPDATE identity.registered_clients AS rc

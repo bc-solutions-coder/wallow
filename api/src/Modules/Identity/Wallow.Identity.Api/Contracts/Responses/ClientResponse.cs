@@ -13,15 +13,12 @@ public record ClientResponse
     public string? BackchannelLogoutUri { get; init; }
 
     /// <summary>
-    /// The client's declaration that its logout tokens must carry <c>sid</c>. Wallow always
-    /// includes <c>sid</c>, so this is registration metadata echoed back, not a delivery switch.
+    /// Stored session-required registration flag. Wallow includes sid in logout tokens regardless of this value.
     /// </summary>
     public bool BackchannelLogoutSessionRequired { get; init; }
 
     /// <summary>
-    /// Refresh-token lifetime in seconds, bounding newly issued refresh tokens. Absent on a
-    /// client registered before per-client lifetimes existed, where the global configuration
-    /// decides.
+    /// Per-client refresh-token lifetime in seconds, or null when no parseable setting is present.
     /// </summary>
     public int? RefreshTokenLifetime { get; init; }
 }

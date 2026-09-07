@@ -54,8 +54,7 @@ public sealed partial class MembershipReviewService(
 
     public Task<IReadOnlyList<ReviewedMembershipDto>> GetSuspendedAsync(
         Guid organizationId, CancellationToken ct = default) =>
-        // Suspend() writes no timestamp of its own, so the audit stamp is the only record of when
-        // the access ended.
+        // Suspension has no dedicated timestamp; the listing uses the mutable audit stamp.
         ListReviewedAsync(organizationId, MembershipStatus.Suspended, SuspendedAt, ct);
 
     public Task<IReadOnlyList<ReviewedMembershipDto>> GetDeniedAsync(
@@ -67,15 +66,13 @@ public sealed partial class MembershipReviewService(
     {
         Membership membership = await RequireMembershipAsync(organizationId, userId, ct);
 
-        // The organization's default, never a role the requester asked for or holds elsewhere:
-        // roles are granted by an organization and carry no authority outside it.
+        // Use this organization's default role, not a role requested or held elsewhere.
         Guid roleId = await defaultRoleResolver.ResolveAsync(organizationId, ct);
 
         membership.Approve(roleId, actorId, timeProvider);
         await memberships.SaveChangesAsync(ct);
 
-        // The same event a directly-added member raises, so the welcome mail an approved requester
-        // gets is the one every new member gets.
+        // Reuse the member-added notification event for approved requests.
         await messageBus.PublishAsync(new OrganizationMemberAddedEvent
         {
             OrganizationId = organizationId,
@@ -97,8 +94,7 @@ public sealed partial class MembershipReviewService(
         membership.Deny(actorId, timeProvider);
         await memberships.SaveChangesAsync(ct);
 
-        // No revocation: only a Pending membership can be denied, and a Pending membership never
-        // authenticated, so there is nothing issued against this organization to take away.
+        // Denial accepts only Pending memberships, so this path performs no revocation.
         await PublishTransitionAsync(MembershipTransition.Denied, organizationId, userId, actorId);
 
         LogMembershipDenied(userId, organizationId, actorId);
@@ -114,7 +110,7 @@ public sealed partial class MembershipReviewService(
             throw new BusinessRuleException(IdentityErrors.MembershipNotDenied, "Only a denied membership can have its denial cleared");
         }
 
-        // Nothing to revoke and nothing to announce: a denied membership never authenticated here.
+        // Remove the denied row so a new request can be evaluated immediately.
         memberships.Remove(membership);
         await memberships.SaveChangesAsync(ct);
 
@@ -128,16 +124,14 @@ public sealed partial class MembershipReviewService(
     {
         Membership membership = await RequireMembershipAsync(organizationId, userId, ct);
 
-        // Suspension ends an active membership, so it is a departure as far as ownership is
-        // concerned: an organization whose only owner is suspended has no owner.
+        // Suspending the sole active owner would leave the organization without an active owner.
         await lastOwnerGuard.ExecuteDepartureAsync(organizationId, userId, async token =>
         {
             membership.Suspend(actorId, timeProvider);
             await memberships.SaveChangesAsync(token);
         }, ct);
 
-        // The status alone only decides the NEXT sign-in. Everything already issued off the
-        // membership — tokens, open streams — outlives it unless it is taken away here.
+        // A saved status change does not itself close streams or revoke issued tokens.
         await accessRevoker.RevokeMembershipAsync(userId, organizationId, ct);
 
         await PublishTransitionAsync(MembershipTransition.Suspended, organizationId, userId, actorId);
@@ -163,8 +157,7 @@ public sealed partial class MembershipReviewService(
         Membership membership = await RequireMembershipAsync(organizationId, userId, ct);
         string email = await GetEmailAsync(userId, ct);
 
-        // Deleted, not marked: nobody reviewed this, so there is no decision worth keeping, and a
-        // leftover row would read as a refusal the next time they ask to join.
+        // Delete the membership so leaving does not block a later enrollment request.
         await lastOwnerGuard.ExecuteDepartureAsync(organizationId, userId, async token =>
         {
             memberships.Remove(membership);
@@ -173,8 +166,7 @@ public sealed partial class MembershipReviewService(
 
         await accessRevoker.RevokeMembershipAsync(userId, organizationId, ct);
 
-        // The same event removal by an administrator raises: from every other module's side of the
-        // boundary, why the person stopped being a member is not a distinction that changes anything.
+        // Publish the shared member-removal event as well as the specific Left transition.
         await messageBus.PublishAsync(new OrganizationMemberRemovedEvent
         {
             OrganizationId = organizationId,
@@ -183,16 +175,14 @@ public sealed partial class MembershipReviewService(
             Email = email
         });
 
-        // Nobody acted on the leaver's behalf, so the actor is the leaver. Left blank it would read
-        // as a removal whose author was lost.
+        // Self-service departure records the leaver as both actor and subject.
         await PublishTransitionAsync(MembershipTransition.Left, organizationId, userId, userId);
 
         LogMembershipLeft(userId, organizationId);
     }
 
     /// <summary>
-    /// Both reviewed listings read the same way; only the status they claim and the field that
-    /// records when it was set differ.
+    /// Lists reviewed memberships using the status-specific timestamp selector.
     /// </summary>
     private async Task<IReadOnlyList<ReviewedMembershipDto>> ListReviewedAsync(
         Guid organizationId,

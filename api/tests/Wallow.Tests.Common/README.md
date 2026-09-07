@@ -56,7 +56,7 @@ shorthand — `./scripts/run-tests.sh shared` resolves to a *different* assembly
 `Wallow.Shared.Infrastructure.Tests`. To exercise these helpers, run the suites that consume them:
 
 ```bash
-# Everything
+# Fast suites
 ./scripts/run-tests.sh
 
 # A consumer, e.g. one module

@@ -3,9 +3,8 @@ using System.Text.Json;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// The global administrator is provisioned from seeded configuration, never granted at
-/// runtime. seed.json must therefore say so explicitly on the bootstrap admin block, and
-/// must not smuggle the concept back in as an assignable role.
+/// Checks that the seed admin explicitly declares global-admin status,
+/// and that seeded assignable roles do not include a global-admin role.
 /// </summary>
 public sealed class SeedJsonGlobalAdminTests
 {

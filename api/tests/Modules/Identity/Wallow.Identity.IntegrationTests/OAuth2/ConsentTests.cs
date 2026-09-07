@@ -4,12 +4,8 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.OAuth2;
 
 /// <summary>
-/// Consent is a POST carrying a server-issued, single-use token bound to the signed-in user and the
-/// pending authorize request. The authorize endpoint mints the token when it sends the user to the
-/// consent screen, and honours a decision only when the token it minted comes back once, from the
-/// same user, for the same request. A decision smuggled onto the GET, a decision without a token,
-/// a replayed token, or a token minted for someone else or for some other request all leave the
-/// user on the consent screen with nothing granted.
+/// Checks POST consent tokens bound to the user and request, including missing, replayed,
+/// and mismatched tokens and decisions supplied on GET.
 /// </summary>
 public sealed class ConsentTests(WallowApiFactory factory)
     : IdentityIntegrationTestBase(factory)
@@ -147,8 +143,7 @@ public sealed class ConsentTests(WallowApiFactory factory)
     }
 
     /// <summary>
-    /// A decision the endpoint would not honour lands the user back on the consent screen, holding
-    /// a fresh token and nothing granted: the relying party is neither told yes nor told no.
+    /// Requires a consent redirect with a token and no authorization code or protocol error.
     /// </summary>
     private static void ShouldBeBackOnConsent(AuthorizeOutcome outcome)
     {
@@ -159,8 +154,7 @@ public sealed class ConsentTests(WallowApiFactory factory)
     }
 
     /// <summary>
-    /// The path a redirect lands on. The test host has no <c>AuthUrl</c>, so the auth app's
-    /// screens are addressed relative to the API.
+    /// Extracts the path from an absolute or relative redirect.
     /// </summary>
     private static string PathOf(Uri? location)
     {
@@ -171,9 +165,7 @@ public sealed class ConsentTests(WallowApiFactory factory)
     }
 
     /// <summary>
-    /// Signs <paramref name="seed"/>'s user in, enrolled in the organization of
-    /// <paramref name="clientOwner"/> (its own by default) so the authorize endpoint reaches the
-    /// consent gate rather than refusing a non-member.
+    /// Signs in the seeded user after enrolling them in the selected client organization.
     /// </summary>
     private async Task<AuthorizationCodeFlowHarness> SignedInAsync(Seed seed, Seed? clientOwner = null)
     {
@@ -196,7 +188,7 @@ public sealed class ConsentTests(WallowApiFactory factory)
         Guid organizationId = await AuthorizationCodeFlowHarness.CreateOrganizationAsync(
             ScopedServices, $"Consent {suffix}", ownerId);
 
-        // No first-party prefix: this client is walked through the consent screen.
+        // The registration below defaults to explicit consent.
         string clientId = $"consent-app-{suffix}";
         await AuthorizationCodeFlowHarness.RegisterClientAsync(
             ScopedServices, clientId, ClientSecret, organizationId, _clientScopes);

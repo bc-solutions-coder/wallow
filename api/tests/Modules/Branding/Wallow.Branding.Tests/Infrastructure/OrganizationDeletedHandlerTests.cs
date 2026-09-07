@@ -9,10 +9,8 @@ using Wallow.Shared.Kernel.Identity;
 namespace Wallow.Branding.Tests.Infrastructure;
 
 /// <summary>
-/// When Identity announces an organization's deletion, every branding row the tenant owned goes
-/// with it — the rows, the logo objects behind them and the cached copies. The handler must
-/// address the deleted organization's tenant explicitly, because the envelope restores the
-/// publisher's tenant, which is the deleting actor's organization.
+/// Deletion must select the event's organization, then remove its branding rows, logos
+/// and cached copies. The publisher may belong to another tenant.
 /// </summary>
 public sealed class OrganizationDeletedHandlerTests
 {

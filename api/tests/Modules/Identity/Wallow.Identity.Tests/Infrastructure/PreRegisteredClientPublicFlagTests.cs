@@ -4,10 +4,8 @@ using Wallow.Identity.Infrastructure.Options;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// A pre-registered client is public only when it says so. Inferring "public" from a missing
-/// secret is fail-open: a confidential client whose secret env var is unset silently degrades
-/// into an anonymous-token-issuing public client. Registration must therefore hard-fail on any
-/// secret-less client that does not carry an explicit public declaration.
+/// Missing secrets must fail validation unless the client explicitly declares itself public.
+/// This prevents an unset secret from changing the client authentication requirement.
 /// </summary>
 public sealed class PreRegisteredClientPublicFlagTests
 {

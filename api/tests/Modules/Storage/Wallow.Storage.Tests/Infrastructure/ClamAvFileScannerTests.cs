@@ -64,7 +64,7 @@ public sealed class ClamAvFileScannerTests
     [Fact]
     public async Task ScanAsync_WhenConnectionRefused_ThrowsException()
     {
-        // Use a port that nothing is listening on
+        // This test expects connection refusal on port 1.
         ClamAvFileScanner scanner = CreateScanner(1);
 
         byte[] content = "content"u8.ToArray();
@@ -124,7 +124,7 @@ public sealed class ClamAvFileScannerTests
         using FakeClamAvServer server = new FakeClamAvServer("stream: OK", captureData: true);
         ClamAvFileScanner scanner = CreateScanner(server.Port);
 
-        // Exactly 8192 bytes (ChunkSize) — should produce exactly one chunk
+        // Match the scanner buffer size to exercise a full chunk.
         byte[] content = new byte[8192];
         RandomNumberGenerator.Fill(content);
         using MemoryStream stream = new MemoryStream(content);
@@ -139,7 +139,7 @@ public sealed class ClamAvFileScannerTests
     [Fact]
     public async Task ScanAsync_WhenFoundResponseHasNoColon_ReturnsUnknownThreat()
     {
-        // "FOUND" at end but no colon — colonIndex will be -1, falls through to unknown
+
         using FakeClamAvServer server = new FakeClamAvServer("malware FOUND");
         ClamAvFileScanner scanner = CreateScanner(server.Port);
 
@@ -203,7 +203,7 @@ public sealed class ClamAvFileScannerTests
     [Fact]
     public async Task ScanAsync_WhenFoundColonAfterFound_ReturnsUnknownThreat()
     {
-        // Edge case: colon exists but after " FOUND" — foundIndex <= colonIndex
+        // This response does not end with FOUND, so it bypasses threat-name parsing.
         using FakeClamAvServer server = new FakeClamAvServer("FOUND: extra");
         ClamAvFileScanner scanner = CreateScanner(server.Port);
 
@@ -223,7 +223,7 @@ public sealed class ClamAvFileScannerTests
         using FakeClamAvServer server = new FakeClamAvServer("stream: OK", captureData: true);
         ClamAvFileScanner scanner = CreateScanner(server.Port);
 
-        // Create file larger than ChunkSize (8192)
+        // Exceed the scanner buffer size to exercise repeated reads.
         byte[] largeContent = new byte[20000];
         RandomNumberGenerator.Fill(largeContent);
         using MemoryStream stream = new MemoryStream(largeContent);
@@ -238,7 +238,7 @@ public sealed class ClamAvFileScannerTests
     [Fact]
     public async Task ScanAsync_WhenFoundResponseHasColonButNoSpaceBeforeFound_ReturnsUnknownThreat()
     {
-        // ":FOUND" — colonIndex=0, LastIndexOf(" FOUND")=-1, falls through to unknown
+
         using FakeClamAvServer server = new FakeClamAvServer(":FOUND");
         ClamAvFileScanner scanner = CreateScanner(server.Port);
 
@@ -273,7 +273,7 @@ public sealed class ClamAvFileScannerTests
     [Fact]
     public async Task ScanAsync_WhenServerClosesConnectionImmediately_HandlesEmptyResponse()
     {
-        // Empty response — doesn't end with OK or FOUND, falls to unknown
+
         using FakeClamAvServer server = new FakeClamAvServer("");
         ClamAvFileScanner scanner = CreateScanner(server.Port);
 
@@ -325,7 +325,7 @@ public sealed class ClamAvFileScannerTests
         using FakeClamAvServer server = new FakeClamAvServer("stream: OK", captureData: true, captureChunkSizes: true);
         ClamAvFileScanner scanner = CreateScanner(server.Port);
 
-        // 8192 + 4000 = 12192 bytes — should produce 2 chunks
+        // One full scanner buffer plus a partial final chunk.
         byte[] content = new byte[12192];
         RandomNumberGenerator.Fill(content);
         using MemoryStream stream = new MemoryStream(content);
@@ -408,7 +408,7 @@ public sealed class ClamAvFileScannerTests
     [Fact]
     public async Task ScanAsync_WhenFoundWithEmptyThreatName_ReturnsTrimmedThreatName()
     {
-        // "stream:  FOUND" — threat name after colon and before FOUND is just whitespace
+
         using FakeClamAvServer server = new FakeClamAvServer("stream:  FOUND");
         ClamAvFileScanner scanner = CreateScanner(server.Port);
 
@@ -441,8 +441,8 @@ public sealed class ClamAvFileScannerTests
     [Fact]
     public async Task ScanAsync_WhenResponseEndsWithFoundButColonAfterFoundMarker_ReturnsUnknownThreat()
     {
-        // "no-colon-before FOUND" — ends with FOUND, no colon at all → colonIndex=-1
-        // This is similar to WhenFoundResponseHasNoColon but verifies the colonIndex < 0 branch
+
+
         using FakeClamAvServer server = new FakeClamAvServer("virus FOUND");
         ClamAvFileScanner scanner = CreateScanner(server.Port);
 

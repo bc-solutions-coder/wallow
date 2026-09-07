@@ -20,12 +20,8 @@ using Wolverine;
 namespace Wallow.Identity.Tests.Api.Controllers;
 
 /// <summary>
-/// What survives registration on the email-verification link, and what does not.
-///
-/// The invitation screen sends an anonymous visitor to /register carrying
-/// returnUrl=/invitation?token=…, and that relative path is the only thing keeping the
-/// invitation reachable once the address is verified. IRedirectUriValidator answers only for
-/// absolute URIs, so local paths are admitted separately.
+/// Checks that registration preserves safe return URLs on email-verification links,
+/// including local invitation paths that the absolute-URI validator does not admit.
 /// </summary>
 public class AccountControllerRegisterReturnUrlTests
 {
@@ -88,14 +84,14 @@ public class AccountControllerRegisterReturnUrlTests
         DefaultHttpContext httpContext = new();
         _controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
 
-        // Real UrlHelper so IsLocalUrl keeps its production semantics (relative-only).
+        // Exercise real local-URL validation.
         _controller.Url = new UrlHelper(
             new ActionContext(httpContext, new RouteData(), new ActionDescriptor()));
 
         _userManager.CreateAsync(Arg.Any<WallowUser>(), TestPassword).Returns(IdentityResult.Success);
         _userManager.GenerateEmailConfirmationTokenAsync(Arg.Any<WallowUser>()).Returns("token123");
 
-        // Nothing is allow-listed: every admitted returnUrl below is admitted for being local.
+        // Default to rejecting absolute URLs; individual tests may allow a specific one.
         _redirectUriValidator
             .IsAllowedAsync(Arg.Any<string>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
             .Returns(false);
@@ -116,8 +112,7 @@ public class AccountControllerRegisterReturnUrlTests
     {
         await RegisterWithReturnUrlAsync(InvitationReturnUrl);
 
-        // The token's own `?` and `=` must not become further parameters on the verify link,
-        // or the verification screen reads a truncated token and the invitation is unreachable.
+        // Encode the nested URL as one query value so its delimiters survive verification.
         await _messageBus.Received(1).PublishAsync(Arg.Is<EmailVerificationRequestedEvent>(e =>
             !e.VerifyUrl.Contains("returnUrl=/invitation", StringComparison.Ordinal)));
     }
@@ -154,8 +149,7 @@ public class AccountControllerRegisterReturnUrlTests
     {
         await RegisterWithReturnUrlAsync(InvitationReturnUrl);
 
-        // Being invited is authorization to join, but only once the address is proven. Acceptance
-        // happens on the invitation screen after verification, never from this anonymous endpoint.
+        // Registration must not publish an organization membership event.
         await _messageBus.DidNotReceive().PublishAsync(Arg.Any<OrganizationMemberAddedEvent>());
     }
 

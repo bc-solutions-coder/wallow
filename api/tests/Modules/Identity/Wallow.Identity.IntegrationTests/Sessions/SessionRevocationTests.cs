@@ -7,10 +7,8 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.Sessions;
 
 /// <summary>
-/// The sessions API operates on real sign-ins: authorize writes an <c>ActiveSession</c> ledger
-/// row whose id doubles as the session's OIDC <c>sid</c>, so the list shows the session the
-/// id_token names, and DELETE on that row revokes the session's tokens — not just the ledger
-/// flag. A refresh afterwards answers <c>invalid_grant</c> and the old access token is refused.
+/// Checks sessions listed by the ID-token SID, token revocation after session deletion,
+/// and issuance of a new SID when the surviving cookie authorizes again.
 /// </summary>
 public sealed class SessionRevocationTests(WallowApiFactory factory)
     : IdentityIntegrationTestBase(factory)
@@ -44,7 +42,7 @@ public sealed class SessionRevocationTests(WallowApiFactory factory)
         TokenOutcome tokens = await AcquireTokensAsync(harness, seed);
         Guid sessionId = Guid.ParseExact(ReadSid(tokens), "N");
 
-        // The positive baseline that keeps the 401 below honest: a live token passes validation.
+        // Establish successful token validation before deletion.
         HttpResponseMessage preDelete = await BearerCallAsync(tokens.RequireAccessToken());
         preDelete.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -75,9 +73,7 @@ public sealed class SessionRevocationTests(WallowApiFactory factory)
             $"/v1/identity/sessions/{Guid.ParseExact(deadSid, "N")}", UriKind.Relative));
         deleted.StatusCode.Should().Be(HttpStatusCode.NoContent, await deleted.Content.ReadAsStringAsync());
 
-        // The browser cookie survives the delete, but the next authorize must not resurrect the
-        // revoked sid: it starts a fresh session — listed, and separately revocable — instead of
-        // silently minting new tokens under the row the admin already killed.
+        // Reauthorization with the surviving cookie must create and list a different session.
         TokenOutcome fresh = await AcquireTokensAsync(harness, seed);
         string freshSid = ReadSid(fresh);
         freshSid.Should().NotBe(deadSid);
@@ -90,7 +86,9 @@ public sealed class SessionRevocationTests(WallowApiFactory factory)
         listedSids.Should().NotContain(deadSid);
     }
 
-    /// <summary>The sid the id_token carries — the ledger row id in "N" format.</summary>
+    /// <summary>
+    /// Reads the ID-token SID, which represents the session row ID in N format.
+    /// </summary>
     private static string ReadSid(TokenOutcome tokens)
     {
         JsonElement payload = AuthorizationCodeFlowHarness.ReadPayload(tokens.RequireIdToken());
@@ -134,8 +132,7 @@ public sealed class SessionRevocationTests(WallowApiFactory factory)
     }
 
     /// <summary>
-    /// A bearer call that runs real JWT validation, not the test auth handler. Over https,
-    /// because the validation handler refuses plain-http requests outright.
+    /// Calls over HTTPS with synthetic authentication disabled to exercise bearer validation.
     /// </summary>
     private async Task<HttpResponseMessage> BearerCallAsync(string accessToken)
     {

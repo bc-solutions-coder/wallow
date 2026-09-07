@@ -6,23 +6,12 @@ using Wallow.Shared.Infrastructure.Modules;
 namespace Wallow.MigrationService;
 
 /// <summary>
-/// The module registry as the migration host sees it: every module's own
-/// <see cref="IWallowModule.DbContextTypes"/> and <see cref="IWallowModule.SchemaName"/> drive both
-/// the <c>AddDbContext</c> registrations and the migration runners, so adding a module no longer
-/// means editing a hand-maintained list of contexts and schema strings here.
+/// Registers migration contexts and runners for every shipped module, including disabled API modules.
 /// </summary>
-/// <remarks>
-/// The migration host does NOT honour feature flags — it migrates every module's schema whether or
-/// not the API will register that module, because a disabled module must still be able to come back
-/// on without a migration step. That is why this list is unfiltered while the API's equivalent is
-/// filtered against <c>FeatureManagement:Modules.*</c> configuration.
-/// </remarks>
 internal static class ModuleMigrations
 {
     /// <summary>
-    /// The generic method reflection targets. It is this class's own private method rather than EF
-    /// Core's <c>AddDbContext</c> overload set, so the lookup cannot be broken by EF adding or
-    /// reordering overloads.
+    /// Reflect over the local generic wrapper instead of selecting an EF registration overload.
     /// </summary>
     private static readonly MethodInfo _addSchemaScopedDbContext =
         typeof(ModuleMigrations).GetMethod(
@@ -31,21 +20,13 @@ internal static class ModuleMigrations
         ?? throw new InvalidOperationException($"{nameof(AddSchemaScopedDbContext)} was not found.");
 
     /// <summary>
-    /// Gets every module this host migrates. Identity is <see cref="IWallowModule.IsCore"/> and so
-    /// lands in the core runner group; the other six are feature modules.
+    /// All shipped modules, without API feature filtering.
     /// </summary>
-    /// <remarks>
-    /// This is the same list <c>Wallow.Api.WallowModules</c> reads — <see cref="WallowModuleRegistry"/>
-    /// exists so neither host has to keep its own copy. The difference between the hosts is the
-    /// filtering described above, not the membership: this host takes the registry whole.
-    /// </remarks>
     public static IReadOnlyList<IWallowModule> All => WallowModuleRegistry.All;
 
     /// <summary>
-    /// Registers every module-owned <see cref="DbContext"/> against the module's own schema.
+    /// Registers module contexts with their declared migration-history schema.
     /// </summary>
-    /// <param name="services">The service collection to register into.</param>
-    /// <param name="connectionString">The database connection string all contexts share.</param>
     public static void AddModuleDbContexts(IServiceCollection services, string connectionString)
     {
         foreach (IWallowModule module in All)
@@ -60,16 +41,8 @@ internal static class ModuleMigrations
     }
 
     /// <summary>
-    /// Builds one <see cref="IMigrationRunner"/> per <see cref="DbContext"/> owned by the modules
-    /// matching <paramref name="isCore"/>.
+    /// Builds one migration runner per context for modules matching the core flag.
     /// </summary>
-    /// <param name="isCore">
-    /// <see langword="true"/> for the core group, <see langword="false"/> for feature modules. The
-    /// split matters: Identity is a module AND core, so selecting on this rather than on "not
-    /// Identity" is what keeps <c>IdentityDbContext</c> from being migrated twice.
-    /// </param>
-    /// <param name="scopeFactory">The scope factory each runner resolves its context from.</param>
-    /// <returns>The runners, in module registration order.</returns>
     public static IReadOnlyList<IMigrationRunner> CreateRunners(bool isCore, IServiceScopeFactory scopeFactory)
     {
         return

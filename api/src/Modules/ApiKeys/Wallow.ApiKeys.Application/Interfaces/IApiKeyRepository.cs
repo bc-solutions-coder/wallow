@@ -10,9 +10,8 @@ public interface IApiKeyRepository
     Task<ApiKey?> GetByHashAsync(string hash, CancellationToken ct = default);
 
     /// <summary>
-    /// Looks a key up by its domain id across all tenants — the revocation path's analogue of
-    /// the hash overload above: the caller proves ownership against the returned row, not by
-    /// naming the tenant.
+    /// Looks up a domain ID within the current tenant query filter.
+    /// The caller must also verify ownership against the returned row.
     /// </summary>
     Task<ApiKey?> GetByIdAsync(ApiKeyId id, CancellationToken ct = default);
     Task<List<ApiKey>> ListByServiceAccountAsync(string serviceAccountId, Guid tenantId, CancellationToken ct);
@@ -20,10 +19,8 @@ public interface IApiKeyRepository
     Task RevokeAsync(ApiKeyId id, Guid tenantId, Guid revokedBy, CancellationToken ct);
 
     /// <summary>
-    /// The tenant this repository's queries address. An event handler runs under the
-    /// PUBLISHER'S ambient tenant — a global admin acting across organizations publishes under
-    /// their own — so a handler working another tenant's keys must state that tenant here
-    /// before querying, or the tenant query filter silently returns nothing.
+    /// Sets the repository's tenant before querying another organization's keys.
+    /// The publisher's ambient tenant may differ from the organization named by an event.
     /// </summary>
     void UseTenant(Guid tenantId);
 }

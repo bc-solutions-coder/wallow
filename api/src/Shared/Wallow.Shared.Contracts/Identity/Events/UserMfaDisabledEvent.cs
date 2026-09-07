@@ -3,7 +3,6 @@ namespace Wallow.Shared.Contracts.Identity.Events;
 
 /// <summary>
 /// Published when a user disables MFA on their account.
-/// Consumers: Notifications (security alert), Audit logging
 /// </summary>
 public sealed record UserMfaDisabledEvent : IntegrationEvent
 {

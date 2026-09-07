@@ -6,8 +6,8 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.OAuth2;
 
 /// <summary>
-/// End-to-end tests for service account OAuth2 flows via OpenIddict.
-/// Validates the complete flow: acquire token -> call API -> verify response.
+/// Acquires service-account tokens and calls the API with the default test authentication handler.
+/// The API call checks for a non-401 response; it does not prove production bearer validation.
 /// </summary>
 [Trait("Category", "Integration")]
 public class ServiceAccountFlowTests(WallowApiFactory factory) : IdentityIntegrationTestBase(factory)
@@ -15,18 +15,18 @@ public class ServiceAccountFlowTests(WallowApiFactory factory) : IdentityIntegra
     [Fact]
     public async Task Complete_Flow_Acquire_Token_And_Call_API()
     {
-        // Step 1: Acquire token from OpenIddict
+
         string? token = await RequestClientCredentialsTokenAsync(
             IdentityFixture.ApiClientId,
             IdentityFixture.ApiClientSecret);
         token.Should().NotBeNullOrWhiteSpace();
 
-        // Step 2: Use token to call protected API
+
         HttpClient apiClient = Factory.CreateClient();
         apiClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
         HttpResponseMessage response = await apiClient.GetAsync("/identity/scopes");
 
-        // Step 3: Verify successful authentication (not 401)
+
         response.StatusCode.Should().NotBe(HttpStatusCode.Unauthorized);
     }
 

@@ -18,7 +18,7 @@ public sealed class TenantBaggageMiddlewareTests : IDisposable
         ITenantContext tenantContext = CreateResolvedTenantContext(tenantId);
         string? capturedBaggage = null;
 
-        // Baggage is set via AsyncLocal and only visible downstream (in next delegate), not upstream to the caller.
+        // Capture baggage inside the downstream request context.
         TenantBaggageMiddleware sut = new(_ =>
         {
             capturedBaggage = Baggage.GetBaggage("wallow.tenant_id");

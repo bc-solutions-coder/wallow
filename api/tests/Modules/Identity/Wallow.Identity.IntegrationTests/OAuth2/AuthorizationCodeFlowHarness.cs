@@ -19,13 +19,9 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.OAuth2;
 
 /// <summary>
-/// Drives the browser half of the OIDC server: password sign-in, the authorize endpoint with
-/// PKCE, the consent POST an explicit-consent client is walked through, the code exchange and the
-/// refresh grant. The authorize endpoint reads the ASP.NET
-/// Identity cookie and never a bearer token, so this holds its own cookie-bearing client on an
-/// https base address — the auth cookie is marked Secure outside development and a CookieContainer
-/// silently drops it over http. Access tokens are unencrypted JWTs here, so <see cref="ReadClaimValues"/>
-/// reads them directly.
+/// Drives cookie sign-in, PKCE authorization, consent, code exchange, and refresh over HTTP.
+/// The HTTPS test address allows Secure cookies to be sent. JWT readers decode payloads
+/// without validating their signatures.
 /// </summary>
 public sealed class AuthorizationCodeFlowHarness : IDisposable
 {
@@ -52,13 +48,14 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
         });
     }
 
-    /// <summary>The cookie-bearing client every hop of the flow runs through.</summary>
+    /// <summary>
+    /// Cookie-bearing client shared by this harness instance.
+    /// </summary>
     public HttpClient Client => _client;
 
     /// <summary>
-    /// Signs a user in with their password and lands the auth cookie. Sign-in is two hops: the
-    /// login endpoint issues a one-time ticket, and only the exchange sets the cookie. A local
-    /// returnUrl is mandatory because the test host configures no AuthUrl to fall back to.
+    /// Logs in and exchanges the returned ticket to establish the auth cookie.
+    /// Uses a local return URL so the exchange does not depend on an AuthUrl fallback.
     /// </summary>
     public async Task SignInAsync(string email, string password)
     {
@@ -94,10 +91,8 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
     }
 
     /// <summary>
-    /// Requests an authorization code. Returns the endpoint's answer whether it granted a code or
-    /// refused, so a caller can assert on either. <paramref name="organization"/> is the
-    /// <c>organization</c> hint a first-party client sends to run one organization's enrollment
-    /// policy; a bound client may only name its own.
+    /// Requests a PKCE authorization code and returns the response, including refusals or consent redirects.
+    /// The optional organization argument sends the organization hint.
     /// </summary>
     public async Task<AuthorizeOutcome> AuthorizeAsync(
         string clientId,
@@ -136,11 +131,8 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
     }
 
     /// <summary>
-    /// Answers the consent screen the authorize endpoint redirected to, the way the auth app's
-    /// consent form does: a form POST to the authorize endpoint carrying the original request's
-    /// parameters (read back off the redirect's <c>returnUrl</c>), the consent token and the
-    /// decision. <paramref name="consentToken"/> is the token to post: null posts the one the
-    /// redirect issued, and the empty string posts none at all.
+    /// Posts the request parameters from the consent return URL together with the decision.
+    /// A null consentToken uses the redirect token; an empty string omits the token field.
     /// </summary>
     public async Task<AuthorizeOutcome> ConsentAsync(
         AuthorizeOutcome consentRedirect,
@@ -201,13 +193,11 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
                     separator >= 0 ? target[separator..] : target);
                 code = Single(parsed, "code");
 
-                // A refusal from OpenIddict names 'error'; one the controller writes itself
-                // redirects to the auth app's error screen and names 'reason'.
+                // Handle protocol errors and auth-app reason redirects.
                 error = Single(parsed, "error") ?? Single(parsed, "reason");
                 errorDescription = Single(parsed, "error_description");
 
-                // A redirect to the consent screen carries the request to come back to and the
-                // token that lets the answer through.
+                // Capture the fields needed to submit consent.
                 returnUrl = Single(parsed, "returnUrl");
                 consentToken = Single(parsed, ConsentTokenField);
             }
@@ -242,7 +232,9 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
             ["code_verifier"] = codeVerifier,
         });
 
-    /// <summary>Redeems a refresh token for a fresh set of tokens.</summary>
+    /// <summary>
+    /// Submits a refresh grant and returns the token endpoint response.
+    /// </summary>
     public Task<TokenOutcome> RefreshAsync(string clientId, string clientSecret, string refreshToken) =>
         PostTokenAsync(new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -253,8 +245,8 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
         });
 
     /// <summary>
-    /// Runs authorize then exchange for a caller that only wants the tokens, and throws when the
-    /// authorize endpoint refuses rather than returning a token response with nothing in it.
+    /// Runs authorization and code exchange, throwing if authorization returns no code.
+    /// Does not automatically answer a consent prompt.
     /// </summary>
     public async Task<TokenOutcome> AcquireTokensAsync(
         string clientId,
@@ -288,16 +280,9 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
     }
 
     /// <summary>
-    /// Registers (or re-registers) a confidential client that can drive the authorization-code and
-    /// refresh grants. <paramref name="firstParty"/> registers the client the way the seeder
-    /// registers the platform's own clients — implicit consent, so the authorize endpoint never
-    /// shows the consent screen; nothing about the client id decides it. Any other client is
-    /// explicit-consent and is answered with a redirect to the auth app's consent route carrying
-    /// a single-use consent token, which <see cref="ConsentAsync"/> posts back the way the consent
-    /// screen does. The tenant property is what binds the client to an organization: a first-party
-    /// client is never bound (it names an organization per request through the
-    /// <c>organization</c> hint), while an explicit-consent client carrying none is refused by
-    /// the authorize endpoint as bound to no organization.
+    /// Creates or updates a confidential client with authorization-code and refresh permissions.
+    /// firstParty selects implicit consent; other clients use explicit consent.
+    /// The optional tenantId sets the organization binding and is rejected for first-party clients.
     /// </summary>
     public static async Task RegisterClientAsync(
         IServiceProvider services,
@@ -374,8 +359,7 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
     }
 
     /// <summary>
-    /// Creates a user who can complete a password sign-in. Confirming the email is not optional:
-    /// the sign-in manager refuses an unconfirmed account outright.
+    /// Creates a user with confirmed email for the configured password sign-in flow.
     /// </summary>
     public static async Task<Guid> CreateUserAsync(
         IServiceProvider services,
@@ -400,10 +384,8 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
     }
 
     /// <summary>
-    /// Enrolls a user in an organization under a named role. This membership, not the global role
-    /// store, decides which scopes the authorize endpoint will grant: the org's creator is already
-    /// enrolled as an admin, so a test that needs a plain member has to give the org someone else
-    /// to own it.
+    /// Adds a named-role membership through the organization service.
+    /// Use a different owner when the test user should not already have the creator role.
     /// </summary>
     public static async Task EnrollMemberAsync(
         IServiceProvider services,
@@ -418,7 +400,9 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
         await organizations.AddMemberAsync(organizationId, userId, roleName, Guid.NewGuid(), ct);
     }
 
-    /// <summary>Returns every value a JWT carries for the given claim, flattening array claims.</summary>
+    /// <summary>
+    /// Reads claim values from the decoded payload, flattening one array level without validating the JWT.
+    /// </summary>
     public static IReadOnlyList<string> ReadClaimValues(string token, string claimType)
     {
         ArgumentNullException.ThrowIfNull(token);
@@ -439,7 +423,9 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
         };
     }
 
-    /// <summary>Returns a JWT's decoded payload.</summary>
+    /// <summary>
+    /// Decodes the JWT payload without verifying its signature or claims.
+    /// </summary>
     public static JsonElement ReadPayload(string token)
     {
         ArgumentNullException.ThrowIfNull(token);
@@ -500,11 +486,9 @@ public sealed class AuthorizationCodeFlowHarness : IDisposable
 }
 
 /// <summary>
-/// What the authorize endpoint answered: a code, the refusal it redirected to, or the consent
-/// screen it sent the user to (<paramref name="ReturnUrl"/> and <paramref name="ConsentToken"/>
-/// are set only then). <paramref name="ErrorDescription"/> is the <c>error_description</c> a
-/// refusal sent back to the relying party carries — for <c>access_denied</c>, the membership
-/// reason.
+/// Authorization response fields parsed from the redirect and response body.
+/// ReturnUrl and ConsentToken capture consent-flow fields when present;
+/// ErrorDescription captures the relying-party error description.
 /// </summary>
 public sealed record AuthorizeOutcome(
     HttpStatusCode StatusCode,

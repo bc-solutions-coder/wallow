@@ -32,10 +32,7 @@ public class SetupController(IMessageBus messageBus, IOrganizationService organi
             return Ok(new SetupStatusResponse(SetupRequired: false));
         }
 
-        // Only while setup is open, and only when there is exactly one: this endpoint is
-        // anonymous, and a single seeded name is the whole of what the page needs to keep the
-        // administrator out of a sibling organization. Two would be a choice nobody unauthenticated
-        // should be offered.
+        // Offer a name only while setup is open and exactly one organization exists.
         IReadOnlyList<OrganizationDto> organizations = await organizationService.GetOrganizationsAsync(max: 2, ct: ct);
         string? organizationName = organizations.Count == 1 ? organizations[0].Name : null;
 

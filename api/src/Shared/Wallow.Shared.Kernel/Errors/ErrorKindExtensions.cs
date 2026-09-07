@@ -7,9 +7,6 @@ namespace Wallow.Shared.Kernel.Errors;
 /// </summary>
 public static class ErrorKindExtensions
 {
-    /// <summary>
-    /// Maps the kind to the HTTP status code every writer answers it with.
-    /// </summary>
     public static int ToHttpStatusCode(this ErrorKind kind) => kind switch
     {
         ErrorKind.Validation => StatusCodes.Status400BadRequest,

@@ -7,9 +7,8 @@ using Wallow.Shared.Kernel.MultiTenancy;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// The X-Tenant-Id override must be gated on an explicit operator flag, never on the
-/// "sa-" client_id naming convention: a client id is chosen at service-account creation
-/// time and is therefore spoofable by any tenant that can name its own service account.
+/// A service-account client ID does not authorize cross-tenant overrides.
+/// The middleware requires an operator or global-admin claim.
 /// </summary>
 public class TenantResolutionMiddlewareOperatorTests
 {

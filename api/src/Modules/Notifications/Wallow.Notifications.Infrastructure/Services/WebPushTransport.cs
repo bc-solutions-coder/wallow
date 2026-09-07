@@ -44,7 +44,7 @@ public static class WebPushTransport
                 && !(bytes[0] == 203 && bytes[1] == 0 && bytes[2] == 113);
         }
 
-        // Only global unicast; exclude transition mechanisms and special-purpose ranges.
+        // Restrict IPv6 to 2000::/3, then exclude the special-purpose ranges below.
         return address.AddressFamily == AddressFamily.InterNetworkV6
             && (bytes[0] & 0xe0) == 0x20
             && !(bytes[0] == 0x20 && bytes[1] == 0x01 && bytes[2] <= 1)

@@ -11,10 +11,9 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.Organizations;
 
 /// <summary>
-/// A platform suspension of an organization is the operator's freeze: every bound client's and
-/// every member's tokens die the moment it lands, the organization's endpoints refuse every
-/// change while it stands, and its admins read the reason but cannot lift it. Deletion under
-/// the freeze is the operator's alone — <see cref="OrganizationDeletionTests"/> covers it.
+/// Checks platform-suspension effects on token use, organization mutations, and registry entries.
+/// Organization administrators can read the reason; global admins control suspension.
+/// <see cref="OrganizationDeletionTests"/> covers deletion while suspended.
 /// </summary>
 [Trait("Category", "Integration")]
 public class OrganizationPlatformSuspensionTests(WallowApiFactory factory) : OrganizationClientsTestBase(factory)
@@ -51,9 +50,7 @@ public class OrganizationPlatformSuspensionTests(WallowApiFactory factory) : Org
         refused.Error.Should().Be("organization_suspended_by_platform");
         memberStream.IsCancellationRequested.Should().BeTrue("a member's realtime stream is hung up");
 
-        // The organization's own admin reads the operator's reason on the organization, but every
-        // change is refused while the freeze stands — the suspension resource included, so the org
-        // surface cannot lift it.
+        // The organization administrator can read the reason but cannot archive or lift suspension.
         await ActAsEnrolledAsync(orgId, "admin");
         HttpResponseMessage seen = await Client.GetAsync($"/identity/organizations/{orgId}");
         seen.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -98,7 +95,9 @@ public class OrganizationPlatformSuspensionTests(WallowApiFactory factory) : Org
             .StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity, "one suspension is already in force");
     }
 
-    /// <summary>A member's own stream in the organization, as the SSE endpoint would register it.</summary>
+    /// <summary>
+    /// Adds an organization member connection directly to the SSE registry.
+    /// </summary>
     private CancellationToken OpenRealtimeStreamAsync(Guid userId, Guid orgId)
     {
         SseConnectionManager connections = Factory.Services.GetRequiredService<SseConnectionManager>();

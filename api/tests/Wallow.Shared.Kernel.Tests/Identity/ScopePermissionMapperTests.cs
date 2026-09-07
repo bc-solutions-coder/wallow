@@ -82,7 +82,7 @@ public class ScopePermissionMapperTests
         result.Should().Be(PermissionType.OrganizationsManageMembers);
     }
 
-    // Identity - API Keys
+    // API Keys
 
     [Fact]
     public void MapScopeToPermission_ApikeysRead_ReturnsApiKeysRead()

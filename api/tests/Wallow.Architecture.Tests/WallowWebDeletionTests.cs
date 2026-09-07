@@ -3,14 +3,7 @@ using System.Xml.Linq;
 namespace Wallow.Architecture.Tests;
 
 /// <summary>
-/// Guards the terminal cutover of the Web side (bead Wallow-ffpq.3.11): the Blazor
-/// <c>Wallow.Web</c> project, its two test projects, and every remaining reference to them
-/// across the solution, build scripts, CI/deploy workflows, and docs must be gone once the
-/// React <c>apps/wallow-web</c> app is the reachable dashboard. Verified by static inspection
-/// of the source tree (never the live stack) so the deletion surface is asserted, not the app.
-/// The AppHost side of the cutover is covered by <see cref="AppHostWebResourceTests"/>. The
-/// auth-side deletion (Blazor Wallow.Auth plus the whole .NET E2E suite) is pinned by
-/// <see cref="WallowAuthDeletionTests"/>.
+/// Checks removal of the .NET web projects and old BFF host wiring from selected repository files.
 /// </summary>
 public class WallowWebDeletionTests
 {
@@ -72,7 +65,7 @@ public class WallowWebDeletionTests
         "api",
         "$.ts");
 
-    // ---- Physical deletion of the Blazor projects --------------------------------------
+
 
     [Fact]
     public void BlazorWebProject_DirectoryShouldNotExist()
@@ -96,7 +89,7 @@ public class WallowWebDeletionTests
             "api/tests/Wallow.Web.Component.Tests must be deleted with the Blazor Wallow.Web project it covers");
     }
 
-    // ---- Solution file (Wallow.slnx) ---------------------------------------------------
+
 
     [Fact]
     public void Solution_ShouldNotReference_BlazorWebProjects()
@@ -119,7 +112,7 @@ public class WallowWebDeletionTests
             "Wallow.slnx must drop Wallow.Web.Component.Tests once it is deleted");
     }
 
-    // ---- Build / test scripts ----------------------------------------------------------
+
 
     [Fact]
     public void RunTestsScript_ShouldNotDefine_BlazorWebShorthands()
@@ -135,7 +128,7 @@ public class WallowWebDeletionTests
             "and must be removed");
     }
 
-    // ---- CI / deploy workflows ---------------------------------------------------------
+
 
     [Fact]
     public void CiWorkflow_ShouldNotReference_BlazorWebProjectPath()
@@ -159,7 +152,7 @@ public class WallowWebDeletionTests
             "'rm -f api/src/Wallow.Web/wwwroot/css/app.css' Tailwind cleanup step that no longer applies");
     }
 
-    // ---- Docs (api/CLAUDE.md project table) --------------------------------------------
+
 
     [Fact]
     public void ApiClaudeMd_ShouldNotDescribe_BlazorWebProject()
@@ -174,7 +167,7 @@ public class WallowWebDeletionTests
             "api/CLAUDE.md's host/component tests line must drop the deleted Wallow.Web.Tests reference");
     }
 
-    // ---- BFF host surface of the React app ---------------------------------------------
+
 
     [Fact]
     public void ReactWebApp_ShouldNotKeep_OldH3BffHost()

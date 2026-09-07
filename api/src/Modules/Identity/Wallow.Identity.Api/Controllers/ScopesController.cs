@@ -10,7 +10,7 @@ using Wallow.Shared.Kernel.Identity.Authorization;
 namespace Wallow.Identity.Api.Controllers;
 
 /// <summary>
-/// Lists available API scopes that can be assigned to service accounts.
+/// Lists the API scope catalog, including platform-only scope metadata.
 /// </summary>
 [ApiController]
 [ApiVersion(1)]

@@ -1,8 +1,8 @@
 namespace Wallow.Identity.IntegrationTests.Resilience;
 
 /// <summary>
-/// Tests health check endpoint resilience behavior.
-/// Uses WireMock to simulate upstream service states.
+/// Checks that the health route returns a response with health-check registrations cleared.
+/// This assertion does not inspect health status or upstream resilience.
 /// </summary>
 [Collection("IdentityResilience")]
 [Trait("Category", "Integration")]

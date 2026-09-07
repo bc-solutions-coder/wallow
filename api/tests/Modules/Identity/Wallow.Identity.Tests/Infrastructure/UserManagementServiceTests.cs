@@ -65,8 +65,7 @@ public sealed class UserManagementServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Role ids are resolved out of the catalog by normalized name, so a role a test wants to
-    /// grant has to exist as a row before the grant is attempted.
+    /// Seeds a catalog role so normalized-name lookups can resolve its ID.
     /// </summary>
     private async Task<Guid> SeedRoleAsync(string name)
     {
@@ -96,9 +95,7 @@ public sealed class UserManagementServiceTests : IDisposable
     }
 
     /// <summary>
-    /// The batch role reader queries memberships directly rather than through the repository,
-    /// because a user list resolves many users in one round trip. Tests that exercise it need a
-    /// real row, not a stubbed repository answer.
+    /// Persists memberships for the batch reader, which queries the context directly.
     /// </summary>
     private async Task<Membership> PersistMembershipAsync(Guid userId, Guid organizationId, Guid roleId)
     {
@@ -205,8 +202,7 @@ public sealed class UserManagementServiceTests : IDisposable
 
         UserDto? result = await _sut.GetUserByIdAsync(userId);
 
-        // A role is granted BY an organization. Showing it while administering a different one
-        // claims an authority this user does not hold here.
+        // Roles granted in another organization must not appear here.
         result.Should().NotBeNull();
         result!.Roles.Should().BeEmpty();
     }
@@ -281,7 +277,7 @@ public sealed class UserManagementServiceTests : IDisposable
 
         await _userManager.Received(1).SetLockoutEnabledAsync(user, true);
         await _userManager.Received(1).SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
-        // The lockout only blocks the next sign-in; the sessions already open die here.
+        // Deactivation must also request revocation of existing access.
         await _accessRevoker.Received(1).RevokeUserAsync(userId, Arg.Any<CancellationToken>());
     }
 
@@ -343,8 +339,7 @@ public sealed class UserManagementServiceTests : IDisposable
     }
 
     /// <summary>
-    /// A user does not grant themselves a role - an admin does. Stamping the membership with the
-    /// subject would name the person who gained the access as the person who approved it.
+    /// Role changes must record the supplied actor rather than the affected user.
     /// </summary>
     [Fact]
     public async Task AssignRoleAsync_StampsTheMembershipWithTheActorNotTheSubject()

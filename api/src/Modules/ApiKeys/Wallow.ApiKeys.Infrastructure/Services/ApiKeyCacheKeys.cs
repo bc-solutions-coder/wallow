@@ -1,10 +1,8 @@
 namespace Wallow.ApiKeys.Infrastructure.Services;
 
 /// <summary>
-/// The Valkey key names for the API-key validation cache. Every entry is addressed by data
-/// carried on the PostgreSQL row — the key hash, the domain ApiKeyId, and the owning service
-/// account — so any writer or invalidator (creation, validation repopulation, revocation, the
-/// organization-deletion cascade) derives the same names from the same source of truth.
+/// Valkey cache names derived from database key hashes, domain IDs and owner IDs.
+/// Creation, validation and revocation must use the same names.
 /// </summary>
 internal static class ApiKeyCacheKeys
 {

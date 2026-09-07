@@ -97,8 +97,8 @@ public sealed class EmailMessageRepositoryTests : RepositoryTestBase
     {
         EmailMessage failed = CreateEmailMessage(status: EmailStatus.Failed);
         _repository.Add(failed);
-        _repository.Add(CreateEmailMessage()); // pending, should be excluded
-        _repository.Add(CreateEmailMessage(status: EmailStatus.Sent)); // sent, should be excluded
+        _repository.Add(CreateEmailMessage());
+        _repository.Add(CreateEmailMessage(status: EmailStatus.Sent));
         await Context.SaveChangesAsync();
 
         IReadOnlyList<EmailMessage> result = await _repository.GetFailedRetryableAsync(maxRetries: 3, limit: 10);
@@ -111,7 +111,7 @@ public sealed class EmailMessageRepositoryTests : RepositoryTestBase
     public async Task GetFailedRetryableAsync_ExcludesMessagesAtMaxRetries()
     {
         EmailMessage message = CreateEmailMessage();
-        // Fail 3 times to reach maxRetries
+
         message.MarkAsFailed("fail1", TimeProvider.System);
         message.MarkAsFailed("fail2", TimeProvider.System);
         message.MarkAsFailed("fail3", TimeProvider.System);

@@ -3,7 +3,7 @@ namespace Wallow.Shared.Contracts.Identity.Events;
 
 /// <summary>
 /// Published when a user's email address has been changed.
-/// Consumers: Notifications (confirmation to old and new address)
+/// Consumed by Identity logging.
 /// </summary>
 public sealed record UserEmailChangedEvent : IntegrationEvent
 {

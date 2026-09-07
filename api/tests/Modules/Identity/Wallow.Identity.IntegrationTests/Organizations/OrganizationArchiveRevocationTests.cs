@@ -10,10 +10,8 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.Organizations;
 
 /// <summary>
-/// Archiving an organization takes back every credential that hangs off it: every bound client's
-/// tokens and every member's tokens die, live realtime streams are hung up, and the authorize and
-/// token endpoints refuse the organization's clients while it stays archived. Reactivating
-/// restores every client the organization did not individually suspend — and only those.
+/// Checks token refusal and registry cancellation after archive, followed by reactivation.
+/// An individually suspended client must remain suspended after organization reactivation.
 /// </summary>
 [Trait("Category", "Integration")]
 public class OrganizationArchiveRevocationTests(WallowApiFactory factory) : OrganizationClientsTestBase(factory)
@@ -53,9 +51,7 @@ public class OrganizationArchiveRevocationTests(WallowApiFactory factory) : Orga
         HttpResponseMessage reactivated = await Client.PostAsync($"/identity/organizations/{orgId}/reactivate", null);
         reactivated.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
-        // Archive ended each member's standing the way a membership revocation does: the consent
-        // authorization died with the tokens. The next sign-in grants consent afresh and gets
-        // working tokens — the client itself is fully restored.
+        // Reactivation requires new consent before this client can issue fresh tokens.
         AuthorizeOutcome again = await Harness.AuthorizeAsync(clientId, LoginScope);
         again.ConsentToken.Should().NotBeNull(again.Location?.ToString());
         AuthorizeOutcome granted = await Harness.ConsentAsync(again, grant: true);
@@ -96,9 +92,7 @@ public class OrganizationArchiveRevocationTests(WallowApiFactory factory) : Orga
     }
 
     /// <summary>
-    /// Registers a stream the way the SSE endpoint does, and hands back the token the endpoint
-    /// would be waiting on. With a client id it is the stream a bound client opened; without one
-    /// it is a member's own stream in the organization.
+    /// Adds an organization connection directly to the SSE registry, optionally associated with a client.
     /// </summary>
     private CancellationToken OpenRealtimeStreamAsync(Guid userId, Guid orgId, string? clientId)
     {

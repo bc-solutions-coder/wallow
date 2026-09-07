@@ -32,7 +32,7 @@ public class RegisteredClientTests
         client.PlatformSuspensionReason.Should().Be("Abuse reports");
         client.PlatformSuspendedBy.Should().Be(_actorId);
         client.PlatformSuspendedAt.Should().Be(_timeProvider.GetUtcNow());
-        // The organization's own suspension is a separate axis; the platform does not rewrite it.
+        // Platform suspension leaves the organization-managed client status unchanged.
         client.Status.Should().Be(RegisteredClientStatus.Active);
     }
 
@@ -90,8 +90,7 @@ public class RegisteredClientTests
         RegisteredClient client = CreateClient();
         client.SuspendByPlatform("Abuse reports", _actorId, _timeProvider);
 
-        // The org surface cannot lift a platform suspension: its own reinstate only answers its
-        // own suspension, and this client's own status is still Active.
+        // Organization-level reinstatement does not clear platform suspension.
         Action act = client.Reinstate;
 
         act.Should().Throw<BusinessRuleException>()

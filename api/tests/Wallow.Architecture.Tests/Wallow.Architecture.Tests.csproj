@@ -25,7 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Reference all module assemblies for inspection -->
+    <!-- Assembly references for architecture inspection -->
     <ProjectReference Include="..\..\src\Modules\Identity\Wallow.Identity.Domain\Wallow.Identity.Domain.csproj" />
     <ProjectReference Include="..\..\src\Modules\Identity\Wallow.Identity.Application\Wallow.Identity.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Identity\Wallow.Identity.Infrastructure\Wallow.Identity.Infrastructure.csproj" />

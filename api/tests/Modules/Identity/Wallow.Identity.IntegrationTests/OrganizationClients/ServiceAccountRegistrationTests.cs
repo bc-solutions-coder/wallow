@@ -7,11 +7,8 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.OrganizationClients;
 
 /// <summary>
-/// Service accounts on the org-scoped client surface: the same route, permission and scope
-/// ceiling as developer applications, but a client-credentials client whose tokens carry the
-/// organization it was registered under. Backend-dependent because the proof is a real token
-/// minted by OpenIddict. The test host authenticates through a stub scheme, so a real token
-/// reaching a tenant-scoped endpoint is proven by the containerised e2e run instead.
+/// Checks organization service-account registration and issued token organization/scope claims.
+/// Registration requests use synthetic caller authentication.
 /// </summary>
 [Trait("Category", "Integration")]
 public class ServiceAccountRegistrationTests(WallowApiFactory factory) : IdentityIntegrationTestBase(factory)

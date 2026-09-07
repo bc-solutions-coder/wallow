@@ -5,9 +5,7 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.OAuth2;
 
 /// <summary>
-/// Covers the OIDC discovery document. Relying parties decide whether to register a
-/// front-channel logout URI by reading these flags, so they are asserted against the real
-/// document OpenIddict serves rather than any handler in isolation.
+/// Checks advertised logout capabilities and revocation endpoint in the served discovery document.
 /// </summary>
 [Trait("Category", "Integration")]
 public class DiscoveryDocumentTests(WallowApiFactory factory) : IdentityIntegrationTestBase(factory)
@@ -25,8 +23,7 @@ public class DiscoveryDocumentTests(WallowApiFactory factory) : IdentityIntegrat
             .Should().BeTrue("the discovery document must advertise front-channel logout");
         supported.GetBoolean().Should().BeTrue();
 
-        // Session-supported says every notification carries iss + sid — the pair the SDK's
-        // handler validates before it destroys a session.
+        // Advertise issuer and session-ID support for front-channel notifications.
         document.RootElement.TryGetProperty("frontchannel_logout_session_supported", out JsonElement sessionSupported)
             .Should().BeTrue("the discovery document must advertise sid support");
         sessionSupported.GetBoolean().Should().BeTrue();
@@ -45,8 +42,7 @@ public class DiscoveryDocumentTests(WallowApiFactory factory) : IdentityIntegrat
             .Should().BeTrue("the discovery document must advertise back-channel logout");
         supported.GetBoolean().Should().BeTrue();
 
-        // Session-supported says every logout token carries a sid claim — what lets an RP end
-        // the one session that logged out rather than every session for the user.
+        // Advertise session-ID support in back-channel logout tokens.
         document.RootElement.TryGetProperty("backchannel_logout_session_supported", out JsonElement sessionSupported)
             .Should().BeTrue("the discovery document must advertise sid support in logout tokens");
         sessionSupported.GetBoolean().Should().BeTrue();

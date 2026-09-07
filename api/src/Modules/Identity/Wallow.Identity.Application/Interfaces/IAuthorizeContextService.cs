@@ -3,10 +3,9 @@ using Wallow.Identity.Application.DTOs;
 namespace Wallow.Identity.Application.Interfaces;
 
 /// <summary>
-/// Describes the client behind a pending authorize transaction to the auth host: branding,
-/// owning organization and requested scopes, resolved only for a client that could actually be
-/// mid-transaction. The redirect URI acts as the proof of a genuine transaction — a caller who
-/// cannot present one the client registered learns nothing, so client ids cannot be enumerated.
+/// Resolves public branding, organization and requested scopes for a serviceable client
+/// with a registered redirect URI. A matching URI is a lookup condition, not proof
+/// that an authorization transaction exists.
 /// </summary>
 public interface IAuthorizeContextService
 {

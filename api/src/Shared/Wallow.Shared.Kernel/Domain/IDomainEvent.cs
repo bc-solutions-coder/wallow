@@ -1,8 +1,7 @@
 namespace Wallow.Shared.Kernel.Domain;
 
 /// <summary>
-/// Marker interface for domain events. Domain events represent something
-/// that happened in the domain that other parts of the system may need to know about.
+/// A fact raised within a module's domain.
 /// </summary>
 public interface IDomainEvent
 {
@@ -18,8 +17,7 @@ public interface IDomainEvent
 }
 
 /// <summary>
-/// Base record for domain events with default implementations.
-/// Use records for immutability and value-based equality.
+/// Supplies a new event ID and UTC occurrence time.
 /// </summary>
 public abstract record DomainEvent : IDomainEvent
 {

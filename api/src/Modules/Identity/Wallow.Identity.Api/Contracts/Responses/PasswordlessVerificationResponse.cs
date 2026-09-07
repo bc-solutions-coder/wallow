@@ -1,7 +1,6 @@
 namespace Wallow.Identity.Api.Contracts.Responses;
 
 /// <summary>
-/// Result of verifying a magic link or one-time code, carrying the single-use ticket the auth
-/// frontend exchanges for a sign-in cookie.
+/// Passwordless verification result with the email and ticket for browser sign-in.
 /// </summary>
 public sealed record PasswordlessVerificationResponse(bool Succeeded, string? Email, string? SignInTicket);

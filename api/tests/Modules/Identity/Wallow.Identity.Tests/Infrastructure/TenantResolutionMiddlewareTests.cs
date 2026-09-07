@@ -67,8 +67,7 @@ public class TenantResolutionMiddlewareTests
         Guid orgId = Guid.NewGuid();
         Guid overrideId = Guid.NewGuid();
 
-        // The gate is the non-assignable global-admin claim, not the "admin" role: the role is
-        // handed out inside a tenant, so trusting it would let a tenant admin reach other tenants.
+        // Organization roles do not grant cross-tenant override authority.
         DefaultHttpContext context = CreateAuthenticatedContext(
             new Claim("org_id", orgId.ToString()),
             new Claim(ClaimsPrincipalExtensions.GlobalAdminClaimType, "true"));
@@ -265,8 +264,7 @@ public class TenantResolutionMiddlewareTests
     [Fact]
     public async Task InvokeAsync_AuthHostCookieSession_WithoutAnOrganization_CallsNext()
     {
-        // The auth host's own cookie session never carries an organization: it is the sign-in
-        // surface, not a tenant-scoped API caller.
+        // The auth cookie can reach sign-in endpoints without a selected organization.
         TenantResolutionMiddleware middleware = CreateMiddleware();
         DefaultHttpContext context = new DefaultHttpContext
         {

@@ -6,7 +6,7 @@ namespace Wallow.Notifications.Tests.Infrastructure.Services;
 
 public class SimpleEmailTemplateServiceTests
 {
-#pragma warning disable CA2000 // LoggerFactory disposal not needed in tests
+#pragma warning disable CA2000 // Test logger factory is not disposed.
     private readonly SimpleEmailTemplateService _service = new(
         LoggerFactory.Create(b => b.AddSimpleConsole().SetMinimumLevel(LogLevel.Trace))
             .CreateLogger<SimpleEmailTemplateService>(),
@@ -62,8 +62,8 @@ public class SimpleEmailTemplateServiceTests
     [Fact]
     public async Task RenderAsync_HyphenatedAccessRequestKey_FallsThroughToTheDefaultArm()
     {
-        // The switch lowercases the key but does not strip hyphens, so "access-request" would
-        // send the generic notification body with none of the model rendered into it.
+
+
         string result = await _service.RenderAsync("access-request", new { OrganizationName = "Contoso" });
 
         result.Should().NotContain("Contoso");
@@ -323,7 +323,7 @@ public class SimpleEmailTemplateServiceTests
         result.Should().NotContain("{{AppName}}");
     }
 
-#pragma warning disable CA2000 // LoggerFactory disposal not needed in tests
+#pragma warning disable CA2000 // Test logger factory is not disposed.
     [Fact]
     public async Task RenderAsync_WithLoggingDisabled_StillRendersTemplate()
     {
@@ -394,7 +394,7 @@ public class SimpleEmailTemplateServiceTests
         result.Should().NotContain("{{AppName}}");
     }
 
-#pragma warning disable CA2000 // LoggerFactory disposal not needed in tests
+#pragma warning disable CA2000 // Test logger factory is not disposed.
     [Fact]
     public async Task RenderAsync_WithCustomAppName_UsesConfiguredName()
     {

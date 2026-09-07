@@ -6,13 +6,7 @@ using Wallow.Identity.Infrastructure.Options;
 namespace Wallow.SeederService.Tests;
 
 /// <summary>
-/// Production injects OIDC client secrets over a secret-less seed file. The contract is
-/// name-keyed: a <c>ClientSecrets__&lt;clientId&gt;</c> environment variable attaches its value to
-/// the seed client with that id. The old index-keyed contract (<c>Clients__N__Secret</c>) had two
-/// failure modes these tests pin the replacements for: Compose renders an unset optional variable
-/// as an EMPTY env var, which the binder materialised as a phantom secret-less client with a blank
-/// ClientId (aborting the seeder with an offender list of blank names), and a seed file whose
-/// client order drifted from the compose file silently attached secrets to the wrong clients.
+/// Checks client-ID-based secret overrides, blank values and malformed client entries.
 /// </summary>
 public class SeederClientSecretMappingTests
 {
@@ -47,9 +41,7 @@ public class SeederClientSecretMappingTests
     [Fact]
     public void ClientSecrets_BlankValueForUnknownClient_IsIgnored()
     {
-        // Compose interpolates an unset optional variable as an EMPTY string, so a deployment
-        // that defines only the dashboard client still ships blank entries for any optional
-        // clients it never declared. Those must be a non-event, not a startup failure.
+        // Optional secret overrides may be present with empty values.
         PreRegisteredClientOptions options = BuildOptions(new Dictionary<string, string?>
         {
             ["Clients:0:ClientId"] = "wallow-web-client",
@@ -65,9 +57,7 @@ public class SeederClientSecretMappingTests
     [Fact]
     public void ClientSecrets_NonBlankValueForUnknownClient_ThrowsNamingTheKey()
     {
-        // A real secret aimed at a client the seed file does not define is a misconfiguration
-        // (typo'd id, or a client removed from the seed without removing its secret) and must
-        // fail closed rather than be dropped silently.
+        // A nonempty secret for an unknown client must reveal the configuration mistake.
         Action resolve = () => BuildOptions(new Dictionary<string, string?>
         {
             ["Clients:0:ClientId"] = "wallow-web-client",
@@ -82,8 +72,7 @@ public class SeederClientSecretMappingTests
     [Fact]
     public void ClientSecrets_BlankValueForKnownClient_LeavesSecretUnset()
     {
-        // A blank value must not count as "secret supplied": the client stays secret-less so the
-        // existing fail-closed Validate() aborts a confidential client whose variable was unset.
+        // An empty override must leave the client secret unset.
         PreRegisteredClientOptions options = BuildOptions(new Dictionary<string, string?>
         {
             ["Clients:0:ClientId"] = "wallow-web-client",
@@ -97,9 +86,7 @@ public class SeederClientSecretMappingTests
     [Fact]
     public void Clients_EntryWithBlankClientId_ThrowsNamingTheIndex()
     {
-        // An index-based override pointing past the end of the seed file's clients array
-        // (e.g. Clients__2__RedirectUris__0 against a one-client seed) materialises a phantom
-        // client with a blank id. Name the index so the misalignment diagnoses itself.
+        // An out-of-range indexed override creates an entry without a client ID.
         Action resolve = () => BuildOptions(new Dictionary<string, string?>
         {
             ["Clients:0:ClientId"] = "wallow-web-client",

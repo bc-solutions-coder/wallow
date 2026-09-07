@@ -1,8 +1,7 @@
 namespace Wallow.Shared.Contracts.Branding;
 
 /// <summary>
-/// A client's branding as a sign-in screen renders it: the public copy of the row the owning
-/// organization edits, with the logo already resolved to a fetchable URL.
+/// Public client branding with the logo resolved to a fetchable URL.
 /// </summary>
 public sealed record PublicClientBranding(
     string ClientId,
@@ -12,9 +11,7 @@ public sealed record PublicClientBranding(
     string? ThemeJson);
 
 /// <summary>
-/// Branding's public read for other modules. Identity's authorize-context endpoint dresses the
-/// auth host's transaction screens through this contract — never through Branding's persistence,
-/// per the module isolation rules.
+/// Cross-module branding reads used by Identity's authorize-context endpoint.
 /// </summary>
 public interface IClientBrandingProvider
 {
@@ -22,11 +19,9 @@ public interface IClientBrandingProvider
     Task<PublicClientBranding?> FindAsync(string clientId, CancellationToken ct = default);
 
     /// <summary>
-    /// The row's display name read fresh from storage, never from the public read's cache —
-    /// or <see langword="null"/> when no row exists. Synchronization consumers (Identity's
-    /// OpenIddict display-name sync) treat <c>ClientBrandingUpdatedEvent</c> as a trigger and
-    /// pull this instead of trusting the event's payload, so redelivered or reordered events
-    /// converge on the latest write instead of freezing an older value.
+    /// Reads the current display name without the public-read cache; returns <see langword="null"/>
+    /// when absent. Use this for synchronization after <c>ClientBrandingUpdatedEvent</c>
+    /// so reordered deliveries do not apply stale payloads.
     /// </summary>
     Task<string?> FindCurrentDisplayNameAsync(string clientId, CancellationToken ct = default);
 }

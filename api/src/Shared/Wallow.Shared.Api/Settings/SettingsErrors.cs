@@ -3,9 +3,7 @@ using Wallow.Shared.Kernel.Errors;
 namespace Wallow.Shared.Api.Settings;
 
 /// <summary>
-/// Codes for the setting-key checks every module's settings endpoints share. The condition is one
-/// whichever module's endpoint reaches it, so the shared API surface owns the code rather than
-/// each module minting its own.
+/// Shared error codes for module settings endpoints.
 /// </summary>
 public static class SettingsErrors
 {

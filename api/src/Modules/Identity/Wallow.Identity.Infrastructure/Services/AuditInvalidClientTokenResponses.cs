@@ -8,11 +8,8 @@ using static OpenIddict.Abstractions.OpenIddictConstants;
 namespace Wallow.Identity.Infrastructure.Services;
 
 /// <summary>
-/// Observes every <c>invalid_client</c> token response on its way out — OpenIddict's own
-/// bad-secret rejections included, which no custom validator ever sees — and turns each into a
-/// userless <c>ClientAuthenticationFailed</c> audit row plus one tick of the per-client failure
-/// counter. The lockout's own refusals are skipped: counting them would let five bad guesses
-/// re-arm the lockout forever off rejections that prove nothing new about the caller.
+/// Audits invalid_client token responses with a client ID, then increments its failure
+/// counter. Skips marked lockout rejections so they do not extend their own lockout.
 /// </summary>
 public sealed class AuditInvalidClientTokenResponses(
     IInvalidClientLockout invalidClientLockout,

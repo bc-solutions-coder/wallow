@@ -9,10 +9,8 @@ namespace Wallow.Identity.Infrastructure.Repositories;
 
 public sealed class OrganizationRepository(IdentityDbContext context) : IOrganizationRepository
 {
-    // Organization IS the tenant (org.Id == TenantId by construction), so the ambient
-    // tenant query filter would hide every org whose id does not equal the caller's tenant.
-    // Addressing an org by id is instead authorized at the controller via [HasPermission],
-    // so these reads bypass the tenant filter with IgnoreQueryFilters.
+    // Cross-organization reads bypass tenant filters; callers must authorize the addressed
+    // organization, not merely a permission held in their ambient tenant.
     public Task<Organization?> GetByIdAsync(OrganizationId id, CancellationToken ct = default)
     {
         return context.Organizations
@@ -38,8 +36,7 @@ public sealed class OrganizationRepository(IdentityDbContext context) : IOrganiz
             .ToListAsync(ct);
     }
 
-    // "Organizations this user belongs to" is a membership question, not an organization one:
-    // only an Active membership counts, so a pending request or a suspension hides the org.
+    // Membership status controls inclusion; this query does not filter organization state.
     public Task<List<Organization>> GetByUserIdAsync(Guid userId, CancellationToken ct = default)
     {
         IQueryable<OrganizationId> activeOrganizationIds = context.Memberships

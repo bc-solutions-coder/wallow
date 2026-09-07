@@ -59,7 +59,7 @@ public class SessionControllerTests
     [Fact]
     public async Task ListSessions_SessionDto_DoesNotContainSessionToken()
     {
-        // SessionDto should only have Id, CreatedAt, LastActivityAt, ExpiresAt -- no SessionToken
+        // Session listings must not expose the bearer session token.
         System.Reflection.PropertyInfo[] properties = typeof(SessionDto).GetProperties();
         string[] propertyNames = properties.Select(p => p.Name).ToArray();
 
@@ -82,7 +82,7 @@ public class SessionControllerTests
     private static ActiveSession CreateSession(
         Guid id, DateTimeOffset createdAt, DateTimeOffset lastActivityAt, DateTimeOffset expiresAt)
     {
-        // Use reflection to create ActiveSession for test since constructor is private
+
         ActiveSession session = (ActiveSession)System.Runtime.CompilerServices.RuntimeHelpers
             .GetUninitializedObject(typeof(ActiveSession));
 

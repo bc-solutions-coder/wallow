@@ -18,14 +18,14 @@ public sealed class OrganizationSettings : AuditableEntity<OrganizationSettingsI
     public EnrollmentPolicy EnrollmentPolicy { get; private set; }
 
     /// <summary>
-    /// Where access requests are sent when the recipient resolver has no better answer. Null means
-    /// the resolver falls back to the people who can act on the request.
+    /// Explicit access-request recipient. When absent, the resolver uses active owners
+    /// with email addresses; it can return no recipients.
     /// </summary>
     public string? AccessRequestEmail { get; private set; }
 
     /// <summary>
-    /// The role a new member starts with, however they joined. Null means the platform's baseline
-    /// member role — an organization that has never configured one still admits people safely.
+    /// Default role for enrollment, approval, and invitation acceptance.
+    /// Null or a deleted role falls back to the platform's baseline user role.
     /// </summary>
     public Guid? DefaultRoleId { get; private set; }
 
@@ -79,9 +79,8 @@ public sealed class OrganizationSettings : AuditableEntity<OrganizationSettingsI
     }
 
     /// <summary>
-    /// Changes who may join and on what terms. Deliberately separate from <see cref="Update"/>: these
-    /// three decide the organization's membership, so they are gated on
-    /// <c>OrganizationsManageMembers</c> rather than on the right to edit its settings.
+    /// Updates enrollment settings separately from general settings because its endpoint
+    /// requires <c>OrganizationsManageMembers</c>.
     /// </summary>
     public void UpdateEnrollment(
         EnrollmentPolicy enrollmentPolicy,

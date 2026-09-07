@@ -19,9 +19,8 @@ using Wallow.Shared.Kernel.MultiTenancy;
 namespace Wallow.Identity.Api.Controllers;
 
 /// <summary>
-/// The org-scoped client surface: an organization's admins and managers register and manage the
-/// clients it owns, developer applications and service accounts alike. A client of another
-/// organization is answered as not found, never forbidden.
+/// Manages organization-owned applications and service accounts. Inaccessible organizations
+/// and clients outside the addressed organization return not found.
 /// </summary>
 [ApiController]
 [ApiVersion(1)]
@@ -49,8 +48,7 @@ public class OrganizationClientsController(
         nameof(RegisterOrganizationClientRequest.Branding) + "." + nameof(RegisterOrganizationClientBranding.Tagline);
 
     /// <summary>
-    /// Register a developer application or a service account for the organization. The response
-    /// carries the client secret exactly once. A service account ignores every URI field.
+    /// Registers an organization client and reveals its secret. Service accounts ignore URI fields.
     /// </summary>
     [HttpPost]
     [HasPermission(PermissionType.OrganizationClientsManage)]
@@ -101,9 +99,7 @@ public class OrganizationClientsController(
             return ValidationProblem(ModelState);
         }
 
-        // The service publishes each client event through the outbox, in the same transaction as
-        // its writes — a post-commit publish here would reopen the crash window that drops the
-        // event and, for registration, leaves the client without its branding row.
+        // Registration and its outbox event commit together in the service.
         OrganizationClientRegistrationResult result = await clients.RegisterAsync(
             orgId,
             new RegisterClientInput(kind.Value, request.Name.Trim(), configuration, brandingDisplayName, brandingTagline),
@@ -114,9 +110,7 @@ public class OrganizationClientsController(
     }
 
     /// <summary>
-    /// Replace the client secret. The response carries the new secret exactly once; the old one
-    /// stops working immediately. <c>revokeActiveTokens</c> also ends every token the client was
-    /// already issued.
+    /// Rotates and reveals the client secret. revokeActiveTokens also requests revocation of issued tokens.
     /// </summary>
     [HttpPost("{clientId}/rotate-secret")]
     [EnableRateLimiting("registration")]
@@ -177,8 +171,8 @@ public class OrganizationClientsController(
     }
 
     /// <summary>
-    /// Replace a client's redirect URIs, logout URI and scopes. Name and client id are immutable;
-    /// a service account's URI fields are ignored.
+    /// Replaces redirect URIs, back-channel logout settings, and scopes. Null lifetime preserves
+    /// the current value; service accounts ignore URI fields.
     /// </summary>
     [HttpPatch("{clientId}")]
     [EnableRateLimiting("registration")]
@@ -224,8 +218,7 @@ public class OrganizationClientsController(
     }
 
     /// <summary>
-    /// Suspend a client: every token it was issued stops working now and its realtime connections
-    /// are closed, while its configuration, branding and consents are kept for reinstatement.
+    /// Suspends a client and revokes its access while retaining registration, branding, and permanent consents.
     /// </summary>
     [HttpPost("{clientId}/suspend")]
     [EnableRateLimiting("registration")]
@@ -242,7 +235,9 @@ public class OrganizationClientsController(
             ct);
     }
 
-    /// <summary>Reinstate a suspended client exactly as it was.</summary>
+    /// <summary>
+    /// Lifts the organization client suspension. Revoked tokens remain revoked.
+    /// </summary>
     [HttpPost("{clientId}/reinstate")]
     [EnableRateLimiting("registration")]
     [HasPermission(PermissionType.OrganizationClientsManage)]
@@ -259,9 +254,7 @@ public class OrganizationClientsController(
     }
 
     /// <summary>
-    /// Place the platform's own suspension on the client, with a reason (global admins only).
-    /// While it stands the client is refused everywhere, whatever its own status says, and the
-    /// organization can read the reason but not lift it.
+    /// Applies a client platform suspension with a reason. Requires global administrator authority.
     /// </summary>
     [HttpPost("{clientId}/platform-suspension")]
     [EnableRateLimiting("registration")]
@@ -289,8 +282,7 @@ public class OrganizationClientsController(
     }
 
     /// <summary>
-    /// Lift the platform suspension (global admins only). The client serves again unless the
-    /// organization's own suspension still stands.
+    /// Lifts the client platform suspension. Other client and organization restrictions still apply.
     /// </summary>
     [HttpDelete("{clientId}/platform-suspension")]
     [EnableRateLimiting("registration")]
@@ -316,8 +308,7 @@ public class OrganizationClientsController(
     }
 
     /// <summary>
-    /// Delete one of the organization's clients for good: every credential it holds is revoked
-    /// first, then the client, its consents and its branding are removed.
+    /// Deletes the client and its authorizations after access revocation; branding cleanup follows the deletion event.
     /// </summary>
     [HttpDelete("{clientId}")]
     [EnableRateLimiting("registration")]
@@ -339,8 +330,7 @@ public class OrganizationClientsController(
         return NoContent();
     }
 
-    // Mirrors OrganizationsController: the caller's own tenant and the global admin reach every
-    // organization; anyone else only through a membership that carries the permission.
+    // Accept the resolved tenant, a global administrator, or a permitted foreign membership.
     private async Task<bool> CanAddressOrganizationAsync(Guid orgId, CancellationToken ct)
     {
         if (orgId == tenantContext.TenantId.Value || User.IsGlobalAdmin())
@@ -353,9 +343,7 @@ public class OrganizationClientsController(
                 orgId, callerId, PermissionType.OrganizationClientsManage, ct);
     }
 
-    // Suspend and reinstate are the same request shape around a different transition: address the
-    // organization, apply the transition (which publishes its own event, in its own transaction),
-    // hand back the client as it now is.
+
     private async Task<ActionResult<OrganizationClientResponse>> TransitionAsync(
         Guid orgId,
         string clientId,
@@ -372,9 +360,8 @@ public class OrganizationClientsController(
     }
 
     /// <summary>
-    /// Validates and trims the optional initial branding. A service account carries none — it
-    /// faces no end user. An application's effective display name (the branded one, or the
-    /// client's name when none was given) may never read as the platform itself.
+    /// Trims application branding and rejects excessive lengths or reserved platform display names.
+    /// Service-account branding is ignored.
     /// </summary>
     private (string? DisplayName, string? Tagline) NormalizeBranding(
         RegisteredClientKind? kind, RegisterOrganizationClientRequest request)
@@ -411,7 +398,7 @@ public class OrganizationClientsController(
     private static string? TrimmedOrNull(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
-    // Who is acting and from where, for the audit trail the service's events carry.
+
     private ClientActorContext Actor() => new(
         Guid.Parse(User.GetUserId()!),
         HttpContext.Connection.RemoteIpAddress?.ToString());
@@ -425,14 +412,12 @@ public class OrganizationClientsController(
             ApiBaseUrl = result.ApiBaseUrl ?? RequestOrigin(),
         };
 
-    // What OpenIddict advertises as the issuer when none is configured: the origin it was reached on.
+    // Use the request origin when the service supplies no configured endpoint.
     private string RequestOrigin() => $"{Request.Scheme}://{Request.Host}";
 
     /// <summary>
-    /// Validates the configuration half of a register or update request under the shared client
-    /// URI rules, recording every refusal against its field so one response names them all.
-    /// Returns <see langword="null"/> when anything was refused. A service account has no URI
-    /// fields to validate: whatever the request carries there is dropped, not refused.
+    /// Validates scopes, lifetime, and application URIs, recording field errors.
+    /// Service-account URI fields are ignored.
     /// </summary>
     private ClientConfigurationInput? ParseConfiguration(
         RegisteredClientKind kind,
@@ -458,8 +443,7 @@ public class OrganizationClientsController(
 
         if (kind == RegisteredClientKind.ServiceAccount)
         {
-            // A service account never holds the refresh grant, so a lifetime is dropped with the
-            // URI fields rather than refused.
+            // Ignore a valid lifetime for service accounts; range validation still applies.
             return valid ? new ClientConfigurationInput([], [], null, scopes) : null;
         }
 
@@ -472,7 +456,7 @@ public class OrganizationClientsController(
         valid &= TryParseRedirectUris(redirectValues, RedirectUrisField, out List<Uri> redirectUris);
         valid &= TryParseRedirectUris(postLogoutValues, PostLogoutRedirectUrisField, out List<Uri> postLogoutRedirectUris);
 
-        // Every org-registered client holds a secret, so plain http is within the rule here.
+        // Organization clients are confidential, so back-channel HTTP is allowed.
         Uri? backchannelLogoutUri = null;
         if (!string.IsNullOrWhiteSpace(backchannelValue)
             && !ClientUriRules.TryParseBackchannelLogoutUri(

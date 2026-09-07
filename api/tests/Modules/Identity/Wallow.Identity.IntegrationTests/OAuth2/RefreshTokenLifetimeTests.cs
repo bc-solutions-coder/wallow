@@ -17,13 +17,9 @@ using static OpenIddict.Abstractions.OpenIddictConstants;
 namespace Wallow.Identity.IntegrationTests.OAuth2;
 
 /// <summary>
-/// Per-client refresh-token lifetime, end to end: the lifetime a client is registered with (or
-/// the pinned first-party/third-party default) bounds the refresh tokens the server stores for
-/// it, changing it later leaves tokens already issued alone, and — with sliding expiration
-/// pinned off — a refreshed token inherits its family's original expiry. Also pins reuse
-/// detection: replaying a redeemed refresh token inside the leeway is a benign retry, beyond it
-/// the whole authorization family is revoked. The test factory shrinks the leeway to 2 s and
-/// moves the global fallback to 5 days so each pinned default is distinguishable from it.
+/// Checks stored refresh-token expiry under per-client settings and defaults,
+/// including unchanged issued expiry after a setting update and non-sliding refresh.
+/// Exercises replay within and beyond the factory-configured two-second leeway.
 /// </summary>
 [Trait("Category", "Integration")]
 public sealed class RefreshTokenLifetimeTests(WallowApiFactory factory)
@@ -34,8 +30,7 @@ public sealed class RefreshTokenLifetimeTests(WallowApiFactory factory)
     private static readonly string[] _clientScopes = ["openid", "profile", "email", "offline_access"];
 
     /// <summary>
-    /// Storage timestamps trail issuance by however long the request took, so the stored
-    /// window is asserted to the nearest few seconds, never exactly.
+    /// Tolerance for small differences between stored creation and expiration timestamps.
     /// </summary>
     private static readonly TimeSpan _storedWindowTolerance = TimeSpan.FromSeconds(5);
 
@@ -76,9 +71,7 @@ public sealed class RefreshTokenLifetimeTests(WallowApiFactory factory)
         string clientId = $"rtl-fp-{suffix}";
         const string clientSecret = "rtl-first-party-secret";
 
-        // Registered the way deployments register first-party clients: through the seed sync,
-        // whose pinned default is under test. The factory moves the global fallback to 5 days,
-        // so a 7-day window can only have come from the explicit per-client setting.
+        // Seed synchronization should select seven days instead of the five-day global fallback.
         PreRegisteredClientOptions options = new()
         {
             Clients =
@@ -143,8 +136,7 @@ public sealed class RefreshTokenLifetimeTests(WallowApiFactory factory)
         afterUpdate.Expires.Should().Be(
             original.Expires, "changing the client's lifetime must not reshape tokens already issued");
 
-        // Sliding expiration is pinned off, so the refreshed token inherits the family's
-        // original expiry instead of starting a fresh 60-second (or 3600-second) window.
+        // With sliding expiration disabled, refresh must preserve the original expiry.
         TokenOutcome refreshed = await harness.RefreshAsync(
             seed.ClientId, seed.ClientSecret, issued.RefreshToken!);
         refreshed.StatusCode.Should().Be(HttpStatusCode.OK, refreshed.Body);
@@ -184,8 +176,7 @@ public sealed class RefreshTokenLifetimeTests(WallowApiFactory factory)
         successor.StatusCode.Should().Be(HttpStatusCode.OK, successor.Body);
         successor.RefreshToken.Should().NotBeNull(successor.Body);
 
-        // The factory pins the leeway to 2 s; sleeping past it turns the replay from a
-        // tolerated retry into theft evidence.
+        // Wait beyond the two-second reuse leeway before replaying the old token.
         await Task.Delay(TimeSpan.FromSeconds(3.5));
 
         TokenOutcome replay = await harness.RefreshAsync(
@@ -201,8 +192,7 @@ public sealed class RefreshTokenLifetimeTests(WallowApiFactory factory)
     }
 
     /// <summary>
-    /// Registers an application client through the organization surface — the path whose default
-    /// and explicit lifetimes are under test — owned by someone other than the signing-in user.
+    /// Registers a client through the organization service, with an owner distinct from the test user.
     /// </summary>
     private async Task<Seed> SeedOrgClientAsync(int? refreshTokenLifetime)
     {
@@ -242,7 +232,9 @@ public sealed class RefreshTokenLifetimeTests(WallowApiFactory factory)
         return harness;
     }
 
-    /// <summary>An org-registered client is explicit-consent, so acquiring tokens walks the consent screen.</summary>
+    /// <summary>
+    /// Authorizes, grants explicit consent, and exchanges the code.
+    /// </summary>
     private static async Task<TokenOutcome> AcquireWithConsentAsync(
         AuthorizationCodeFlowHarness harness,
         Seed seed)
@@ -255,8 +247,7 @@ public sealed class RefreshTokenLifetimeTests(WallowApiFactory factory)
     }
 
     /// <summary>
-    /// The newest refresh-token row the server holds for (user, client) — the stored record is
-    /// the source of truth for expiry, since the refresh token on the wire is opaque.
+    /// Reads the newest valid refresh-token row for this user and client to inspect stored expiry.
     /// </summary>
     private async Task<StoredToken> NewestValidRefreshTokenAsync(Guid userId, string clientId)
     {

@@ -4,15 +4,13 @@ using Wallow.Shared.Kernel.Errors;
 namespace Wallow.Shared.Api.Problems;
 
 /// <summary>
-/// The controller-side entry point for an inline error: <c>this.Problem(SomeErrors.Entry)</c>.
+/// Creates controller errors with <c>this.Problem(SomeErrors.Entry)</c>.
 /// </summary>
 public static class ControllerProblemExtensions
 {
     /// <summary>
-    /// Builds a <see cref="ProblemResult"/> for a catalog entry, taking the status from the entry's
-    /// kind and the detail from <paramref name="detail"/> or the entry's default sentence.
-    /// <paramref name="retryAfter"/> becomes the <c>Retry-After</c> header for a throttled or locked
-    /// answer.
+    /// Uses the catalog entry's status and default detail unless <paramref name="detail"/> is supplied.
+    /// <paramref name="retryAfter"/> sets the <c>Retry-After</c> header.
     /// </summary>
     public static ProblemResult Problem(
         this ControllerBase controller,

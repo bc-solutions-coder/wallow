@@ -41,7 +41,7 @@ public class AspirePackageVersionTests
     {
         XElement? entry = FindPackageVersionElement(packageName);
 
-        // Skip assertion if the element itself is missing (covered by previous test)
+
         if (entry is null)
         {
             entry.Should().NotBeNull($"Cannot check version: '{packageName}' entry is missing");
@@ -74,7 +74,7 @@ public class AspirePackageVersionTests
             return;
         }
 
-        // Semver pattern: major.minor.patch with optional pre-release suffix
+        // Accept three numeric components and an optional prerelease suffix.
         Regex semverPattern = new(@"^\d+\.\d+\.\d+(-[\w.]+)?$");
         bool isSemver = semverPattern.IsMatch(version);
 

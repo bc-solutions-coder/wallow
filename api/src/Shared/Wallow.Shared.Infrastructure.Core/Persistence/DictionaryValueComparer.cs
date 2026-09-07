@@ -4,8 +4,7 @@ using Microsoft.EntityFrameworkCore.ChangeTracking;
 namespace Wallow.Shared.Infrastructure.Core.Persistence;
 
 /// <summary>
-/// ValueComparer for Dictionary&lt;string, object&gt; properties stored as JSON.
-/// Required when using value converters on collection types.
+/// Tracks JSON-converted dictionaries by serialized equality and a JSON snapshot.
 /// </summary>
 public sealed class DictionaryValueComparer : ValueComparer<Dictionary<string, object>?>
 {
@@ -38,7 +37,7 @@ public sealed class DictionaryValueComparer : ValueComparer<Dictionary<string, o
             return false;
         }
 
-        // Compare by serializing to JSON - handles nested objects correctly
+        // Compare serialized values, including nested content and serialization order.
         string leftJson = JsonSerializer.Serialize(left, _jsonOptions);
         string rightJson = JsonSerializer.Serialize(right, _jsonOptions);
         return leftJson == rightJson;
@@ -61,7 +60,6 @@ public sealed class DictionaryValueComparer : ValueComparer<Dictionary<string, o
         {
             return null;
         }
-        // Deep clone via JSON serialization
         string json = JsonSerializer.Serialize(source, _jsonOptions);
         return JsonSerializer.Deserialize<Dictionary<string, object>>(json, _jsonOptions);
     }

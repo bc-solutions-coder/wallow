@@ -8,10 +8,8 @@ using Wallow.Shared.Kernel.Identity;
 namespace Wallow.Branding.Infrastructure.Handlers;
 
 /// <summary>
-/// Branding belongs to an organization's clients, so it goes when the organization goes.
-/// Identity announces the deletion and this module drops every branding row the tenant owned,
-/// the logo objects behind them and the cached copies — Identity never reaches into Branding's
-/// persistence. Idempotent: a redelivered event finds an empty tenant and does nothing.
+/// Deletes an organization's branding rows, logos and cached copies after Identity reports deletion.
+/// A repeated delivery with no remaining rows does nothing.
 /// </summary>
 public sealed partial class OrganizationDeletedHandler(
     IClientBrandingRepository brandings,
@@ -23,9 +21,7 @@ public sealed partial class OrganizationDeletedHandler(
     {
         ArgumentNullException.ThrowIfNull(message);
 
-        // The envelope restores the PUBLISHER'S tenant — a global admin deleting across
-        // organizations publishes under their own — so the tenant whose rows die is stated
-        // explicitly.
+        // Select the deleted organization, not the publisher's ambient tenant.
         brandings.UseTenant(TenantId.Create(message.OrganizationId));
         IReadOnlyList<ClientBranding> rows = await brandings.ListAsync(ct);
 
@@ -34,10 +30,8 @@ public sealed partial class OrganizationDeletedHandler(
             return;
         }
 
-        // Rows go first: once they are committed the brandings are gone for every reader,
-        // and a storage failure after that merely orphans logo objects. The reverse order
-        // could delete a logo and then fail before the save, leaving a live row whose image
-        // is already gone.
+        // Commit row deletion before removing logos. A later storage failure may orphan
+        // objects; deleting logos first could leave live rows pointing to missing objects.
         foreach (ClientBranding branding in rows)
         {
             brandings.Remove(branding);
@@ -53,8 +47,7 @@ public sealed partial class OrganizationDeletedHandler(
             }
         }
 
-        // The anonymous read caches hits for five minutes; drop them so a sign-in screen does
-        // not keep painting a dead organization's branding.
+        // Clear cached branding after deletion.
         foreach (ClientBranding branding in rows)
         {
             brandingService.InvalidateCache(branding.ClientId);

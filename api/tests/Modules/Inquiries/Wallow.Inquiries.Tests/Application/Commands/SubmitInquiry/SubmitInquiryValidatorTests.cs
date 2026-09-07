@@ -45,7 +45,7 @@ public class SubmitInquiryValidatorTests
     [Fact]
     public void Should_Have_Error_When_Email_Exceeds_254_Characters()
     {
-        // Create a valid-format email that exceeds 254 characters
+
         string longLocal = new string('a', 246);
         string longEmail = $"{longLocal}@test.com";
         SubmitInquiryCommand command = Valid() with { Email = longEmail };

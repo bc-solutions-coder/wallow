@@ -25,7 +25,6 @@ public class SettingRepositoriesTests
         return context;
     }
 
-    // ── TenantSettingRepository ──────────────────────────────────────────
 
     [Fact]
     public async Task TenantSettingRepository_GetAsync_WhenNotExists_ReturnsNull()
@@ -132,7 +131,6 @@ public class SettingRepositoriesTests
         billingSettings[0].SettingKey.Should().Be("key1");
     }
 
-    // ── UserSettingRepository ────────────────────────────────────────────
 
     [Fact]
     public async Task UserSettingRepository_GetAsync_WhenNotExists_ReturnsNull()
@@ -244,7 +242,6 @@ public class SettingRepositoriesTests
         user1Settings[0].Value.Should().Be("dark");
     }
 
-    // ── Test support ─────────────────────────────────────────────────────
 
     private sealed class TestDbContext(DbContextOptions<TestDbContext> options)
         : TenantAwareDbContext<TestDbContext>(options)

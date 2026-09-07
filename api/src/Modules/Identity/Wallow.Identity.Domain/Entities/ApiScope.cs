@@ -5,8 +5,7 @@ using Wallow.Shared.Kernel.Domain;
 namespace Wallow.Identity.Domain.Entities;
 
 /// <summary>
-/// System-defined API scope that can be assigned to service accounts.
-/// Scopes map to permissions for OAuth2 client credentials flow.
+/// Catalog entry for an OAuth scope. Scope-to-permission mapping is defined separately.
 /// </summary>
 public sealed class ApiScope : Entity<ApiScopeId>
 {
@@ -15,9 +14,6 @@ public sealed class ApiScope : Entity<ApiScopeId>
     /// </summary>
     public string Code { get; private set; } = string.Empty;
 
-    /// <summary>
-    /// Human-readable display name (e.g., "Read Users").
-    /// </summary>
     public string DisplayName { get; private set; } = string.Empty;
 
     /// <summary>
@@ -25,19 +21,15 @@ public sealed class ApiScope : Entity<ApiScopeId>
     /// </summary>
     public string Category { get; private set; } = string.Empty;
 
-    /// <summary>
-    /// Optional description of what this scope grants access to.
-    /// </summary>
     public string? Description { get; private set; }
 
     /// <summary>
-    /// If true, this scope is included by default when creating new service accounts.
+    /// Default-selection metadata exposed by the scope catalog API.
     /// </summary>
     public bool IsDefault { get; private set; }
 
     /// <summary>
-    /// If true, only the platform's own (first-party) clients may hold this scope; a developer
-    /// application registered by an organization cannot be granted it.
+    /// Restricted to platform clients; organization client registration rejects this scope.
     /// </summary>
     public bool PlatformOnly { get; private set; }
 

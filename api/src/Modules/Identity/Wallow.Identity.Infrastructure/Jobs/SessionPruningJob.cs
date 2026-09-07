@@ -11,9 +11,7 @@ public sealed partial class SessionPruningJob(
     ILogger<SessionPruningJob> logger)
 {
     /// <summary>
-    /// Age past which an SSO-session participation row is assumed abandoned. Rows are normally
-    /// deleted at logout; this backstop only catches sessions whose identity cookie expired
-    /// without one, so it just needs to sit safely beyond the cookie's sliding lifetime.
+    /// Removes SSO participation rows older than thirty days, regardless of cookie activity.
     /// </summary>
     private static readonly TimeSpan _ssoParticipationMaxAge = TimeSpan.FromDays(30);
 

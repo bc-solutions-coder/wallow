@@ -38,8 +38,7 @@ public sealed partial class SeederWorker(
         }
         catch (Exception ex)
         {
-            // The host swallows this after logging it: RunAsync() still completes successfully and
-            // the process would exit 0. Program.cs reads this flag to exit non-zero instead.
+            // Preserve failure for the process exit code.
             outcome.MarkFailed();
             LogSeederFailed(ex);
             throw;
@@ -115,8 +114,7 @@ public sealed partial class SeederWorker(
     }
 
     /// <summary>
-    /// After the catalog, because it mirrors it: a scope seeded this run must reach the consent
-    /// screen this run, not the next one.
+    /// Syncs OpenIddict descriptions after adding catalog scopes in this run.
     /// </summary>
     private async Task SyncOpenIddictScopesAsync(IServiceProvider sp, CancellationToken ct)
     {
@@ -139,12 +137,7 @@ public sealed partial class SeederWorker(
             return;
         }
 
-        // Consulting the gate reverses Wallow-wd6n, and is only correct because bootstrap now
-        // goes through BootstrapAdminCommand: the command mints the organization and the owner
-        // membership itself, so a closed gate means a fully-provisioned administrator exists
-        // and a re-seed must not fight the setup page's outcome. Under the old user-only
-        // bootstrap, the gate closing said nothing about the seed admin, so consulting it
-        // silently suppressed the configured account.
+        // A completed setup leaves the existing administration unchanged.
         ISetupStatusChecker setupStatusChecker = sp.GetRequiredService<ISetupStatusChecker>();
         bool setupRequired = await setupStatusChecker.IsSetupRequiredAsync(ct);
         if (!setupRequired)
@@ -156,8 +149,7 @@ public sealed partial class SeederWorker(
 
         IBootstrapAdminService bootstrapAdminService = sp.GetRequiredService<IBootstrapAdminService>();
 
-        // The gate can be open while the account exists (a half-bootstrapped user with no admin
-        // membership). Creating on top of it would fail; leave it for a human to resolve.
+        // Do not create over an existing account while setup remains incomplete.
         bool userExists = await bootstrapAdminService.UserExistsAsync(admin.Email, ct);
         if (userExists)
         {
@@ -166,9 +158,7 @@ public sealed partial class SeederWorker(
             return;
         }
 
-        // The same command the setup page's POST /v1/identity/setup/admin invokes: user +
-        // organization + owner membership carrying the admin role. The seeder must not own a
-        // second, weaker definition of "bootstrap an admin".
+        // Reuse the setup bootstrap command for account, organization, and ownership creation.
         BootstrapAdminHandler bootstrapAdminHandler = sp.GetRequiredService<BootstrapAdminHandler>();
         BootstrapAdminCommand command = new(
             admin.Email,
@@ -199,9 +189,7 @@ public sealed partial class SeederWorker(
     }
 
     /// <summary>
-    /// Before the clients, because a client binds to an organization by name: the organization it
-    /// finds must already admit people on the configured terms, not on the InviteOnly default a
-    /// client-created one would carry until the next run.
+    /// Applies configured organization policies before clients resolve their organization bindings.
     /// </summary>
     private async Task SyncOrganizationsAsync(IServiceProvider sp, CancellationToken ct)
     {

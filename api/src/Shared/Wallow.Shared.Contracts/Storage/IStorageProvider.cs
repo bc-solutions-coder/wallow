@@ -11,32 +11,21 @@ public interface IStorageProvider
     /// <returns>The ETag or version identifier of the uploaded content.</returns>
     Task<string> UploadAsync(Stream content, string key, string contentType, CancellationToken ct = default);
 
-    /// <summary>
-    /// Download content from the storage backend.
-    /// </summary>
     Task<Stream> DownloadAsync(string key, CancellationToken ct = default);
 
-    /// <summary>
-    /// Delete a file from the storage backend.
-    /// </summary>
     Task DeleteAsync(string key, CancellationToken ct = default);
 
-    /// <summary>
-    /// Check if a file exists in the storage backend.
-    /// </summary>
     Task<bool> ExistsAsync(string key, CancellationToken ct = default);
 
     /// <summary>
     /// Enumerate every object whose key starts with the given prefix.
     /// </summary>
-    /// <param name="prefix">The key prefix to enumerate under.</param>
-    /// <param name="ct">Cancellation token.</param>
     IAsyncEnumerable<StorageObjectInfo> ListAsync(string prefix, CancellationToken ct = default);
 
     /// <summary>
     /// Generate a presigned URL for direct access to the file.
     /// </summary>
-    /// <param name="key">The storage key.</param>
+    /// <param name="key">Storage key.</param>
     /// <param name="expiry">How long the URL should be valid.</param>
     /// <param name="forUpload">If true, generate a URL for uploading; otherwise for downloading.</param>
     /// <param name="ct">Cancellation token.</param>

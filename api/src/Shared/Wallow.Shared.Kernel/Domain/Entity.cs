@@ -3,16 +3,12 @@ using Wallow.Shared.Kernel.Identity;
 namespace Wallow.Shared.Kernel.Domain;
 
 /// <summary>
-/// Base class for all entities. Entities have identity and are compared by ID.
-/// Uses strongly-typed IDs to prevent mixing up IDs of different entity types.
+/// Compares entities by their strongly typed ID.
 /// </summary>
 /// <typeparam name="TId">The strongly-typed ID type for this entity</typeparam>
 public abstract class Entity<TId> : IEquatable<Entity<TId>>
     where TId : struct, IStronglyTypedId<TId>
 {
-    /// <summary>
-    /// The unique identifier for this entity.
-    /// </summary>
     public TId Id { get; protected init; }
 
     /// <summary>
@@ -20,9 +16,6 @@ public abstract class Entity<TId> : IEquatable<Entity<TId>>
     /// </summary>
     protected Entity() { }
 
-    /// <summary>
-    /// Constructor for creating new entities with a specific ID.
-    /// </summary>
     protected Entity(TId id)
     {
         Id = id;

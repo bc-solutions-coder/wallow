@@ -6,16 +6,13 @@ using Wallow.Identity.Infrastructure.Persistence;
 namespace Wallow.Identity.Infrastructure.Data;
 
 /// <summary>
-/// Seeds default API scopes that can be assigned to service accounts. A scope flagged
-/// <c>platformOnly</c> is one only the platform's own clients may hold; the org-scoped client
-/// surface refuses to grant it to a developer application.
+/// Seeds the API scope catalog. Organization client registration rejects platform-only scopes.
 /// </summary>
 public sealed partial class ApiScopeSeeder(ILogger<ApiScopeSeeder> logger)
 {
 
     /// <summary>
-    /// Seeds default API scopes to the database.
-    /// Idempotent - only adds scopes that don't already exist.
+    /// Adds missing scope codes without updating existing catalog rows.
     /// </summary>
     public async Task SeedAsync(IdentityDbContext context, CancellationToken ct = default)
     {
@@ -46,7 +43,7 @@ public sealed partial class ApiScopeSeeder(ILogger<ApiScopeSeeder> logger)
 
     private static IEnumerable<ApiScope> GetDefaultScopes()
     {
-        // Identity - Users (read-only is default)
+        // Identity - Users
         yield return ApiScope.Create("users.read", "Read Users", "Identity",
             "Access to read user profiles and data", isDefault: true);
         yield return ApiScope.Create("users.write", "Manage Users", "Identity",

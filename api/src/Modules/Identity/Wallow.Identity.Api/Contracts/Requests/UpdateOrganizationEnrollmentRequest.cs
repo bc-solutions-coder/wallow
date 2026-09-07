@@ -4,9 +4,8 @@ using Wallow.Identity.Domain.Enums;
 namespace Wallow.Identity.Api.Contracts.Requests;
 
 /// <summary>
-/// Who may join an organization and on what terms. Separate from
-/// <see cref="UpdateOrganizationSettingsRequest"/> because these fields are gated on the right to
-/// manage members, not the right to edit settings.
+/// Enrollment policy, request-email address, and default role. Updating these requires
+/// member-management permission; <see cref="UpdateOrganizationSettingsRequest"/> uses settings permission.
 /// </summary>
 public record UpdateOrganizationEnrollmentRequest(
     [Required] EnrollmentPolicy EnrollmentPolicy,

@@ -196,7 +196,7 @@ public class AccountControllerAdditionalTests
     [Fact]
     public async Task ExchangeTicket_WithValidTicketAndLocalReturnUrl_RedirectsToReturnUrl()
     {
-        // Use the real EphemeralDataProtectionProvider to create a valid ticket via Login
+        // Obtain a protected ticket through the login action.
         WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         _userManager.FindByEmailAsync("test@test.com").Returns(user);
         _signInManager.CheckPasswordSignInAsync(user, "password", true)
@@ -251,7 +251,7 @@ public class AccountControllerAdditionalTests
         System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.Parse(loginJson);
         string ticket = doc.RootElement.GetProperty("signInTicket").GetString()!;
 
-        // Now user is deleted
+        // Simulate deletion between ticket issuance and exchange.
         _userManager.FindByEmailAsync("test@test.com").Returns((WallowUser?)null);
 
         IActionResult result = await _controller.ExchangeTicket(ticket, null);
@@ -504,7 +504,7 @@ public class AccountControllerAdditionalTests
     [Fact]
     public async Task CompleteExternalRegistration_WithCorruptedCookie_RedirectsToSessionExpired()
     {
-        // Set up a cookie with value that will fail decryption
+
         DefaultHttpContext httpContext = CreateHttpContextWithAuth();
         httpContext.Request.Headers.Append("Cookie", "ExternalLoginState=corrupted-value");
         _controller.ControllerContext = new ControllerContext
@@ -523,7 +523,7 @@ public class AccountControllerAdditionalTests
     [Fact]
     public async Task CompleteExternalRegistration_WithShortCookieParts_RedirectsToSessionExpired()
     {
-        // Create a valid encrypted cookie but with too few pipe-separated parts
+        // Protection succeeds, but the payload lacks required fields.
         IDataProtector protector = _dataProtectionProvider.CreateProtector("ExternalLogin");
         string shortData = protector.Protect("only|three|parts");
 

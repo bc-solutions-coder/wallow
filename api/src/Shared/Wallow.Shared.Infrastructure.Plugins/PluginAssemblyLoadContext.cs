@@ -22,7 +22,7 @@ public sealed class PluginAssemblyLoadContext : AssemblyLoadContext
             return LoadFromAssemblyPath(assemblyPath);
         }
 
-        // Fall back to Default context for shared Wallow/Microsoft assemblies
+        // Let the default context resolve assemblies absent from the plugin directory.
         return null;
     }
 }

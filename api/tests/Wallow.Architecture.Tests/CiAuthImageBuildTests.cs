@@ -1,27 +1,7 @@
 namespace Wallow.Architecture.Tests;
 
 /// <summary>
-/// Guards the wallow-auth CI image-build cutover (bead Wallow-y49v): the CI and deploy
-/// workflows must build the auth container from the pnpm/Node Dockerfile
-/// (<c>apps/wallow-auth/Dockerfile</c>), NOT by <c>dotnet publish</c> of the Blazor
-/// <c>api/src/Wallow.Auth/Wallow.Auth.csproj</c>. Once the Blazor Wallow.Auth project is
-/// deleted (Wallow-vec7.5.3, which this bead blocks) the old publish legs 404 and CI breaks.
-/// This mirrors the already-landed wallow-web image-build block that sits adjacent to each
-/// Wallow.Auth reference in both workflows. Verified by static inspection of the workflow
-/// YAML (the same source-inspection pattern as <see cref="WallowWebDeletionTests"/> and
-/// <see cref="AppHostAuthResourceTests"/>) because the real acceptance signal is a CI run.
-///
-/// The two workflows differ in the local image tag they must produce, and each test encodes
-/// the file it applies to:
-/// <list type="bullet">
-/// <item><c>ci.yml</c> must tag the auth image <c>wallow-auth-react:test</c> — the e2e job
-/// loads it into the docker-compose.test.yml stack, whose <c>wallow-auth</c> service pins
-/// <c>wallow-auth-react:test</c> (docker-compose.test.yml:176), exactly as the wallow-web
-/// sibling uses <c>wallow-web-react:test</c>.</item>
-/// <item><c>deploy.yml</c> mirrors its own wallow-web sibling, which keeps the bare
-/// <c>:test</c> local tag so the <c>APP_IMAGE_MAP</c> push loop key stays stable; the tag
-/// naming there is therefore not asserted, only the build-source cutover.</item>
-/// </list>
+/// Checks CI and deploy workflow text for Dockerfile-based auth image builds and removal of the .NET publish path.
 /// </summary>
 public class CiAuthImageBuildTests
 {
@@ -48,7 +28,7 @@ public class CiAuthImageBuildTests
     private const string BlazorAuthCssCleanup =
         "rm -f api/src/Wallow.Auth/wwwroot/css/app.css";
 
-    // ---- ci.yml -----------------------------------------------------------------------
+
 
     [Fact]
     public void CiWorkflow_ShouldNotPublish_BlazorAuthContainer()
@@ -109,7 +89,7 @@ public class CiAuthImageBuildTests
             "only applied to the Blazor publish path; with the pnpm Dockerfile build it is dead and must be removed");
     }
 
-    // ---- deploy.yml -------------------------------------------------------------------
+
 
     [Fact]
     public void DeployWorkflow_ShouldNotPublish_BlazorAuthContainer()

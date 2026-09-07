@@ -48,7 +48,7 @@ public sealed class ApiScopeSeederTests : IDisposable
         ILogger<ApiScopeSeeder> logger = Substitute.For<ILogger<ApiScopeSeeder>>();
         ApiScopeSeeder seeder = new(logger);
 
-        // Seed twice
+
         await seeder.SeedAsync(_dbContext);
         int firstCount = await _dbContext.ApiScopes.IgnoreQueryFilters().CountAsync();
 
@@ -64,10 +64,10 @@ public sealed class ApiScopeSeederTests : IDisposable
         ILogger<ApiScopeSeeder> logger = Substitute.For<ILogger<ApiScopeSeeder>>();
         ApiScopeSeeder seeder = new(logger);
 
-        // First seed
+
         await seeder.SeedAsync(_dbContext);
 
-        // Second seed should not throw and log debug
+
         Func<Task> act = () => seeder.SeedAsync(_dbContext);
 
         await act.Should().NotThrowAsync();

@@ -18,12 +18,12 @@
     <PackageReference Include="coverlet.collector" />
   </ItemGroup>
 
-  <!-- Coverage exclusions -->
+
   <PropertyGroup>
     <ExcludeFromCodeCoverage>false</ExcludeFromCodeCoverage>
   </PropertyGroup>
 
-  <!-- Coverlet settings for CLI collection -->
+  <!-- Coverlet output format -->
   <PropertyGroup>
     <CoverletOutputFormat>cobertura</CoverletOutputFormat>
   </PropertyGroup>

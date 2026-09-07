@@ -8,8 +8,7 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.Memberships;
 
 /// <summary>
-/// Role resolution is per (user, organization): a role granted by one organization confers
-/// nothing in another, and only an Active membership resolves anything at all.
+/// Checks role resolution from active membership in the requested organization.
 /// </summary>
 [Trait("Category", "Integration")]
 public class MembershipRoleResolverTests(WallowApiFactory factory) : IdentityIntegrationTestBase(factory)

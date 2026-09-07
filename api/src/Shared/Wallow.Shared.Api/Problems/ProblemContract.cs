@@ -10,10 +10,8 @@ using Wallow.Shared.Kernel.Errors;
 namespace Wallow.Shared.Api.Problems;
 
 /// <summary>
-/// The one problem+json contract every error body honours. <see cref="Customize"/> is installed as
-/// <see cref="ProblemDetailsOptions.CustomizeProblemDetails"/>, so every problem the framework
-/// writes (the problem-details service, MVC's factory, status-code pages, automatic 400s) passes
-/// through it exactly once, right before serialisation.
+/// Normalizes Problem Details through <see cref="ProblemDetailsOptions.CustomizeProblemDetails"/>.
+/// Shared by MVC and the problem-details writer; repeated customization is safe.
 /// </summary>
 /// <remarks>
 /// Members: <c>type</c> is always <c>about:blank</c>; <c>title</c> is the status reason phrase;
@@ -26,13 +24,11 @@ namespace Wallow.Shared.Api.Problems;
 /// </remarks>
 public static class ProblemContract
 {
-    /// <summary>The media type every error body is written as.</summary>
     public const string ContentType = "application/problem+json";
 
     /// <summary>The only <c>type</c> value the contract emits.</summary>
     public const string BlankType = "about:blank";
 
-    /// <summary>Extension member carrying the catalog code.</summary>
     public const string CodeMember = "code";
 
     /// <summary>Extension member carrying the W3C trace id (or the request's trace identifier).</summary>
@@ -41,7 +37,7 @@ public static class ProblemContract
     /// <summary>Development-only extension member carrying the exception text on 5xx.</summary>
     public const string ExceptionMember = "exception";
 
-    /// <summary>The non-standard status nginx popularised for a request the client abandoned.</summary>
+    /// <summary>Non-standard status for a request the client abandoned.</summary>
     public const int ClientClosedRequest = 499;
 
     /// <summary>Members every problem body carries, in the order the OpenAPI document lists them.</summary>

@@ -19,10 +19,10 @@ public sealed class UploadFileValidator : AbstractValidator<UploadFileCommand>
     // PE executables and DLLs share the MZ header
     private static readonly byte[] _mzHeader = [0x4D, 0x5A];
 
-    // Text-based dangerous signatures checked case-insensitively
+
     private static readonly string[] _blockedTextSignatures = ["<html", "<!doctype", "<svg"];
 
-    // Max bytes to read for blocked signature detection
+
     private const int BlockedSignatureMaxBytes = 16;
 
     public UploadFileValidator()
@@ -124,13 +124,13 @@ public sealed class UploadFileValidator : AbstractValidator<UploadFileCommand>
             return true;
         }
 
-        // Check for PE/DLL (MZ header)
+
         if (header.AsSpan(0, _mzHeader.Length).SequenceEqual(_mzHeader))
         {
             return false;
         }
 
-        // Check for text-based dangerous signatures (case-insensitive)
+
         string headerText = Encoding.ASCII.GetString(header, 0, bytesRead).ToLowerInvariant();
 
         string trimmedHeader = headerText.TrimStart();

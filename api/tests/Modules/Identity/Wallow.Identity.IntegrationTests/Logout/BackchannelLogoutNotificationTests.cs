@@ -8,11 +8,8 @@ using WireMock.ResponseBuilders;
 namespace Wallow.Identity.IntegrationTests.Logout;
 
 /// <summary>
-/// OIDC back-channel logout against a WireMock relying party: ending the session POSTs a signed
-/// logout token to every participating client's registered back-channel URI, the token validates
-/// against the server's own JWKS, and a failed delivery gets exactly one retry. The slow-relying-
-/// party bound lives in <see cref="BackchannelLogoutSlowRelyingPartyTests"/>, whose tight
-/// delivery budgets must not leak into these exact-count assertions.
+/// Checks back-channel delivery and JWKS validation against a WireMock relying party.
+/// Retry-count tests use wider budgets than <see cref="BackchannelLogoutSlowRelyingPartyTests"/>.
 /// </summary>
 [Collection(BackchannelLogoutTestCollection.Name)]
 [Trait("Category", "Integration")]
@@ -84,8 +81,7 @@ public sealed class BackchannelLogoutNotificationTests(BackchannelLogoutTestFact
             new Uri("/connect/logout", UriKind.Relative));
         string page = await logout.Content.ReadAsStringAsync();
 
-        // The back channel is additive: the server-side POST landed, and the browser still gets
-        // the front-channel iframe page.
+        // Back-channel delivery must coexist with the front-channel notification page.
         RpRequests(seed).Should().ContainSingle();
         page.Should().Contain("<iframe").And.Contain(frontchannelUri);
     }

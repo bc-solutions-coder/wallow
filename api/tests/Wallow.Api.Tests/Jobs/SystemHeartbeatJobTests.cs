@@ -24,6 +24,6 @@ public class SystemHeartbeatJobTests
         await _sut.ExecuteAsync();
         await _sut.ExecuteAsync();
 
-        // No exceptions thrown across multiple invocations
+
     }
 }

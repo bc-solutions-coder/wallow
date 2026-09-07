@@ -53,7 +53,7 @@ public class SessionActivityMiddlewareTests
     [Fact]
     public async Task InvokeAsync_ThrottleKeyAbsent_CallsTouchSession()
     {
-        // Redis StringSetAsync returns true when key was newly set (key didn't exist)
+        // Simulate acquiring the throttle key with SET NX.
         _redis.StringSetAsync(
                 Arg.Is<RedisKey>(k => k.ToString().StartsWith("session:touched:")),
                 Arg.Any<RedisValue>(),
@@ -79,7 +79,7 @@ public class SessionActivityMiddlewareTests
     [Fact]
     public async Task InvokeAsync_ThrottleKeyPresent_SkipsDbUpdate()
     {
-        // Redis StringSetAsync returns false when key already existed
+        // Simulate an existing throttle key rejecting SET NX.
         _redis.StringSetAsync(
                 Arg.Any<RedisKey>(),
                 Arg.Any<RedisValue>(),

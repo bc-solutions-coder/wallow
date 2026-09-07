@@ -10,9 +10,7 @@ namespace Wallow.Api.Tests.Extensions;
 
 public class AsyncApiEndpointExtensionsTests
 {
-    // The registry hands this method the enabled modules' handler assemblies instead of letting it
-    // scan the AppDomain. Notifications owns the largest handler set, so it is the one that makes
-    // the generated document non-trivial.
+    // Supply a Notifications handler assembly to exercise event discovery.
     private static readonly Assembly[] _handlerAssemblies =
     [
         typeof(UserRoleChangedNotificationHandler).Assembly,

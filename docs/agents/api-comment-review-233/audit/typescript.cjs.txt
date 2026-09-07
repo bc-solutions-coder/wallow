@@ -1,0 +1,28 @@
+const ts = require(process.argv[3]);
+const cp = require("node:child_process");
+const fs = require("node:fs");
+const root = process.argv[2];
+const base = "258f27eabbe6676598a79097ff99cae899dc0e81";
+const paths = cp
+  .execFileSync("git", ["diff", "--name-only", base, "--", "packages"], {
+    cwd: root,
+    encoding: "utf8",
+  })
+  .trim()
+  .split("\n")
+  .filter((p) => p.endsWith(".ts"));
+function tokens(s) {
+  const scanner = ts.createScanner(ts.ScriptTarget.Latest, true, ts.LanguageVariant.Standard, s);
+  const out = [];
+  for (let t = scanner.scan(); t !== ts.SyntaxKind.EndOfFileToken; t = scanner.scan())
+    out.push([t, scanner.getTokenText()]);
+  return JSON.stringify(out);
+}
+for (const p of paths) {
+  const old = cp.execFileSync("git", ["show", base + ":" + p], { cwd: root, encoding: "utf8" });
+  if (tokens(old) !== tokens(fs.readFileSync(root + "/" + p, "utf8")))
+    throw Error("TypeScript token change: " + p);
+}
+console.log(
+  "PASS: " + paths.length + " generated TypeScript files have identical non-comment tokens.",
+);

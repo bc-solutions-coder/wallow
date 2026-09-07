@@ -1,8 +1,7 @@
 namespace Wallow.Identity.Domain.Enums;
 
 /// <summary>
-/// The lifecycle of a person's relationship with one organization. Only <see cref="Active"/>
-/// resolves roles; every other status grants nothing.
+/// Membership lifecycle. The role resolver returns roles only for <see cref="Active"/> memberships.
 /// </summary>
 public enum MembershipStatus
 {

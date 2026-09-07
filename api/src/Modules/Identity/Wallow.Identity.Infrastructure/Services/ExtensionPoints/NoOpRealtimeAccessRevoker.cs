@@ -5,8 +5,7 @@ using Wallow.Shared.Contracts.Realtime;
 namespace Wallow.Identity.Infrastructure.Services.ExtensionPoints;
 
 /// <summary>
-/// The default for hosts that serve no realtime traffic — the seeder and the migration worker
-/// both build the identity module and neither owns a connection to close.
+/// Default implementation for hosts that do not own realtime connections.
 /// </summary>
 [ExcludeFromCodeCoverage]
 public sealed class NoOpRealtimeAccessRevoker : IRealtimeAccessRevoker

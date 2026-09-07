@@ -4,33 +4,26 @@ public record AuthAuditRecord
 {
     public required string EventType { get; init; }
     /// <summary>
-    /// The person the event is about, or null for the events that have no person at all —
-    /// a machine client failing to authenticate is about the client, not about anyone.
+    /// The event subject, or null for events without a person, such as client authentication failures.
     /// </summary>
     public required Guid? UserId { get; init; }
     /// <summary>
-    /// Who caused the event, when that is somebody other than the subject. Null for the events a
-    /// person triggers about themselves, which is every authentication event: nobody logs in on
-    /// somebody else's behalf. An administrative decision about a member has an actor and the
-    /// subject is not it, which is the question this column exists to answer.
+    /// The actor responsible for an administrative or membership change. May equal UserId
+    /// for self-service membership and client lifecycle events; authentication events omit it.
     /// </summary>
     public Guid? ActorId { get; init; }
     /// <summary>
-    /// The organization the event happened inside, or null when it happened outside every
-    /// organization. Authentication is something a person does, not something an organization
-    /// does: which organization they act in is settled later, by the token they are issued.
+    /// The organization context, or null for events outside an organization.
     /// </summary>
     public Guid? TenantId { get; init; }
     public string? IpAddress { get; init; }
     public string? UserAgent { get; init; }
     /// <summary>
-    /// The registered client the event is about, for the client lifecycle events an organization's
-    /// admins perform; null for everything else.
+    /// The client involved in the event, when applicable.
     /// </summary>
     public string? ClientId { get; init; }
     /// <summary>
-    /// The operator's stated reason, for the platform-suspension events that carry one; null for
-    /// everything else. Lifting an event records no reason: the placement carries it.
+    /// The operator's reason for a platform suspension; absent when lifting the suspension.
     /// </summary>
     public string? Reason { get; init; }
     public DateTimeOffset OccurredAt { get; init; }

@@ -4,10 +4,8 @@ using Wallow.Identity.Domain.Entities;
 namespace Wallow.Identity.Tests.Api.Controllers;
 
 /// <summary>
-/// The <see cref="ISessionService"/> substitute the authorization controller tests share:
-/// creating a session answers with a real <see cref="ActiveSession"/> (so the minted sid is a
-/// genuine ledger row id), and the ledger starts empty — a cookie sid counts as dead until a
-/// test arranges its row as live.
+/// Shared <see cref="ISessionService"/> stub that creates <see cref="ActiveSession"/> objects
+/// without persisting them. Active-session queries return an empty list unless a test overrides it.
 /// </summary>
 internal static class SessionServiceStub
 {

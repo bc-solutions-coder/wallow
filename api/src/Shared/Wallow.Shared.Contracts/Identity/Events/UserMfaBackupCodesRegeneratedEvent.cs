@@ -3,7 +3,6 @@ namespace Wallow.Shared.Contracts.Identity.Events;
 
 /// <summary>
 /// Published when a user regenerates their MFA backup codes.
-/// Consumers: Notifications (security alert), Audit logging
 /// </summary>
 public sealed record UserMfaBackupCodesRegeneratedEvent : IntegrationEvent
 {

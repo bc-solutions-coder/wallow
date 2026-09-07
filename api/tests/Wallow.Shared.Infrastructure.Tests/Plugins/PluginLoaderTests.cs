@@ -98,7 +98,7 @@ public class PluginLoaderTests
 
         try
         {
-            // Create a minimal valid assembly with no IWallowPlugin implementation
+
             string assemblyPath = Path.Combine(pluginDir, "NoImpl.dll");
             CreateEmptyAssembly(assemblyPath, "NoImplAssembly");
 
@@ -127,7 +127,7 @@ public class PluginLoaderTests
 
         try
         {
-            // Copy the test assembly which contains MismatchedManifestPlugin (ID: "mismatched-plugin-id")
+
             string sourceAssembly = typeof(MismatchedManifestPlugin).Assembly.Location;
             string targetAssembly = Path.Combine(pluginDir, "MismatchPlugin.dll");
             File.Copy(sourceAssembly, targetAssembly);
@@ -157,8 +157,7 @@ public class PluginLoaderTests
 
     private static void CreateAssemblyWithMultiplePluginTypes(string outputPath)
     {
-        // Build a dynamic assembly with two concrete IWallowPlugin implementations.
-        // Both are minimal stubs — PluginLoader only needs GetTypes() to find them.
+        // Discovery rejects multiple concrete implementations before invoking their lifecycle methods.
         Type pluginInterface = typeof(IWallowPlugin);
         Type manifestType = typeof(PluginManifest);
         Type pluginContextType = typeof(PluginContext);
@@ -176,17 +175,17 @@ public class PluginLoaderTests
                 typeof(object),
                 [pluginInterface]);
 
-            // Manifest property backing field
+
             FieldBuilder manifestField = tb.DefineField(
                 "_manifest", manifestType, FieldAttributes.Private | FieldAttributes.InitOnly);
 
-            // Constructor: creates PluginManifest and stores it
+
             ConstructorBuilder ctor = tb.DefineConstructor(
                 MethodAttributes.Public, CallingConventions.Standard, Type.EmptyTypes);
             ILGenerator ctorIl = ctor.GetILGenerator();
             ctorIl.Emit(OpCodes.Ldarg_0);
             ctorIl.Emit(OpCodes.Call, typeof(object).GetConstructor(Type.EmptyTypes)!);
-            // Create PluginManifest: new PluginManifest(id, name, version, desc, author, minVer, entry, deps, perms, svcs)
+
             ctorIl.Emit(OpCodes.Ldarg_0);
             ctorIl.Emit(OpCodes.Ldstr, $"plugin-{i}");           // Id
             ctorIl.Emit(OpCodes.Ldstr, $"Plugin {i}");           // Name
@@ -203,7 +202,7 @@ public class PluginLoaderTests
             ctorIl.Emit(OpCodes.Stfld, manifestField);
             ctorIl.Emit(OpCodes.Ret);
 
-            // Manifest property getter
+
             PropertyBuilder manifestProp = tb.DefineProperty(
                 "Manifest", PropertyAttributes.None, manifestType, null);
             MethodBuilder getManifest = tb.DefineMethod(
@@ -454,7 +453,7 @@ public class PluginLoaderTests
             string targetPath = Path.Combine(pluginDir, "ValidPlugin.dll");
             File.Copy(sourceAssembly, targetPath);
 
-            // Compute the real hash of the assembly
+
             byte[] fileBytes = File.ReadAllBytes(targetPath);
             string actualHash = Convert.ToHexStringLower(SHA256.HashData(fileBytes));
 
@@ -487,7 +486,7 @@ public class PluginLoaderTests
     [Fact]
     public void LoadPlugin_EmptyAllowedHashes_SkipsVerification()
     {
-        // Default PluginOptions has empty AllowedPluginHashes — verification is skipped
+        // The default options leave the hash allowlist empty.
         string tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         string pluginDir = Path.Combine(tempDir, MismatchedManifestPlugin.PluginId);
         Directory.CreateDirectory(pluginDir);

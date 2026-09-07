@@ -7,15 +7,8 @@ using Wallow.Shared.Kernel.Identity.Authorization;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// Which tenant a permission expands in. Roles, user scopes and service-account scopes are each
-/// granted by one organization, so a request resolved onto a different one — or a principal that
-/// names no organization at all — expands nothing. The non-assignable global-admin claim is the
-/// single cross-tenant escape hatch and grants AdminAccess and SystemSettings on its own, in
-/// every tenant, without any role.
-///
-/// TenantResolutionMiddleware runs before this middleware (Wallow.Api/Program.cs) and stamps
-/// the resolved tenant onto HttpContext.Items["TenantId"]; the caller's own tenant is the
-/// org_id claim.
+/// Checks tenant-scoped permission expansion and the independent global-admin permissions.
+/// The resolved tenant comes from HttpContext.Items; the principal tenant comes from org_id.
 /// </summary>
 public sealed class PermissionExpansionMiddlewareGlobalAdminTests
 {

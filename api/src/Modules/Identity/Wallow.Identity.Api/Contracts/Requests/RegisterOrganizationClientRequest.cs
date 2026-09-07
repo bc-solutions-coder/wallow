@@ -1,13 +1,10 @@
 namespace Wallow.Identity.Api.Contracts.Requests;
 
 /// <summary>
-/// Registers a client on behalf of an organization. <c>Kind</c> is <c>application</c> for a
-/// developer application a person signs in to or <c>service-account</c> for a client-credentials
-/// client. Name and the derived client id are immutable once registered. An application needs at
-/// least one redirect URI, absolute, fragment-free, and https or http://localhost; a service
-/// account ignores every URI field. Both need at least one scope.
-/// <c>RefreshTokenLifetime</c> is seconds; unset, an application gets the third-party default of
-/// one day. It bounds new refresh tokens only — tokens already issued keep their expiry.
+/// Organization client registration: application or service-account. Both require scopes.
+/// Applications require an absolute, fragment-free HTTPS or loopback HTTP redirect;
+/// service accounts ignore URI fields. Name and client id cannot be changed here after registration.
+/// RefreshTokenLifetime is seconds for future application refresh tokens, defaulting to one day.
 /// </summary>
 public record RegisterOrganizationClientRequest(
     string Kind,
@@ -21,18 +18,16 @@ public record RegisterOrganizationClientRequest(
     int? RefreshTokenLifetime = null);
 
 /// <summary>
-/// Optional initial branding for an application: the end-user-facing display name (defaults to
-/// the client's name) and a tagline. Ignored for service accounts, which face no end user.
+/// Initial application display name and tagline. Omitted display name uses the client name;
+/// service accounts ignore branding.
 /// </summary>
 public record RegisterOrganizationClientBranding(
     string? DisplayName = null,
     string? Tagline = null);
 
 /// <summary>
-/// Everything about a client its organization may change after registration. Name and client id
-/// are immutable and deliberately absent. A <see langword="null"/> <c>RefreshTokenLifetime</c>
-/// keeps the client's current lifetime; a value (seconds) applies to newly issued refresh tokens
-/// only.
+/// Replaces application URIs, back-channel settings, and scopes. Null RefreshTokenLifetime
+/// preserves the current lifetime; a value in seconds applies to future tokens.
 /// </summary>
 public record UpdateOrganizationClientRequest(
     IReadOnlyList<string> RedirectUris,
@@ -43,7 +38,6 @@ public record UpdateOrganizationClientRequest(
     int? RefreshTokenLifetime = null);
 
 /// <summary>
-/// Rotates a client's secret. <c>RevokeActiveTokens</c> additionally ends every token the client
-/// was already issued, so a compromise response cuts every live session in the same step.
+/// Rotates the secret. RevokeActiveTokens also requests revocation of issued client tokens.
 /// </summary>
 public record RotateOrganizationClientSecretRequest(bool RevokeActiveTokens = false);

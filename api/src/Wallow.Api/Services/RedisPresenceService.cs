@@ -22,15 +22,15 @@ internal sealed partial class RedisPresenceService(
         IDatabase db = Db;
         IBatch batch = db.CreateBatch();
 
-        // Map connectionId -> userId (tenant-scoped)
+
         _ = batch.HashSetAsync(ConnectionToUserKey(tenantId), connectionId, userId);
 
-        // Add connectionId to user's connection set (tenant-scoped)
+
         string userKey = UserConnectionsKey(tenantId, userId);
         _ = batch.SetAddAsync(userKey, connectionId);
         _ = batch.KeyExpireAsync(userKey, _connectionTtl);
 
-        // Track which tenant this connection belongs to (global, for cleanup)
+
         _ = batch.StringSetAsync(ConnectionTenantPrefix + connectionId, tenantId.ToString(), _connectionTtl);
 
         batch.Execute();
@@ -44,7 +44,7 @@ internal sealed partial class RedisPresenceService(
     {
         IDatabase db = Db;
 
-        // Look up which tenant this connection belongs to
+
         RedisValue tenantValue = await db.StringGetAsync(ConnectionTenantPrefix + connectionId);
         if (tenantValue.IsNullOrEmpty)
         {
@@ -53,7 +53,7 @@ internal sealed partial class RedisPresenceService(
 
         Guid tenantId = Guid.Parse((string)tenantValue!);
 
-        // Look up the userId for this connection
+
         RedisValue userId = await db.HashGetAsync(ConnectionToUserKey(tenantId), connectionId);
         if (userId.IsNullOrEmpty)
         {
@@ -63,13 +63,13 @@ internal sealed partial class RedisPresenceService(
         string userIdStr = userId!;
         IBatch batch = db.CreateBatch();
 
-        // Remove from tenant-scoped conn2user
+
         _ = batch.HashDeleteAsync(ConnectionToUserKey(tenantId), connectionId);
 
-        // Remove from tenant-scoped user connection set
+
         _ = batch.SetRemoveAsync(UserConnectionsKey(tenantId, userIdStr), connectionId);
 
-        // Remove page context (global key)
+
         RedisValue pageContext = await db.StringGetAsync(ConnectionPagePrefix + connectionId);
         _ = batch.KeyDeleteAsync(ConnectionPagePrefix + connectionId);
 
@@ -78,7 +78,7 @@ internal sealed partial class RedisPresenceService(
             _ = batch.SetRemoveAsync(PageViewersKey(tenantId, pageContext!), connectionId);
         }
 
-        // Remove tenant tracking key
+
         _ = batch.KeyDeleteAsync(ConnectionTenantPrefix + connectionId);
 
         batch.Execute();
@@ -90,7 +90,7 @@ internal sealed partial class RedisPresenceService(
     {
         IDatabase db = Db;
 
-        // Remove from old page if any
+
         RedisValue oldPage = await db.StringGetAsync(ConnectionPagePrefix + connectionId);
         if (!oldPage.IsNullOrEmpty)
         {
@@ -99,10 +99,10 @@ internal sealed partial class RedisPresenceService(
 
         IBatch batch = db.CreateBatch();
 
-        // Set new page context (global key — connection IDs are unique)
+
         _ = batch.StringSetAsync(ConnectionPagePrefix + connectionId, pageContext, _connectionTtl);
 
-        // Add to tenant-scoped page viewers set
+
         string pageKey = PageViewersKey(tenantId, pageContext);
         _ = batch.SetAddAsync(pageKey, connectionId);
         _ = batch.KeyExpireAsync(pageKey, _connectionTtl);
@@ -115,7 +115,7 @@ internal sealed partial class RedisPresenceService(
         IDatabase db = Db;
         HashEntry[] allEntries = await db.HashGetAllAsync(ConnectionToUserKey(tenantId));
 
-        // Group connections by userId
+
         Dictionary<string, List<string>> userConnections = [];
         foreach (HashEntry entry in allEntries)
         {
@@ -187,7 +187,7 @@ internal sealed partial class RedisPresenceService(
     {
         IDatabase db = Db;
 
-        // Look up tenant first, then get userId from tenant-scoped key
+
         RedisValue tenantValue = await db.StringGetAsync(ConnectionTenantPrefix + connectionId);
         if (tenantValue.IsNullOrEmpty)
         {

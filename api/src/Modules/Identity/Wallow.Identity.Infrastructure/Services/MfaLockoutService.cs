@@ -19,7 +19,7 @@ public sealed partial class MfaLockoutService(
 
     public async Task<MfaLockoutResult> RecordFailureAsync(Guid userId, int maxAttempts, CancellationToken ct)
     {
-        // Check Redis cache first for an active lockout
+
         try
         {
             RedisValue cached = await _redis.StringGetAsync($"{KeyPrefix}{userId}");
@@ -44,7 +44,7 @@ public sealed partial class MfaLockoutService(
         if (user is null)
         {
             user = WallowUser.Create("MFA", "User", $"{userId}@mfa.internal", timeProvider);
-            // Override the auto-generated Id with the requested userId
+
             dbContext.Entry(user).Property(u => u.Id).CurrentValue = userId;
             dbContext.Users.Add(user);
             await dbContext.SaveChangesAsync(ct);
@@ -93,7 +93,7 @@ public sealed partial class MfaLockoutService(
         if (user is not null)
         {
             user.ResetMfaAttempts();
-            // Full service-level reset also clears escalation counter
+            // ResetMfaAttempts leaves escalation intact; this full reset also clears it.
             dbContext.Entry(user).Property(u => u.MfaLockoutCount).CurrentValue = 0;
             await dbContext.SaveChangesAsync(ct);
         }

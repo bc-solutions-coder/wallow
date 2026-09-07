@@ -9,25 +9,21 @@ namespace Wallow.Identity.Infrastructure.Services;
 public sealed class OrganizationAdminEmailResolver(IdentityDbContext dbContext) : IOrganizationAdminEmailResolver
 {
     /// <summary>
-    /// The organization's active owners together with every active member holding the admin
-    /// role — the people who administer the organization. The platform's suspension is exactly
-    /// the kind of event they answer for, so no nominated address stands in for them here,
-    /// unlike access requests.
+    /// Resolves active owners and active members with the admin role.
+    /// Uses member addresses rather than the nominated access-request address.
     /// </summary>
     public async Task<IReadOnlyList<string>> ResolveAsync(Guid organizationId, CancellationToken ct = default)
     {
         OrganizationId orgId = OrganizationId.Create(organizationId);
 
-        // Identity's default normalizer upper-cases invariantly, so this matches what
-        // RoleManager wrote without paying for a case-insensitive collation scan.
+        // Match the stored normalized role name directly.
         List<Guid> adminRoleIds = await dbContext.Roles
             .IgnoreQueryFilters()
             .Where(r => r.NormalizedName == "ADMIN")
             .Select(r => r.Id)
             .ToListAsync(ct);
 
-        // A global admin acts from outside the organization, so the tenant filter would hide
-        // the only rows that matter.
+        // Resolve recipients in the addressed organization, independently of the caller's tenant.
         List<Guid> recipientUserIds = await dbContext.Memberships
             .IgnoreQueryFilters()
             .Where(m => m.OrganizationId == orgId && m.Status == MembershipStatus.Active)

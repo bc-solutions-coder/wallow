@@ -7,9 +7,7 @@ using Wallow.Identity.Infrastructure.Services;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// What the auth cookie is allowed to carry: a person, and nothing organization-scoped. The cookie
-/// feeds the exchange-ticket flow, so a role claim or an org_id on it becomes authority in an
-/// organization nobody chose. Both are resolved per organization when a token is issued.
+/// Checks that the auth-cookie principal has no organization ID or organization roles.
 /// </summary>
 public sealed class WallowUserClaimsPrincipalFactoryTests
 {
@@ -45,8 +43,7 @@ public sealed class WallowUserClaimsPrincipalFactoryTests
 
         await _sut.CreateAsync(user);
 
-        // There is no global role directory to ask. Asking would throw once the ASP.NET Identity
-        // user-role join left the model, which is why the factory is the user-only one.
+        // Organization roles live on memberships, not the ASP.NET Identity user-role join.
         await _userManager.DidNotReceive().GetRolesAsync(Arg.Any<WallowUser>());
     }
 

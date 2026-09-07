@@ -9,11 +9,8 @@ using Wallow.Shared.Kernel.Extensions;
 namespace Wallow.Identity.Api.Authorization;
 
 /// <summary>
-/// While a platform suspension stands on an organization, every change to it is refused. Reads
-/// stay open, because the organization's admins are meant to see the reason; global admins pass,
-/// because the operator who placed the freeze is the one who lifts it. Applied to the org-scoped
-/// controllers via <c>TypeFilter</c>, it finds the organization in the route and answers with the
-/// same business-rule refusal the domain gives, so callers see one shape of "suspended".
+/// Rejects mutations to a platform-suspended organization on decorated controllers.
+/// GET, HEAD, OPTIONS, global administrators, and routes without an organization id pass through.
 /// </summary>
 public sealed class RefusePlatformSuspendedOrganizationFilter(IOrganizationService organizations) : IAsyncActionFilter
 {

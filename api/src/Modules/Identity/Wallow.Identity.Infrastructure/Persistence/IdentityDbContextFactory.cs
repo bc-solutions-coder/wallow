@@ -6,8 +6,7 @@ using Wallow.Identity.Infrastructure.Modules;
 namespace Wallow.Identity.Infrastructure.Persistence;
 
 /// <summary>
-/// Design-time factory for IdentityDbContext to enable EF Core migrations.
-/// Only used at design-time by dotnet ef commands.
+/// Creates the context for EF Core migration tooling.
 /// </summary>
 public class IdentityDbContextFactory : IDesignTimeDbContextFactory<IdentityDbContext>
 {

@@ -36,8 +36,7 @@ public class AdminBootstrapOptionsTests
     [Fact]
     public void IsConfigured_OrganizationNameEmpty_ReturnsFalse()
     {
-        // Without an organization the bootstrapped user holds no role anywhere and the setup
-        // gate never closes, so an admin block missing it is not configured.
+        // Bootstrap requires an organization for the initial owner membership.
         AdminBootstrapOptions options = new() { Email = "admin@test.com", Password = "P@ssw0rd", OrganizationName = "" };
 
         options.IsConfigured.Should().BeFalse();

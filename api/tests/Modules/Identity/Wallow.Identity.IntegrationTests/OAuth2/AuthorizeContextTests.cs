@@ -8,11 +8,8 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.OAuth2;
 
 /// <summary>
-/// The authorize-context read behind the auth host's branded transaction screens. The returnUrl
-/// is the credential: a caller presenting the pending authorize request — whose redirect_uri
-/// exactly matches one the client registered — gets the client described; everything else is the
-/// same shapeless 404, so the endpoint cannot be used to enumerate clients or read branding by
-/// client id the way the removed anonymous endpoints could.
+/// Checks authorize-context responses for registered redirect URIs and invalid requests.
+/// The endpoint requires matching request parameters; these tests do not establish caller identity.
 /// </summary>
 public sealed class AuthorizeContextTests(WallowApiFactory factory) : IdentityIntegrationTestBase(factory)
 {
@@ -101,9 +98,7 @@ public sealed class AuthorizeContextTests(WallowApiFactory factory) : IdentityIn
     [Fact]
     public async Task RemovedAnonymousReadsByClientId_AnswerNotFound()
     {
-        // The routes this endpoint replaced must stay gone: a resolvable client
-        // whose context read succeeds is what makes the two refusals meaningful
-        // rather than a typo'd URL 404ing on its own.
+        // Confirm the client is resolvable before checking that the old anonymous routes return 404.
         string clientId = "ctx-legacy-read-client";
         await AuthorizationCodeFlowHarness.RegisterClientAsync(
             ScopedServices, clientId, ClientSecret, null, _clientScopes, firstParty: true);

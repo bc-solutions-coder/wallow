@@ -28,8 +28,7 @@ using Wolverine;
 namespace Wallow.Identity.Api.Controllers;
 
 /// <summary>
-/// Cookie-based authentication endpoints for the apps/wallow-auth frontend (browser-based auth flows).
-/// Handles cookie-based browser authentication flows.
+/// Browser sign-in, registration, password recovery, and account-verification endpoints.
 /// </summary>
 [ApiController]
 [ApiVersion(1)]
@@ -57,11 +56,7 @@ public sealed partial class AccountController(
     private const string TicketPurpose = "SignInTicket";
 
     /// <summary>
-    /// Key the external-login challenge stashes the requesting client id under, and the spelling the
-    /// auth app's screens receive it back as. It rides the challenge's authentication properties —
-    /// which round-trip through the provider in the OAuth state — rather than the callback URL,
-    /// because that URL is the redirect_uri presented to the third-party IdP and providers such as
-    /// Google match it exactly against the registered value.
+    /// Authentication-properties key carrying the requesting client through external sign-in.
     /// </summary>
     private const string ExternalLoginClientIdKey = "client_id";
 
@@ -73,10 +68,7 @@ public sealed partial class AccountController(
     public async Task<IActionResult> GetExternalProviders()
     {
         IEnumerable<AuthenticationScheme> schemes = await signInManager.GetExternalAuthenticationSchemesAsync();
-        // Return the scheme NAME, not the display name: ExternalLogin resolves the
-        // provider via IAuthenticationSchemeProvider.GetSchemeAsync, which matches on
-        // Name. Returning DisplayName yields links the API rejects as
-        // 'unsupported_provider' whenever a scheme's DisplayName differs from its Name.
+        // ExternalLogin looks up providers by scheme name.
         List<string> providers = schemes
             .Select(s => s.Name)
             .ToList();
@@ -96,9 +88,7 @@ public sealed partial class AccountController(
         {
             LogLoginUserNotFound(request.Email);
 
-            // Every auth audit event this controller publishes leaves TenantId unset. Signing in is
-            // something a person does, not something they do inside an organization: which one they
-            // act in is settled later, by the membership the token is issued against.
+            // Authentication audit events have no organization until token issuance selects one.
             await messageBus.PublishAsync(new UserLoginFailedEvent
             {
                 UserId = Guid.Empty,
@@ -115,7 +105,7 @@ public sealed partial class AccountController(
         {
             LogLoginPasswordValid(user.Email!);
 
-            // User has MFA enabled and is not exempt — issue partial cookie, require MFA verification
+
             if (user.MfaEnabled && !await mfaExemptionChecker.IsExemptAsync(user, ct))
             {
                 LogLoginMfaRequired(user.Email!);
@@ -125,14 +115,14 @@ public sealed partial class AccountController(
                 return Ok(new { succeeded = false, mfaRequired = true });
             }
 
-            // Check org-level MFA policy for users who haven't enrolled yet
+
             OrgMfaPolicyResult? orgPolicy = await orgMfaPolicyService.CheckAsync(user.Id, ct);
             if (orgPolicy is { RequiresMfa: true })
             {
                 if (orgPolicy.IsInGracePeriod)
                 {
                     LogLoginMfaGracePeriod(user.Email!);
-                    // Grace period active — issue ticket so browser can exchange it for a cookie, but flag enrollment needed
+                    // Grace permits full sign-in while enrollment remains required.
                     await messageBus.PublishAsync(new UserLoginSucceededEvent
                     {
                         UserId = user.Id,
@@ -143,14 +133,14 @@ public sealed partial class AccountController(
                 }
 
                 LogLoginMfaEnrollmentRequired(user.Email!);
-                // Grace expired — block full sign-in, issue partial cookie
+
                 await mfaPartialAuthService.IssuePartialCookieAsync(
                     new MfaPartialAuthPayload(user.Id.ToString(), user.Email!, "password", request.RememberMe, timeProvider.GetUtcNow()),
                     ct);
                 return Ok(new { succeeded = false, mfaEnrollmentRequired = true });
             }
 
-            // No MFA needed — sign in normally
+
             await messageBus.PublishAsync(new UserLoginSucceededEvent
             {
                 UserId = user.Id,
@@ -204,7 +194,7 @@ public sealed partial class AccountController(
             return this.Problem(IdentityErrors.MfaCodeInvalid);
         }
 
-        // Check if user is already locked out from MFA attempts
+
         if (user.IsMfaLockedOut(timeProvider))
         {
             await messageBus.PublishAsync(new UserMfaLockedOutEvent
@@ -215,7 +205,7 @@ public sealed partial class AccountController(
             return this.Problem(IdentityErrors.MfaLockedOut);
         }
 
-        // Try TOTP first, then fall back to backup code
+
         bool isValid = await mfaService.ValidateTotpAsync(user.TotpSecretEncrypted, request.Code, ct)
                        || await mfaService.ValidateBackupCodeAsync(payload.UserId, request.Code, ct);
 
@@ -282,15 +272,12 @@ public sealed partial class AccountController(
         }
 
         string callbackUrl = Url.Action(nameof(ExternalLoginCallback), new { returnUrl })!;
-        // ConfigureExternalAuthenticationProperties is virtual, so a fork's override may hand back
-        // nothing; challenge with a bag of our own rather than one there is nowhere to stash into.
+        // Allow a custom SignInManager to return no authentication properties.
         AuthenticationProperties properties =
             signInManager.ConfigureExternalAuthenticationProperties(provider, callbackUrl)
             ?? new AuthenticationProperties { RedirectUri = callbackUrl };
 
-        // Stash the client id here rather than on the callback URL: the callback URL is the
-        // redirect_uri sent to the provider and must stay byte-identical to the registered value,
-        // while these items round-trip through the provider in the OAuth state.
+        // Carry client context in authentication properties across the external challenge.
         if (!string.IsNullOrEmpty(clientId))
         {
             properties.Items[ExternalLoginClientIdKey] = clientId;
@@ -308,8 +295,7 @@ public sealed partial class AccountController(
     {
         string authUrl = GetRequiredAuthUrl();
 
-        // Fetch the external login info before validating returnUrl: the client id that scopes the
-        // validation was stashed on the challenge and comes back on this info's properties.
+        // Read the stashed client id before applying its redirect-origin allow-list.
         ExternalLoginInfo? info = await signInManager.GetExternalLoginInfoAsync();
         if (info is null)
         {
@@ -317,19 +303,19 @@ public sealed partial class AccountController(
             return Redirect($"{authUrl}/login?error=external_login_failed");
         }
 
-        // An explicit query parameter still wins, so the auth app's own hand-offs keep working.
+
         string? flowClientId = !string.IsNullOrEmpty(clientId)
             ? clientId
             : GetStashedClientId(info.AuthenticationProperties);
         string clientIdQuery = BuildClientIdQuery(flowClientId);
 
-        // Validate returnUrl to prevent open redirect attacks
+
         if (string.IsNullOrEmpty(returnUrl) || !await redirectUriValidator.IsAllowedAsync(returnUrl, flowClientId))
         {
             returnUrl = authUrl;
         }
 
-        // Path A: Existing linked account — sign in directly
+        // Attempt sign-in through an existing provider link.
         Microsoft.AspNetCore.Identity.SignInResult signInResult = await signInManager.ExternalLoginSignInAsync(
             info.LoginProvider, info.ProviderKey, isPersistent: false, bypassTwoFactor: true);
 
@@ -359,7 +345,7 @@ public sealed partial class AccountController(
                 return Redirect($"{authUrl}/mfa/challenge?returnUrl={encodedReturn}{clientIdQuery}");
             }
 
-            // Check org-level MFA policy for users who haven't enrolled yet
+
             if (signedInUser is not null && !signedInUser.MfaEnabled)
             {
                 OrgMfaPolicyResult? orgPolicy = await orgMfaPolicyService.CheckAsync(signedInUser.Id, HttpContext.RequestAborted);
@@ -396,7 +382,7 @@ public sealed partial class AccountController(
 
         bool emailVerified = ExternalLoginClaimsHelper.IsEmailVerified(info.Principal.Claims);
 
-        // Path B: Existing account with matching verified email — auto-link
+        // Link an existing account only when the provider reports a verified email.
         WallowUser? existingUser = await signInManager.UserManager.FindByEmailAsync(email);
         if (existingUser is not null && emailVerified)
         {
@@ -413,7 +399,7 @@ public sealed partial class AccountController(
             return Redirect($"{authUrl}/login?error=external_login_failed");
         }
 
-        // Path C: New user — store info in temp cookie, redirect to accept-terms
+        // Defer account creation until terms are accepted.
         (string firstName, string lastName) = ExternalLoginClaimsHelper.ExtractName(info.Principal.Claims, email);
 
         IDataProtector protector = dataProtectionProvider.CreateProtector("ExternalLogin");
@@ -448,7 +434,7 @@ public sealed partial class AccountController(
     {
         string authUrl = GetRequiredAuthUrl();
 
-        // Validate returnUrl early, before any user creation
+
         string validatedReturnUrl = authUrl;
         if (!string.IsNullOrEmpty(returnUrl) && await redirectUriValidator.IsAllowedAsync(returnUrl, clientId))
         {
@@ -471,7 +457,7 @@ public sealed partial class AccountController(
         try
         {
             IDataProtector protector = dataProtectionProvider.CreateProtector("ExternalLogin");
-            // Try raw byte decryption first, then fall back to base64url string decryption
+            // Accept both byte-protected and string-protected cookie formats.
             try
             {
                 byte[] decryptedBytes = protector.Unprotect(
@@ -503,7 +489,7 @@ public sealed partial class AccountController(
         string lastName = parts[4];
         bool emailVerified = bool.TryParse(parts[5], out bool ev) && ev;
 
-        // Check if account was created between callback and ToS acceptance
+        // The account may have been created while the terms page was open.
         WallowUser? existingUser = await signInManager.UserManager.FindByEmailAsync(email);
         if (existingUser is not null)
         {
@@ -584,7 +570,7 @@ public sealed partial class AccountController(
             });
         }
 
-        // Check org-level MFA policy for new user — set grace deadline if MFA required
+
         OrgMfaPolicyResult? newUserOrgPolicy = await orgMfaPolicyService.CheckAsync(user.Id, HttpContext.RequestAborted);
         if (newUserOrgPolicy is { RequiresMfa: true })
         {
@@ -617,7 +603,7 @@ public sealed partial class AccountController(
 
         LogExchangeTicketValidated(payload.Email, payload.Jti);
 
-        // Replay prevention: each ticket can only be exchanged once
+        // Atomically reserve the ticket id in Redis for longer than the ticket lifetime.
         IDatabase redisDb = redis.GetDatabase();
         bool wasSet = await redisDb.StringSetAsync($"ticket:used:{payload.Jti}", "1", TimeSpan.FromSeconds(90), false, When.NotExists);
         if (!wasSet)
@@ -636,10 +622,7 @@ public sealed partial class AccountController(
         await signInManager.SignInAsync(user, isPersistent: payload.RememberMe);
         LogExchangeTicketSignedIn(payload.Email, user.Id);
 
-        // The external-login flow hands /mfa/challenge an ABSOLUTE returnUrl (admitted by
-        // IRedirectUriValidator), and the MFA screen threads it straight back here. Accept a
-        // local URL, or an absolute one the same allow-list already approved. Anything else
-        // falls through to the auth root, so this stays fail-closed against open redirects.
+        // Permit local routes and allowed absolute origins; otherwise return to AuthUrl.
         if (!string.IsNullOrEmpty(returnUrl)
             && (Url.IsLocalUrl(returnUrl) || await redirectUriValidator.IsAllowedAsync(returnUrl, clientId)))
         {
@@ -710,15 +693,14 @@ public sealed partial class AccountController(
             return this.Problem(IdentityErrors.AuthPasswordsDoNotMatch);
         }
 
-        // A client id that names no organization is a broken sign-up link, and saying so beats
-        // creating an identity that belongs nowhere.
+        // Supplied client ids must resolve to an organization.
         if (!string.IsNullOrEmpty(request.ClientId)
             && await clientTenantResolver.ResolveAsync(request.ClientId) is null)
         {
             return this.Problem(IdentityErrors.AuthClientIdInvalid);
         }
 
-        // Self-registration uses placeholder names; users update their profile after onboarding
+        // Names are placeholders until the user edits their profile.
         WallowUser user = WallowUser.Create(
             firstName: "New",
             lastName: "User",
@@ -746,22 +728,13 @@ public sealed partial class AccountController(
             };
         }
 
-        // Neither a role nor a membership is granted here. This endpoint is anonymous, so a
-        // membership written from it would bypass the organization's enrollment policy outright
-        // and InviteOnly would mean nothing. The membership is minted when the person proves the
-        // address is theirs and signs in, by the enrollment service the authorize endpoint runs.
+        // Enrollment during authorization decides membership; anonymous registration grants none.
 
         string token = await signInManager.UserManager.GenerateEmailConfirmationTokenAsync(user);
         string authUrl = GetRequiredAuthUrl();
         string verifyUrl = $"{authUrl}/verify-email/confirm?token={Uri.EscapeDataString(token)}&email={Uri.EscapeDataString(user.Email!)}";
 
-        // A local returnUrl is admitted alongside an allow-listed absolute one, and that is what
-        // carries an invitation through registration: the invitation screen sends someone to
-        // /register with returnUrl=/invitation?token=…, and IRedirectUriValidator refuses any
-        // relative path outright, so validating on it alone silently dropped the token here and
-        // the verified user landed on the auth root with no invitation left to accept. The
-        // returnUrl is only ever cargo on the verification link — the browser resolves it against
-        // the auth app, and this endpoint redirects nowhere — so "local" is the whole test.
+        // Preserve local invitation routes as well as allowed absolute return URLs.
         if (!string.IsNullOrEmpty(request.ReturnUrl)
             && (Url.IsLocalUrl(request.ReturnUrl)
                 || await redirectUriValidator.IsAllowedAsync(request.ReturnUrl, request.ClientId)))
@@ -801,7 +774,7 @@ public sealed partial class AccountController(
     [ProducesResponseType(typeof(AccountOperationResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> ForgotPassword([FromBody] AccountForgotPasswordRequest request)
     {
-        // Always return success to prevent email enumeration
+        // Unknown and unconfirmed emails receive the same success response.
         WallowUser? user = await signInManager.UserManager.FindByEmailAsync(request.Email);
         if (user is not null && await signInManager.UserManager.IsEmailConfirmedAsync(user))
         {
@@ -834,10 +807,7 @@ public sealed partial class AccountController(
             return this.Problem(IdentityErrors.AuthTokenInvalid);
         }
 
-        // Identity verifies the token before it runs the password validator, so a failure here
-        // is either a link that cannot be redeemed or a new password the policy refuses. Only the
-        // former collapses into the token problem: answering a weak password with "this link has
-        // expired" sends the user off to request a link they do not need.
+        // Keep password-policy failures distinct from invalid reset links.
         IdentityResult result = await signInManager.UserManager.ResetPasswordAsync(user, request.Token, request.NewPassword);
         if (!result.Succeeded)
         {
@@ -896,7 +866,7 @@ public sealed partial class AccountController(
             return result.ToActionResult();
         }
 
-        // Always return success to prevent email enumeration
+        // A successful dispatch result does not disclose whether the email exists.
         return Ok(new { succeeded = true });
     }
 
@@ -927,7 +897,7 @@ public sealed partial class AccountController(
             return result.ToActionResult();
         }
 
-        // Always return success to prevent email enumeration
+        // A successful dispatch result does not disclose whether the email exists.
         return Ok(new { succeeded = true });
     }
 
@@ -1038,8 +1008,7 @@ public sealed partial class AccountController(
     }
 
     /// <summary>
-    /// Recovers the client id the external-login challenge stashed, which the provider returns in the
-    /// OAuth state.
+    /// Reads the requesting client from external authentication properties.
     /// </summary>
     private static string? GetStashedClientId(AuthenticationProperties? properties) =>
         properties is not null && properties.Items.TryGetValue(ExternalLoginClientIdKey, out string? stashed)
@@ -1047,10 +1016,7 @@ public sealed partial class AccountController(
             : null;
 
     /// <summary>
-    /// Builds the trailing <c>client_id</c> fragment for a hand-off back to the auth app, or an empty
-    /// string when the flow carries no client id. An empty parameter would be echoed back and treated
-    /// as an unknown client, which fails closed to the AuthUrl-only origin set and would refuse the
-    /// returnUrl the user is mid-journey to; sending nothing falls back cleanly instead.
+    /// Appends an escaped client_id query parameter, or nothing when the client id is empty.
     /// </summary>
     private static string BuildClientIdQuery(string? clientId) =>
         string.IsNullOrEmpty(clientId)
@@ -1058,11 +1024,7 @@ public sealed partial class AccountController(
             : $"&{ExternalLoginClientIdKey}={Uri.EscapeDataString(clientId)}";
 
     /// <summary>
-    /// Words an <see cref="IdentityResult"/> refusal as <c>Validation.Failed</c>. Only the password
-    /// validator's descriptions ride along as <c>detail</c>: they are the policy's own sentences and
-    /// the user has to read them to fix the password. Every other Identity description echoes the
-    /// input back under Identity's own nouns ("Username 'x' is invalid"), so it stays off the wire
-    /// and the catalog's default sentence answers instead.
+    /// Returns Validation.Failed, exposing Identity descriptions only for password-policy errors.
     /// </summary>
     private ProblemResult IdentityValidationProblem(IdentityError failure) =>
         failure.Code.StartsWith("Password", StringComparison.Ordinal)

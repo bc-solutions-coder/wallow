@@ -4,12 +4,8 @@ using Wallow.Identity.Infrastructure.Options;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// Verifies that the repo-root seed.json declares the confidential
-/// Authorization-Code + PKCE client the BFF uses to authenticate against Wallow.
-///
-/// Its callback sits on port 3003, not the dashboard's 3000: bff-example-client is the
-/// external-site reference client and wallow-web-client owns 3000, and two clients sharing one
-/// redirect URI makes which one a callback belongs to ambiguous.
+/// Checks the reference BFF client configuration in seed.json.
+/// Its callback uses port 3003, separate from the dashboard on port 3000.
 /// </summary>
 public sealed class SeedJsonBffClientTests
 {
@@ -78,8 +74,7 @@ public sealed class SeedJsonBffClientTests
     {
         PreRegisteredClientDefinition bff = GetBffClient();
 
-        // The seeder routes 'sa-' prefixed clients to ClientCredentials only.
-        // A non-'sa-' client with redirect URIs gets AuthorizationCode + RefreshToken + PKCE.
+        // These seed fields select the authorization-code branch in synchronization.
         bff.ClientId.Should().NotStartWith("sa-");
         bff.RedirectUris.Should().NotBeEmpty("auth-code clients require at least one redirect URI");
     }

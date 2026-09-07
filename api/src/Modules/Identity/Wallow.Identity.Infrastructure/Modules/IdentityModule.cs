@@ -10,23 +10,14 @@ using Wallow.Shared.Infrastructure.Modules;
 namespace Wallow.Identity.Infrastructure.Modules;
 
 /// <summary>
-/// Identity is the one module the registry cannot make optional, and the only one that currently
-/// has handlers in both its Application and its Infrastructure assembly.
+/// Required Identity module with handlers in both Application and Infrastructure.
 /// </summary>
 public sealed class IdentityModule : IWallowModule
 {
     /// <summary>
-    /// The one place this module's Postgres schema name is written. <see cref="SchemaName"/>, the
-    /// module's <c>HasDefaultSchema</c> and every host's <c>MigrationsHistoryTable</c> all resolve
-    /// to this constant, so the compiler rather than a convention is what keeps them equal.
+    /// Schema shared by the model and migration history table.
+    /// The seeder accesses this internal constant through its InternalsVisibleTo grant.
     /// </summary>
-    /// <remarks>
-    /// Internal, like every other module's. <c>Wallow.SeederService</c> is a third host, in its own
-    /// assembly, that builds this module's <c>DbContext</c> and would otherwise have to hand-type
-    /// the string again, so it — and only it — gets an <c>InternalsVisibleTo</c> grant in
-    /// <c>Wallow.Identity.Infrastructure.csproj</c>. That keeps the reach one named assembly wide
-    /// instead of exposing the schema name to everything that references this module.
-    /// </remarks>
     internal const string Schema = "identity";
 
     public string Name => "Identity";

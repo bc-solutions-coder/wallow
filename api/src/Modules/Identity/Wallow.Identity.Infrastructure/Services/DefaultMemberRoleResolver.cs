@@ -11,21 +11,20 @@ namespace Wallow.Identity.Infrastructure.Services;
 public sealed class DefaultMemberRoleResolver(IdentityDbContext dbContext) : IDefaultMemberRoleResolver
 {
     /// <summary>
-    /// The role a member holds when their organization has configured no default. It is the
-    /// baseline the platform ships, deliberately the least privileged one.
+    /// Fallback role when no existing configured default is available.
     /// </summary>
     private const string BaselineMemberRoleName = "user";
 
-    /// <summary>Spelled normalized because the lookup is by <c>NormalizedName</c> in a query EF
-    /// translates — a <c>ToUpperInvariant</c> call inside the predicate is not translatable.</summary>
+    /// <summary>
+    /// Normalized name used directly in the database predicate.
+    /// </summary>
     private const string BaselineMemberRoleNormalizedName = "USER";
 
     public async Task<Guid> ResolveAsync(Guid organizationId, CancellationToken ct = default)
     {
         OrganizationId orgId = OrganizationId.Create(organizationId);
 
-        // The settings row is keyed globally on organization_id and this runs at authorize time,
-        // before any tenant is resolved, so the filter would hide the only row that matters.
+        // Enrollment may run without a tenant; select settings by organization explicitly.
         Guid? configured = await dbContext.OrganizationSettings
             .IgnoreQueryFilters()
             .Where(s => s.OrganizationId == orgId)
@@ -50,8 +49,7 @@ public sealed class DefaultMemberRoleResolver(IdentityDbContext dbContext) : IDe
     }
 
     /// <summary>
-    /// A configured role can be deleted after it was chosen. Falling back beats admitting nobody:
-    /// the organization keeps working and the member lands on the least privileged role.
+    /// A deleted configured role falls back to the baseline role.
     /// </summary>
     private Task<bool> RoleExistsAsync(Guid roleId, CancellationToken ct) =>
         dbContext.Roles.IgnoreQueryFilters().AnyAsync(r => r.Id == roleId, ct);

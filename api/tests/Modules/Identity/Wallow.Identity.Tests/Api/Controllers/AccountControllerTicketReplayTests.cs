@@ -101,7 +101,7 @@ public class AccountControllerTicketReplayTests
     {
         string ticket = await CreateTicketViaLogin();
 
-        // Redis StringSetAsync returns true = key was set (not already present) = first use
+        // Simulate accepting first use of the ticket.
         _redisDb.StringSetAsync(
                 Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(),
                 Arg.Any<bool>(), Arg.Any<When>(), Arg.Any<CommandFlags>())
@@ -109,7 +109,7 @@ public class AccountControllerTicketReplayTests
 
         IActionResult result = await _controller.ExchangeTicket(ticket, null);
 
-        // Should redirect (success), not return 401
+
         result.Should().BeOfType<RedirectResult>();
     }
 
@@ -122,7 +122,7 @@ public class AccountControllerTicketReplayTests
     {
         string ticket = await CreateTicketViaLogin();
 
-        // Redis StringSetAsync returns false = key already existed = replay attempt
+        // Simulate the replay guard rejecting an already-used ticket.
         _redisDb.StringSetAsync(
                 Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(),
                 Arg.Any<bool>(), Arg.Any<When>(), Arg.Any<CommandFlags>())
@@ -144,17 +144,17 @@ public class AccountControllerTicketReplayTests
     {
         string ticket = await CreateTicketViaLogin();
 
-        // Simulate race: first call returns true, second call returns false
+        // Model successive replay-guard outcomes; these exchanges execute sequentially.
         _redisDb.StringSetAsync(
                 Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(),
                 Arg.Any<bool>(), Arg.Any<When>(), Arg.Any<CommandFlags>())
             .Returns(true, false);
 
-        // First exchange succeeds
+
         IActionResult result1 = await _controller.ExchangeTicket(ticket, null);
         result1.Should().BeOfType<RedirectResult>();
 
-        // Second exchange with same ticket fails
+
         IActionResult result2 = await _controller.ExchangeTicket(ticket, null);
         ProblemResult problem = result2.Should().BeOfType<ProblemResult>().Subject;
         problem.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
@@ -174,7 +174,7 @@ public class AccountControllerTicketReplayTests
         problem.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
         problem.Code.Should().Be(IdentityErrors.AuthTicketInvalid.Code);
 
-        // Redis should NOT have been called at all — invalid tickets are rejected before replay check
+        // Invalid protection must be rejected before claiming the replay key.
         await _redisDb.DidNotReceive().StringSetAsync(
             Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<TimeSpan?>(),
             Arg.Any<bool>(), Arg.Any<When>(), Arg.Any<CommandFlags>());

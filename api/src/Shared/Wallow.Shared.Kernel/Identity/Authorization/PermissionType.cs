@@ -26,15 +26,13 @@ public static class PermissionType
     public const string OrganizationsManageMembers = "OrganizationsManageMembers";
 
     /// <summary>
-    /// Permanently delete an organization and everything that hangs off it. Held by the
-    /// built-in admin role only — updating an organization and destroying it are different
-    /// authorities, so this never travels with <see cref="OrganizationsUpdate"/>.
+    /// Deletes an organization and its dependent data. Granted only to the built-in admin role;
+    /// <see cref="OrganizationsUpdate"/> does not imply deletion permission.
     /// </summary>
     public const string OrganizationsDelete = "OrganizationsDelete";
 
     /// <summary>
-    /// Register, edit and delete the developer applications an organization owns. Held by the
-    /// organization's admin and manager roles, never by a plain member.
+    /// Manages organization clients. Granted to the built-in admin and manager roles.
     /// </summary>
     public const string OrganizationClientsManage = "OrganizationClientsManage";
 
@@ -85,8 +83,7 @@ public static class PermissionType
     public const string ScopeRead = "ScopeRead";
 
     /// <summary>
-    /// Returns all permission constants defined in this class.
-    /// Uses reflection to auto-discover permissions at startup. Not a hot path.
+    /// Discovers this class's permission constants once during static initialization.
     /// </summary>
     public static IReadOnlyList<string> All { get; } = typeof(PermissionType)
         .GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)

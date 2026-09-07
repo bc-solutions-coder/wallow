@@ -10,12 +10,7 @@ using Wolverine;
 namespace Wallow.Api.Tests.Integration;
 
 /// <summary>
-/// Guards the FluentValidation wiring. Wolverine's <c>UseFluentValidation()</c> switches from
-/// <c>ExecuteOne(IValidator&lt;T&gt;)</c> to <c>ExecuteMany(IEnumerable&lt;IValidator&lt;T&gt;&gt;)</c>
-/// as soon as a message type has more than one registered validator, and the enumerable form is
-/// resolved out of the root provider — which throws "Cannot resolve scoped service" for any
-/// scoped validator registration. Exactly one registration per message keeps the single-validator
-/// path in play.
+/// Checks single validator registration for selected messages and invokes validation through Wolverine.
 /// </summary>
 [Collection(nameof(ApiIntegrationTestCollection))]
 [Trait("Category", "Integration")]

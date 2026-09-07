@@ -9,9 +9,7 @@ namespace Wallow.Identity.Infrastructure.Repositories;
 
 public sealed class MembershipRepository(IdentityDbContext context) : IMembershipRepository
 {
-    // GetAsync and GetForUserAsync run at authorize time, before a tenant is resolved, so they
-    // bypass the ambient filter the way OrganizationRepository.GetByUserIdAsync does. Both still
-    // constrain on their own parameters — never on the ambient tenant.
+    // These reads select their own user/organization scope and work before tenant resolution.
     public Task<Membership?> GetAsync(Guid userId, Guid organizationId, CancellationToken ct = default)
     {
         OrganizationId typedOrganizationId = OrganizationId.Create(organizationId);
@@ -32,8 +30,7 @@ public sealed class MembershipRepository(IdentityDbContext context) : IMembershi
             .ToListAsync(ct);
     }
 
-    // Runs inside authenticated, tenant-resolved handling, so the ambient filter stays on as a
-    // backstop under the roster endpoints.
+    // Membership has no tenant filter; the organization predicate below supplies the scope.
     public async Task<IReadOnlyList<Membership>> GetForOrganizationAsync(
         Guid organizationId,
         MembershipStatus? status = null,

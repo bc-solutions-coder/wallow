@@ -1,7 +1,6 @@
 namespace Wallow.Identity.Api.Contracts.Responses;
 
 /// <summary>
-/// Confirmation that TOTP enrollment completed, carrying the one-time backup codes. The plaintext
-/// codes are returned here and nowhere else — only their hashes are persisted.
+/// TOTP enrollment confirmation with plaintext backup codes. Only code hashes are stored.
 /// </summary>
 public sealed record MfaEnrollmentConfirmedResponse(bool Succeeded, IReadOnlyList<string> BackupCodes);

@@ -6,21 +6,15 @@ using Wallow.Shared.Kernel.Errors;
 namespace Wallow.Tests.Common.Helpers;
 
 /// <summary>
-/// The wire-level assertion for the unified problem contract, shared by every integration sweep
-/// so a route family cannot be swept to a weaker shape than the rest: the body is
-/// <c>application/problem+json</c> and an object, <c>type</c> is blank, <c>title</c> is the
-/// reason phrase, <c>status</c>, a catalogued <c>code</c> and a <c>traceId</c> are present,
-/// <c>detail</c> is non-empty, <c>errors</c> appears only when asked for, and <c>instance</c>,
-/// <c>api</c>, <c>version</c> and the exception member never do.
+/// Asserts the shared HTTP problem shape and catalog membership.
 /// </summary>
 public static class ProblemAssertions
 {
     private static readonly string[] _neverPresent = ["instance", "api", "version", ProblemContract.ExceptionMember];
 
     /// <summary>
-    /// Asserts the contract with the expected <paramref name="expectedCode"/>, checks the code is
-    /// catalogued (the drift check: a code on the wire the catalog does not list is a bug wherever
-    /// it was written), and returns the body for probe-specific assertions.
+    /// Checks the expected status/code, common problem fields and optional errors object.
+    /// Returns the parsed body for additional assertions.
     /// </summary>
     public static async Task<JsonElement> AssertProblemAsync(
         this HttpResponseMessage response,
@@ -63,8 +57,7 @@ public static class ProblemAssertions
     }
 
     /// <summary>
-    /// The full contract for a catalogued entry, pinning <c>detail</c> to the entry's own
-    /// user-safe sentence as well.
+    /// Also checks that detail matches the catalog entry default message.
     /// </summary>
     public static async Task<JsonElement> AssertProblemAsync(
         this HttpResponseMessage response,

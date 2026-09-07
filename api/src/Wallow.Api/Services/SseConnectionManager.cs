@@ -8,8 +8,7 @@ public class SseConnectionManager
 {
     private readonly ConcurrentDictionary<string, SseConnectionState> _connections = new();
 
-    // Kept beside the state rather than inside it: the source is the manager's handle on a LIVE
-    // request, and the state is a plain value the dispatcher and its tests construct freely.
+    // The manager owns cancellation sources separately from dispatch state.
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _cancellations = new();
 
     public virtual void AddConnection(
@@ -28,7 +27,7 @@ public class SseConnectionManager
         SseConnectionState state = new(userId, tenantId, modules, permissions, roles, channel, clientId);
         _connections[connectionId] = state;
 
-        // The manager owns the source for as long as the connection lives; RemoveConnection disposes it.
+        // RemoveConnection disposes the stored source.
 #pragma warning disable CA2000
         _cancellations[connectionId] = new CancellationTokenSource();
 #pragma warning restore CA2000
@@ -45,9 +44,8 @@ public class SseConnectionManager
     }
 
     /// <summary>
-    /// The token that ends one stream from outside the request serving it. Completing the channel
-    /// would stop deliveries but leave the endpoint heart-beating, so the stream would keep the
-    /// roles and permissions it was opened with alive.
+    /// Returns the stream cancellation token, or None for an unknown connection.
+    /// Cancellation ends the endpoint heartbeat loop as well as deliveries.
     /// </summary>
     public virtual CancellationToken GetCancellationToken(string connectionId)
     {
@@ -57,16 +55,16 @@ public class SseConnectionManager
     }
 
     /// <summary>
-    /// Ends every stream this person holds in this tenant. The endpoint owning each one wakes on
-    /// the cancelled token, unregisters itself and returns, so the client has to reconnect and
-    /// present its credential again rather than keep the roles it connected with.
+    /// Cancels registered local streams for the user and tenant.
     /// </summary>
     public virtual void CloseConnectionsForUser(string userId, Guid tenantId)
     {
         CloseConnectionsWhere(state => state.UserId == userId && state.TenantId == tenantId);
     }
 
-    /// <summary>Ends every stream opened with a token the named client was issued, whoever holds it.</summary>
+    /// <summary>
+    /// Cancels registered local streams associated with the client.
+    /// </summary>
     public virtual void CloseConnectionsForClient(string clientId)
     {
         CloseConnectionsWhere(state => state.ClientId == clientId);
@@ -86,8 +84,7 @@ public class SseConnectionManager
                 continue;
             }
 
-            // The owning request disposes this source through RemoveConnection the moment it
-            // observes the cancellation, so a race here is a no-op rather than a fault.
+            // Request cleanup may dispose the source concurrently with cancellation.
             try
             {
                 cancellation.Cancel();

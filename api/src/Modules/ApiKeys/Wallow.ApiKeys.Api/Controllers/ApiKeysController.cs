@@ -31,10 +31,8 @@ public sealed class ApiKeysController(IApiKeyService apiKeyService, IScopeSubset
     /// Create a new API key for the current user.
     /// </summary>
     /// <remarks>
-    /// Creates an API key that can be used for service-to-service authentication.
-    /// The full API key is only returned once in this response - store it securely!
-    ///
-    /// The key will be scoped to the current user's tenant.
+    /// The key belongs to the current user and tenant. Store the full key securely;
+    /// this is the only response that returns it.
     ///
     /// Example request:
     /// ```json
@@ -144,11 +142,10 @@ public sealed class ApiKeysController(IApiKeyService apiKeyService, IScopeSubset
     }
 
     /// <summary>
-    /// List all API keys for the current user.
+    /// List unrevoked API keys for the current user and tenant.
     /// </summary>
     /// <remarks>
-    /// Returns metadata for all API keys belonging to the authenticated user.
-    /// The actual key values are not returned - only the prefix for identification.
+    /// Returns metadata without plaintext key values.
     /// </remarks>
     [HttpGet]
     [HasPermission(PermissionType.ApiKeyManage)]
@@ -180,8 +177,8 @@ public sealed class ApiKeysController(IApiKeyService apiKeyService, IScopeSubset
     /// Revoke an API key.
     /// </summary>
     /// <remarks>
-    /// Permanently revokes an API key. This action cannot be undone.
-    /// Any requests using this key will be rejected immediately.
+    /// Revokes a key owned by the current user and removes its validation cache entries.
+    /// Revocation cannot be undone.
     /// </remarks>
     [HttpDelete("{keyId}")]
     [HasPermission(PermissionType.ApiKeyManage)]

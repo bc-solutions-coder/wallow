@@ -339,7 +339,7 @@ public class CachedSettingsServiceTests
 
         await _sut.UpdateTenantSettingsAsync(_tenantId, updates, _userId);
 
-        // Should invalidate both tenant cache and user cache (2 RemoveAsync calls)
+
         await _cache.Received(2).RemoveAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 }

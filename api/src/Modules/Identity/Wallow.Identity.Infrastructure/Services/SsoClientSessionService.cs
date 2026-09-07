@@ -31,8 +31,7 @@ public sealed partial class SsoClientSessionService(
         }
         catch (DbUpdateException)
         {
-            // Two concurrent authorize requests for the same (sid, client) raced past the
-            // existence check; the unique index kept one row, which is the state we wanted.
+            // A duplicate race is harmless, but this catch also suppresses other save failures.
             dbContext.ChangeTracker.Clear();
         }
 
@@ -107,8 +106,7 @@ public sealed partial class SsoClientSessionService(
 
     public async Task ForgetAsync(string sid, CancellationToken ct)
     {
-        // Tracked delete rather than ExecuteDeleteAsync: bulk statements bypass the unit of
-        // work, and the in-memory provider used by unit tests does not support them.
+        // Use tracked deletion so the same path works with the in-memory test provider.
         List<SsoSessionClient> rows = await dbContext.SsoSessionClients
             .AsTracking()
             .Where(s => s.Sid == sid)

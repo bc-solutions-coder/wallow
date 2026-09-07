@@ -57,12 +57,10 @@ public static class AnnouncementsModuleExtensions
 
         services.AddReadDbContext<AnnouncementsDbContext>(configuration);
 
-        // Repositories
         services.AddScoped<IAnnouncementRepository, AnnouncementRepository>();
         services.AddScoped<IAnnouncementDismissalRepository, AnnouncementDismissalRepository>();
         services.AddScoped<IChangelogRepository, ChangelogRepository>();
 
-        // Services
         services.AddScoped<IAnnouncementTargetingService, AnnouncementTargetingService>();
 
         return services;

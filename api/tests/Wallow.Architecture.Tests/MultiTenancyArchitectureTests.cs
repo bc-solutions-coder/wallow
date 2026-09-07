@@ -4,10 +4,10 @@ using NetArchTest.Rules;
 using Wallow.Shared.Kernel.Domain;
 using Wallow.Shared.Kernel.MultiTenancy;
 
-#pragma warning disable CA1024 // MemberData source methods cannot be properties
-#pragma warning disable CA1310 // String comparison in LINQ lambdas over type names is culture-safe
-#pragma warning disable CA1309 // String comparison in LINQ lambdas over type names is culture-safe
-#pragma warning disable CA1860 // LINQ .Any() with predicate cannot use Count
+#pragma warning disable CA1024 // Keep callable MemberData factories.
+#pragma warning disable CA1310 // These checks inspect CLR names.
+#pragma warning disable CA1309 // These checks inspect CLR names.
+#pragma warning disable CA1860 // Keep the LINQ existence checks in these convention queries.
 
 namespace Wallow.Architecture.Tests;
 
@@ -35,7 +35,7 @@ public class MultiTenancyArchitectureTests
     {
         Assembly domainAssembly = GetModuleAssembly(moduleName, "Domain");
 
-        // At least some entities should implement ITenantScoped
+
         List<Type> entities = Types.InAssembly(domainAssembly)
             .That()
             .Inherit(typeof(Entity<>))
@@ -57,7 +57,7 @@ public class MultiTenancyArchitectureTests
             $"At least some entities in {moduleName} module should implement ITenantScoped. " +
             $"Found {tenantScopedCount} tenant-scoped out of {entityCount} total entities.");
 
-        // Tenant-scoped entities should have proper TenantId property
+
         List<Type> tenantScopedEntities = Types.InAssembly(domainAssembly)
             .That()
             .ImplementInterface(typeof(ITenantScoped))
@@ -80,7 +80,7 @@ public class MultiTenancyArchitectureTests
             tenantIdProperty.CanWrite.Should().BeTrue(
                 $"TenantId property on {entity.Name} should have a setter for interceptor");
 
-            // Should not expose public SetTenantId methods
+
             List<MethodInfo> setTenantIdMethods = entity.GetMethods(BindingFlags.Public | BindingFlags.Instance)
                 .Where(m => m.Name.Contains("SetTenantId") ||
                             (m.Name.StartsWith("set_") && m.Name.Contains("TenantId")))
@@ -108,7 +108,7 @@ public class MultiTenancyArchitectureTests
 
         foreach (Type dbContext in dbContexts)
         {
-            // Should inherit from TenantAwareDbContext<T> which provides SetTenant and query filters
+
             Type? baseType = dbContext.BaseType;
             bool inheritsTenantAwareDbContext = baseType is { IsGenericType: true }
                 && baseType.GetGenericTypeDefinition().FullName == "Wallow.Shared.Infrastructure.Core.Persistence.TenantAwareDbContext`1";
@@ -116,7 +116,7 @@ public class MultiTenancyArchitectureTests
             inheritsTenantAwareDbContext.Should().BeTrue(
                 $"DbContext {dbContext.Name} in {moduleName} module should inherit from TenantAwareDbContext<T>");
 
-            // Should override OnModelCreating for query filters
+
             MethodInfo? onModelCreatingMethod = dbContext.GetMethod(
                 "OnModelCreating",
                 BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public);
@@ -152,9 +152,7 @@ public class MultiTenancyArchitectureTests
 
             foreach (MethodInfo method in methods)
             {
-                // UseTenant is the one sanctioned TenantId-taking method: it states which tenant
-                // OWNS the rows a cross-organization write is about to add (something query
-                // filters cannot express), never which tenant a read is filtered by.
+                // Allow the explicit tenant-selection method used for cross-organization writes.
                 if (method.Name == "UseTenant")
                 {
                     continue;

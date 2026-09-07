@@ -81,7 +81,7 @@ public class AccountControllerMfaLockoutTests
     {
         Guid id = userId is not null ? Guid.Parse(userId) : Guid.NewGuid();
         WallowUser user = WallowUser.Create("Test", "User", TestEmail, TimeProvider.System);
-        // Set the Id via reflection since it's set during Create
+        // Align the created user ID with the partial-auth payload.
         typeof(WallowUser).GetProperty("Id")!.SetValue(user, id);
         typeof(WallowUser).GetProperty("TotpSecretEncrypted")!.SetValue(user, "encrypted-secret");
 

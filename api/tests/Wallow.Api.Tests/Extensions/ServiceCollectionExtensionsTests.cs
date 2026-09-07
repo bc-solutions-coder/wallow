@@ -504,8 +504,7 @@ public class ServiceCollectionExtensionsTests
         await act.Should().NotThrowAsync();
     }
 
-    // OpenApiOptions.DocumentTransformers is internal to Microsoft.AspNetCore.OpenApi, so the
-    // registration assertion has to reach it reflectively.
+    // The transformer registry is internal, so the assertion reads it through reflection.
     private static List<IOpenApiDocumentTransformer> GetRegisteredDocumentTransformers(
         OpenApiOptions options)
     {
@@ -516,8 +515,7 @@ public class ServiceCollectionExtensionsTests
         return ((IEnumerable<IOpenApiDocumentTransformer>)field.GetValue(options)!).ToList();
     }
 
-    // Builds the versioned options shape Asp.Versioning hands to the callback for one
-    // discovered API version, runs the callback, and returns it for transformer assertions.
+    // Construct the per-version callback input for transformer assertions.
     private static VersionedOpenApiOptions BuildConfiguredVersionedOptions()
     {
         VersionedOpenApiOptions options = new()
@@ -538,7 +536,7 @@ public class ServiceCollectionExtensionsTests
     {
         VersionedOpenApiOptions options = BuildConfiguredVersionedOptions();
 
-        // Info, security, test-support exclusion, empty-placeholder scrub, error-code enum.
+
         GetRegisteredDocumentTransformers(options.Document).Should().HaveCount(6);
     }
 
@@ -552,17 +550,12 @@ public class ServiceCollectionExtensionsTests
             .GetRequiredService<IOptionsMonitor<OpenApiOptions>>()
             .Get("v1");
 
-        // The bare AddOpenApi("v1") call in AddApiServices exists solely so the framework's
-        // compile-time XML-comment interceptor attaches its transformers to the "v1" named
-        // options the versioned pipeline resolves. If the anchor is removed, nothing registers
-        // here and every XML doc comment silently drops out of the emitted document. The
-        // interceptor contributes operation and schema transformers, not document transformers.
+        // The literal v1 registration anchors the generated XML-comment transformers.
         GetRegisteredOperationTransformers(options).Should().NotBeEmpty(
             "the XML-comment interceptor must attach transformers to the v1 anchor");
     }
 
-    // Same reflective reach as GetRegisteredDocumentTransformers: OpenApiOptions stores the
-    // operation transformers in an internal field too.
+    // Operation transformers are also stored in an internal registry.
     private static List<IOpenApiOperationTransformer> GetRegisteredOperationTransformers(
         OpenApiOptions options)
     {
@@ -664,8 +657,7 @@ public class ServiceCollectionExtensionsTests
             string.Join(", ", transformers.Select(transformer => transformer.GetType().Name)));
     }
 
-    // Every controller in the API lives in a Wallow.{Module}.Api assembly, all of which are copied
-    // next to this test assembly via the Wallow.Api project reference.
+    // Discover module controllers from their API assemblies in the test output.
     private static List<(string ControllerName, MethodInfo Method)> DiscoverControllerActions()
     {
         List<(string ControllerName, MethodInfo Method)> actions = [];
@@ -706,8 +698,7 @@ public class ServiceCollectionExtensionsTests
             + "assembly discovery broke, which would make the operationId invariants vacuous");
     }
 
-    // Regression guard for the naming scheme itself: {ControllerName}{MethodName} is only a valid
-    // operationId source while no controller declares two actions with the same method name.
+    // Controller and method names must form unique operation IDs across the discovered surface.
     [Fact]
     public void ControllerActionSurface_HasNoDuplicateControllerAndMethodNamePairs()
     {
@@ -788,7 +779,7 @@ public class ServiceCollectionExtensionsTests
     public void FilterTelemetryRequest_WithNullPath_ReturnsTrue()
     {
         DefaultHttpContext httpContext = new();
-        // Path is empty by default
+
 
         bool result = Wallow.Api.Extensions.ServiceCollectionExtensions.FilterTelemetryRequest(httpContext);
 

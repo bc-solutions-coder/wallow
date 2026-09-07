@@ -23,11 +23,9 @@ using Wallow.Shared.Kernel.MultiTenancy;
 namespace Wallow.Branding.Api.Controllers;
 
 /// <summary>
-/// Branding as an organization manages it: a sub-resource of the org-scoped client surface. The
-/// route mirrors Identity's, but the controller lives here — Branding owns the data — and asks
-/// Identity "does this client belong to this organization" only through
-/// <see cref="IOrganizationClientDirectory"/>. A client of another organization, an unknown
-/// client and a service account (which faces no end user) are all answered as not found.
+/// Manages application branding under an organization-owned client.
+/// Ownership comes from <see cref="IOrganizationClientDirectory"/>. Unknown clients,
+/// clients owned by another organization and service accounts return 404.
 /// </summary>
 [ApiController]
 [ApiVersion(1)]
@@ -79,12 +77,10 @@ public partial class OrganizationClientBrandingController(
     }
 
     /// <summary>
-    /// Replace the client's branding: display name, tagline, optional logo upload and the curated
-    /// theme (<c>primary</c> and <c>primaryForeground</c> per <c>light</c>/<c>dark</c> mode). A
-    /// half-replace on purpose: an omitted tagline or theme CLEARS the stored value, while an
-    /// omitted logo KEEPS the stored one — a logo is a file upload, and demanding it be resent on
-    /// every save would be hostile (<c>DELETE branding/logo</c> is the way to remove it). The
-    /// display name may never read as the platform itself.
+    /// Replaces display name, tagline and theme. Omitting tagline or theme clears it; omitting
+    /// the logo preserves it. Use <c>DELETE branding/logo</c> to remove the logo.
+    /// Themes accept <c>primary</c> and <c>primaryForeground</c> in <c>light</c>/<c>dark</c> modes.
+    /// The display name cannot match the platform name.
     /// </summary>
     [HttpPut]
     [EnableRateLimiting("registration")]
@@ -166,9 +162,8 @@ public partial class OrganizationClientBrandingController(
         }
         else
         {
-            // Registration creates the row, but a client registered before this surface existed
-            // (or whose event is still in flight) still deserves a working PUT — and the new row
-            // must carry the organization's tenant even when a caller far from it writes it.
+            // Create a missing row under the owning organization, including when registration
+            // has not finished or the caller belongs to another tenant.
             repository.UseTenant(TenantId.Create(orgId));
             ClientBranding branding = ClientBranding.Create(
                 clientId,
@@ -180,15 +175,14 @@ public partial class OrganizationClientBrandingController(
             repository.Add(branding);
         }
 
-        // Upload the logo to storage BEFORE saving so a stored key always points at a real object.
+        // Upload before saving the new key so a successful save references an uploaded object.
         if (logo is not null && logoStorageKey is not null)
         {
             await using Stream stream = logo.OpenReadStream();
             await storageProvider.UploadAsync(stream, logoStorageKey, logo.ContentType, ct);
         }
 
-        // The event commits atomically with the save (Wolverine durable outbox behind the
-        // repository port) — a failed save publishes nothing, so the retry passes it again.
+        // Save and event commit together through the outbox; a rejected save publishes nothing.
         ClientBrandingUpdatedEvent updated = UpdatedEvent(clientId, orgId, actorId, displayName);
         try
         {
@@ -196,9 +190,8 @@ public partial class OrganizationClientBrandingController(
         }
         catch (DuplicateClientBrandingException)
         {
-            // The registration event's handler inserted the row between the existence check above
-            // and this save. The repository detached the losing insert, so apply this request to
-            // the handler's row — the caller's explicit PUT wins over the registration default.
+            // A concurrent insert won. The repository detached our insert; apply this PUT
+            // to the winning row so explicit branding overrides the registration default.
             ClientBranding? winner = await repository.GetByClientIdAsync(clientId, ct);
             if (winner is null)
             {
@@ -220,8 +213,7 @@ public partial class OrganizationClientBrandingController(
         ClientBrandingDto? result = await brandingService.GetBrandingAsync(clientId, ct);
         return Ok(result);
 
-        // Replace the target's stored logo when a new one came with the request, then apply the
-        // request's fields — shared between the fast path and the lost-race retry.
+        // Apply identical replacement rules on the initial write and duplicate-insert retry.
         async Task ApplyRequestAsync(ClientBranding target)
         {
             if (logo is not null && !string.IsNullOrEmpty(target.LogoStorageKey))
@@ -237,8 +229,7 @@ public partial class OrganizationClientBrandingController(
                 timeProvider);
         }
 
-        // The client itself was deleted mid-request: answer as the ownership check would have,
-        // without leaving the just-uploaded logo orphaned in storage.
+        // A concurrent deletion leaves no branding row; remove the new upload before 404.
         async Task<ActionResult<ClientBrandingDto>> VanishedAsync()
         {
             if (logoStorageKey is not null)
@@ -300,8 +291,8 @@ public partial class OrganizationClientBrandingController(
         return client is { Kind: OrganizationClientKind.Application } ? client : null;
     }
 
-    // Mirrors the parent client surface: the caller's own tenant and the global admin reach every
-    // organization; anyone else only through a membership that carries the permission.
+    // The caller may address their own tenant; global admins may address any organization.
+    // Other organizations require a membership with client-management permission.
     private async Task<bool> CanAddressOrganizationAsync(Guid orgId, CancellationToken ct)
     {
         if (orgId == tenantContext.TenantId.Value || User.IsGlobalAdmin())
@@ -362,9 +353,8 @@ public partial class OrganizationClientBrandingController(
     }
 
     /// <summary>
-    /// The theme is curated, not free-form: only the two modes, only the two color keys per mode,
-    /// only color values. Everything else the older free-form surface accepted is rejected so the
-    /// stored theme never outgrows what the sign-in screen renders.
+    /// Accepts only light/dark objects with primary/primaryForeground color strings
+    /// matching the configured color pattern.
     /// </summary>
     private static bool IsValidThemeJson(string themeJson)
     {

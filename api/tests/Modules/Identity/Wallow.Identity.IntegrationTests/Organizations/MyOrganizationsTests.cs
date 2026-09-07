@@ -7,10 +7,7 @@ using Wallow.Tests.Common.Helpers;
 namespace Wallow.Identity.IntegrationTests.Organizations;
 
 /// <summary>
-/// GET /v1/identity/me/organizations answers across tenants or it answers nothing worth having:
-/// the caller's token is scoped to one organization, and the list exists to name the others.
-///
-/// Backend-dependent: only real Postgres runs the tenant query filter this read has to cross.
+/// Checks the caller organization list across tenants against the PostgreSQL-backed host.
 /// </summary>
 [Trait("Category", "Integration")]
 public class MyOrganizationsTests(WallowApiFactory factory) : IdentityIntegrationTestBase(factory)
@@ -34,8 +31,7 @@ public class MyOrganizationsTests(WallowApiFactory factory) : IdentityIntegratio
     }
 
     /// <summary>
-    /// The other half of the guarantee: belonging to one organization tells the caller nothing
-    /// about anyone else's.
+    /// An unrelated caller must not see the created organization in their list.
     /// </summary>
     [Fact]
     public async Task MyOrganizations_LeavesOutAnOrganizationTheCallerDoesNotBelongTo()

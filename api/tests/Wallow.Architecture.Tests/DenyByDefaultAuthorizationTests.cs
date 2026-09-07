@@ -5,31 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Wallow.Architecture.Tests;
 
 /// <summary>
-/// Deny-by-default function-level authorization (bead Wallow-pu6a.6.5, closing finding F13 and
-/// guardrail R23 of the SDK review — one finding, not two: "No FallbackPolicy — a new controller
-/// without [Authorize] is silently anonymous").
-///
-/// <para>Two independent layers have to hold, because either one alone fails open the moment
-/// someone touches the other:</para>
-/// <list type="number">
-/// <item>The composition root must declare a fallback policy, so an endpoint that carries no
-/// authorization metadata is denied rather than served. Today the deny-anonymous behaviour exists
-/// only because <c>PermissionAuthorizationPolicyProvider.GetFallbackPolicyAsync</c> hardcodes it;
-/// nothing at the registration site says so, and <c>AuthorizationOptions.FallbackPolicy</c> is
-/// never set. A fork that swaps the custom policy provider — the documented way to add a
-/// requirement — silently loses deny-by-default with no test failing.</item>
-/// <item>Every controller action must still declare its own intent, so the fallback is a safety
-/// net rather than the mechanism. An action relying on the fallback reads as "nobody decided",
-/// which is indistinguishable from the bug.</item>
-/// </list>
-///
-/// <para>The first assertion inspects source text rather than resolved options: the registration
-/// lives in a private method inside a composition root that pulls in EF, Redis, and OpenIddict
-/// certificates, so building it in a unit test costs more than it proves. The behavioural half —
-/// that the policy provider returns the configured fallback — is a real test, in
-/// <c>Wallow.Identity.Tests.Infrastructure.FallbackAuthorizationPolicyTests</c>. Source-text
-/// inspection for wiring whose only true signal is a running host follows the pattern already set
-/// by <see cref="CiAuthImageBuildTests"/> and <see cref="PublicSeedClientRemovalTests"/>.</para>
+/// Checks fallback-policy registration text and explicit authorization metadata on controller actions.
 /// </summary>
 public class DenyByDefaultAuthorizationTests
 {

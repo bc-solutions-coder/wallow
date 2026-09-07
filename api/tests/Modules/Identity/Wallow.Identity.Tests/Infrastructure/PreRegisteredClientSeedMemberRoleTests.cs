@@ -13,9 +13,7 @@ using Wallow.Identity.Infrastructure.Services;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// Seed members are enrolled with the role their client's <c>seedMemberRoles</c> map names.
-/// Roles are granted per (user, organization), so a seed member the map does not name gets the
-/// baseline <c>user</c> role rather than whatever they hold elsewhere.
+/// Checks per-organization seed role selection, defaulting unmapped members to user.
 /// </summary>
 public sealed class PreRegisteredClientSeedMemberRoleTests
 {
@@ -105,9 +103,7 @@ public sealed class PreRegisteredClientSeedMemberRoleTests
     }
 
     /// <summary>
-    /// Seeding has no human behind it, so the audit actor is the system sentinel rather than the
-    /// member being enrolled. Passing the member would make every seeded enrollment read as
-    /// self-granted.
+    /// Seed enrollment uses the system audit actor so it does not appear self-granted.
     /// </summary>
     [Fact]
     public async Task SyncAsync_EnrollsWithTheSystemActorNotTheMember()

@@ -19,13 +19,12 @@ public static class Extensions
     private const string TraceSamplingRatioKey = "OpenTelemetry:TraceSamplingRatio";
 
     /// <summary>
-    /// Full sampling. Keeps local development at full trace fidelity; deployments lower it.
+    /// Default root-trace sampling ratio when configuration is absent or invalid.
     /// </summary>
     private const double DefaultTraceSamplingRatio = 1.0;
 
     /// <summary>
-    /// Configuration key holding the telemetry namespace prefix a fork runs under. The same key
-    /// feeds <c>Diagnostics.Initialize</c>, which names every meter and activity source.
+    /// Namespace key shared with application diagnostics initialization.
     /// </summary>
     private const string NamespacePrefixKey = "Logging:NamespacePrefix";
 
@@ -35,10 +34,7 @@ public static class Extensions
     private const string DefaultNamespacePrefix = "Wallow";
 
     /// <summary>
-    /// Wolverine names its runtime meter "Wolverine:" + ServiceName, and ServiceName defaults to
-    /// the application assembly name, so this is a wildcard rather than a literal: it must keep
-    /// matching when a fork renames the API assembly. That meter carries the built-in messaging
-    /// instruments, including the dead-letter counter this repo alerts on (Wallow-qi90.2).
+    /// Wildcard for Wolverine runtime meters across service names.
     /// </summary>
     private const string WolverineMeterPattern = "Wolverine:*";
 
@@ -61,13 +57,7 @@ public static class Extensions
 
     public static WebApplication MapDefaultEndpoints(this WebApplication app)
     {
-        // Health checks are mapped by each app's Program.cs with custom response writers
-        // and tag-based filtering. Only map the /alive liveness probe here.
-        // Kept out of the API description: an infrastructure liveness probe has no place in the
-        // public v1 document, where its untyped 200 would generate an SDK client method returning
-        // unknown.
-        // AllowAnonymous is required: a host with an authenticated FallbackPolicy would
-        // otherwise challenge the orchestrator's unauthenticated liveness probe.
+        // Keep orchestrator liveness anonymous and outside the generated SDK.
         app.MapGet("/alive", () => Results.Ok("Alive")).AllowAnonymous().ExcludeFromDescription();
 
         return app;
@@ -77,14 +67,10 @@ public static class Extensions
     {
         double samplingRatio = ResolveTraceSamplingRatio(builder.Configuration);
 
-        // The SDK only collects from meters and activity sources it has been told about, so the
-        // instruments Diagnostics creates have to be registered here or they are recorded in-process
-        // and thrown away. AddServiceDefaults runs before Diagnostics.Initialize, so the prefix comes
-        // from configuration rather than from Diagnostics state.
+        // Read the prefix from configuration because diagnostics initialize after service defaults.
         string namespacePrefix = builder.Configuration[NamespacePrefixKey] ?? DefaultNamespacePrefix;
 
-        // The wildcard is a suffix match, so it covers every module-scoped name
-        // (Wallow.Messaging, Wallow.Identity, …) but not the bare prefix itself.
+        // Register both the bare namespace and its module names.
         string moduleNamespaces = $"{namespacePrefix}.*";
 
         builder.Services.AddOpenTelemetry()
@@ -115,10 +101,7 @@ public static class Extensions
     }
 
     /// <summary>
-    /// Reads the trace sampling ratio from configuration, tolerating anything an operator might
-    /// type. A non-numeric value degrades to full sampling and an out-of-range value is clamped into
-    /// <c>[0,1]</c> — <see cref="TraceIdRatioBasedSampler" /> throws outside that range, and a typo
-    /// in an environment variable must not take down host startup.
+    /// Uses full sampling for blank, invalid, or NaN values; clamps numeric values to [0,1].
     /// </summary>
     private static double ResolveTraceSamplingRatio(IConfiguration configuration)
     {

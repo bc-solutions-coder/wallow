@@ -6,7 +6,7 @@ namespace Wallow.Notifications.Tests.Infrastructure.Services;
 
 public class NullSmsProviderTests
 {
-#pragma warning disable CA2000 // LoggerFactory disposal not needed in tests
+#pragma warning disable CA2000 // Test logger factory is not disposed.
     private readonly NullSmsProvider _provider = new(
         LoggerFactory.Create(b => b.AddSimpleConsole().SetMinimumLevel(LogLevel.Trace))
             .CreateLogger<NullSmsProvider>());
@@ -145,7 +145,7 @@ public class NullSmsProviderTests
         _provider.Should().BeAssignableTo<ISmsProvider>();
     }
 
-#pragma warning disable CA2000 // LoggerFactory disposal not needed in tests
+#pragma warning disable CA2000 // Test logger factory is not disposed.
     [Fact]
     public async Task SendAsync_WithLoggingDisabled_StillReturnsSuccess()
     {

@@ -32,7 +32,7 @@ public sealed class EfCoreConfigurationTests : IDisposable
         _context.Dispose();
     }
 
-    // StorageBucket configuration tests
+
 
     [Fact]
     public void StorageBucket_MapsToCorrectTable()
@@ -121,7 +121,7 @@ public sealed class EfCoreConfigurationTests : IDisposable
         uniqueIndex.Should().NotBeNull();
     }
 
-    // StoredFile configuration tests
+
 
     [Fact]
     public void StoredFile_MapsToCorrectTable()

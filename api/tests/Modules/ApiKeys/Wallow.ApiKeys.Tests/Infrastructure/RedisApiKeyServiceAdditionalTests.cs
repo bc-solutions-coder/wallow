@@ -95,7 +95,6 @@ public class RedisApiKeyServiceAdditionalTests
 
         ApiKeyValidationResult result = await service.ValidateApiKeyAsync("sk_live_somekeydata123456");
 
-        // Depending on deserialization error handling
         result.IsValid.Should().BeFalse();
     }
 

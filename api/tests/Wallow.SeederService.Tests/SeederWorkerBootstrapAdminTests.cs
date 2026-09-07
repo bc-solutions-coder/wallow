@@ -13,12 +13,7 @@ using Wallow.Tests.Common;
 namespace Wallow.SeederService.Tests;
 
 /// <summary>
-/// Covers the seeder's admin bootstrap step. The contract under test: the step delegates to the
-/// same <see cref="BootstrapAdminHandler"/> the setup endpoint invokes (user + organization +
-/// owner membership in one command), and it consults <see cref="ISetupStatusChecker"/> first —
-/// a closed gate means a fully-provisioned administrator already exists (perhaps created through
-/// the setup page), and a re-seed must not fight that outcome. The only seeder-specific work
-/// left is the global-administrator claim, which no runtime endpoint grants.
+/// Checks setup-gated bootstrap through the real handler and the optional global-admin grant.
 /// </summary>
 public class SeederWorkerBootstrapAdminTests
 {
@@ -55,9 +50,7 @@ public class SeederWorkerBootstrapAdminTests
         await _bootstrapAdminService.Received(1)
             .CreateUserAsync(SeedAdminEmail, SeedAdminPassword, SeedAdminFirstName, SeedAdminLastName, Arg.Any<CancellationToken>());
 
-        // The organization is what makes the user an administrator: passing the creator mints
-        // the owner membership carrying the admin role. A bare user resolves no roles anywhere
-        // and would leave the setup gate open forever.
+        // Pass the created user ID so organization creation can enroll its owner.
         await _organizationService.Received(1)
             .CreateOrganizationAsync(SeedAdminOrganizationName, null, SeedAdminEmail, createdUserId, Arg.Any<CancellationToken>());
     }
@@ -130,9 +123,7 @@ public class SeederWorkerBootstrapAdminTests
 
         await worker.BootstrapAdminAsync(sp, CancellationToken.None);
 
-        // A closed gate means a fully-provisioned administrator exists — possibly one a human
-        // created through the setup page with a different email. Re-seeding must not create a
-        // second admin or touch the existing one.
+        // Completed setup must not create or promote the configured seed account.
         await _bootstrapAdminService.DidNotReceive()
             .CreateUserAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         await _bootstrapAdminService.DidNotReceive()
@@ -169,8 +160,7 @@ public class SeederWorkerBootstrapAdminTests
 
         await worker.BootstrapAdminAsync(sp, CancellationToken.None);
 
-        // The gate is open yet the account exists: a half-bootstrapped user with no admin
-        // membership. Creating on top of it would fail; the step leaves it for a human.
+        // Do not overwrite an existing account when setup remains incomplete.
         await _bootstrapAdminService.DidNotReceive()
             .CreateUserAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         await _organizationService.DidNotReceive()
@@ -243,8 +233,7 @@ public class SeederWorkerBootstrapAdminTests
 
         Func<Task> act = () => worker.BootstrapAdminAsync(sp, CancellationToken.None);
 
-        // The seeder exits non-zero on a thrown step: silently skipping the grant would leave a
-        // deployment that believes it seeded a global admin without one.
+        // Missing the requested global-admin target must fail the step.
         await act.Should().ThrowAsync<InvalidOperationException>();
     }
 
@@ -269,9 +258,7 @@ public class SeederWorkerBootstrapAdminTests
         ServiceCollection services = new();
         services.AddSingleton(_bootstrapAdminService);
         services.AddSingleton(_setupStatusChecker);
-        // A REAL handler over the substituted services, exactly as the seeder wires it: the step's
-        // contract is "delegate to the same command the setup endpoint runs", so the tests assert
-        // through the handler rather than substituting it away.
+        // Exercise the real bootstrap handler over substituted persistence services.
         services.AddSingleton(new BootstrapAdminHandler(
             _bootstrapAdminService,
             _organizationService,

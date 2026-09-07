@@ -188,8 +188,7 @@ public sealed class InquiryRepositoryInMemoryTests : IDisposable
     [Fact]
     public async Task GetAllAsync_ReturnsInquiriesInOrderByCreatedAtDescending()
     {
-        // InMemory doesn't apply OrderByDescending perfectly the same way,
-        // but we verify GetAllAsync returns all items
+        // This checks the item count; ordering is covered by the PostgreSQL tests.
         InquiryRepository repository = CreateRepository();
 
         for (int i = 0; i < 3; i++)

@@ -4,9 +4,7 @@ using Wallow.Shared.Contracts.Realtime;
 namespace Wallow.Api.Services;
 
 /// <summary>
-/// One open stream: who holds it, in which tenant, what it may receive, and — when the token that
-/// opened it was issued through a registered client — which client, so suspending that client
-/// can hang the stream up.
+/// Connection-time user, tenant, subscriptions, permissions, and optional client id for one SSE stream.
 /// </summary>
 public sealed record SseConnectionState(
     string UserId,

@@ -8,10 +8,8 @@ using Wallow.Tests.Common.Helpers;
 namespace Wallow.Identity.IntegrationTests.Organizations;
 
 /// <summary>
-/// A first-party token issued without an organization hint to a user with several (or no)
-/// memberships carries no <c>org_id</c>. It is a legal token that reaches only the endpoints a
-/// person needs to pick, found, or join an organization; every tenant-scoped endpoint refuses
-/// it with 403 and a problem document naming the missing organization context.
+/// Checks endpoint admission with a synthetic organization-less principal,
+/// including missing-context problems from selected tenant-scoped endpoints.
 /// </summary>
 public class OrganizationlessTokenTests(WallowApiFactory factory) : IdentityIntegrationTestBase(factory)
 {
@@ -60,7 +58,7 @@ public class OrganizationlessTokenTests(WallowApiFactory factory) : IdentityInte
 
         HttpResponseMessage response = await Client.PostAsync("/identity/invitations/no-such-token/accept", content: null);
 
-        // The gate lets the call through; the unknown token is the controller's answer.
+        // Reaching the unknown-invitation response distinguishes admission from the tenant gate.
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
@@ -68,7 +66,7 @@ public class OrganizationlessTokenTests(WallowApiFactory factory) : IdentityInte
     [InlineData("/identity/organizations")]
     [InlineData("/identity/organizations/00000000-0000-0000-0000-000000000010")]
     [InlineData("/identity/users")]
-    [InlineData("/notification-settings")] // another module: the gate is global, not Identity's
+    [InlineData("/notification-settings")] // Include a Notifications route to check the shared tenant gate.
     public async Task OrganizationlessToken_IsForbiddenFromTenantScopedEndpoints(string path)
     {
         SetOrganizationlessUser();

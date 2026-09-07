@@ -44,7 +44,7 @@ public sealed class ApiScopeSeederGapTests : IDisposable
     [Fact]
     public async Task SeedAsync_WhenSomeScopesExist_OnlySeedsMissingOnes()
     {
-        // Pre-seed just one scope
+
         ApiScope existingScope = ApiScope.Create("users.read", "Read Users", "Identity",
             "Access to read user profiles and data", isDefault: true);
         _dbContext.ApiScopes.Add(existingScope);
@@ -57,7 +57,7 @@ public sealed class ApiScopeSeederGapTests : IDisposable
         int totalCount = await _dbContext.ApiScopes.IgnoreQueryFilters().CountAsync();
         totalCount.Should().Be(24);
 
-        // Verify no duplicate of the pre-seeded scope
+
         int usersReadCount = await _dbContext.ApiScopes
             .IgnoreQueryFilters()
             .CountAsync(s => s.Code == "users.read");
@@ -67,7 +67,7 @@ public sealed class ApiScopeSeederGapTests : IDisposable
     [Fact]
     public async Task SeedAsync_WhenMultipleScopesExist_OnlySeedsRemaining()
     {
-        // Pre-seed three scopes from different categories
+
         _dbContext.ApiScopes.Add(ApiScope.Create("storage.read", "Read Storage", "Storage",
             "Access to read files and storage data", isDefault: true));
         _dbContext.ApiScopes.Add(ApiScope.Create("users.read", "Read Users", "Identity",

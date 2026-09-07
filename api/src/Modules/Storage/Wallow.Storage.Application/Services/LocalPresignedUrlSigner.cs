@@ -4,20 +4,14 @@ using System.Text;
 namespace Wallow.Storage.Application.Services;
 
 /// <summary>
-/// Signs and validates the time-limited URLs the local storage provider hands out,
-/// standing in for the request signing a real object store performs. The HMAC covers the
-/// HTTP method, the storage key, and the expiry, so a download URL cannot authorize a write
-/// and neither the key nor the deadline can be altered after minting. The signing key is
-/// random per instance; registered as a singleton, that means a restart invalidates every
-/// outstanding URL — acceptable for the development-only local provider, whose URLs live
-/// for minutes.
+/// Signs method, storage key, and expiry with a random per-instance HMAC key.
+/// Registered as a singleton for local development storage; restarting invalidates
+/// outstanding URLs. Method binding prevents a download URL from authorizing an upload.
 /// </summary>
 public sealed class LocalPresignedUrlSigner
 {
-    /// <summary>The method a presigned download URL is signed for.</summary>
     public const string DownloadMethod = "GET";
 
-    /// <summary>The method a presigned upload URL is signed for.</summary>
     public const string UploadMethod = "PUT";
 
     private const int KeySizeBytes = 32;

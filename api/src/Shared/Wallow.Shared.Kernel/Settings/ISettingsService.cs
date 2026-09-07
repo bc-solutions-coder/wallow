@@ -2,16 +2,14 @@ namespace Wallow.Shared.Kernel.Settings;
 
 public interface ISettingsService
 {
-    // Read — merged: user > tenant > code default
+    // User reads merge user > tenant > code default; tenant reads omit user overrides.
     Task<IReadOnlyList<ResolvedSetting>> GetUserSettingsAsync(Guid tenantId, Guid userId, CancellationToken ct = default);
     Task<IReadOnlyList<ResolvedSetting>> GetTenantSettingsAsync(Guid tenantId, CancellationToken ct = default);
     Task<ResolvedSettingsConfig> GetConfigAsync(Guid tenantId, Guid userId, CancellationToken ct = default);
 
-    // Write
     Task UpdateTenantSettingsAsync(Guid tenantId, IReadOnlyList<SettingUpdate> settings, Guid updatedBy, CancellationToken ct = default);
     Task UpdateUserSettingsAsync(Guid tenantId, Guid userId, IReadOnlyList<SettingUpdate> settings, CancellationToken ct = default);
 
-    // Delete
     Task DeleteTenantSettingsAsync(Guid tenantId, IReadOnlyList<string> keys, Guid deletedBy, CancellationToken ct = default);
     Task DeleteUserSettingsAsync(Guid tenantId, Guid userId, IReadOnlyList<string> keys, CancellationToken ct = default);
 }

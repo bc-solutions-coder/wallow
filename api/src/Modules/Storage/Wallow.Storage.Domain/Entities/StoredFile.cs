@@ -9,8 +9,7 @@ using Wallow.Storage.Domain.Identity;
 namespace Wallow.Storage.Domain.Entities;
 
 /// <summary>
-/// Metadata for a stored file. Actual bytes live in the storage backend.
-/// Tenant-scoped to ensure proper isolation.
+/// Tenant-scoped file metadata; bytes live in the storage backend.
 /// </summary>
 public sealed class StoredFile : AggregateRoot<StoredFileId>, ITenantScoped
 {

@@ -3,7 +3,6 @@ namespace Wallow.Shared.Contracts.Identity.Events;
 
 /// <summary>
 /// Published when a user successfully enables MFA on their account.
-/// Consumers: Notifications (confirmation email), Audit logging
 /// </summary>
 public sealed record UserMfaEnabledEvent : IntegrationEvent
 {

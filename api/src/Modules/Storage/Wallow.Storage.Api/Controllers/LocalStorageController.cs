@@ -11,13 +11,9 @@ using Wallow.Storage.Domain.Errors;
 namespace Wallow.Storage.Api.Controllers;
 
 /// <summary>
-/// Serves the presigned URLs <c>LocalStorageProvider</c> mints. A real object store answers
-/// its presigned URLs itself; the local filesystem cannot, so these key-addressed endpoints
-/// stand in. Anonymous by design, exactly like an S3 presigned URL: possession of a valid,
-/// unexpired signature over the method + key + expiry is the entire authorization.
-/// Hidden from the OpenAPI document for the same reason S3's presigned endpoints appear in
-/// no API spec: callers receive the complete URL as an opaque string and can never construct
-/// one themselves, so a generated SDK method would be uncallable.
+/// Serves local presigned URLs. A valid signature over method, key, and expiry
+/// is the authorization; no authenticated session is required.
+/// Hidden from OpenAPI because callers receive complete URLs from the storage provider.
 /// </summary>
 [ApiController]
 [ApiVersion(1)]

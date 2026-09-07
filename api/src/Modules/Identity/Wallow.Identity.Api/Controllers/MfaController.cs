@@ -113,7 +113,7 @@ public sealed partial class MfaController(
             UserId = Guid.Parse(userId)
         });
 
-        // Upgrade partial auth to full auth when enrollment was triggered by the MFA enrollment flow
+        // Complete sign-in for an enrollment flow carrying a partial-auth cookie.
         MfaPartialAuthPayload? partial = await mfaPartialAuthService.ValidatePartialCookieAsync(ct);
         if (partial is not null)
         {
@@ -229,10 +229,7 @@ public sealed partial class MfaController(
     }
 
     /// <summary>
-    /// Issues a short-lived enrollment token for a fully-authenticated user.
-    /// The Web app calls this (with a bearer token) to get a token it can pass to the
-    /// Auth app's /mfa/enroll page, which exchanges it for an Identity.MfaPartial cookie
-    /// so the enrollment API calls can authenticate the user.
+    /// Issues a sixty-second token that the enrollment exchange endpoint accepts for partial authentication.
     /// </summary>
     [HttpPost("enroll/issue-token")]
     [ProducesResponseType(typeof(MfaEnrollmentTokenResponse), StatusCodes.Status200OK)]
@@ -252,9 +249,7 @@ public sealed partial class MfaController(
     }
 
     /// <summary>
-    /// Exchanges a short-lived enrollment token for an Identity.MfaPartial cookie.
-    /// Called during Auth app prerender so the CookieForwardingHandler relays the
-    /// partial cookie to the browser, enabling subsequent enrollment API calls.
+    /// Exchanges an unexpired enrollment token for an MFA partial-auth cookie.
     /// </summary>
     [HttpPost("enroll/exchange-token")]
     [AllowAnonymous]
@@ -279,8 +274,7 @@ public sealed partial class MfaController(
         ?? throw new InvalidOperationException("User ID claim not found.");
 
     /// <summary>
-    /// Resolves the user ID for MFA enrollment. Accepts either full authentication
-    /// (standard Authorize) or a valid MFA partial cookie (issued when enrollment is required).
+    /// Uses the principal user id when present, otherwise a valid MFA partial-auth cookie.
     /// </summary>
     private async Task<string?> ResolveEnrollmentUserIdAsync(CancellationToken ct)
     {

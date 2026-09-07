@@ -9,10 +9,8 @@ using Wallow.Shared.Kernel.Errors;
 namespace Wallow.Api.Middleware;
 
 /// <summary>
-/// Global exception handler that maps an unhandled exception to a status and a catalog code and
-/// writes the problem through <see cref="IProblemDetailsService"/>, so the body follows
-/// <see cref="ProblemContract"/> like every other error. The exception rides along on the
-/// <see cref="ProblemDetailsContext"/>; the contract exposes it only in Development, only on 5xx.
+/// Maps exceptions to catalog problems through <see cref="IProblemDetailsService"/>.
+/// <see cref="ProblemContract"/> controls detail exposure; aborted requests return status 499 without a body.
 /// </summary>
 internal partial class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IExceptionHandler
 {
@@ -26,16 +24,12 @@ internal partial class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> lo
         IProblemDetailsService problemDetailsService =
             httpContext.RequestServices.GetRequiredService<IProblemDetailsService>();
 
-        // The exception-handler middleware answers a cancellation whose client has already gone
-        // on its own; this branch only sees the rare late abort. Nobody is left to read a body,
-        // and writing one against the aborted token would throw, so the status is the response.
-        // A cancellation whose client is still connected is a server-side fault and falls
-        // through to the 500 below.
+        // An aborted client request gets status only; other cancellations fall through to 500.
         if (exception is OperationCanceledException && httpContext.RequestAborted.IsCancellationRequested)
         {
             LogRequestCancelled(traceId, path);
 
-            // Do not mark the span as error for cancellations
+
             Activity.Current?.SetStatus(ActivityStatusCode.Ok);
 
             httpContext.Response.StatusCode = ProblemContract.ClientClosedRequest;

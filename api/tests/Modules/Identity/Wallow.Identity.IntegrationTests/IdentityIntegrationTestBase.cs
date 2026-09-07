@@ -6,8 +6,7 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests;
 
 /// <summary>
-/// Collection definition that ensures all Identity integration test classes share
-/// a single WallowApiFactory instance (and its containers).
+/// Shares one WallowApiFactory with tests in the Identity collection.
 /// </summary>
 [CollectionDefinition(Name)]
 public class IdentityTestCollection : ICollectionFixture<WallowApiFactory>
@@ -16,8 +15,8 @@ public class IdentityTestCollection : ICollectionFixture<WallowApiFactory>
 }
 
 /// <summary>
-/// Base class for Identity integration tests that use WallowApiFactory with TestAuthHandler.
-/// Seeds identity data (users, OAuth2 clients) via IdentityFixture on first use.
+/// Base for Identity tests using WallowApiFactory and synthetic authentication.
+/// Seeds users and OAuth2 clients once under the shared initialization lock.
 /// </summary>
 [Collection(IdentityTestCollection.Name)]
 [Trait("Category", "Integration")]

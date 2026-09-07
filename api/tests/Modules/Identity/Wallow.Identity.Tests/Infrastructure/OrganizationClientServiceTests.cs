@@ -92,7 +92,9 @@ public sealed class OrganizationClientServiceTests : IDisposable
         brandingDisplayName,
         brandingTagline);
 
-    /// <summary>Seeds a client the fixture organization owns and teaches the repository to find it.</summary>
+    /// <summary>
+    /// Creates an owned-client record and configures repository lookup.
+    /// </summary>
     private RegisteredClient OwnedClient(string clientId = "acme-app-my-app")
     {
         RegisteredClient record = RegisteredClient.Create(
@@ -101,7 +103,9 @@ public sealed class OrganizationClientServiceTests : IDisposable
         return record;
     }
 
-    /// <summary>Gives the client an OpenIddict application, for the paths that require one.</summary>
+    /// <summary>
+    /// Configures an OpenIddict application lookup for the client.
+    /// </summary>
     private void ApplicationExistsFor(string clientId) =>
         _applicationManager.FindByClientIdAsync(clientId, Arg.Any<CancellationToken>())
             .Returns(new object());
@@ -111,7 +115,7 @@ public sealed class OrganizationClientServiceTests : IDisposable
         Received.InOrder(() =>
         {
             _outbox.Enroll(_dbContext);
-            // AsTask() consumes the ValueTask (CA2012); InOrder only records the call.
+            // Consume the ValueTask returned while recording the expected call order.
             _outbox.PublishAsync(Arg.Any<TEvent>()).AsTask();
             _outbox.FlushOutgoingMessagesAsync();
         });
@@ -124,10 +128,7 @@ public sealed class OrganizationClientServiceTests : IDisposable
     }
 
     /// <summary>
-    /// The registration event's envelope must ride the registration's own transaction — outbox
-    /// enrolled before the writes, event published into it, flushed to subscribers only after the
-    /// commit — so a crash between the commit and the publish can no longer leave the client
-    /// permanently without its branding row.
+    /// Checks registration event publication through the enrolled outbox.
     /// </summary>
     [Fact]
     public async Task RegisterAsync_PublishesTheRegistrationEventThroughTheEnrolledOutbox()
@@ -186,10 +187,7 @@ public sealed class OrganizationClientServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Every lifecycle event below rides its operation's own transaction the same way the
-    /// registration event does: published into the enrolled outbox before the commit, flushed
-    /// after it, so a crash between commit and publish can no longer drop the audit row or
-    /// notification the event carries.
+    /// Checks secret-rotation event publication through the enrolled outbox.
     /// </summary>
     [Fact]
     public async Task RotateSecretAsync_PublishesTheRotationEventThroughTheEnrolledOutbox()
@@ -256,9 +254,7 @@ public sealed class OrganizationClientServiceTests : IDisposable
     }
 
     /// <summary>
-    /// The platform-suspension event additionally carries what its email notification needs — the
-    /// admin recipients, the organization's name and the operator's reason — all resolved before
-    /// the transaction so nothing is published unless the commit succeeds.
+    /// Checks recipient, organization and reason fields on the platform-suspension event.
     /// </summary>
     [Fact]
     public async Task SuspendByPlatformAsync_PublishesTheEventWithRecipientsAndOrganizationName()

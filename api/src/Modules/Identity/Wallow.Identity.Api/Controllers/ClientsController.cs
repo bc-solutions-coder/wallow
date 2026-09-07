@@ -24,17 +24,14 @@ namespace Wallow.Identity.Api.Controllers;
 public class ClientsController(IOpenIddictApplicationManager applicationManager) : ControllerBase
 {
     /// <summary>
-    /// Enough to sign a user in and keep them signed in, which is what a relying party registered
-    /// through this endpoint exists to do. API scopes stay opt-in.
+    /// Sign-in scopes used when the request omits scopes or supplies an empty list.
     /// </summary>
     private static readonly string[] _defaultScopes =
         [Scopes.OpenId, Scopes.Profile, Scopes.Email, Scopes.Roles, Scopes.OfflineAccess];
 
     /// <summary>
-    /// What an administrator may grant a client. <c>roles</c> sits outside
-    /// <see cref="ApiScopes.LoginScopes"/> because self-service app registration does not hand a
-    /// developer's app the user's role list; an administrator registering a first-party relying
-    /// party may.
+    /// Scopes this administrative endpoint permits, including roles beyond
+    /// <see cref="ApiScopes.LoginScopes"/>.
     /// </summary>
     private static readonly HashSet<string> _grantableScopes =
         new(
@@ -170,8 +167,7 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
             }
         };
 
-        // Without these the client is refused every scope it asks for on its first authorize:
-        // OpenIddict grants only what the application's own permissions list allows.
+        // Register the scopes this client may request.
         foreach (string scope in scopes)
         {
             descriptor.Permissions.Add(Permissions.Prefixes.Scope + scope);
@@ -181,9 +177,7 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
         descriptor.SetBackchannelLogoutUri(backchannelLogoutUri);
         descriptor.SetBackchannelLogoutSessionRequired(request.BackchannelLogoutSessionRequired);
 
-        // Clients registered here carry no consent type, which makes them third-party, so an
-        // unstated lifetime is pinned to the third-party default rather than left to the global
-        // fallback.
+        // Pin the third-party lifetime default rather than relying on global configuration.
         int refreshTokenLifetime =
             request.RefreshTokenLifetime ?? ClientRefreshTokenLifetimes.ThirdPartyDefaultSeconds;
         descriptor.SetRefreshTokenLifetime(refreshTokenLifetime);
@@ -265,16 +259,13 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
 
         descriptor.DisplayName = request.Name;
 
-        // Unlike the URI fields, null keeps the current lifetime rather than clearing it:
-        // reverting a client to the global fallback on an unrelated edit would silently loosen
-        // a security policy. A value applies to newly issued refresh tokens only.
+        // Null preserves the current lifetime; a value affects future refresh tokens.
         if (request.RefreshTokenLifetime is { } updatedLifetime)
         {
             descriptor.SetRefreshTokenLifetime(updatedLifetime);
         }
 
-        // Null clears the registration: Update replaces the whole mutable surface, so an omitted
-        // URI opts the client back out of logout notifications rather than keeping the old one.
+        // Omitted logout URLs remove their channel registrations.
         descriptor.SetFrontchannelLogoutUri(frontchannelLogoutUri);
         descriptor.SetBackchannelLogoutUri(backchannelLogoutUri);
         descriptor.SetBackchannelLogoutSessionRequired(request.BackchannelLogoutSessionRequired);
@@ -377,9 +368,7 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
     }
 
     /// <summary>
-    /// The same rule the organization surface and seed sync apply: absolute, fragment-free,
-    /// HTTPS or loopback HTTP. Records the offending list in ModelState and reports whether
-    /// both lists passed.
+    /// Records invalid redirect URIs using the shared HTTPS-or-loopback-HTTP rule.
     /// </summary>
     private bool RedirectUrisAreAcceptable(
         IReadOnlyList<string> redirectUris,
@@ -406,9 +395,7 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
         "The front-channel logout URI must be an absolute http or https URL.";
 
     /// <summary>
-    /// The logout page loads this URI in a hidden iframe on the OP's own origin, so anything
-    /// other than an absolute http(s) location is either unloadable there or a script vector.
-    /// A null input is valid and parses to null (the client opts out of notifications).
+    /// Accepts absolute HTTP or HTTPS front-channel URLs. Null disables this channel.
     /// </summary>
     private static bool TryParseFrontchannelLogoutUri(string? value, out Uri? uri)
     {
@@ -429,9 +416,7 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
     }
 
     /// <summary>
-    /// The shared back-channel rule with confidential-client semantics: every client registered
-    /// here holds a secret, so plain http is within the rule. A null or blank input is valid and
-    /// parses to null (the client opts out of back-channel notifications).
+    /// Applies confidential-client back-channel URI rules. Null or whitespace disables this channel.
     /// </summary>
     private static bool TryParseBackchannelLogoutUri(string? value, out Uri? uri)
     {

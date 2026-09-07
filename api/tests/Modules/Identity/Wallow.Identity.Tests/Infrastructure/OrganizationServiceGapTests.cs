@@ -81,9 +81,7 @@ public sealed class OrganizationServiceGapTests : IDisposable
         await act.Should().ThrowAsync<InvalidOperationException>();
     }
 
-    // The delete cascade itself runs ExecuteDeleteAsync statements the InMemory provider cannot
-    // execute; the happy path lives in Wallow.Identity.IntegrationTests. What is unit-testable
-    // here is every guard that must refuse before anything is touched.
+    // Deletion guards are tested here; relational cascade execution is covered by integration tests.
 
     [Fact]
     public async Task DeleteAsync_NameMismatch_ThrowsAndPublishesNothing()
@@ -164,8 +162,7 @@ public sealed class OrganizationServiceGapTests : IDisposable
         r.AllowPasswordlessLogin.Should().BeTrue();
     }
 
-    // The organization IS the tenant, so a settings row this call mints carries the org id as its
-    // tenant id — read it back under any other id and the tenant filter hides it.
+    // Read newly created settings under the organization tenant.
     [Fact]
     public async Task UpdateEnrollment_None_CreatesSettings()
     {

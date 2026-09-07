@@ -8,13 +8,13 @@ public static class WolverineAuthorizationMiddleware
 
     public static void Before(Envelope envelope)
     {
-        // Skip authorization for in-process (local) messages
+        // Local or unspecified destinations do not require this header.
         if (envelope.Destination?.Scheme is null or "local")
         {
             return;
         }
 
-        // External messages must carry a tenant ID
+        // Remote destinations require a nonblank tenant header.
         if (!envelope.Headers.TryGetValue(TenantIdHeader, out string? tenantId)
             || string.IsNullOrWhiteSpace(tenantId))
         {

@@ -4,8 +4,7 @@ using Wallow.Identity.Infrastructure.Extensions;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// Verifies that the issuer OpenIddict advertises resolves to the unified auth origin the
-/// browser reaches /connect/* through, not to the API's own origin.
+/// Checks explicit issuer precedence, AuthUrl fallback and invalid configuration.
 /// </summary>
 public sealed class OpenIddictIssuerResolverTests
 {

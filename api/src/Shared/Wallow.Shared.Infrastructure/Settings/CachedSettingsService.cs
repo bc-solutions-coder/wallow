@@ -21,7 +21,6 @@ public sealed class CachedSettingsService<TDbContext>(
         AbsoluteExpirationRelativeToNow = _cacheTtl
     };
 
-    // ── Read ────────────────────────────────────────────────────────────
 
     public async Task<IReadOnlyList<ResolvedSetting>> GetTenantSettingsAsync(
         Guid tenantId, CancellationToken ct = default)
@@ -73,7 +72,6 @@ public sealed class CachedSettingsService<TDbContext>(
         return new ResolvedSettingsConfig(dict);
     }
 
-    // ── Write ───────────────────────────────────────────────────────────
 
     public async Task UpdateTenantSettingsAsync(
         Guid tenantId, IReadOnlyList<SettingUpdate> settings, Guid updatedBy, CancellationToken ct = default)
@@ -108,7 +106,6 @@ public sealed class CachedSettingsService<TDbContext>(
         await InvalidateUserCacheAsync(tenantId, userId, ct);
     }
 
-    // ── Delete ──────────────────────────────────────────────────────────
 
     public async Task DeleteTenantSettingsAsync(
         Guid tenantId, IReadOnlyList<string> keys, Guid deletedBy, CancellationToken ct = default)
@@ -138,14 +135,13 @@ public sealed class CachedSettingsService<TDbContext>(
         await InvalidateUserCacheAsync(tenantId, userId, ct);
     }
 
-    // ── Merge logic ─────────────────────────────────────────────────────
 
     private List<ResolvedSetting> MergeTenantWithDefaults(
         IReadOnlyList<TenantSettingEntity> tenantSettings)
     {
         Dictionary<string, ResolvedSetting> result = new(registry.Metadata.Count + tenantSettings.Count);
 
-        // Start with code defaults, using direct list lookup instead of intermediate dictionary
+        // Tenant values override registered defaults.
         foreach (KeyValuePair<string, SettingMetadata> kvp in registry.Metadata)
         {
             string defaultVal = Convert.ToString(kvp.Value.DefaultValue, System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
@@ -184,7 +180,7 @@ public sealed class CachedSettingsService<TDbContext>(
     {
         Dictionary<string, ResolvedSetting> result = new(registry.Metadata.Count + tenantSettings.Count + userSettings.Count);
 
-        // Start with code defaults, overlay tenant, overlay user via direct list lookups
+        // Precedence: user, tenant, then registered default.
         foreach (KeyValuePair<string, SettingMetadata> kvp in registry.Metadata)
         {
             string defaultVal = Convert.ToString(kvp.Value.DefaultValue, System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
@@ -249,7 +245,6 @@ public sealed class CachedSettingsService<TDbContext>(
         return result.Values.ToList();
     }
 
-    // ── Helpers ──────────────────────────────────────────────────────────
 
     private void ValidateKey(string key)
     {

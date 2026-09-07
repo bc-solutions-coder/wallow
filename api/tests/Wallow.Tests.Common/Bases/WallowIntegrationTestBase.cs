@@ -4,9 +4,7 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Tests.Common.Bases;
 
 /// <summary>
-/// Shared base for integration tests that use <see cref="WallowApiFactory"/>.
-/// Handles HttpClient creation with auth, service scope lifecycle, and user context helpers.
-/// Module-specific bases extend this and resolve their own services in <see cref="InitializeAsync"/>.
+/// Provides an authenticated test client, service scope and synthetic identity helpers.
 /// </summary>
 [Trait("Category", "Integration")]
 public abstract class WallowIntegrationTestBase : IAsyncLifetime
@@ -51,9 +49,7 @@ public abstract class WallowIntegrationTestBase : IAsyncLifetime
     }
 
     /// <summary>
-    /// Marks the current test principal as a global admin — the platform operator's own
-    /// authority, carried as its own claim and never derived from organization roles.
-    /// <see cref="SetTestUser"/> clears it, so becoming someone else drops the authority.
+    /// Adds the global-admin test claim. SetTestUser clears this override.
     /// </summary>
     protected void SetTestGlobalAdmin()
     {
@@ -68,8 +64,7 @@ public abstract class WallowIntegrationTestBase : IAsyncLifetime
     }
 
     /// <summary>
-    /// Issues the test principal without any organization, as a first-party token without a hint
-    /// is for a user with several (or no) memberships.
+    /// Omits the organization claim from the synthetic principal.
     /// </summary>
     protected void SetTestNoOrganization()
     {

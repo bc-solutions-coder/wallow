@@ -21,8 +21,7 @@ public sealed partial class SessionService(
 
     public async Task<ActiveSession> CreateSessionAsync(Guid userId, Guid tenantId, CancellationToken ct)
     {
-        // In production, pg_advisory_xact_lock(userId.GetHashCode()) would be called here
-        // to prevent race conditions. Skipped for in-memory/unit test compatibility.
+        // Acquire the provider-specific transaction lock before checking the session count.
         await AcquireAdvisoryLockAsync(userId, ct);
 
         DateTimeOffset now = timeProvider.GetUtcNow();
@@ -38,8 +37,7 @@ public sealed partial class SessionService(
             ActiveSession oldest = activeSessions[0];
             oldest.Revoke();
 
-            // The ledger row id doubles as the OIDC sid (see ActiveSession), so evicting the
-            // row must also kill the tokens minted under that sid.
+            // Eviction also revokes credentials associated with the ledger row's sid.
             await accessRevoker.RevokeSessionAsync(userId, oldest.Sid, ct);
 
             await messageBus.PublishAsync(new UserSessionEvictedEvent
@@ -71,8 +69,7 @@ public sealed partial class SessionService(
 
         session.Revoke();
 
-        // Tokens first, ledger second — same fail-closed order as eviction: if the save fails
-        // the row still looks active, but the tokens under its sid are already dead.
+        // Revoke credentials before saving the ledger state; a failed save does not restore tokens.
         await accessRevoker.RevokeSessionAsync(userId, session.Sid, ct);
 
         await dbContext.SaveChangesAsync(ct);
@@ -107,8 +104,8 @@ public sealed partial class SessionService(
 
     private async Task AcquireAdvisoryLockAsync(Guid userId, CancellationToken ct)
     {
-        // pg_advisory_xact_lock ensures only one session creation per user at a time.
-        // This is a no-op when using InMemory provider (unit tests).
+        // PostgreSQL locks last for the current transaction; callers need a transaction spanning
+        // session creation for serialization. Nonrelational providers skip the lock.
         if (dbContext.Database.IsRelational())
         {
             await dbContext.Database.ExecuteSqlRawAsync(

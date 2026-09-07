@@ -32,7 +32,7 @@ public class IdentitySettingsControllerTests
         _tenantContext.TenantId.Returns(new TenantId(_tenantGuid));
         _currentUserService.GetCurrentUserId().Returns(_userGuid);
 
-        // IdentitySettingsController uses [FromKeyedServices], we must use a service provider
+        // Resolve the fixture services with the identity module key.
         ServiceCollection services = new ServiceCollection();
         services.AddKeyedSingleton("identity", _settingsService);
         services.AddKeyedSingleton("identity", _settingRegistry);
@@ -151,7 +151,7 @@ public class IdentitySettingsControllerTests
     public async Task UpsertTenantSetting_WithSystemKey_ReturnsValidationError()
     {
         SettingUpdateRequest request = new("system.some.key", "value");
-        // system key - SettingKeyValidator returns System
+
 
         IActionResult result = await _controller.UpsertTenantSetting(request, CancellationToken.None);
 

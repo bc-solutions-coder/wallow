@@ -20,12 +20,8 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.Organizations;
 
 /// <summary>
-/// Deleting an organization is the revocation cascade with no way back: every bound client's and
-/// every member's credentials die, the organization's OpenIddict applications, memberships,
-/// invitations, sessions, settings, branding and finally the row itself go in one transaction,
-/// and what survives is exactly the people — former members keep their accounts and simply have
-/// one organization fewer. A failure mid-cascade leaves the organization intact, and while a
-/// platform suspension stands, deletion is the operator's alone.
+/// Checks organization deletion, token refusal, account survival, and asynchronous branding/key cleanup.
+/// Also checks rollback after an injected revocation failure and global-admin deletion while suspended.
 /// </summary>
 [Trait("Category", "Integration")]
 public class OrganizationDeletionTests(WallowApiFactory factory) : OrganizationClientsTestBase(factory)
@@ -45,7 +41,7 @@ public class OrganizationDeletionTests(WallowApiFactory factory) : OrganizationC
         CancellationToken clientStream = OpenRealtimeStreamAsync(adminId, orgId, clientId);
         CancellationToken memberStream = OpenRealtimeStreamAsync(adminId, orgId, clientId: null);
 
-        // The typed name is the deletion's own guard: anything else refuses before a row moves.
+        // A case-mismatched confirmation name must leave the organization addressable.
         (await DeleteOrganizationAsync(Client, orgId, "deletion cascade org"))
             .StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity, "the typed name must match exactly");
         (await Client.GetAsync($"/identity/organizations/{orgId}")).StatusCode.Should().Be(HttpStatusCode.OK);
@@ -59,8 +55,7 @@ public class OrganizationDeletionTests(WallowApiFactory factory) : OrganizationC
         refresh.StatusCode.Should().Be(HttpStatusCode.Unauthorized, refresh.Body);
         refresh.Error.Should().Be("invalid_client");
 
-        // The applications went with the organization: authorize refuses them as unknown, and a
-        // bound service account gets no tokens.
+        // Deleted application registrations must no longer authorize or issue service tokens.
         AuthorizeOutcome unknown = await Harness.AuthorizeAsync(clientId, LoginScope);
         unknown.Code.Should().BeNull();
         unknown.Body.Should().Contain("error:invalid_request", "a deleted client is an unknown client");
@@ -74,15 +69,14 @@ public class OrganizationDeletionTests(WallowApiFactory factory) : OrganizationC
         (await Client.GetAsync($"/identity/organizations/{orgId}")).StatusCode
             .Should().Be(HttpStatusCode.NotFound, "the organization row itself is gone");
 
-        // Branding follows through the integration event, off the request.
+        // Wait for event-driven branding cleanup.
         await WaitForAsync(async () => await BrandingOfAsync(clientId) is null);
         (await BrandingOfAsync(clientId)).Should().BeNull("the tenant's client branding goes with it");
 
         AuthAuditEntry row = await OrganizationAuditRowAsync("OrganizationDeleted", orgId);
         row.ActorId.Should().Be(adminId, "the audit names the admin who typed the name");
 
-        // The person survives the organization: the same credentials still sign in, and their
-        // organization list simply no longer names the deleted one.
+        // The former member must retain password sign-in and lose the organization listing.
         await Harness.SignInAsync(email, MemberPassword);
         SetTestUser(adminId.ToString(), "user");
         HttpResponseMessage mine = await Client.GetAsync("/identity/me/organizations");
@@ -102,8 +96,7 @@ public class OrganizationDeletionTests(WallowApiFactory factory) : OrganizationC
             new { reason = "Under investigation" });
         placed.StatusCode.Should().Be(HttpStatusCode.NoContent, await placed.Content.ReadAsStringAsync());
 
-        // The organization's own admin typed the right name and is still refused: the freeze
-        // answers every change on the org surface, deletion included.
+        // Platform suspension must block deletion by the organization administrator.
         SetTestUser(adminId.ToString(), "admin");
         SetTestTenant(orgId);
         (await DeleteOrganizationAsync(Client, orgId, "Deletion While Frozen Org"))
@@ -125,8 +118,7 @@ public class OrganizationDeletionTests(WallowApiFactory factory) : OrganizationC
         TokenOutcome tokens = await SignInThroughAsync(email, clientId, secret);
         await HarnessTokenShouldBeAliveAsync(tokens.AccessToken!, "the token is alive before the cascade is attempted");
 
-        // The realtime hang-up sits inside the revocation cascade; making it throw fails the
-        // transaction after token revocations have already been asked for.
+        // Inject a realtime-revocation failure to exercise transaction rollback.
         using WebApplicationFactory<Program> failing = Factory.WithWebHostBuilder(builder =>
             builder.ConfigureTestServices(services =>
             {
@@ -138,8 +130,7 @@ public class OrganizationDeletionTests(WallowApiFactory factory) : OrganizationC
         (await DeleteOrganizationAsync(failingClient, orgId, "Deletion Rollback Org"))
             .StatusCode.Should().Be(HttpStatusCode.InternalServerError, "the cascade died mid-transaction");
 
-        // Nothing moved: the organization answers, and the tokens revoked inside the failed
-        // transaction are alive again.
+        // After rollback, the organization and issued tokens must remain usable.
         (await Client.GetAsync($"/identity/organizations/{orgId}")).StatusCode
             .Should().Be(HttpStatusCode.OK, "a failed cascade leaves the organization intact");
         await HarnessTokenShouldBeAliveAsync(tokens.AccessToken!, "the rollback undid the token revocations");
@@ -153,9 +144,7 @@ public class OrganizationDeletionTests(WallowApiFactory factory) : OrganizationC
         Guid orgId = await OrganizationOwnedBySomeoneElseAsync("Deletion ApiKeys Org");
         (Guid adminId, _) = await EnrollAndActAsync(orgId, "admin");
 
-        // The shared test host runs with the ApiKeys module off; the cascade's key revocation
-        // is a handler in that module, so this test raises a host with it on. Same database,
-        // same Valkey — only the module surface differs.
+        // Enable the ApiKeys module on a derived host to exercise its deletion-event handler.
         using WebApplicationFactory<Program> withApiKeys = Factory.WithWebHostBuilder(builder =>
             builder.UseSetting("FeatureManagement:Modules.ApiKeys", "true"));
 
@@ -170,7 +159,7 @@ public class OrganizationDeletionTests(WallowApiFactory factory) : OrganizationC
                 TenantId.Create(orgId), adminId.ToString(), hashedKey, "Cascade Key",
                 ["organizations.read"], expiresAt: null, adminId, TimeProvider.System);
             await keys.AddAsync(key, CancellationToken.None);
-            // The cache is keyed by the domain id — the same id the module writes on creation.
+            // Use the domain ID for the ID cache and user-key index.
             cachedKeyId = key.Id.Value.ToString();
         }
 
@@ -183,7 +172,7 @@ public class OrganizationDeletionTests(WallowApiFactory factory) : OrganizationC
         HttpResponseMessage deleted = await DeleteOrganizationAsync(actingClient, orgId, "Deletion ApiKeys Org");
         deleted.StatusCode.Should().Be(HttpStatusCode.NoContent, await deleted.Content.ReadAsStringAsync());
 
-        // The handler runs off the request through the outbox: wait for the row to flip.
+        // Wait for the event handler to revoke the persisted key.
         await WaitForAsync(async () => (await TenantKeysAsync(withApiKeys, orgId)).All(k => k.IsRevoked));
         (await TenantKeysAsync(withApiKeys, orgId)).Should()
             .NotBeEmpty("the revoked rows remain as the audit trail")
@@ -204,7 +193,9 @@ public class OrganizationDeletionTests(WallowApiFactory factory) : OrganizationC
         return await keys.ListByTenantAsync(orgId, CancellationToken.None);
     }
 
-    /// <summary>DELETE carries the typed name in its body, which needs the long-form request.</summary>
+    /// <summary>
+    /// Sends a DELETE request with the confirmation name in its JSON body.
+    /// </summary>
     private static async Task<HttpResponseMessage> DeleteOrganizationAsync(
         HttpClient client, Guid orgId, string confirmName)
     {
@@ -215,7 +206,9 @@ public class OrganizationDeletionTests(WallowApiFactory factory) : OrganizationC
         return await client.SendAsync(delete);
     }
 
-    /// <summary>A client against a derived host, acting as the same stub identity the base sets.</summary>
+    /// <summary>
+    /// Creates a client for the derived host with explicit synthetic identity headers.
+    /// </summary>
     private static HttpClient ActingClient(
         WebApplicationFactory<Program> host, Guid userId, string roles, Guid tenantId)
     {
@@ -227,7 +220,9 @@ public class OrganizationDeletionTests(WallowApiFactory factory) : OrganizationC
         return client;
     }
 
-    /// <summary>Registers a stream the way the SSE endpoint does; the token is what deletion cancels.</summary>
+    /// <summary>
+    /// Adds an SSE registry entry and returns the cancellation token used by deletion checks.
+    /// </summary>
     private CancellationToken OpenRealtimeStreamAsync(Guid userId, Guid orgId, string? clientId)
     {
         SseConnectionManager connections = Factory.Services.GetRequiredService<SseConnectionManager>();

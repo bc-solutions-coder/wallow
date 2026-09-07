@@ -1,11 +1,8 @@
 namespace Wallow.Shared.Contracts.Realtime;
 
 /// <summary>
-/// Ends realtime connections from outside the request serving them.
-///
-/// A live SSE stream or hub connection carries the roles and permissions it was opened with, so
-/// it keeps delivering tenant traffic long after the credential behind it stopped being valid.
-/// Revoking a token does not reach an already-open socket; this does.
+/// Ends existing SSE and hub connections after access is revoked. Token revocation alone
+/// does not close connections authenticated when they opened.
 /// </summary>
 public interface IRealtimeAccessRevoker
 {

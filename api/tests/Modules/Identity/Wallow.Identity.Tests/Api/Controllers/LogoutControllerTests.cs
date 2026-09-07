@@ -80,8 +80,7 @@ public sealed class LogoutControllerTests : IDisposable
         httpContext.Request.Path = "/connect/logout";
         httpContext.Request.QueryString = new QueryString(queryString);
 
-        // The HttpContext.SignOutAsync extension resolves IAuthenticationService from
-        // RequestServices, which is how these tests observe the identity-cookie sign-out.
+        // Register the authentication stub to observe cookie sign-out requests.
         httpContext.RequestServices = new ServiceCollection()
             .AddSingleton(_authenticationService)
             .BuildServiceProvider();
@@ -92,8 +91,7 @@ public sealed class LogoutControllerTests : IDisposable
     [Fact]
     public async Task Logout_WithoutSid_SignsOutBothSchemesImmediately()
     {
-        // A session that never went through authorize has no participants to notify, so logout
-        // stays a single round trip.
+        // Without a SID, logout cannot resolve session participation.
         SetupHttpContext(sid: null);
 
         IActionResult result = await _controller.Logout();
@@ -144,8 +142,7 @@ public sealed class LogoutControllerTests : IDisposable
 
         await _controller.Logout();
 
-        // The notifier walks the participation rows itself, so it must run before ForgetAsync
-        // deletes them — after, every logout would notify nobody.
+        // Notify before deleting the participation rows the notifier reads.
         Received.InOrder(() =>
         {
             _backchannelLogoutNotifier.NotifyAsync(TestSid, _userId, _issuer, Arg.Any<CancellationToken>());
@@ -195,16 +192,14 @@ public sealed class LogoutControllerTests : IDisposable
         ContentResult page = result.Should().BeOfType<ContentResult>().Subject;
         page.ContentType.Should().StartWith("text/html");
 
-        // Each participant's URI is loaded in a hidden iframe, HTML-attribute-encoded (the raw
-        // query joiner & is not legal inside an attribute value).
+        // Encode iframe URLs for HTML attributes so query delimiters survive parsing.
         page.Content.Should().Contain("<iframe");
         page.Content.Should().Contain(
             "https://rp-one.example.com/bff/frontchannel-logout?iss=https%3A%2F%2Fid.example.com&amp;sid=" + TestSid);
         page.Content.Should().Contain(
             "https://rp-two.example.com/bff/frontchannel-logout?iss=https%3A%2F%2Fid.example.com&amp;sid=" + TestSid);
 
-        // The page hands the browser back to this same endpoint with the completion marker so
-        // phase two can run the OpenIddict end-session redirect.
+        // The completion marker requests the final OpenIddict end-session redirect.
         page.Content.Should().Contain("wallow_fc=done");
     }
 
@@ -218,8 +213,7 @@ public sealed class LogoutControllerTests : IDisposable
 
         await _controller.Logout();
 
-        // The cookie dies in phase one — the notification page must already represent a
-        // signed-out user — and the participation rows die with the session.
+        // Request cookie sign-out and participation cleanup in the notification phase.
         await _authenticationService.Received(1).SignOutAsync(
             Arg.Any<HttpContext>(), IdentityConstants.ApplicationScheme, Arg.Any<AuthenticationProperties?>());
         await _ssoClientSessionService.Received(1).ForgetAsync(TestSid, Arg.Any<CancellationToken>());
@@ -252,7 +246,7 @@ public sealed class LogoutControllerTests : IDisposable
         await _ssoClientSessionService.DidNotReceive().BuildLogoutNotificationUrisAsync(
             Arg.Any<string>(), Arg.Any<Uri>(), Arg.Any<CancellationToken>());
 
-        // Phase one already revoked the session's tokens; the return trip must not walk again.
+        // The completion phase must not repeat session revocation.
         await _accessRevoker.DidNotReceive().RevokeSessionAsync(
             Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }

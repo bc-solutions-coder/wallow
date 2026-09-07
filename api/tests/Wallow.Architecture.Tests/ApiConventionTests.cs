@@ -2,7 +2,7 @@ using System.Reflection;
 using Microsoft.AspNetCore.Mvc;
 using NetArchTest.Rules;
 
-#pragma warning disable CA1024 // MemberData source methods cannot be properties
+#pragma warning disable CA1024 // Keep callable MemberData factories.
 
 namespace Wallow.Architecture.Tests;
 
@@ -27,26 +27,26 @@ public class ApiConventionTests
             .Inherit(typeof(ControllerBase))
             .GetTypes();
 
-        // OpenIddict OIDC controllers use standard OAuth2/OIDC patterns, not REST API conventions
+        // OIDC protocol controllers are exempt from the REST conventions below.
         string[] oidcControllers = ["AuthorizationController", "TokenController", "LogoutController", "UserinfoController"];
 
         foreach (Type controller in controllers)
         {
-            // Controllers should have "Controller" suffix
+
             controller.Name.Should().EndWith("Controller",
                 $"Controller {controller.Name} in {moduleName} module should have 'Controller' suffix");
 
-            // Skip OIDC controllers for API-specific conventions
+
             if (oidcControllers.Contains(controller.Name, StringComparer.Ordinal))
             {
                 continue;
             }
 
-            // Controllers should have [ApiController] attribute
+
             controller.GetCustomAttribute<ApiControllerAttribute>().Should().NotBeNull(
                 $"Controller {controller.Name} in {moduleName} module should have [ApiController] attribute");
 
-            // Controllers should use constructor injection when they have instance state
+
             ConstructorInfo[] constructors = controller.GetConstructors(BindingFlags.Public | BindingFlags.Instance);
             constructors.Should().NotBeEmpty(
                 $"Controller {controller.Name} in {moduleName} module should have at least one public constructor");
@@ -61,7 +61,7 @@ public class ApiConventionTests
                     $"Controller {controller.Name} in {moduleName} module should use constructor injection when it has instance dependencies.");
             }
 
-            // Action methods should return IActionResult or ActionResult variants
+
             IEnumerable<MethodInfo> actionMethods = controller
                 .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
                 .Where(m => !m.IsSpecialName && m.DeclaringType == controller);
@@ -85,7 +85,7 @@ public class ApiConventionTests
             }
         }
 
-        // Controllers should be in Controllers namespace
+
         TestResult namespaceResult = Types.InAssembly(apiAssembly)
             .That()
             .Inherit(typeof(ControllerBase))
@@ -97,7 +97,7 @@ public class ApiConventionTests
             $"All controllers in {moduleName} module should be in Controllers namespace. " +
             $"Failing types: {string.Join(", ", namespaceResult.FailingTypeNames ?? Array.Empty<string>())}");
 
-        // Request contracts should be in Contracts namespace
+
         TestResult requestResult = Types.InAssembly(apiAssembly)
             .That()
             .HaveNameEndingWith("Request")
@@ -111,7 +111,7 @@ public class ApiConventionTests
             $"All request types in {moduleName} module should be in Contracts namespace. " +
             $"Failing types: {string.Join(", ", requestResult.FailingTypeNames ?? Array.Empty<string>())}");
 
-        // Response contracts should be in Contracts namespace
+
         TestResult responseResult = Types.InAssembly(apiAssembly)
             .That()
             .HaveNameEndingWith("Response")

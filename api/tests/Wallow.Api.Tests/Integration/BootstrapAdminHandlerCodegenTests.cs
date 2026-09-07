@@ -7,11 +7,7 @@ using Wolverine;
 namespace Wallow.Api.Tests.Integration;
 
 /// <summary>
-/// Guards the first-run wizard against the codegen policy. <c>ServiceLocationPolicy.NotAllowed</c>
-/// is evaluated when Wolverine compiles a handler — the first time the message is sent — so a
-/// dependency the codegen cannot inline-construct does not surface at startup or in a unit test
-/// that news the handler up itself. It surfaces as a 500 on the one request a brand new
-/// installation has to make, which is the last place anyone can afford to find it.
+/// Invokes bootstrap through Wolverine to exercise generated dependency construction under the host policy.
 /// </summary>
 [Collection(nameof(ApiIntegrationTestCollection))]
 [Trait("Category", "Integration")]

@@ -3,8 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 namespace Wallow.Identity.Application.Helpers;
 
 /// <summary>
-/// The one rule set for the URIs a client registers, shared by the org-scoped client surface, the
-/// platform admin surface and seed sync so no path can register a redirect the others refuse.
+/// Shared URI syntax rules for client registration surfaces.
 /// </summary>
 public static class ClientUriRules
 {
@@ -40,17 +39,15 @@ public static class ClientUriRules
     }
 
     /// <summary>
-    /// A front- or back-channel logout URI: absolute, fragment-free, http or https. Plain http is
-    /// tolerated because the identity provider calls it server-to-server on a private network.
+    /// Accepts absolute, fragment-free HTTP or HTTPS logout URIs.
+    /// This helper does not restrict hosts or require a private network.
     /// </summary>
     public static bool TryParseLogoutUri(string? value, [NotNullWhen(true)] out Uri? uri) =>
         TryParseWebUri(value, out uri);
 
     /// <summary>
-    /// A back-channel logout URI: absolute, fragment-free, http or https — but plain http only
-    /// for a confidential client, whose URI names a server the identity provider reaches over a
-    /// private network. A public client's back-channel endpoint is reached over the open
-    /// internet, so it must be https.
+    /// Accepts absolute, fragment-free back-channel logout URIs. HTTPS is required for
+    /// public clients; confidential clients may also use HTTP.
     /// </summary>
     public static bool TryParseBackchannelLogoutUri(
         string? value,

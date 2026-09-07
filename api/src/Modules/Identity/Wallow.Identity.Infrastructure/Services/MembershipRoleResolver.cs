@@ -28,8 +28,7 @@ public sealed class MembershipRoleResolver(
             return [];
         }
 
-        // The role catalog is global: roles are seeded with TenantId = Guid.Empty and are
-        // addressed here by id, so no tenant scoping applies to the lookup.
+        // Resolve assignment IDs against the global role catalog.
         List<string> names = await context.Roles
             .IgnoreQueryFilters()
             .Where(r => roleIds.Contains(r.Id) && r.Name != null)

@@ -18,25 +18,13 @@ using static OpenIddict.Abstractions.OpenIddictConstants;
 namespace Wallow.Identity.Tests.Api.Controllers;
 
 /// <summary>
-/// Audience restriction on issued access tokens (bead Wallow-pu6a.6.5, guardrail R24 of the SDK
-/// review; RFC 9700 §2.3: "access tokens SHOULD be audience-restricted").
-///
-/// <para>Today no code path anywhere in <c>api/src</c> sets a resource or an audience, so every
-/// access token this issuer mints is valid at every resource that trusts the issuer. OpenIddict
-/// derives the <c>aud</c> claim from the resources set on the signed-in principal, so both grant
-/// types <see cref="TokenController"/> serves — authorization_code/refresh_token and
-/// client_credentials — must set the API resource before signing in.</para>
-///
-/// <para>The matching acceptance half (the validation handler rejecting a token whose audience is
-/// not this API) is asserted in <c>Wallow.Architecture.Tests.AccessTokenAudienceTests</c>: the
-/// OpenIddict validation options are configured inside a composition root that needs EF, Redis,
-/// and certificates, so it cannot be built here.</para>
+/// Checks that <see cref="TokenController"/> sets the API resource on sign-in principals
+/// for authorization-code and client-credentials exchanges.
 /// </summary>
 public sealed class TokenControllerAudienceTests : IDisposable
 {
     /// <summary>
-    /// The audience every Wallow access token must carry. Both the issuance side (this file) and
-    /// the validation side must agree on this literal; it is the value the fix has to use.
+    /// API resource expected by the issuance and validation configuration.
     /// </summary>
     private const string ApiAudience = "wallow-api";
 

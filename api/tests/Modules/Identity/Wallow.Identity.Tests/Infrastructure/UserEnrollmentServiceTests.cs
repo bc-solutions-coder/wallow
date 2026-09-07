@@ -16,12 +16,8 @@ using Wolverine;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// The enrollment policy engine: who may join an organization they are not yet a member of,
-/// and what is recorded when they do.
-///
-/// The organization mints its own id and its tenant id from it, so the fixture takes both from
-/// the created row rather than choosing a guid — an organization built around a guid of the
-/// spec's own choosing is not the one the reads find.
+/// Checks enrollment policies and recorded membership transitions.
+/// The fixture uses the created organization ID as its tenant ID.
 /// </summary>
 public sealed class UserEnrollmentServiceTests : IDisposable
 {
@@ -113,7 +109,7 @@ public sealed class UserEnrollmentServiceTests : IDisposable
     [Fact]
     public async Task EnrollAsync_WithNoSettingsAtAll_RecordsNothing()
     {
-        // A policy nobody has chosen has to be the one that grants nothing.
+        // Missing settings must not grant enrollment.
         WallowUser user = await GivenVerifiedUserAsync();
 
         EnrollmentOutcome outcome = await _sut.EnrollAsync(user.Id, _orgId);
@@ -216,9 +212,7 @@ public sealed class UserEnrollmentServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Self-service, so the actor and the subject are the same person. The audit trail records
-    /// that equality rather than leaving the actor blank, which would read as an unattributed
-    /// admission.
+    /// Self-service requests must record the requester as the audit actor.
     /// </summary>
     [Fact]
     public async Task EnrollAsync_UnderRequestApproval_AuditsTheRequestAgainstTheRequester()

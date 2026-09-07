@@ -1,4 +1,4 @@
-#pragma warning disable CA2012 // Use ValueTasks correctly - NSubstitute requires ValueTask in Returns()
+#pragma warning disable CA2012 // Configure and verify ValueTask-returning substitutes.
 
 using OpenIddict.Abstractions;
 using Wallow.Identity.Application.DTOs;

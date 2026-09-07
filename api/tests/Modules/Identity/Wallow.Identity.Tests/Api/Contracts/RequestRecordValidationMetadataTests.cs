@@ -5,13 +5,7 @@ using Wallow.Identity.Api.Contracts.Requests;
 namespace Wallow.Identity.Tests.Api.Contracts;
 
 /// <summary>
-/// A validation attribute on a positional record must sit on the constructor PARAMETER, not on
-/// the generated property. MVC refuses to bind a record whose validation metadata landed on the
-/// property — every request to that endpoint returns 500 — and the `[property: ...]` target that
-/// causes it compiles cleanly and reads as correct, so nothing else catches it.
-///
-/// The sweep covers the whole contracts namespace because the mistake is per-record, and a spec
-/// naming one record leaves the next one unguarded.
+/// Checks that positional request-record validation attributes target constructor parameters.
 /// </summary>
 public class RequestRecordValidationMetadataTests
 {
@@ -58,14 +52,12 @@ public class RequestRecordValidationMetadataTests
     [Fact]
     public void TheSweep_ActuallyFindsTheRequestRecords()
     {
-        // A namespace typo or a moved contracts assembly would otherwise leave this file
-        // asserting nothing while still passing.
+        // Require enough discovered records to catch an empty or misdirected scan.
         RequestRecords().Count.Should().BeGreaterThan(10);
     }
 
     /// <summary>
-    /// The record's positional constructor: the one whose parameters all have a same-named
-    /// property, which is what MVC binds a request body through.
+    /// Finds the first public nonempty constructor whose parameters have matching public properties.
     /// </summary>
     private static ConstructorInfo? PrimaryConstructorOf(Type type)
     {

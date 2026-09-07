@@ -13,46 +13,16 @@ using Wallow.Shared.Kernel;
 namespace Wallow.Architecture.Tests;
 
 /// <summary>
-/// Guards that every custom OpenTelemetry instrument in this repo is actually exported (bead
-/// Wallow-t955). Before this bead <c>ConfigureOpenTelemetry</c> contained zero <c>AddMeter</c> and
-/// zero <c>AddSource</c> calls, so the SDK collected nothing from our own <c>Meter</c> /
-/// <c>ActivitySource</c> instances — the counters and histograms were recorded in-process and thrown
-/// away, and only the built-in ASP.NET Core / HttpClient / process / runtime instrumentation ever
-/// reached the exporter.
-///
-/// The contract these tests pin down:
-/// <list type="bullet">
-/// <item>Every meter created through <see cref="Diagnostics.CreateMeter" /> that carries an
-/// instrument — <c>Messaging</c>, <c>Cache</c>, <c>Identity</c>, <c>Health</c> — is collected, as is
-/// the bare <see cref="Diagnostics.Meter" /> a fork may record on. The bare name matters
-/// independently because <c>AddMeter</c>'s <c>*</c> wildcard is a suffix match:
-/// <c>AddMeter("Wallow.*")</c> does NOT match a meter named exactly <c>"Wallow"</c>.</item>
-/// <item>Both live activity sources — <c>Wallow.Identity</c> and
-/// <c>Wallow.Notifications.Email</c> — plus the bare <see cref="Diagnostics.ActivitySource" /> are
-/// listened to.</item>
-/// <item>The prefix is runtime-configurable. <c>Program.cs</c> calls
-/// <c>Diagnostics.Initialize(configuration["Logging:NamespacePrefix"])</c>, so a fork running under
-/// <c>"Contoso"</c> must get <c>Contoso.Messaging</c> and friends registered. Critically,
-/// <c>AddServiceDefaults</c> runs BEFORE <c>Diagnostics.Initialize</c>, so the registration has to
-/// read the prefix from <c>builder.Configuration</c> rather than from <see cref="Diagnostics" />
-/// static state.</item>
-/// <item>Registration stays scoped to our prefix — a blanket <c>AddMeter("*")</c> would drag in
-/// every third-party meter in the process and is not an acceptable fix.</item>
-/// </list>
-///
-/// Rather than reflecting over SDK internals, these tests probe the built providers functionally: a
-/// meter is "exported" if a counter recorded on it reaches a metric reader attached to the
-/// <see cref="MeterProvider" /> <c>AddServiceDefaults</c> configured, and an activity source is
-/// "listened to" if <see cref="ActivitySource.StartActivity(string, ActivityKind)" /> returns a
-/// non-null activity (with no listener the SDK short-circuits and returns null). The two
-/// <c>Probe_Should…</c> control tests register a name inline and assert the probe sees it, so a
-/// failure in the tests below is a missing registration rather than a broken harness.
+/// Checks collection of selected metric names and listener activity for selected source names.
+/// Includes bare and dotted prefixes, a custom prefix and unrelated-name controls.
 /// </summary>
 public class CustomInstrumentExportTests
 {
     private const string PrefixConfigKey = "Logging:NamespacePrefix";
 
-    /// <summary>Prefix a fork might configure, used to prove the registration is not hard-coded.</summary>
+    /// <summary>
+    /// Alternate prefix used to detect hardcoded registration names.
+    /// </summary>
     private const string ForkPrefix = "Contoso";
 
     private static readonly string _observabilityDocsPath = Path.Combine(
@@ -61,7 +31,7 @@ public class CustomInstrumentExportTests
         "operations",
         "observability.md");
 
-    // ---- metrics -------------------------------------------------------------------------
+
 
     [Fact]
     public void Probe_ShouldObserveAMeter_ThatIsExplicitlyRegistered()
@@ -135,7 +105,7 @@ public class CustomInstrumentExportTests
             meterName);
     }
 
-    // ---- traces --------------------------------------------------------------------------
+
 
     [Fact]
     public void Probe_ShouldObserveAnActivitySource_ThatIsExplicitlyRegistered()
@@ -191,14 +161,12 @@ public class CustomInstrumentExportTests
             "listen to every third-party activity source in the process");
     }
 
-    // ---- drift guard ---------------------------------------------------------------------
+
 
     [Fact]
     public void CustomInstrumentNames_ShouldMatch_TheNamesTheseTestsAssert()
     {
-        // If someone renames a module telemetry holder or the Diagnostics prefix scheme, the
-        // literals above would silently stop covering the real instruments. Bind them to the live
-        // API here so that drift fails loudly instead of quietly disabling the export tests.
+        // Tie the probe names to the production telemetry names.
         Diagnostics.Meter.Name.Should().Be("Wallow");
         Diagnostics.ActivitySource.Name.Should().Be("Wallow");
         using Meter messagingMeter = Diagnostics.CreateMeter("Messaging");
@@ -214,7 +182,7 @@ public class CustomInstrumentExportTests
         EmailModuleTelemetry.ActivitySource.Name.Should().Be("Wallow.Notifications.Email");
     }
 
-    // ---- documentation -------------------------------------------------------------------
+
 
     [Theory]
     [InlineData("no meters or activity sources")]
@@ -272,13 +240,10 @@ public class CustomInstrumentExportTests
             "surface — documenting the meter without naming it buries the lede");
     }
 
-    // ---- helpers -------------------------------------------------------------------------
+
 
     /// <summary>
-    /// Records a counter on a meter named <paramref name="probeMeterName" /> and reports whether it
-    /// reached a reader attached to the <see cref="MeterProvider" /> that <c>AddServiceDefaults</c>
-    /// configured. A meter the SDK was never told about is dropped at publish time, so this is a
-    /// direct functional test of <c>AddMeter</c>.
+    /// Records a probe counter and checks whether the configured provider exports it to the test reader.
     /// </summary>
     private static bool IsMeterCollected(
         string probeMeterName,
@@ -321,10 +286,7 @@ public class CustomInstrumentExportTests
     }
 
     /// <summary>
-    /// Reports whether the <see cref="TracerProvider" /> that <c>AddServiceDefaults</c> configured
-    /// listens to <paramref name="probeSourceName" />. <see cref="ActivitySource.StartActivity(string, ActivityKind)" />
-    /// returns null when no listener has opted into the source, so a non-null activity is proof the
-    /// source was registered with <c>AddSource</c>.
+    /// Builds tracing and reports whether the probe source creates an activity.
     /// </summary>
     private static bool IsActivitySourceListenedTo(
         string probeSourceName,
@@ -345,8 +307,7 @@ public class CustomInstrumentExportTests
         {
             _ = app.Services.GetRequiredService<TracerProvider>();
 
-            // ParentBased sampling defers to an ambient parent; start from a clean slate so the
-            // result reflects the root sampler and the listener, not whatever xunit left behind.
+            // Remove the ambient parent so the probe uses root sampling.
             Activity.Current = null;
 
             using ActivitySource probeSource = new(probeSourceName);
@@ -365,8 +326,7 @@ public class CustomInstrumentExportTests
     {
         WebApplicationBuilder builder = WebApplication.CreateBuilder();
 
-        // Keep the providers in-process: an OTLP endpoint is irrelevant to which meters and sources
-        // the SDK subscribes to.
+        // Disable the remote exporter for this in-process probe.
         builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"] = null;
         builder.Configuration[PrefixConfigKey] = namespacePrefix;
 

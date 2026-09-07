@@ -8,11 +8,7 @@ using Wallow.Tests.Common;
 namespace Wallow.SeederService.Tests;
 
 /// <summary>
-/// Wallow-2y1t: a seed step that threw was logged Critical and then swallowed by the host, which
-/// exits the process 0. docker-compose.test.yml gates wallow-api and wallow-web on the seeder's
-/// <c>service_completed_successfully</c>, so a failed seed silently started the stack against a
-/// database with zero OIDC clients. These tests pin the failure onto <see cref="WorkerRunOutcome"/>,
-/// which Program.cs turns into a non-zero exit.
+/// Checks failed-run status, critical logging and shutdown after a seed-step exception.
 /// </summary>
 public class SeederWorkerExitCodeTests
 {
@@ -57,16 +53,13 @@ public class SeederWorkerExitCodeTests
     [Fact]
     public void WorkerRunOutcome_BeforeAnyFailure_ExitsZero()
     {
-        // The happy path must not regress: a successful seed still has to satisfy Compose's
-        // service_completed_successfully edge.
+
         _outcome.Failed.Should().BeFalse();
         _outcome.ExitCode.Should().Be(0);
     }
 
     /// <summary>
-    /// Drives the real <c>ExecuteAsync</c>. <c>StartAsync</c> returns as soon as the worker yields,
-    /// so the faulted task must be awaited through <c>ExecuteTask</c>; awaiting only
-    /// <c>StartAsync</c> would miss a failure that happens after the first await.
+    /// Awaits the worker execution task so failures after startup are observed.
     /// </summary>
     private static Func<Task> RunToCompletionAsync(SeederWorker worker) => async () =>
     {
@@ -80,8 +73,7 @@ public class SeederWorkerExitCodeTests
 
     private SeederWorker CreateWorkerWithEmptyScope()
     {
-        // An empty provider: the first step's GetRequiredService<RoleManager<WallowRole>>() throws,
-        // which is exactly how the Wallow-smvc DI gap surfaced in the wild.
+        // Missing services force the worker to fail during seeding.
         ServiceCollection services = new();
         ServiceProvider emptyProvider = services.BuildServiceProvider();
 

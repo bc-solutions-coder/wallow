@@ -10,16 +10,13 @@ using Wallow.Storage.Infrastructure.Modules;
 namespace Wallow.Modules.Registry;
 
 /// <summary>
-/// The single list of modules the platform ships. Both hosts read it: <c>Wallow.Api</c> filters it
-/// against its <c>FeatureManagement:Modules.*</c> configuration, and <c>Wallow.MigrationService</c>
-/// takes it unfiltered.
+/// Shipped modules shared by API registration and migrations. The API filters optional modules;
+/// the migration host takes the full list.
 /// </summary>
 public static class WallowModuleRegistry
 {
     /// <summary>
-    /// Gets every module the platform ships, in registration order. Identity is
-    /// <see cref="IWallowModule.IsCore"/> and comes first because the rest of the platform assumes
-    /// its schema and services are present.
+    /// Modules in registration order, with core Identity services first.
     /// </summary>
     public static IReadOnlyList<IWallowModule> All { get; } =
     [

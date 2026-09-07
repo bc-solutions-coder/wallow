@@ -11,25 +11,13 @@ using Wallow.Shared.Infrastructure.Modules;
 namespace Wallow.Architecture.Tests.Modules;
 
 /// <summary>
-/// Guards the "one module list" property. Both hosts must source their modules from
-/// <see cref="WallowModuleRegistry"/>: <c>Wallow.Api.WallowModules</c> filtered against
-/// <c>FeatureManagement:Modules.*</c> configuration, <c>Wallow.MigrationService.ModuleMigrations</c>
-/// unfiltered.
+/// Checks that API and migration hosts use the registry module instances.
+/// Reference identity detects separately constructed module lists.
 /// </summary>
-/// <remarks>
-/// The identity assertions are what make this suite a real regression guard rather than a
-/// tautology. Comparing the two hosts' module *types* only proves the lists agree today, and two
-/// hand-maintained arrays with identical contents agree right up until the moment someone edits
-/// one of them. Comparing object *identity* fails the instant a host constructs its own
-/// <c>new XModule()</c> array again, even one that is byte-for-byte identical to the registry —
-/// which is precisely the failure mode the bead describes (adding an eighth module to one list
-/// and not the other).
-/// </remarks>
 public class ModuleRegistryTests
 {
     /// <summary>
-    /// Every module flag turned on, so the API host's filtered list is expected to be the whole
-    /// registry and can be compared against the migration host's unfiltered one.
+    /// Enables every module for comparison with the unfiltered migration registry.
     /// </summary>
     private static readonly Dictionary<string, string?> _allModuleFlagsEnabled = new()
     {
@@ -117,15 +105,13 @@ public class ModuleRegistryTests
     }
 
     /// <summary>
-    /// Calls <c>Wallow.Api.WallowModules.AddWallowModules</c> and keeps its return value. The class
-    /// is internal but the method is public, which reflection reaches without any
-    /// <c>InternalsVisibleTo</c> plumbing — the same approach <c>ModuleToggleTests</c> already uses.
+    /// Invokes the host registration method through reflection.
     /// </summary>
     private static IReadOnlyList<IWallowModule> InvokeAddWallowModules()
     {
         ServiceCollection services = new();
 
-        // Modules resolve IConnectionMultiplexer at registration time for Redis-backed services
+        // Supply Redis for module service registration.
         IConnectionMultiplexer mockRedis = Substitute.For<IConnectionMultiplexer>();
         services.AddSingleton(mockRedis);
 
@@ -144,8 +130,7 @@ public class ModuleRegistryTests
     }
 
     /// <summary>
-    /// Reads <c>Wallow.MigrationService.ModuleMigrations.All</c>. Same accessibility shape as
-    /// <c>WallowModules</c> — internal class, public member — so the same reflection works.
+    /// Reads the migration host module list through reflection.
     /// </summary>
     private static IReadOnlyList<IWallowModule> ReadModuleMigrationsAll()
     {

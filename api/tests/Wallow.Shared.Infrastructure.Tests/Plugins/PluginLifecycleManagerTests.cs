@@ -39,7 +39,7 @@ public class PluginLifecycleManagerTests
         new(id, "Test Plugin", "1.0.0", "A test plugin", "Test Author", "1.0.0",
             "TestPlugin.dll", [], requiredPermissions ?? [], []);
 
-    // -- EnablePluginAsync --
+
 
     [Fact]
     public async Task EnablePluginAsync_PluginInInstalledState_TransitionsToEnabled()
@@ -118,7 +118,7 @@ public class PluginLifecycleManagerTests
             .WithMessage("*Invalid state transition*Discovered*Enabled*");
     }
 
-    // -- DisablePluginAsync --
+
 
     [Fact]
     public async Task DisablePluginAsync_PluginInEnabledState_TransitionsToDisabled()
@@ -153,7 +153,7 @@ public class PluginLifecycleManagerTests
             .WithMessage("*Invalid state transition*Installed*Disabled*");
     }
 
-    // -- InitializePluginAsync --
+
 
     [Fact]
     public async Task InitializePluginAsync_PluginInEnabledState_CallsInitializeOnPlugin()
@@ -193,7 +193,7 @@ public class PluginLifecycleManagerTests
             .WithMessage("*must be Enabled*");
     }
 
-    // -- DiscoverPluginsAsync --
+
 
     [Fact]
     public async Task DiscoverPluginsAsync_WithManifestFiles_RegistersPluginsInRegistry()
@@ -319,7 +319,7 @@ public class PluginLifecycleManagerTests
         }
     }
 
-    // -- LoadPluginAsync --
+
 
     [Fact]
     public async Task LoadPluginAsync_NonExistentPlugin_ThrowsInvalidOperationException()
@@ -372,7 +372,7 @@ public class PluginLifecycleManagerTests
             .WithMessage("*Invalid state transition*Disabled*Installed*");
     }
 
-    // -- Lifecycle ordering --
+
 
     [Fact]
     public async Task EnableThenDisable_FullLifecycle_CallsAddServicesThenShutdown()
@@ -589,7 +589,7 @@ public class PluginLifecycleManagerTests
             .WithMessage("*Invalid state transition*Discovered*Disabled*");
     }
 
-    // -- Uninstalled state transitions --
+
 
     [Fact]
     public async Task LoadPluginAsync_UninstalledState_ThrowsInvalidOperationException()
@@ -657,7 +657,7 @@ public class PluginLifecycleManagerTests
             .WithMessage("*must be Enabled*");
     }
 
-    // -- Re-enable with permissions --
+
 
     [Fact]
     public async Task EnablePluginAsync_DisabledStateWithPermissions_ValidatesPermissions()
@@ -736,8 +736,7 @@ public class PluginLifecycleManagerTests
 }
 
 /// <summary>
-/// Tests that exercise LoggerMessage-generated code paths by using a logger
-/// where IsEnabled returns true, causing the generated formatting code to execute.
+/// Exercises generated log formatting with an enabled logger.
 /// </summary>
 public sealed class PluginLifecycleManagerLoggingTests : IDisposable
 {
@@ -756,7 +755,7 @@ public sealed class PluginLifecycleManagerLoggingTests : IDisposable
             PluginsDirectory = Path.Combine(Path.GetTempPath(), "wallow-test-plugins")
         });
 
-#pragma warning disable CA2000 // LoggerFactory takes ownership of the provider and disposes it
+#pragma warning disable CA2000 // The test provider owns no resources; its Dispose method is empty.
         _loggerFactory = new LoggerFactory([new ListLoggerProvider()]);
 #pragma warning restore CA2000
         ILogger<PluginLifecycleManager> logger = _loggerFactory.CreateLogger<PluginLifecycleManager>();
@@ -940,8 +939,7 @@ public sealed class PluginLifecycleManagerLoggingTests : IDisposable
     [Fact]
     public async Task FullLifecycle_WithLogging_ExercisesAllLogMessages()
     {
-        // This test exercises the full Enable -> Initialize -> Disable lifecycle
-        // with a real logger to cover all LoggerMessage generated code paths
+
         PluginManifest manifest = CreateManifest();
         _registry.Register(manifest);
         IWallowPlugin plugin = Substitute.For<IWallowPlugin>();

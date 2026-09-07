@@ -402,7 +402,7 @@ public sealed partial class SimpleEmailTemplateService(
     {
         string result = template;
 
-        // Inject branding before model properties so AppName is always available
+        // Resolve AppName from configuration before model properties can replace it.
         result = result.Replace("{{AppName}}", _appName, StringComparison.Ordinal);
 
         PropertyInfo[] properties = model.GetType().GetProperties();
@@ -415,7 +415,7 @@ public sealed partial class SimpleEmailTemplateService(
             result = result.Replace(placeholder, value, StringComparison.Ordinal);
         }
 
-        // Strip any unreplaced placeholders so users never see raw {{...}} text
+        // Remove unresolved alphanumeric/underscore placeholders before sending.
         return UnreplacedPlaceholderRegex().Replace(result, string.Empty);
     }
 

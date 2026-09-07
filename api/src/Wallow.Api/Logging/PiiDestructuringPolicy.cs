@@ -5,8 +5,8 @@ using Serilog.Events;
 namespace Wallow.Api.Logging;
 
 /// <summary>
-/// Scrubs known PII properties (Email, Password, Token, etc.) from structured log objects
-/// by replacing their values with "[REDACTED]" during Serilog destructuring.
+/// Redacts configured public property names while destructuring objects.
+/// This does not redact scalar strings or arbitrary text messages.
 /// </summary>
 internal class PiiDestructuringPolicy : IDestructuringPolicy
 {
@@ -29,7 +29,7 @@ internal class PiiDestructuringPolicy : IDestructuringPolicy
     {
         Type type = value.GetType();
 
-        // Only handle complex objects, not primitives/strings
+
         if (type.IsPrimitive || type == typeof(string) || type == typeof(decimal) || type.IsEnum)
         {
             result = null!;

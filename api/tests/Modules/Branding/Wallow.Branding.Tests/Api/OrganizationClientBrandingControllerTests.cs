@@ -82,7 +82,6 @@ public sealed class OrganizationClientBrandingControllerTests
         return bytes;
     }
 
-    // -- addressing ------------------------------------------------------------------------------
 
     [Fact]
     public async Task GetBranding_ForAForeignOrganization_Returns404()
@@ -164,7 +163,6 @@ public sealed class OrganizationClientBrandingControllerTests
         ok.Value.Should().BeOfType<ClientBrandingDto>().Which.DisplayName.Should().Be("Acme Portal");
     }
 
-    // -- upsert validation -----------------------------------------------------------------------
 
     [Fact]
     public async Task UpsertBranding_ForAForeignOrganization_Returns404()
@@ -259,7 +257,6 @@ public sealed class OrganizationClientBrandingControllerTests
             .Which.Errors.Should().ContainKey("ThemeJson");
     }
 
-    // -- upsert behavior -------------------------------------------------------------------------
 
     [Fact]
     public async Task UpsertBranding_UpdatesTheExistingRow_AndPublishes()
@@ -299,10 +296,8 @@ public sealed class OrganizationClientBrandingControllerTests
     }
 
     /// <summary>
-    /// A PUT for a brand-new client can pass the existence check while the registration event is
-    /// still in flight, then lose to ClientRegisteredHandler's insert on the client_id unique
-    /// index. The repository surfaces that as DuplicateClientBrandingException with the losing
-    /// insert detached; the controller must apply the request to the handler's row and return 200.
+    /// If registration wins the insert race, the PUT retries against that row and preserves
+    /// the caller's explicit branding.
     /// </summary>
     [Fact]
     public async Task UpsertBranding_LosingTheRegistrationRace_RetriesAsAnUpdate()
@@ -321,8 +316,7 @@ public sealed class OrganizationClientBrandingControllerTests
         result.Result.Should().BeOfType<OkObjectResult>();
         winner.DisplayName.Should().Be("Chosen Name");
         winner.Tagline.Should().Be("Chosen tag");
-        // The first save rolled back and published nothing (the repository's contract), so the
-        // retry passes the same event again and the winning save is the one that publishes it.
+        // The repository contract permits reusing the event after a rejected save.
         await _repository.Received(2).SaveChangesAndPublishAsync(
             Arg.Is<ClientBrandingUpdatedEvent>(e => e.ClientId == ClientId && e.DisplayName == "Chosen Name"),
             Arg.Any<CancellationToken>());
@@ -384,9 +378,7 @@ public sealed class OrganizationClientBrandingControllerTests
     }
 
     /// <summary>
-    /// The double race: the registration event wins the insert, then the client is deleted before
-    /// the retry's save lands. The repository surfaces the vanished row typed; the request must
-    /// end in a 404 with the uploaded logo cleaned up, never a 500.
+    /// If the winning row is deleted before the retry saves, return 404 and remove the uploaded logo.
     /// </summary>
     [Fact]
     public async Task UpsertBranding_WhenTheClientIsDeletedMidRetry_Returns404()
@@ -429,7 +421,6 @@ public sealed class OrganizationClientBrandingControllerTests
         existing.LogoStorageKey.Should().StartWith("client-logos/acme-portal/").And.NotBe("client-logos/acme-portal/old.png");
     }
 
-    // -- delete logo -----------------------------------------------------------------------------
 
     [Fact]
     public async Task DeleteLogo_ClearsTheLogo_AndPublishes()

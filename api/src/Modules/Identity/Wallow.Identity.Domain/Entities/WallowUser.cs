@@ -5,8 +5,8 @@ using Wallow.Shared.Kernel.Domain;
 namespace Wallow.Identity.Domain.Entities;
 
 /// <summary>
-/// A person. Deliberately carries no organization: which one a request acts in is decided by the
-/// membership the token was issued against, and a person may hold several.
+/// A person who can hold memberships in multiple organizations.
+/// Organization context comes from the membership selected for a request.
 /// </summary>
 public sealed class WallowUser : IdentityUser<Guid>
 {

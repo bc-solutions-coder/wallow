@@ -1,8 +1,8 @@
 using System.Reflection;
 using NetArchTest.Rules;
 
-#pragma warning disable CA1024 // MemberData source methods cannot be properties
-#pragma warning disable CA1310 // String comparison in LINQ lambdas over type names is culture-safe
+#pragma warning disable CA1024 // Keep callable MemberData factories.
+#pragma warning disable CA1310 // These checks inspect CLR type names.
 
 namespace Wallow.Architecture.Tests;
 

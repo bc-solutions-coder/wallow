@@ -80,9 +80,8 @@ public sealed class ClientRegisteredHandlerTests
     }
 
     /// <summary>
-    /// The reverse of the controller's race: a concurrent branding PUT inserts the row between
-    /// this handler's existence check and its save. The row exists with values the caller chose
-    /// explicitly — that is the handler's goal state, so it must complete without throwing.
+    /// A concurrent PUT can create the row first. Registration must preserve that branding
+    /// and complete without throwing.
     /// </summary>
     [Fact]
     public async Task HandleAsync_LosingTheRaceToAConcurrentUpsert_TreatsTheRowAsCreated()

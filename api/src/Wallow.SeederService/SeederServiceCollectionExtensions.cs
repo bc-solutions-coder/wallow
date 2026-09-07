@@ -18,14 +18,7 @@ using Wolverine;
 namespace Wallow.SeederService;
 
 /// <summary>
-/// The seeder hand-picks a subset of the Identity Infrastructure DI graph instead of calling that
-/// module's own <c>AddIdentityModule</c> extension — it has no HTTP pipeline and needs none of the
-/// module's MFA/session/invitation services. Extracted out of Program.cs's top-level statements so
-/// a test can build this exact container and prove every service <see cref="SeederWorker"/> resolves
-/// is actually constructible. This hand-picking is exactly why the class of bug this guards against
-/// happens: a constructor dependency added to a service (e.g. <see cref="ILastOwnerGuard"/> on
-/// <see cref="OrganizationService"/>) gets registered in the module's own extension but silently
-/// never makes it here (Wallow-smvc).
+/// Registers the Identity services used by the seeder without an HTTP or Wolverine host.
 /// </summary>
 internal static class SeederServiceCollectionExtensions
 {
@@ -34,15 +27,15 @@ internal static class SeederServiceCollectionExtensions
         IConfiguration configuration,
         string connectionString)
     {
-        // IdentityDbContext requires IDataProtectionProvider
+
         services.AddDataProtection();
 
-        // Register IdentityDbContext
+
         services.AddDbContext<IdentityDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql =>
                 npgsql.MigrationsHistoryTable("__EFMigrationsHistory", IdentityModule.Schema)));
 
-        // ASP.NET Identity
+
         services.AddIdentityCore<WallowUser>(opts =>
             {
                 opts.Password.RequiredLength = 8;
@@ -53,7 +46,7 @@ internal static class SeederServiceCollectionExtensions
             .AddEntityFrameworkStores<IdentityDbContext>()
             .AddDefaultTokenProviders();
 
-        // OpenIddict Core only (no Server — seeder just manages client/scope data)
+        // Only OpenIddict persistence is needed for seed data.
         services.AddOpenIddict()
             .AddCore(opts =>
             {
@@ -62,15 +55,15 @@ internal static class SeederServiceCollectionExtensions
                     .ReplaceDefaultEntities<Guid>();
             });
 
-        // Multi-tenancy
+
         services.AddScoped<TenantContext>();
         services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
         services.AddScoped<ITenantContextSetter>(sp => sp.GetRequiredService<TenantContext>());
 
-        // Identity services needed by seeders
+
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
         services.AddScoped<IMembershipRepository, MembershipRepository>();
-        // AccessRevoker (behind AddAccessRevocation) walks an org's registered clients.
+        // AccessRevoker resolves organization client registrations.
         services.AddScoped<IRegisteredClientRepository, RegisteredClientRepository>();
         services.AddScoped<IOrganizationAdminEmailResolver, OrganizationAdminEmailResolver>();
         services.AddScoped<IMembershipRoleResolver, MembershipRoleResolver>();
@@ -81,24 +74,21 @@ internal static class SeederServiceCollectionExtensions
         services.AddScoped<OrganizationSeedSyncService>();
         services.AddScoped<OpenIddictScopeSyncService>();
         services.AddScoped<IBootstrapAdminService, BootstrapAdminService>();
-        // The exact handler POST /v1/identity/setup/admin invokes, called directly (the seeder
-        // has no Wolverine runtime): bootstrap must mean the same thing on both paths.
+        // Reuse the setup endpoint bootstrap handler without a Wolverine runtime.
         services.AddScoped<BootstrapAdminHandler>();
         services.AddScoped<ISetupStatusChecker, SetupStatusChecker>();
         services.AddScoped<DefaultRoleSeeder>();
         services.AddScoped<ApiScopeSeeder>();
 
-        // TimeProvider
+
         services.AddSingleton(TimeProvider.System);
 
-        // NullMessageBus — OrganizationService requires IMessageBus and IDbContextOutbox, but the
-        // seeder never dispatches messages and never reaches the deletion outbox path.
+        // Seed service messages are discarded; outbox saves still persist the enrolled context.
         NullMessageBus nullBus = new();
         services.AddSingleton<IMessageBus>(nullBus);
         services.AddSingleton<Wolverine.EntityFrameworkCore.IDbContextOutbox>(nullBus);
 
-        // Map SeedOptions.Clients into PreRegisteredClientOptions, attaching environment-supplied
-        // secrets by clientId (see SeedOptions.ClientSecrets for why the contract is name-keyed).
+        // Apply secrets by client id so overrides survive seed-array reordering.
         services.Configure<PreRegisteredClientOptions>(opts =>
         {
             SeedOptions? seed = configuration.Get<SeedOptions>();
@@ -109,8 +99,7 @@ internal static class SeederServiceCollectionExtensions
 
             HashSet<string> attachedSecretIds = new(StringComparer.OrdinalIgnoreCase);
 
-            // The binder compacts sparse indices (Clients:0 + Clients:2 bind to positions 0 and 1),
-            // so the raw section keys are the only way to name the index a stray override used.
+            // Preserve raw index keys in errors because binding compacts sparse arrays.
             List<string> clientSectionKeys = configuration.GetSection("Clients").GetChildren()
                 .Select(section => section.Key)
                 .ToList();
@@ -156,7 +145,7 @@ internal static class SeederServiceCollectionExtensions
             }
         });
 
-        // Map SeedOptions.Organizations into SeedOrganizationOptions
+
         services.Configure<SeedOrganizationOptions>(opts =>
         {
             SeedOptions? seed = configuration.Get<SeedOptions>();

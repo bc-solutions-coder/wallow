@@ -7,8 +7,8 @@ namespace Wallow.Shared.Kernel.Results;
 /// default sentence or an override from the raising site.
 /// </summary>
 /// <remarks>
-/// An error is only ever built from an <see cref="ErrorCatalogEntry"/>, so the code is one the
-/// aggregated catalog exports and the kind, not the code's text, decides the HTTP status.
+/// Failures use an <see cref="ErrorCatalogEntry"/>; <see cref="None"/> represents success.
+/// The kind determines the HTTP status.
 /// </remarks>
 public sealed record Error
 {
@@ -27,14 +27,13 @@ public sealed record Error
     /// </summary>
     /// <param name="entry">The catalog entry.</param>
     /// <param name="message">
-    /// A sentence replacing the entry's default, for a site that can say more than the catalog
-    /// does. Keep it user-safe: it becomes the response's <c>detail</c>.
+    /// Optional user-safe replacement for the default response detail.
     /// </param>
     /// <param name="retryAfter">
     /// How long the caller should wait before trying again, for a throttled or locked outcome; it
     /// becomes the response's <c>Retry-After</c> header. Must be positive when given.
     /// </param>
-    /// <exception cref="ArgumentException"><paramref name="message"/> is empty.</exception>
+    /// <exception cref="ArgumentException"><paramref name="message"/> is empty or whitespace.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="retryAfter"/> is not positive.</exception>
     public Error(ErrorCatalogEntry entry, string? message = null, TimeSpan? retryAfter = null)
     {

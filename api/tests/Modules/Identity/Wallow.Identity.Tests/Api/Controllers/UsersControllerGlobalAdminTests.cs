@@ -13,10 +13,7 @@ using Wallow.Shared.Kernel.MultiTenancy;
 namespace Wallow.Identity.Tests.Api.Controllers;
 
 /// <summary>
-/// Global admin is provisioned only from seeded configuration (seed.json) and OpenIddict
-/// application properties. UsersController.AssignRole is the tenant-facing role surface and
-/// takes an unrestricted free string, so it must reject every spelling of the reserved
-/// global-admin name outright rather than forward it to the role store (finding F5).
+/// Checks that tenant role assignment rejects reserved global-admin names before calling the service.
 /// </summary>
 public sealed class UsersControllerGlobalAdminTests
 {

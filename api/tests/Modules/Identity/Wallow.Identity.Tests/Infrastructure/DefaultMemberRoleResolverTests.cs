@@ -11,8 +11,7 @@ using Wallow.Shared.Kernel.Identity;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// The role a new member starts with, whichever join path brought them: the organization's
-/// configured default, else the platform's baseline "user" role.
+/// Checks configured default-member roles and fallback to the baseline user role.
 /// </summary>
 public sealed class DefaultMemberRoleResolverTests : IDisposable
 {

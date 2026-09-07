@@ -8,10 +8,8 @@ using Wallow.Shared.Contracts.RateLimiting;
 namespace Wallow.Identity.Infrastructure.Services;
 
 /// <summary>
-/// The counter lives in Redis so every API instance sees the same tally: a guesser spreading
-/// attempts across replicas earns one lockout, not one per replica. The brake fails open on a
-/// Redis outage — client authentication itself still stands, and refusing every client because
-/// the counter store hiccuped would turn the guard into an outage of its own.
+/// Uses shared Redis state to count failures across API instances. Redis exceptions
+/// fail open so a counter-store outage does not reject every client authentication.
 /// </summary>
 public sealed partial class InvalidClientLockout(
     IConnectionMultiplexer connectionMultiplexer,

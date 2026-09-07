@@ -121,7 +121,6 @@ public sealed partial class PluginLifecycleManager(
         }
     }
 
-    // Discovery
     [LoggerMessage(EventId = 1, Level = LogLevel.Information, Message = "Discovering plugins in {Path}")]
     private static partial void LogDiscoveringPlugins(ILogger logger, string path);
 
@@ -131,14 +130,12 @@ public sealed partial class PluginLifecycleManager(
     [LoggerMessage(EventId = 3, Level = LogLevel.Information, Message = "Discovered {Count} plugin(s)")]
     private static partial void LogDiscoveredPluginCount(ILogger logger, int count);
 
-    // Loading
     [LoggerMessage(EventId = 4, Level = LogLevel.Information, Message = "Loading plugin {PluginId}")]
     private static partial void LogLoadingPlugin(ILogger logger, string pluginId);
 
     [LoggerMessage(EventId = 5, Level = LogLevel.Information, Message = "Plugin {PluginId} loaded successfully")]
     private static partial void LogPluginLoaded(ILogger logger, string pluginId);
 
-    // Activation
     [LoggerMessage(EventId = 6, Level = LogLevel.Information, Message = "Enabling plugin {PluginId}")]
     private static partial void LogEnablingPlugin(ILogger logger, string pluginId);
 
@@ -151,7 +148,6 @@ public sealed partial class PluginLifecycleManager(
     [LoggerMessage(EventId = 9, Level = LogLevel.Information, Message = "Plugin {PluginId} initialized successfully")]
     private static partial void LogPluginInitialized(ILogger logger, string pluginId);
 
-    // Deactivation
     [LoggerMessage(EventId = 10, Level = LogLevel.Information, Message = "Disabling plugin {PluginId}")]
     private static partial void LogDisablingPlugin(ILogger logger, string pluginId);
 

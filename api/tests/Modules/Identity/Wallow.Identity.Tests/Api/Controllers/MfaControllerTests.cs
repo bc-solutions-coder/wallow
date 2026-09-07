@@ -320,7 +320,7 @@ public class MfaControllerTests
     [Fact]
     public async Task AdminClearLockout_WhenUserHasNoActiveLockout_StillCallsMfaLockoutResetAsync()
     {
-        // Idempotent: ResetAsync is called even when user has no active MFA lockout
+        // Reset is requested even without an active lockout.
         WallowUser user = WallowUser.Create("Test", "User", "test@test.com", TimeProvider.System);
         string targetUserId = user.Id.ToString();
         _userManager.FindByIdAsync(targetUserId).Returns(user);

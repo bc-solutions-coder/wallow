@@ -23,10 +23,8 @@ public sealed class InvitationService(
 {
 
     /// <summary>
-    /// Invites an address into the caller's organization, or re-sends the invitation already
-    /// outstanding for it. Re-inviting deliberately refreshes ONE token rather than minting a
-    /// second: <c>Revoke</c> acts on a single invitation by id, so every extra token is one the
-    /// admin cannot see in the list and cannot take back.
+    /// Creates or renews an invitation in the caller's tenant, preserving an outstanding
+    /// token so revocation still addresses the same row.
     /// </summary>
     public async Task<Invitation> CreateInvitationAsync(string email, Guid createdByUserId, CancellationToken ct = default)
     {
@@ -49,8 +47,7 @@ public sealed class InvitationService(
 
         await invitationRepository.SaveChangesAsync(ct);
 
-        // Published either way: clicking invite again usually means the first mail went astray,
-        // and the same token re-sent is the same live link.
+        // Publish on renewal too so the same token can be emailed again.
         await messageBus.PublishAsync(new InvitationCreatedEvent
         {
             InvitationId = invitation.Id.Value,
@@ -64,8 +61,7 @@ public sealed class InvitationService(
     }
 
     /// <summary>
-    /// The save interceptor stamps TenantId from the ambient tenant regardless of what the entity
-    /// carries, so the ambient tenant is the only tenant an invitation can land in.
+    /// Creates the invitation with the caller's resolved tenant ID.
     /// </summary>
     private Invitation NewInvitation(string email, DateTimeOffset expiresAt, Guid createdByUserId)
     {
@@ -78,8 +74,7 @@ public sealed class InvitationService(
     }
 
     /// <summary>
-    /// Refuses to invite someone who is already in. An invitation to a sitting member is at best
-    /// noise and at worst a live token for an address that no longer needs one.
+    /// Rejects invitations to an existing active member of the organization.
     /// </summary>
     private async Task GuardNotAlreadyAMemberAsync(Guid organizationId, string email, CancellationToken ct)
     {
@@ -117,9 +112,7 @@ public sealed class InvitationService(
     }
 
     /// <summary>
-    /// Turns an invitation into membership of the inviting organization. Acceptance is the one join
-    /// path that does not consult the organization's enrollment policy — being invited by someone
-    /// holding <c>OrganizationsManageMembers</c> IS the authorization.
+    /// Accepts an invitation for its verified recipient without consulting enrollment policy.
     /// </summary>
     public async Task AcceptInvitationAsync(string token, Guid userId, CancellationToken ct = default)
     {
@@ -134,8 +127,7 @@ public sealed class InvitationService(
         }
         catch (BusinessRuleException)
         {
-            // Accept settles a lapsed invitation to Expired before refusing. Persist that, so a
-            // token the sweep has not reached yet stops being resolvable from this attempt on.
+            // Accept marks an expired invitation before throwing; persist that status change.
             await invitationRepository.SaveChangesAsync(ct);
             throw;
         }
@@ -144,9 +136,8 @@ public sealed class InvitationService(
         Membership? membership = await membershipRepository.GetAsync(userId, organizationId, ct);
         bool joined = await ApplyMembershipAsync(membership, userId, organizationId, ct);
 
-        // The invitation and the membership are tracked on one DbContext, so this is a single
-        // transaction. Splitting it either burns the token without granting access or grants
-        // access while leaving a live token behind.
+        // Save invitation acceptance and membership together on their shared context.
+        // Separate saves could consume the token without granting membership.
         await invitationRepository.SaveChangesAsync(ct);
 
         if (joined)
@@ -162,8 +153,7 @@ public sealed class InvitationService(
     }
 
     /// <summary>
-    /// Returns whether this acceptance actually added the person to the organization, which is
-    /// false when they were already an active member.
+    /// Returns whether acceptance added or approved membership; false for an active member.
     /// </summary>
     private async Task<bool> ApplyMembershipAsync(
         Membership? membership, Guid userId, Guid organizationId, CancellationToken ct)
@@ -178,8 +168,7 @@ public sealed class InvitationService(
 
         switch (membership.Status)
         {
-            // An access request the invitation supersedes. Leaving it Pending would strand a row
-            // that blocks the next legitimate request and outlives a later denial.
+            // Acceptance approves the existing pending request rather than leaving it outstanding.
             case MembershipStatus.Pending:
                 membership.Approve(await defaultRoleResolver.ResolveAsync(organizationId, ct), userId, timeProvider);
                 return true;
@@ -187,17 +176,15 @@ public sealed class InvitationService(
             case MembershipStatus.Active:
                 return false;
 
-            // Reinstating someone an admin took access away from is that admin's decision to make
-            // explicitly, not something an invitation issued against an email address does quietly.
+            // An invitation cannot reverse suspension or denial; that requires an explicit review.
             default:
                 throw new BusinessRuleException(IdentityErrors.MembershipNotReinstatable, $"Membership of this organization is '{membership.Status}' and cannot be resumed by invitation");
         }
     }
 
     /// <summary>
-    /// Binds acceptance to the person the invitation names. Without both halves a leaked or
-    /// forwarded token is a join credential for whoever holds it — and in an invite-only
-    /// organization that token is the entire perimeter.
+    /// Requires a verified user whose normalized email matches the invitation,
+    /// so possession of a forwarded token alone does not grant membership.
     /// </summary>
     private async Task GuardInvitedIdentityAsync(Invitation invitation, Guid userId, CancellationToken ct)
     {
@@ -210,8 +197,7 @@ public sealed class InvitationService(
             throw new BusinessRuleException(IdentityErrors.InvitationEmailNotVerified);
         }
 
-        // Compare normalized: Identity stores NormalizedEmail upper-invariant, while the invitation
-        // holds the address exactly as the inviter typed it.
+        // Normalize the invitation address to match Identity's stored NormalizedEmail.
         if (!string.Equals(user.NormalizedEmail, invitation.Email.ToUpperInvariant(), StringComparison.Ordinal))
         {
             throw new BusinessRuleException(IdentityErrors.InvitationEmailMismatch);
@@ -222,8 +208,7 @@ public sealed class InvitationService(
     {
         DateTimeOffset now = timeProvider.GetUtcNow();
 
-        // The sweep runs from a background job, where no tenant is resolved and the filter would
-        // therefore match nothing. It is deliberately every tenant's expired invitations.
+        // Background cleanup must consider expired invitations across every tenant.
         List<Invitation> expiredInvitations = await dbContext.Invitations
             .AsTracking()
             .IgnoreQueryFilters()

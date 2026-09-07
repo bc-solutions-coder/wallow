@@ -4,8 +4,7 @@ using Microsoft.EntityFrameworkCore.Design;
 namespace Wallow.Notifications.Infrastructure.Persistence;
 
 /// <summary>
-/// Design-time factory for NotificationsDbContext to enable EF Core migrations.
-/// Only used at design-time by dotnet ef commands.
+/// Creates the context for EF Core migration tooling.
 /// </summary>
 public class NotificationsDbContextFactory : IDesignTimeDbContextFactory<NotificationsDbContext>
 {

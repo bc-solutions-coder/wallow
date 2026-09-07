@@ -83,14 +83,14 @@ public class InquiryRepositoryTests(PostgresContainerFixture fixture)
 
         await repository.AddAsync(first, CancellationToken.None);
         await DbContext.SaveChangesAsync();
-        // Small delay to ensure different timestamps
+
         await Task.Delay(10);
         await repository.AddAsync(second, CancellationToken.None);
         await DbContext.SaveChangesAsync();
 
         IReadOnlyList<Inquiry> result = await repository.GetAllAsync(CancellationToken.None);
 
-        // Most recent should come first
+
         result[0].Name.Should().Be("SecondCreated");
     }
 

@@ -3,7 +3,7 @@ namespace Wallow.Shared.Contracts.Identity.Events;
 
 /// <summary>
 /// Published when a user session is forcibly evicted.
-/// Consumers: Audit logging, Notifications
+/// Consumed by Identity logging.
 /// </summary>
 public sealed record UserSessionEvictedEvent : IntegrationEvent
 {

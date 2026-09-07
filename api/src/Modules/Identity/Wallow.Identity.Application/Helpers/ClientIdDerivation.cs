@@ -7,10 +7,8 @@ using Wallow.Shared.Kernel.Domain;
 namespace Wallow.Identity.Application.Helpers;
 
 /// <summary>
-/// Derives the immutable client id of an organization-registered client from its kind, the
-/// organization's slug and the client's name: <c>app-&lt;org-slug&gt;-&lt;name-slug&gt;</c> for a
-/// developer application, <c>sa-&lt;org-slug&gt;-&lt;name-slug&gt;</c> for a service account. The
-/// prefix is what the authorization pipeline keys on to expand a client's scopes into permissions.
+/// Derives immutable organization client IDs as app-&lt;org-slug&gt;-&lt;name-slug&gt;
+/// or sa-&lt;org-slug&gt;-&lt;name-slug&gt; according to client kind.
 /// </summary>
 public static class ClientIdDerivation
 {
@@ -18,8 +16,7 @@ public static class ClientIdDerivation
     public const string ServiceAccountPrefix = "sa-";
 
     /// <summary>
-    /// Refuses a name with no letter or digit in it: the id would end in a bare hyphen and every
-    /// such name would collide with every other.
+    /// Rejects names whose normalized slug is empty, avoiding collisions on a bare prefix.
     /// </summary>
     public static string DeriveClientId(RegisteredClientKind kind, string organizationSlug, string name)
     {
@@ -36,8 +33,8 @@ public static class ClientIdDerivation
         kind == RegisteredClientKind.ServiceAccount ? ServiceAccountPrefix : ApplicationPrefix;
 
     /// <summary>
-    /// Lowercase ASCII letters and digits with runs of anything else collapsed to one hyphen; the
-    /// same shape the organization slug takes so the two halves of a client id read alike.
+    /// Normalizes to lowercase ASCII letters and digits. Removes decomposed combining marks,
+    /// uses one hyphen between other character runs, and omits leading/trailing hyphens.
     /// </summary>
     public static string Slugify(string value)
     {

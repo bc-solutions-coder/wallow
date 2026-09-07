@@ -6,11 +6,7 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Api.Tests.Integration;
 
 /// <summary>
-/// Pins the #150 rate-limiter requirements: the limiter runs in the Testing environment, it
-/// runs AFTER authentication (so the registration policy partitions per authenticated user,
-/// not per IP), and organization create sits under the registration policy. The registration
-/// window is tightened to two permits on a derived host; the shared fixture host keeps the
-/// generous appsettings.Testing.json limits.
+/// Checks independent authenticated-user registration limits with a two-permit test host.
 /// </summary>
 [Collection(nameof(ApiIntegrationTestCollection))]
 [Trait("Category", "Integration")]
@@ -40,8 +36,7 @@ public sealed class RateLimitPartitioningTests : IDisposable
         return client;
     }
 
-    // An empty body fails [ApiController] model validation (Name is a non-nullable string),
-    // so every attempt counts against the window without actually creating organizations.
+    // Invalid bodies consume permits without creating organizations.
     private static Task<HttpResponseMessage> PostOrganizationCreateAsync(HttpClient client)
     {
         return client.PostAsJsonAsync(OrganizationsPath, new { });
@@ -68,8 +63,7 @@ public sealed class RateLimitPartitioningTests : IDisposable
         limited.Content.Headers.ContentType?.MediaType.Should().Be("application/problem+json");
         limited.Headers.Contains("Retry-After").Should().BeTrue();
 
-        // Both clients ride the same TestServer connection, so the transport address is
-        // identical: only a per-user partition key can put user B in a fresh window.
+        // Change the synthetic user while keeping the same test-server address.
         using HttpClient clientB = CreateUserClient(userB);
         using HttpResponseMessage unaffected = await PostOrganizationCreateAsync(clientB);
         unaffected.StatusCode.Should().NotBe(HttpStatusCode.TooManyRequests,

@@ -3,8 +3,7 @@ using Wallow.Shared.Kernel.Identity;
 namespace Wallow.Shared.Kernel.Domain;
 
 /// <summary>
-/// Base class for entities that track creation and modification metadata.
-/// Inherit from this when you need audit trails.
+/// Tracks creation and modification timestamps and actors.
 /// </summary>
 /// <typeparam name="TId">The strongly-typed ID type for this entity</typeparam>
 public abstract class AuditableEntity<TId> : Entity<TId>
@@ -20,7 +19,7 @@ public abstract class AuditableEntity<TId> : Entity<TId>
     protected AuditableEntity(TId id) : base(id) { }
 
     /// <summary>
-    /// Sets the creation audit fields. Call this when creating a new entity.
+    /// Sets the creation timestamp in UTC and the optional actor.
     /// </summary>
     public void SetCreated(DateTimeOffset timestamp, Guid? userId = null)
     {
@@ -29,7 +28,7 @@ public abstract class AuditableEntity<TId> : Entity<TId>
     }
 
     /// <summary>
-    /// Sets the update audit fields. Call this when modifying an entity.
+    /// Sets the update timestamp in UTC and the optional actor.
     /// </summary>
     public void SetUpdated(DateTimeOffset timestamp, Guid? userId = null)
     {

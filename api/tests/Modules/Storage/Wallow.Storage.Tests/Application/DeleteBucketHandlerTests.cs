@@ -120,9 +120,7 @@ public class DeleteBucketHandlerTests
 
         await _handler.Handle(command, CancellationToken.None);
 
-        // Same ordering rule as DeleteFileHandler, and sharper here because the loop can strand a
-        // whole bucket's worth of rows: object-store deletes survive a database rollback, so they
-        // run only once the removals have committed.
+        // Object deletes cannot roll back; commit metadata removals first.
         Received.InOrder(() =>
         {
             _fileRepository.Remove(file1);

@@ -5,13 +5,10 @@ using Wallow.Shared.Kernel.Identity;
 namespace Wallow.Shared.Kernel.MultiTenancy;
 
 /// <summary>
-/// The check every tenant-scoped row passes before it exists.
+/// Rejects an unset tenant ID before constructing tenant-owned data.
 /// </summary>
 /// <remarks>
-/// A request that resolved no tenant leaves <see cref="ITenantContext.TenantId"/> at its default,
-/// and a row built from it lands in the empty tenant: matched by no query filter, owned by nobody,
-/// and invisible to the organization it was meant for. Refusing at construction turns that into a
-/// failed request instead of an orphan row.
+/// Call at construction to prevent unresolved tenant context from creating data under Guid.Empty.
 /// </remarks>
 public static class TenantScope
 {

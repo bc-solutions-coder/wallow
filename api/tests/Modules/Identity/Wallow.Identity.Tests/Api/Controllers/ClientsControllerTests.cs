@@ -379,8 +379,7 @@ public class ClientsControllerTests
     [InlineData("javascript:alert(1)")]
     public async Task Create_WithAFrontchannelLogoutUriThatIsNotAbsoluteHttp_ReturnsValidationProblem(string uri)
     {
-        // The OP loads this URI in an iframe on its own logout page, so anything that is not an
-        // absolute http(s) location is either unloadable or a script-injection vector.
+        // Front-channel logout embeds this URL in an iframe; require an absolute HTTP(S) URL.
         CreateClientRequest request = new(
             "My App",
             ["https://example.com/callback"],
@@ -433,8 +432,7 @@ public class ClientsControllerTests
     [Fact]
     public async Task Update_WithoutFrontchannelLogoutUri_ClearsAnExistingOne()
     {
-        // Update is a full replace of the client's registration, matching how the redirect URI
-        // lists behave: omitting the field un-registers the RP from logout notifications.
+        // Omitting this field clears the existing front-channel logout URI.
         object app = new object();
         OpenIddictApplicationDescriptor? captured = null;
         _applicationManager.FindByIdAsync("id-1", Arg.Any<CancellationToken>())

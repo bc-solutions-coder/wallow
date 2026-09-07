@@ -3,7 +3,7 @@ namespace Wallow.Shared.Contracts.Identity.Events;
 
 /// <summary>
 /// Published when a user account is locked out due to repeated failed login attempts.
-/// Consumers: Audit logging, Notifications
+/// Consumed by Identity audit logging.
 /// </summary>
 public sealed record UserAccountLockedOutEvent : IntegrationEvent
 {

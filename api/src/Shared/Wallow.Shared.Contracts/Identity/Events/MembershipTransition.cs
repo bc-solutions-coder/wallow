@@ -1,9 +1,7 @@
 namespace Wallow.Shared.Contracts.Identity.Events;
 
 /// <summary>
-/// The membership state changes an organization is accountable for. Every one of them is a
-/// decision somebody made about somebody's access, which is what makes the set closed: a
-/// transition nobody can name is a transition nobody can answer for.
+/// Auditable changes to organization membership and access.
 /// </summary>
 public enum MembershipTransition
 {

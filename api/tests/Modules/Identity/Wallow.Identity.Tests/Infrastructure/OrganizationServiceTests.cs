@@ -68,8 +68,7 @@ public sealed class OrganizationServiceTests : IDisposable
         _dbContext.Dispose();
     }
 
-    // Roles are a global catalog addressed by name; the service resolves a name to an id before it
-    // can grant anything, so an unseeded catalog fails every membership write.
+    // Membership grants resolve these role names through the shared catalog.
     private void SeedRoleCatalog()
     {
         foreach (string roleName in new[] { "admin", "manager", "user" })
@@ -145,8 +144,7 @@ public sealed class OrganizationServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Creating an organization is the only way anyone becomes its owner, so it is the only place
-    /// the ownership grant can be recorded.
+    /// Checks the ownership audit event emitted during organization creation.
     /// </summary>
     [Fact]
     public async Task CreateOrganizationAsync_WithCreatorUserId_AuditsTheOwnerMark()
@@ -250,9 +248,7 @@ public sealed class OrganizationServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Bootstrap joins the organization the seed already created rather than minting a sibling,
-    /// and what it needs there is exactly what creating one would have given: an Active owner
-    /// membership carrying the admin role, audited as the owner's own act.
+    /// Checks active owner enrollment with the admin role in an existing organization.
     /// </summary>
     [Fact]
     public async Task EnrollOwnerAsync_EnrollsAnActiveOwnerCarryingTheAdminRole()
@@ -292,9 +288,7 @@ public sealed class OrganizationServiceTests : IDisposable
     }
 
     /// <summary>
-    /// The member does not add themselves - a reviewer or admin does. Stamping the membership with
-    /// the subject hides who granted the access, which is the one thing the audit trail exists to
-    /// answer.
+    /// Records the actor who adds the member separately from the member being added.
     /// </summary>
     [Fact]
     public async Task AddMemberAsync_StampsTheMembershipWithTheActorNotTheSubject()
@@ -428,9 +422,7 @@ public sealed class OrganizationServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Neither is a door: one has not been answered yet, and the other has closed. Both reach the
-    /// mapping, because the organization read alone cannot tell them from a membership in good
-    /// standing.
+    /// Excludes pending memberships and archived organizations from the member list.
     /// </summary>
     [Fact]
     public async Task GetMyOrganizationsAsync_LeavesOutAPendingRequestAndAnArchivedOrganization()

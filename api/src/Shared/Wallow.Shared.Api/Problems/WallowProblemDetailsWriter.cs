@@ -6,10 +6,8 @@ using Microsoft.Extensions.Options;
 namespace Wallow.Shared.Api.Problems;
 
 /// <summary>
-/// The single <see cref="IProblemDetailsWriter"/> behind <see cref="IProblemDetailsService"/>.
-/// Unlike the framework writers it never declines a request (an error is a problem regardless of the
-/// <c>Accept</c> header) and it serialises the problem's runtime type, so a
-/// <see cref="HttpValidationProblemDetails"/> keeps its <c>errors</c> dictionary.
+/// Writes Problem Details regardless of the <c>Accept</c> header. Serializes the runtime type
+/// so <see cref="HttpValidationProblemDetails"/> retains its <c>errors</c> dictionary.
 /// </summary>
 internal sealed class WallowProblemDetailsWriter(
     IOptions<ProblemDetailsOptions> problemOptions,

@@ -57,15 +57,12 @@ public static class BrandingInfrastructureExtensions
 
         services.AddTenantAwareScopedContext<BrandingDbContext>();
 
-        // Dedicated bounded cache for branding — separate from the global IMemoryCache so that
-        // SizeLimit works safely (third-party libs like OpenIddict don't set Size on entries)
+        // Keep the bounded cache separate: other users of the global cache may omit entry sizes.
         services.AddKeyedSingleton<IMemoryCache>("BrandingCache",
             (_, _) => new MemoryCache(new MemoryCacheOptions { SizeLimit = 1000 }));
 
-        // Branding repositories
         services.AddScoped<IClientBrandingRepository, ClientBrandingRepository>();
 
-        // Branding services
         services.AddScoped<IClientBrandingService, ClientBrandingService>();
         services.TryAddScoped<IClientBrandingProvider, ClientBrandingProvider>();
     }

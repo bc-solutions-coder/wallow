@@ -25,7 +25,6 @@ public class AnnouncementStateTransitionTests
         return announcement;
     }
 
-    // --- Publish ---
 
     [Fact]
     public void Publish_FromDraft_SetsStatusToPublished()
@@ -87,7 +86,6 @@ public class AnnouncementStateTransitionTests
         announcement.UpdatedAt.Should().Be(originalUpdatedAt);
     }
 
-    // --- Expire ---
 
     [Fact]
     public void Expire_SetsStatusToExpired()
@@ -112,7 +110,6 @@ public class AnnouncementStateTransitionTests
         announcement.UpdatedAt.Should().BeOnOrAfter(before);
     }
 
-    // --- Archive ---
 
     [Fact]
     public void Archive_SetsStatusToArchived()
@@ -137,7 +134,6 @@ public class AnnouncementStateTransitionTests
         announcement.UpdatedAt.Should().BeOnOrAfter(before);
     }
 
-    // --- Update ---
 
     [Fact]
     public void Update_WithValidData_UpdatesAllProperties()

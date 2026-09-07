@@ -6,11 +6,9 @@ using Wallow.Shared.Kernel.Domain;
 namespace Wallow.Identity.Domain.Entities;
 
 /// <summary>
-/// Wallow's own record of a client an organization registered: which organization owns it, what
-/// kind it is, its lifecycle status and provenance. The OpenIddict application holds the OAuth
-/// configuration (secret, redirect URIs, granted scopes); this row holds what OpenIddict has no
-/// place for. Deliberately NOT tenant-scoped — an organization admin may address another
-/// organization's clients through the access policy, which the tenant filter would defeat.
+/// Organization-owned client identity, lifecycle, and provenance. OAuth configuration
+/// lives on the OpenIddict application. No tenant filter is applied here; callers
+/// must enforce organization ownership and access policy.
 /// </summary>
 public sealed class RegisteredClient : Entity<RegisteredClientId>
 {
@@ -18,8 +16,7 @@ public sealed class RegisteredClient : Entity<RegisteredClientId>
     public Guid OrganizationId { get; private set; }
 
     /// <summary>
-    /// The immutable name the developer registered the client under. Distinct from the OpenIddict
-    /// display name, which carries the client's mutable end-user-facing branding.
+    /// Immutable registration name, separate from the mutable OpenIddict display name.
     /// </summary>
     public string Name { get; private set; } = string.Empty;
     public RegisteredClientKind Kind { get; private set; }
@@ -35,9 +32,8 @@ public sealed class RegisteredClient : Entity<RegisteredClientId>
     public string? PlatformSuspensionReason { get; private set; }
 
     /// <summary>
-    /// Whether the platform operator has taken this client out of service. A separate axis from
-    /// <see cref="Status"/>: the owning organization's suspend and reinstate govern only its own
-    /// status, and neither can lift what the platform placed.
+    /// Platform suspension is independent of the owning organization's <see cref="Status"/>.
+    /// Organization-level reinstatement does not clear it.
     /// </summary>
     public bool IsPlatformSuspended => PlatformSuspendedAt is not null;
 
@@ -83,8 +79,7 @@ public sealed class RegisteredClient : Entity<RegisteredClientId>
     }
 
     /// <summary>
-    /// Records who replaced the client secret and when. The secret itself lives on the OpenIddict
-    /// application; this row only remembers the provenance a "who did this" question needs.
+    /// Records secret-rotation provenance; the secret remains on the OpenIddict application.
     /// </summary>
     public void RecordSecretRotation(Guid actorUserId, TimeProvider timeProvider)
     {
@@ -94,8 +89,8 @@ public sealed class RegisteredClient : Entity<RegisteredClientId>
     }
 
     /// <summary>
-    /// Takes the client out of service without forgetting anything about it: configuration,
-    /// branding and consents stay, so reinstating restores exactly what was there.
+    /// Marks the client suspended without deleting its registration.
+    /// The service revokes tokens separately.
     /// </summary>
     public void Suspend()
     {
@@ -118,8 +113,7 @@ public sealed class RegisteredClient : Entity<RegisteredClientId>
     }
 
     /// <summary>
-    /// Places the platform operator's suspension, with the reason the owning organization's
-    /// admins will read but cannot lift.
+    /// Records the platform suspension reason, actor, and time.
     /// </summary>
     public void SuspendByPlatform(string reason, Guid actorId, TimeProvider timeProvider)
     {

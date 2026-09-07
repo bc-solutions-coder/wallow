@@ -4,10 +4,7 @@ using Aspire.Hosting.Testing;
 namespace Wallow.AppHost.Tests;
 
 /// <summary>
-/// Builds the Wallow Aspire AppHost application model once for the whole test class.
-/// Resources are inspected in <see cref="DistributedApplicationOperation.Publish"/> mode so
-/// declared environment variables and references resolve to manifest placeholders without
-/// starting any containers.
+/// Builds the Aspire application model for inspection without starting its resources.
 /// </summary>
 public sealed class AppHostFixture : IAsyncLifetime
 {

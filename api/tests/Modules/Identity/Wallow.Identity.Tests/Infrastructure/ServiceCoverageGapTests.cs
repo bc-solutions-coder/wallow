@@ -71,7 +71,7 @@ public sealed class PreRegisteredClientSyncServiceGapTests
             {
                 OpenIddictApplicationDescriptor d = ci.ArgAt<OpenIddictApplicationDescriptor>(0);
                 d.DisplayName = "SPA";
-                d.ClientType = ClientTypes.Confidential; // currently confidential
+                d.ClientType = ClientTypes.Confidential;
                 d.RedirectUris.Add(new Uri("https://spa/cb"));
                 d.Permissions.Add(Permissions.Prefixes.Scope + "openid");
                 d.Properties["source"] = JsonSerializer.SerializeToElement("config");
@@ -323,7 +323,7 @@ public sealed class MfaServiceAdditionalGapTests
     {
         WallowUser user = WallowUser.Create("Test", "User", "u@t.com", TimeProvider.System);
 
-        // Compute the hash of "test-code" the same way the service does (SHA256 hex)
+
         byte[] hash = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes("test-code"));
         string codeHash = Convert.ToHexStringLower(hash);
 
@@ -378,7 +378,7 @@ public sealed class MfaExemptionCheckerTests : IDisposable
         WallowUser user = WallowUser.Create("Grace", "User", "grace@t.com", TimeProvider.System);
         user.SetMfaGraceDeadline(DateTimeOffset.UtcNow.AddDays(3));
 
-        // The deadline is granted BY an organization, so it excuses nothing on its own.
+        // A grace deadline alone does not establish organization membership.
         bool result = await _sut.IsExemptAsync(user, CancellationToken.None);
 
         result.Should().BeFalse();
@@ -451,7 +451,7 @@ public sealed class PasswordlessServiceAdditionalGapTests
     [Fact]
     public async Task ValidateMagicLinkAsync_ExpiredToken_ReturnsFailure()
     {
-        // Generate a valid signed token by sending a magic link first
+        // Obtain a protected token through the send path.
         _redis.StringIncrementAsync(Arg.Any<RedisKey>(), Arg.Any<long>(), Arg.Any<CommandFlags>()).Returns(1L);
         WallowUser user = WallowUser.Create("A", "B", "valid@t.com", TimeProvider.System);
         _userManager.FindByEmailAsync("valid@t.com").Returns(user);
@@ -470,7 +470,7 @@ public sealed class PasswordlessServiceAdditionalGapTests
 
         if (capturedToken is not null)
         {
-            // Token exists but Redis returns empty (expired)
+            // Simulate missing Redis state for the issued token.
             _redis.StringGetAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>()).Returns(RedisValue.Null);
 
             Result<string> result = await _sut.ValidateMagicLinkAsync(capturedToken, CancellationToken.None);

@@ -3,8 +3,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Wallow.Shared.Kernel.Identity;
 
 /// <summary>
-/// Generic EF Core value converter for strongly-typed IDs.
-/// Converts between the strongly-typed ID and its underlying Guid.
+/// Converts strongly typed IDs to their Guid values for EF Core.
 /// </summary>
 public class StronglyTypedIdConverter<TId> : ValueConverter<TId, Guid>
     where TId : struct, IStronglyTypedId<TId>

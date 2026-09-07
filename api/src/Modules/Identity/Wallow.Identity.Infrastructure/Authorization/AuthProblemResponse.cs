@@ -6,11 +6,8 @@ using Wallow.Shared.Kernel.Errors;
 namespace Wallow.Identity.Infrastructure.Authorization;
 
 /// <summary>
-/// Writes the problem body an authentication or authorization refusal owes. The body is
-/// load-bearing: under the nosniff header an empty 401/403 renders as a blank page in a
-/// browser, so every refusal the module issues carries a problem document. The document goes
-/// through <see cref="IProblemDetailsService"/>, so the host's problem contract shapes it; this
-/// module only supplies the status, the code, and a user-safe detail.
+/// Submits authentication and authorization problem responses through
+/// <see cref="IProblemDetailsService"/> so the host can apply its problem contract.
 /// </summary>
 public static class AuthProblemResponse
 {

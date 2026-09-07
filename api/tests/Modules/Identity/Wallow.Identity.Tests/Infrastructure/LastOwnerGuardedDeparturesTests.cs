@@ -18,12 +18,8 @@ using Wolverine;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// Every way an active membership can end runs its write INSIDE ILastOwnerGuard, not beside it.
-/// A guard the write can outrun enforces nothing, so each case here hands the services a guard that
-/// refuses and asserts the membership is untouched and nothing downstream was told it ended.
-///
-/// What the guard decides — and that two concurrent departures cannot both pass it — needs a real
-/// Postgres row lock and lives in Wallow.Identity.IntegrationTests.
+/// Checks that a refusing last-owner guard prevents the listed membership changes and downstream effects.
+/// Concurrent guard behavior is covered by PostgreSQL integration tests.
 /// </summary>
 public sealed class LastOwnerGuardedDeparturesTests : IDisposable
 {

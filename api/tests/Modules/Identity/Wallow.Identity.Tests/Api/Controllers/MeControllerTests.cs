@@ -8,9 +8,7 @@ using Wallow.Identity.Application.Interfaces;
 namespace Wallow.Identity.Tests.Api.Controllers;
 
 /// <summary>
-/// The caller's own memberships, answered from the token's subject and nothing else. Reading it
-/// off the ambient tenant instead would answer a different question — one the caller could
-/// already answer, since their app is bound to that organization.
+/// Checks membership lookup for the authenticated subject across organizations.
 /// </summary>
 public class MeControllerTests
 {

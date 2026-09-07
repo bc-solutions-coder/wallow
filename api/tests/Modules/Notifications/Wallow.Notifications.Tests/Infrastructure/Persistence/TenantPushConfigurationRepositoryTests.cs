@@ -80,8 +80,8 @@ public sealed class TenantPushConfigurationRepositoryTests : RepositoryTestBase
         result.Should().BeNull();
     }
 
-    // DeleteByPlatformAsync uses ExecuteDeleteAsync which is not supported by InMemory provider.
-    // These methods require integration tests with a real database.
+
+
     [Fact(Skip = "ExecuteDeleteAsync is not supported by EF Core InMemory provider")]
     public async Task DeleteByPlatformAsync_RemovesConfiguration()
     {

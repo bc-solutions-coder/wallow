@@ -190,12 +190,8 @@ public sealed class PasswordlessServiceTests
         await _redis.Received(1).KeyDeleteAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>());
     }
 
-    // Regression for Wallow-gfph: magic-link send and verify run in DIFFERENT DI scopes
-    // (send = POST request, verify = later GET when the user clicks the emailed link), so
-    // they resolve DIFFERENT scoped PasswordlessService instances. The HMAC signing key must
-    // be stable across instances or verification can never succeed. This reproduces the
-    // production 401 by minting a token on one instance and validating it on another that
-    // shares the same IDataProtectionProvider singleton, exactly as production DI does.
+    // Send and verification use separate service instances but share data protection.
+    // A generated magic link must remain verifiable across that request boundary.
     [Fact]
     public async Task MagicLink_SendThenVerify_AcrossSeparateScopes_Succeeds()
     {

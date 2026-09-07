@@ -42,8 +42,7 @@ public sealed partial class MfaService : IMfaService
 
     public Task<bool> ValidateTotpAsync(string base32Secret, string code, CancellationToken ct)
     {
-        // The secret may be either raw base32 (during enrollment) or data-protected (during challenge).
-        // Try to unprotect first; if that fails, treat as raw base32.
+        // Enrollment supplies raw base32; challenges can supply a protected secret.
         string resolvedSecret;
         try
         {
@@ -78,7 +77,7 @@ public sealed partial class MfaService : IMfaService
         for (int i = 0; i < BackupCodeCount; i++)
         {
             byte[] bytes = RandomNumberGenerator.GetBytes(BackupCodeLength);
-            // Format as hex pairs separated by dashes for readability (e.g., "a1b2-c3d4-e5f6-g7h8")
+            // Group the hexadecimal code into four readable blocks.
             string hex = Convert.ToHexStringLower(bytes);
             string formatted = $"{hex[..4]}-{hex[4..8]}-{hex[8..12]}-{hex[12..16]}";
             codes.Add(formatted);
@@ -112,7 +111,7 @@ public sealed partial class MfaService : IMfaService
             return false;
         }
 
-        // Mark the code as consumed by saving the remaining codes
+        // Persist the remaining hashes after removing this code.
         string updatedHash = JsonSerializer.Serialize(storedHashes);
         user.SetBackupCodes(updatedHash);
         await _userManager.UpdateAsync(user);
@@ -141,7 +140,7 @@ public sealed partial class MfaService : IMfaService
             Array.Reverse(stepBytes);
         }
 
-        // RFC 6238 mandates HMAC-SHA1 for TOTP interoperability with authenticator apps
+        // Use the HMAC-SHA1 TOTP variant for compatibility with existing enrollments.
 #pragma warning disable CA5350
         byte[] hash = HMACSHA1.HashData(secret, stepBytes);
 #pragma warning restore CA5350

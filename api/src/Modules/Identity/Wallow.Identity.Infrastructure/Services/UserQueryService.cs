@@ -97,11 +97,7 @@ public sealed partial class UserQueryService(
     }
 
     /// <summary>
-    /// Batch role lookup for one organization's list. A role is granted BY an organization, so the
-    /// only truthful answer here is what each user holds in the organization being listed —
-    /// reporting a role granted elsewhere would claim an authority they do not have on this screen.
-    /// Active memberships only, matching what <c>IMembershipRoleResolver</c> resolves for
-    /// authorization; a suspended member's rows survive but grant nothing.
+    /// Resolves displayed role names from active memberships in the listed organization.
     /// </summary>
     private async Task<Dictionary<Guid, List<string>>> RoleNamesByUserIdAsync(
         List<Guid> userIds,
@@ -110,8 +106,7 @@ public sealed partial class UserQueryService(
     {
         OrganizationId scope = OrganizationId.Create(organizationId);
 
-        // Owned role rows come back with their membership, so this is one round trip and never
-        // more than one page's worth of members.
+        // Limit membership lookup to the displayed users in this organization.
         List<Membership> memberships = await dbContext.Memberships
             .Where(m => m.OrganizationId == scope
                 && m.Status == MembershipStatus.Active
@@ -120,8 +115,7 @@ public sealed partial class UserQueryService(
 
         List<Guid> roleIds = [.. memberships.SelectMany(m => m.Roles).Select(r => r.RoleId).Distinct()];
 
-        // The role catalog is global — roles are seeded with an empty tenant id and addressed by
-        // id — so naming them bypasses the tenant filters.
+        // Resolve assignments against the global role catalog.
         Dictionary<Guid, string> roleNamesById = await dbContext.Roles
             .IgnoreQueryFilters()
             .Where(r => roleIds.Contains(r.Id) && r.Name != null)

@@ -8,30 +8,16 @@ using Wolverine.Tracking;
 namespace Wallow.Api.Tests.Integration;
 
 /// <summary>
-/// Pins the dead-letter observability chain end to end (Wallow-qi90.2): a handler that exhausts
-/// its retries must terminate in the tracked <c>MovedToErrorQueue</c> event, leave a persisted
-/// row Wolverine's storage counts can see, and degrade the <c>wolverine-dlq</c> entry on
-/// <c>/health</c> — while never touching <c>/health/ready</c>, because a poison message must not
-/// fail readiness and restart-loop the container.
-/// <para>
-/// The poison is data, not a test double: <c>SendEmailValidator</c> rejects a recipient that is
-/// not an email address, so an <see cref="InquiryStatusChangedEvent" /> carrying one makes
-/// exactly the email handler fail through the standard retry policy into the DLQ (the same
-/// lever <c>MultipleHandlerSeparationTests</c> uses).
-/// </para>
-/// <para>
-/// The tracked <c>MovedToErrorQueue</c> record is the pin on the Error log the bead asks for:
-/// the same <c>WolverineRuntime</c> method raises the tracking event, increments the
-/// <c>wolverine-dead-letter-queue</c> counter, and writes "Envelope … was moved to the error
-/// queue" at Error with the exception attached. <c>WolverineDeadLetterLoggingTests</c> guards
-/// the Serilog side, so together they pin log emission without capturing sinks.
-/// </para>
+/// Checks that a poisoned email event reaches persistent dead-letter storage and degrades the DLQ health entry.
+/// The readiness response must omit that entry.
 /// </summary>
 [Collection(nameof(ApiIntegrationTestCollection))]
 [Trait("Category", "Integration")]
 public sealed class DeadLetterObservabilityTests(WallowApiFactory factory)
 {
-    /// <summary>Not an email address, so the email handler dead-letters on validation.</summary>
+    /// <summary>
+    /// Invalid recipient used to trigger email validation failure.
+    /// </summary>
     private const string PoisonedRecipient = "dlq-observability-probe-not-an-email";
 
     private static readonly TimeSpan _trackingTimeout = TimeSpan.FromSeconds(60);
@@ -67,8 +53,7 @@ public sealed class DeadLetterObservabilityTests(WallowApiFactory factory)
 
         using HttpClient client = factory.CreateClient();
 
-        // GetAsync, not GetStringAsync: /health answers 503 whenever ANY check is unhealthy
-        // (HealthCheckTests accepts both), and the detailed body is what this test is after.
+        // Read the detailed health body even when another check makes the HTTP status unsuccessful.
         using HttpResponseMessage health = await client.GetAsync("/health");
         string healthBody = await health.Content.ReadAsStringAsync();
         using JsonDocument healthDocument = JsonDocument.Parse(healthBody);
@@ -93,9 +78,7 @@ public sealed class DeadLetterObservabilityTests(WallowApiFactory factory)
     }
 
     /// <summary>
-    /// The storage write happens on the dead-letter path itself, but poll briefly anyway so a
-    /// slow container round-trip cannot flake this: the claim under test is "persisted", not
-    /// "persisted within one scheduler tick".
+    /// Polls for a nonzero dead-letter count for up to 15 seconds.
     /// </summary>
     private static async Task<int> WaitForDeadLetterDepthAsync(IMessageStore messageStore)
     {

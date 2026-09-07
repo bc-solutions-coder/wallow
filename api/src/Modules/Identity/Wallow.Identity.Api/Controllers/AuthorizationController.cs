@@ -44,8 +44,7 @@ public sealed partial class AuthorizationController(
     ILogger<AuthorizationController> logger) : Controller
 {
     /// <summary>
-    /// The authorize parameter naming the organization a first-party login should run under
-    /// (an organization identifier). A bound client may only restate its own organization.
+    /// Organization hint for first-party authorization. Bound clients may only restate their own organization.
     /// </summary>
     public const string OrganizationParameter = "organization";
 
@@ -57,10 +56,7 @@ public sealed partial class AuthorizationController(
 
         LogAuthorizeRequest(request.ClientId, request.RedirectUri, request.ResponseType, request.Scope);
 
-        // A client the platform will not serve — suspended by its organization or the platform,
-        // or bound to an organization that is archived or platform-suspended — is told so before
-        // anyone is asked to sign in, and told on the auth host rather than at its own redirect
-        // URI: a client out of service gets no traffic back.
+        // Refuse unavailable clients on the auth host before asking the user to sign in.
         ClientAccessRefusal? accessRefusal = await clientAccessPolicy.EvaluateAsync(
             request.ClientId, HttpContext.RequestAborted);
         if (accessRefusal is not null)
@@ -71,8 +67,7 @@ public sealed partial class AuthorizationController(
 
         if (User.Identity is not { IsAuthenticated: true })
         {
-            // The relying party forbade UI, and there is no signed-in user to answer for: a
-            // protocol error the relying party handles, never a login screen.
+            // prompt=none requires a protocol error instead of interactive sign-in.
             if (request.HasPromptValue(PromptValues.None))
             {
                 return OidcErrorForbid(
@@ -82,18 +77,14 @@ public sealed partial class AuthorizationController(
 
             string authUrl = GetRequiredAuthUrl();
 
-            // Rebuilt from the OpenIddict request, not the URL: a consent decision that arrives
-            // after the identity cookie lapsed is a POST carrying the request in its body, and
-            // the decision itself must not ride along to the login that replays it.
+            // Preserve POSTed authorize parameters without replaying the consent decision.
             string returnUrl = Request.PathBase + Request.Path + QueryString.Create(AuthorizeParameters(request));
 
             int cookieCount = Request.Cookies.Count;
             string pathBase = Request.PathBase;
             LogUserNotAuthenticated(returnUrl, pathBase, cookieCount);
 
-            // Reject non-local URLs to prevent open-redirect attacks.
-            // Note: Uri.TryCreate with UriKind.Absolute treats Unix paths (starting with /)
-            // as absolute file:// URIs on macOS/Linux, so we use Url.IsLocalUrl instead.
+            // IsLocalUrl tests web-local paths without treating Unix paths as file URIs.
             if (!Url.IsLocalUrl(returnUrl))
             {
                 LogInvalidReturnUrl(returnUrl);
@@ -119,9 +110,7 @@ public sealed partial class AuthorizationController(
 
         string? clientId = await applicationManager.GetClientIdAsync(application);
 
-        // First-party is whatever the seed registered as such, carried on the application as
-        // OpenIddict's consent type. Nothing about the client id decides it: a lookalike id
-        // registered through the organization surface is explicit-consent like any other.
+        // Implicit consent marks a first-party application; client-id spelling does not.
         bool isFirstParty = string.Equals(
             await applicationManager.GetConsentTypeAsync(application),
             ConsentTypes.Implicit,
@@ -129,10 +118,7 @@ public sealed partial class AuthorizationController(
 
         LogApplicationResolved(clientId, isFirstParty);
 
-        // The organization has to be settled before anything else, because everything after it
-        // is org-scoped: which roles the caller holds, which scopes those roles reach, and
-        // whether they may sign in here at all. It also means a non-member is told so before
-        // being walked through a consent screen for an app they cannot use.
+        // Resolve enrollment and organization roles before consent.
         ClientTenantInfo? tenantInfo = request.ClientId is null
             ? null
             : await clientTenantResolver.ResolveAsync(request.ClientId);
@@ -142,21 +128,14 @@ public sealed partial class AuthorizationController(
             tenantInfo = null;
         }
 
-        // A third-party client is bound to exactly one organization by registration, so one
-        // bound to none is a registration defect: its token would carry scopes with nowhere to
-        // spend them, and a principal naming no organization is exactly what
-        // PermissionExpansionMiddleware treats as cross-tenant. A first-party client is bound
-        // to no organization by design; its login is legal with no organization context at all.
+        // Only first-party clients may authorize without an organization binding.
         if (tenantInfo is null && !isFirstParty)
         {
             LogClientHasNoOrganization(clientId);
             return Redirect($"{GetRequiredAuthUrl()}/error?reason=client_not_bound_to_organization");
         }
 
-        // One code path for organization context: a bound client is "hint fixed by registration",
-        // and a first-party client supplies the hint itself. Either way the transaction runs the
-        // named organization's enrollment policy below. A bound client restating its own
-        // organization is not a contradiction; naming any other one is a malformed request.
+        // A bound client may confirm its organization, but cannot select another one.
         string? organizationHint = request[OrganizationParameter]?.ToString();
         if (!string.IsNullOrEmpty(organizationHint))
         {
@@ -174,17 +153,13 @@ public sealed partial class AuthorizationController(
 
             if (tenantInfo is null)
             {
-                // The name is for the org_name claim only; whether the user may sign in here is
-                // the enrollment policy's answer, and it treats an unknown organization as
-                // refusing a stranger.
+                // Enrollment checks access; this lookup supplies the display name.
                 OrganizationDto? hintedOrganization = await organizations.GetOrganizationByIdAsync(hintedOrganizationId);
                 tenantInfo = new ClientTenantInfo(hintedOrganizationId, hintedOrganization?.Name);
             }
         }
 
-        // Without a hint, a first-party client's user decides by their own memberships: exactly
-        // one active membership is unambiguous and becomes the session's organization; none or
-        // several leave the token org-less rather than guessing.
+        // Choose a sole active membership; otherwise leave organization context unresolved.
         if (tenantInfo is null)
         {
             IReadOnlyList<MyOrganizationDto> memberships =
@@ -195,12 +170,7 @@ public sealed partial class AuthorizationController(
             }
         }
 
-        // A membership row is not permission to sign in here; only an Active one is. Whether one
-        // can be minted on the spot is the organization's enrollment policy to answer, and that
-        // answer — along with the email-verification precondition and the three refusal reasons —
-        // lives in the enrollment service, because AccountController has to reach the same one.
-        // Global admin governs across organizations, so it is not gated by a membership at all:
-        // it is the one authority an organization does not grant.
+        // Enrollment policy governs organization admission, except for global administrators.
         bool isGlobalAdmin = GlobalAdminClaims.IsGranted(await userManager.GetClaimsAsync(user));
 
         if (tenantInfo is not null && !isGlobalAdmin)
@@ -215,18 +185,12 @@ public sealed partial class AuthorizationController(
             }
         }
 
-        // Roles are granted by an organization and carry no authority outside it, so this is the
-        // only role set that may decide anything here: the scopes granted below and the role
-        // claims stamped into the token both read it. No organization, no roles.
+        // Roles and scope permissions come from the selected organization.
         IReadOnlyList<string> roles = tenantInfo is null
             ? []
             : await membershipRoleResolver.GetRoleNamesAsync(Guid.Parse(userId), tenantInfo.TenantId);
 
-        // Two independent scope gates, both before any ticket is issued or authorization
-        // persisted. Without them a signed-in user can append privileged scopes to their own
-        // authorize request and PermissionExpansionMiddleware expands them into permissions.
-        // Everything downstream — consent, the stored authorization, the token — runs on the
-        // granted set, never on what was asked for.
+        // Use the validated, role-narrowed scope set for consent and token issuance.
         (IActionResult? scopeRejection, ImmutableArray<string> grantedScopes) =
             await ResolveGrantedScopesAsync(request, roles, userId, clientId);
         if (scopeRejection is not null)
@@ -238,24 +202,17 @@ public sealed partial class AuthorizationController(
 
         if (!isFirstParty)
         {
-            // Stored consent is the user's Valid PERMANENT authorizations for this client — the
-            // ad-hoc records first-party sign-ins mint are per-login bookkeeping and never count.
-            // The union of their scopes is what the user has already agreed to; the newest record
-            // is the one widened on scope growth, so consent accumulates on one row.
+            // Only valid permanent authorizations count as stored consent.
             (object? permanentAuthorization, HashSet<string> consentedScopes) =
                 await FindPermanentConsentAsync(userId, applicationId);
 
-            // The delta the user has not yet agreed to — the only thing a consent screen may ask.
+            // Ask for missing scopes, or the full granted set when prompting again.
             ImmutableArray<string> missingScopes =
                 [.. grantedScopes.Where(s => !consentedScopes.Contains(s))];
             ImmutableArray<string> consentScreenScopes =
                 missingScopes.IsEmpty ? grantedScopes : missingScopes;
 
-            // A consent decision counts only when it is POSTed with the token this endpoint minted
-            // for this user and this request, and only once. Anything else — a flag on the GET,
-            // no token, a replayed token, a token minted for someone else or for another request —
-            // leaves the user on the consent screen with a fresh token: the relying party is told
-            // neither yes nor no, and nothing is recorded.
+            // Posted decisions must redeem a token bound to this user and authorize request.
             string fingerprint = ConsentRequestFingerprint(request);
             string? decision = HttpMethods.IsPost(Request.Method)
                 ? request[ConsentDecisionParameter]?.ToString()
@@ -281,17 +238,13 @@ public sealed partial class AuthorizationController(
                     return RedirectToConsent(request, userId, clientId, consentScreenScopes, fingerprint);
                 }
 
-                // Granted. A redeemed decision settles the transaction even when the replayed
-                // request still carries prompt=consent — honouring the prompt here would bounce
-                // the answer straight back to the screen forever.
+                // A valid answer satisfies prompt=consent rather than reopening the screen.
                 await StoreConsentAsync(
                     permanentAuthorization, applicationId, userId, grantedScopes, tenantInfo);
             }
             else if (request.HasPromptValue(PromptValues.None))
             {
-                // The relying party forbade UI. Missing consent — no permanent record at all, or
-                // one that does not cover the request — is a protocol error it handles, never a
-                // screen.
+                // prompt=none cannot request missing consent interactively.
                 if (permanentAuthorization is null || !missingScopes.IsEmpty)
                 {
                     return ConsentRequiredForbid(
@@ -308,17 +261,13 @@ public sealed partial class AuthorizationController(
             }
             else
             {
-                // Consent already covers the request; StoreConsentAsync still runs so that when
-                // legacy rows split the consented scopes, the one durable consent record is
-                // widened to cover the granted set (a no-op write otherwise).
+                // Widen the selected record if consent scopes were spread across multiple records.
                 await StoreConsentAsync(
                     permanentAuthorization, applicationId, userId, grantedScopes, tenantInfo);
             }
         }
 
-        // The sid ties every RP that completes authorize to one SSO session, so logout can
-        // tell each of them which session ended. It has to exist before the id_token that
-        // carries it is built.
+        // Record RP participation under the sid used for logout notifications.
         string sid = await EnsureSessionIdAsync(userId, tenantInfo);
         if (clientId is not null)
         {
@@ -326,12 +275,7 @@ public sealed partial class AuthorizationController(
                 sid, clientId, Guid.Parse(userId), HttpContext.RequestAborted);
         }
 
-        // The authorization every token of this sign-in chains to: a per-login ad-hoc record
-        // stamped with the session's sid (and the organization the sign-in ran in, when there is
-        // one) — never the shared permanent consent row, which end-session revocation could not
-        // touch without killing the user's other browser sessions. OpenIddict would mint an
-        // anonymous ad-hoc record itself; Wallow writes its own so end-session can find one
-        // session's tokens by sid, and membership revocation a first-party token's organization.
+        // Session and organization metadata let revocation target sign-in tokens without deleting consent.
         string? authorizationId = await CreateAuthorizationAsync(
             AuthorizationTypes.AdHoc, applicationId, userId, grantedScopes, tenantInfo, sid);
 
@@ -348,9 +292,7 @@ public sealed partial class AuthorizationController(
     }
 
     /// <summary>
-    /// The user's stored consent for one application: the newest Valid permanent authorization
-    /// (the record scope growth widens) and the union of scopes across all of them (what the
-    /// user has already agreed to, even if legacy rows split it).
+    /// Returns the newest valid permanent authorization for this user/client and the union of their scopes.
     /// </summary>
     private async Task<(object? NewestPermanent, HashSet<string> ConsentedScopes)> FindPermanentConsentAsync(
         string userId,
@@ -383,10 +325,7 @@ public sealed partial class AuthorizationController(
     }
 
     /// <summary>
-    /// Records a granted consent: widens the one permanent authorization's scope set to cover
-    /// the granted scopes (creating the record on first consent). Pure consent bookkeeping —
-    /// tokens chain to the sign-in's per-login ad-hoc authorization, never to this record, so
-    /// end-session revocation cannot reach across the user's other browser sessions through it.
+    /// Creates permanent consent or widens the selected record. Sign-in tokens use a separate ad-hoc authorization.
     /// </summary>
     private async Task StoreConsentAsync(
         object? permanentAuthorization,
@@ -464,16 +403,8 @@ public sealed partial class AuthorizationController(
     }
 
     /// <summary>
-    /// Returns the SSO session identifier from the caller's identity cookie, minting one and
-    /// re-issuing the cookie when the session has none — a fresh sign-in, a session predating
-    /// front-channel logout, or a sid whose <see cref="ActiveSession"/> ledger row was revoked
-    /// (session DELETE, eviction). The ledger check is what makes revocation stick: without it
-    /// a still-valid cookie would keep minting tokens under the revoked sid, invisible to the
-    /// sessions API. Minting writes a ledger row whose id doubles as the sid, so the sessions
-    /// API lists real sign-ins and revoking a row revokes that sign-in's tokens. The sid
-    /// deliberately lives on the cookie rather than per-request state: it must stay identical
-    /// across every authorize the session performs, or logout notifications would name a
-    /// session no RP ever recorded.
+    /// Reuses a live session id or creates an <see cref="ActiveSession"/>.
+    /// After creating a session, updates and reissues the Identity cookie if it authenticates.
     /// </summary>
     private async Task<string> EnsureSessionIdAsync(string userId, ClientTenantInfo? tenantInfo)
     {
@@ -491,8 +422,7 @@ public sealed partial class AuthorizationController(
         AuthenticateResult cookie = await HttpContext.AuthenticateAsync(IdentityConstants.ApplicationScheme);
         if (cookie.Succeeded && cookie.Principal.Identity is ClaimsIdentity cookieIdentity)
         {
-            // Replace rather than stack: a cookie whose session was revoked still carries the
-            // dead sid, and a second sid claim would make GetSessionId() ambiguous.
+            // Replace stale sid claims so the cookie carries only the current session id.
             foreach (Claim stale in cookieIdentity.Claims
                 .Where(c => c.Type == ClaimsPrincipalExtensions.SessionIdClaimType).ToList())
             {
@@ -578,25 +508,9 @@ public sealed partial class AuthorizationController(
     }
 
     /// <summary>
-    /// Resolves the scopes this caller may actually be granted. The two gates answer different
-    /// questions and so fail differently.
-    /// <para>
-    /// Gate one asks whether the scopes are registered for the OIDC client. A scope the client
-    /// was never configured for is a client misconfiguration, not a user-privilege question, so
-    /// this one refuses the whole request loudly rather than quietly dropping the scope.
-    /// </para>
-    /// <para>
-    /// Gate two asks whether the roles the caller holds IN THIS ORGANIZATION carry each scope's
-    /// permission, and narrows instead of refusing: OAuth already lets a server issue fewer
-    /// scopes than were asked for, and an app requesting the superset it supports for any user
-    /// must still work for the users who only qualify for part of it. Scopes that map to no
-    /// permission (openid, profile, email, offline_access, roles) are never role-gated.
-    /// </para>
+    /// Rejects scopes outside the client registration, then drops mapped API scopes whose
+    /// permissions are absent from the organization roles. Unmapped scopes are retained.
     /// </summary>
-    /// <returns>
-    /// A rejection result and an empty set when gate one fails; otherwise null and the narrowed
-    /// set of scopes, which is what every downstream consumer must use in place of the request's.
-    /// </returns>
     private async Task<(IActionResult? Rejection, ImmutableArray<string> GrantedScopes)> ResolveGrantedScopesAsync(
         OpenIddictRequest request, IReadOnlyList<string> roles, string userId, string? clientId)
     {
@@ -639,14 +553,8 @@ public sealed partial class AuthorizationController(
     }
 
     /// <summary>
-    /// Turns an enrollment outcome into the answer the user gets, or null when they are enrolled.
-    /// Where the answer lands depends on whose problem it is. A first-party client is the
-    /// platform's own UI, so its user stays on the auth host: the request-submitted screen for a
-    /// pending request, the error page for a refusal. A third-party user is the relying party's
-    /// to handle, so an organization's answer — pending, suspended, denied, not a member — goes
-    /// back to its redirect URI as <c>access_denied</c> with the reason as the description. The
-    /// one precondition that is not an organization's answer, an unverified email, keeps the
-    /// auth host's error page for every client: verifying it is the auth host's job.
+    /// Returns null for enrollment success. First-party refusals and unverified email use
+    /// the auth host; other third-party refusals return access_denied to the relying party.
     /// </summary>
     private IActionResult? RefuseEnrollment(EnrollmentOutcome outcome, bool isFirstParty)
     {
@@ -683,8 +591,7 @@ public sealed partial class AuthorizationController(
         ForbidToRelyingParty(Errors.AccessDenied, reason);
 
     /// <summary>
-    /// Refuses the transaction the OAuth way: OpenIddict delivers the error to the relying
-    /// party's redirect URI, so the client — not the auth host — decides what to show.
+    /// Delegates an OAuth error response to the OpenIddict server scheme.
     /// </summary>
     private ForbidResult ForbidToRelyingParty(string error, string description) =>
         Forbid(
@@ -775,8 +682,7 @@ public sealed partial class AuthorizationController(
 
             "org_id" or "org_name" => [Destinations.AccessToken, Destinations.IdentityToken],
 
-            // sid exists solely so the RP can match a front-channel logout notification to
-            // the session it belongs to — an id_token concern with no access-token consumer.
+            // Relying parties receive sid in the ID token for logout correlation.
             ClaimsPrincipalExtensions.SessionIdClaimType => [Destinations.IdentityToken],
 
             _ => [Destinations.AccessToken]

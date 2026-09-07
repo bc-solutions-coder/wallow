@@ -84,8 +84,7 @@ public sealed class PreRegisteredClientSyncServiceTests
     [Fact]
     public async Task SyncAsync_SecretlessClientWithoutExplicitPublicFlag_ThrowsWithoutRegisteringAnything()
     {
-        // An undeclared secret-less client is the fail-open case: registration must hard-fail
-        // at startup rather than quietly minting a public client.
+        // Missing secrets must not silently change a client to public.
         _options.Clients.Add(new PreRegisteredClientDefinition
         {
             ClientId = "silent-public",
@@ -108,8 +107,7 @@ public sealed class PreRegisteredClientSyncServiceTests
     [Fact]
     public async Task SyncAsync_SecretlessClientWithoutExplicitPublicFlag_FailsBeforeDeletingRemovedClients()
     {
-        // The hard-fail must precede the destructive reconciliation pass, so a misconfigured
-        // deployment cannot delete existing registrations on its way to throwing.
+        // Validate before reconciliation so invalid options cannot trigger deletions.
         _options.Clients.Add(new PreRegisteredClientDefinition
         {
             ClientId = "silent-public",
@@ -436,8 +434,7 @@ public sealed class PreRegisteredClientSyncServiceTests
             {
                 if (applications.ReaderIsOpen)
                 {
-                    // What Npgsql itself raises when a second command starts on a connection whose
-                    // data reader has not been drained.
+                    // Simulate rejecting another command while the reader is open.
                     throw new InvalidOperationException("A command is already in progress");
                 }
 
@@ -473,17 +470,14 @@ public sealed class PreRegisteredClientSyncServiceTests
 
         await _sut.SyncAsync(CancellationToken.None);
 
-        // Seed-derived orgs must be minted through Organization.Create (via CreateOrganizationAsync),
-        // never a bypass path — Organization.Create is the single tenant-id mint point (T5.1).
+        // Organization creation must go through the service that allocates its tenant ID.
         await _orgService.Received(1).CreateOrganizationAsync(
             "Acme", Arg.Any<string?>(), Arg.Any<string?>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>());
     }
 
     /// <summary>
-    /// Stands in for the OpenIddict EF Core store's <c>ListAsync</c>, which streams off an open
-    /// Npgsql data reader that holds the connection until the enumeration finishes. Exposes whether
-    /// that reader is still open so a test can reject any command issued mid-enumeration, the way
-    /// the real driver does.
+    /// Models an application list that holds a reader until enumeration ends,
+    /// allowing the delete stub to reject commands issued during enumeration.
     /// </summary>
     private sealed class ReaderBackedApplicationList(IReadOnlyList<object> applications)
     {
@@ -504,8 +498,7 @@ public sealed class PreRegisteredClientSyncServiceTests
             }
             finally
             {
-                // Disposing the enumerator is what closes the reader; `await foreach` does it on
-                // the way out of the loop.
+                // Enumerator disposal releases the simulated reader.
                 ReaderIsOpen = false;
             }
         }
@@ -524,8 +517,7 @@ public sealed class PreRegisteredClientSyncServiceTests
     [Fact]
     public async Task SyncAsync_FirstPartyClient_IsCreatedWithImplicitConsent()
     {
-        // Consent exemption is OpenIddict's per-application consent type, written by the seed
-        // from the explicit flag; the authorize endpoint reads it back and never looks at the id.
+        // First-party status selects implicit consent independently of the client ID.
         _options.Clients.Add(new PreRegisteredClientDefinition
         {
             ClientId = "dashboard",
@@ -661,8 +653,7 @@ public sealed class PreRegisteredClientSyncServiceTests
             Secret = "s",
             TenantId = Guid.NewGuid(),
             Scopes = ["openid"],
-            // Meaningless on a client that never holds the refresh grant, so the seeder
-            // must drop it rather than write a setting nothing will ever read.
+            // This service client has no refresh grant, so omit its refresh lifetime.
             RefreshTokenLifetime = 3600
         });
         _appManager.FindByClientIdAsync("sa-worker", Arg.Any<CancellationToken>())
@@ -739,8 +730,7 @@ public sealed class PreRegisteredClientSyncServiceTests
     [Fact]
     public async Task SyncAsync_OrganizationBoundClient_WritesARegistryRow()
     {
-        // The org-clients management surface addresses clients only through the RegisteredClient
-        // registry — without this row a seeded client is invisible to suspend/reinstate/delete.
+        // Organization client management requires a RegisteredClient row.
         Guid orgId = Guid.NewGuid();
         _options.Clients.Add(new PreRegisteredClientDefinition
         {
@@ -806,8 +796,7 @@ public sealed class PreRegisteredClientSyncServiceTests
     [Fact]
     public async Task SyncAsync_RegistryRowAlreadyUnderTheRightOwner_IsLeftUntouched()
     {
-        // A re-seed must never recreate the row: a suspension the organization placed lives on
-        // it, and replace-on-sync would silently lift that suspension.
+        // Keep the existing row so synchronization preserves its suspension state.
         Guid orgId = Guid.NewGuid();
         _options.Clients.Add(new PreRegisteredClientDefinition
         {

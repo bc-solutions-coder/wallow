@@ -45,9 +45,9 @@ public sealed class SessionServiceTests : IDisposable
         _dbContext.Dispose();
     }
 
-    // ──────────────────────────────────────────────
-    // CreateSessionAsync
-    // ──────────────────────────────────────────────
+
+
+
 
     [Fact]
     public async Task CreateSession_ReturnsNewSessionWithUniqueToken()
@@ -71,13 +71,13 @@ public sealed class SessionServiceTests : IDisposable
         Guid userId = Guid.NewGuid();
         Guid tenantId = Guid.NewGuid();
 
-        // Create 4 sessions (below max of 5)
+
         for (int i = 0; i < 4; i++)
         {
             await _sut.CreateSessionAsync(userId, tenantId, CancellationToken.None);
         }
 
-        // 5th session should NOT trigger eviction
+
         ActiveSession session = await _sut.CreateSessionAsync(userId, tenantId, CancellationToken.None);
 
         session.Should().NotBeNull();
@@ -127,7 +127,7 @@ public sealed class SessionServiceTests : IDisposable
         Guid userId = Guid.NewGuid();
         Guid tenantId = Guid.NewGuid();
 
-        // Create 5 sessions to reach max
+
         for (int i = 0; i < 5; i++)
         {
             await _sut.CreateSessionAsync(userId, tenantId, CancellationToken.None);
@@ -135,7 +135,7 @@ public sealed class SessionServiceTests : IDisposable
             _timeProvider.Advance(TimeSpan.FromMinutes(1));
         }
 
-        // 6th session should trigger eviction of the oldest
+
         ActiveSession session = await _sut.CreateSessionAsync(userId, tenantId, CancellationToken.None);
 
         session.Should().NotBeNull();
@@ -148,7 +148,7 @@ public sealed class SessionServiceTests : IDisposable
         Guid userId = Guid.NewGuid();
         Guid tenantId = Guid.NewGuid();
 
-        // Fill to max
+
         for (int i = 0; i < 5; i++)
         {
             await _sut.CreateSessionAsync(userId, tenantId, CancellationToken.None);
@@ -164,9 +164,9 @@ public sealed class SessionServiceTests : IDisposable
                 e.Reason == "max_sessions_exceeded"));
     }
 
-    // ──────────────────────────────────────────────
-    // RevokeSessionAsync
-    // ──────────────────────────────────────────────
+
+
+
 
     [Fact]
     public async Task RevokeSession_MarksTheLedgerRowRevoked()
@@ -211,9 +211,9 @@ public sealed class SessionServiceTests : IDisposable
         await act.Should().ThrowAsync<InvalidOperationException>();
     }
 
-    // ──────────────────────────────────────────────
-    // GetActiveSessionsAsync
-    // ──────────────────────────────────────────────
+
+
+
 
     [Fact]
     public async Task GetActiveSessions_ReturnsOnlyNonRevokedNonExpired()
@@ -225,7 +225,7 @@ public sealed class SessionServiceTests : IDisposable
         ActiveSession s2 = await _sut.CreateSessionAsync(userId, tenantId, CancellationToken.None);
         ActiveSession s3 = await _sut.CreateSessionAsync(userId, tenantId, CancellationToken.None);
 
-        // Revoke s1
+
         await _sut.RevokeSessionAsync(s1.Id.Value, userId, CancellationToken.None);
 
         List<ActiveSession> active = await _sut.GetActiveSessionsAsync(userId, CancellationToken.None);
@@ -243,7 +243,7 @@ public sealed class SessionServiceTests : IDisposable
 
         await _sut.CreateSessionAsync(userId, tenantId, CancellationToken.None);
 
-        // Advance past session duration (24h)
+
         _timeProvider.Advance(TimeSpan.FromHours(25));
 
         ActiveSession s2 = await _sut.CreateSessionAsync(userId, tenantId, CancellationToken.None);

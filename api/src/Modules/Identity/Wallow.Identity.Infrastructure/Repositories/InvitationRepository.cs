@@ -18,11 +18,8 @@ public sealed class InvitationRepository(IdentityDbContext context) : IInvitatio
     }
 
     /// <summary>
-    /// Resolves an invitation by its token, bypassing tenant query filters (IgnoreQueryFilters).
-    /// Neither caller can supply the tenant the invitation belongs to: verification is anonymous, so
-    /// no tenant resolves at all, and acceptance runs as the invited person, whose ambient tenant is
-    /// by definition an organization other than the one inviting them. The token is 32 bytes of
-    /// cryptographic randomness and is itself the selector.
+    /// Looks up a token across tenants for anonymous verification and acceptance.
+    /// The accepting caller may not have the inviting organization as its ambient tenant.
     /// </summary>
     public Task<Invitation?> GetByTokenAsync(string token, CancellationToken ct = default)
     {
@@ -33,9 +30,7 @@ public sealed class InvitationRepository(IdentityDbContext context) : IInvitatio
     }
 
     /// <summary>
-    /// Lists one organization's invitations, scoped on the parameter rather than on the ambient
-    /// query filter. A method named for a tenant it does not filter by is one "cleanup" away from
-    /// returning every invited email address in the system.
+    /// Lists invitations for the supplied tenant, independently of the ambient tenant filter.
     /// </summary>
     public Task<List<Invitation>> GetPagedByTenantAsync(Guid tenantId, int skip = 0, int take = 20, CancellationToken ct = default)
     {
@@ -55,9 +50,8 @@ public sealed class InvitationRepository(IdentityDbContext context) : IInvitatio
         TenantId scope = TenantId.Create(tenantId);
         string normalized = email.ToUpperInvariant();
 
-        // ToUpper() here is an expression tree translated to SQL upper(); it never runs in .NET,
-        // so the culture analyzers do not apply. ILike would treat _ as a wildcard, and _ is legal
-        // in an email local part, so it would match addresses that are not this one.
+        // Compare uppercase values without ILike: an underscore in an email is literal,
+        // not a pattern wildcard. The relational provider translates ToUpper to SQL.
 #pragma warning disable CA1304, CA1311, CA1862
         return context.Invitations
             .AsTracking()

@@ -100,7 +100,7 @@ public class AccountControllerTests
         _dataProtectionProvider.CreateProtector("SignInTicket").Returns(innerProtector);
         innerProtector.CreateProtector("").Returns(innerProtector);
 
-        // The ToTimeLimitedDataProtector extension creates a wrapper, so we mock the Protect call on the base protector
+        // The time-limited wrapper delegates protection to this base protector.
         innerProtector.Protect(Arg.Any<byte[]>()).Returns(new byte[] { 1, 2, 3 });
 
         IActionResult result = await _controller.Login(new AccountLoginRequest("test@test.com", "password", false), CancellationToken.None);
@@ -403,7 +403,7 @@ public class AccountControllerTests
     [Fact]
     public async Task ExchangeTicket_WithInvalidTicket_ReturnsBadRequest()
     {
-        // The data protection provider will throw when trying to unprotect invalid data
+        // Simulate failure while unprotecting the ticket.
         IDataProtector innerProtector = Substitute.For<IDataProtector>();
         _dataProtectionProvider.CreateProtector("SignInTicket").Returns(innerProtector);
         innerProtector.CreateProtector("").Returns(innerProtector);

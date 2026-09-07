@@ -7,12 +7,6 @@ using Wolverine;
 
 namespace Wallow.Notifications.Tests.EventHandlers;
 
-/// <summary>
-/// The email an organization's admins get when the organization is permanently deleted: one
-/// send per recipient, addressed from the emails the event carried — the memberships no longer
-/// exist to resolve them from — and pointing at the organizations list, since the deleted
-/// organization's own page is gone. No recipients means no email and no error.
-/// </summary>
 public class OrganizationDeletedNotificationHandlerTests
 {
     private readonly IMessageBus _bus = Substitute.For<IMessageBus>();

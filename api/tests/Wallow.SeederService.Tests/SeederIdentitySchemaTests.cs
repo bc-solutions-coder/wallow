@@ -9,19 +9,8 @@ using Wallow.Identity.Infrastructure.Persistence;
 namespace Wallow.SeederService.Tests;
 
 /// <summary>
-/// The seeder is the third host that builds <see cref="IdentityDbContext"/>, and the only one that
-/// lives outside <c>Wallow.Identity.Infrastructure</c>. The API host and the migration host are
-/// guarded together in <c>Wallow.Architecture.Tests</c>'s <c>ModuleSchemaTests</c>; that suite
-/// cannot see this container, so the cross-assembly leg is pinned here.
+/// Checks that the seeder model and migration-history SQL use the Identity module schema, without opening a connection.
 /// </summary>
-/// <remarks>
-/// This matters because the accessibility that keeps the other three declaration sites honest — a
-/// constant the compiler resolves inside the module's own assembly — is exactly what a separate
-/// assembly cannot rely on by convention alone. If someone hand-types <c>"identity"</c> back into
-/// <c>AddSeederIdentityServices</c>, or the module renames
-/// its schema without the seeder following, this test fails. No connection is opened: EF generates
-/// the history-table script in memory.
-/// </remarks>
 public class SeederIdentitySchemaTests
 {
     private const string ConnectionString =

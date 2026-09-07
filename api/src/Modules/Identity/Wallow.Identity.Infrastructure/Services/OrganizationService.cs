@@ -32,8 +32,7 @@ public sealed partial class OrganizationService(
     ILogger<OrganizationService> logger) : IOrganizationService
 {
     /// <summary>
-    /// The role a creator is granted in the organization they create, and the role every
-    /// membership-carrying seed path starts from.
+    /// Admin role granted to organization creators and bootstrap owners.
     /// </summary>
     private const string AdminRoleName = "admin";
 
@@ -42,8 +41,7 @@ public sealed partial class OrganizationService(
         LogCreatingOrganization(name);
 
         string slug = GenerateSlug(name);
-        // System-initiated creation (SCIM sync, pre-registered client provisioning) passes no creator;
-        // audit fields fall back to Guid.Empty and no member is added.
+        // System creation supplies no creator: no owner is enrolled and audit attribution is empty.
         Guid createdByUserId = creatorUserId ?? Guid.Empty;
 
         Organization organization = Organization.Create(
@@ -68,8 +66,7 @@ public sealed partial class OrganizationService(
         await organizationRepository.SaveChangesAsync(ct);
         await membershipRepository.SaveChangesAsync(ct);
 
-        // The settings belong to the new organization, which is its own tenant. Reading the
-        // caller's ambient tenant here stamped them onto whoever happened to be creating it.
+        // Settings belong to the new organization's tenant, not the caller's tenant.
         OrganizationSettings defaultSettings = OrganizationSettings.Create(
             organization.Id,
             organization.TenantId,
@@ -93,8 +90,7 @@ public sealed partial class OrganizationService(
 
         if (creatorUserId.HasValue)
         {
-            // Creating the organization is the only way anyone becomes its owner, so it is the
-            // only place the grant can be recorded.
+            // Record the creator's owner grant with the creator as actor.
             await PublishTransitionAsync(
                 MembershipTransition.OwnerMarked,
                 organization.Id.Value,
@@ -150,8 +146,7 @@ public sealed partial class OrganizationService(
 
         if (membership is null)
         {
-            // Enroll models someone joining under their own steam and stamps no actor. An admin
-            // adding a member is a different act, so grant on top of it to record who did it.
+            // Grant records the admin actor after Enroll initially attributes creation to the member.
             Membership added = Membership.Enroll(userId, id, roleId, timeProvider);
             added.Grant(roleId, actorId, timeProvider);
             membershipRepository.Add(added);
@@ -203,8 +198,7 @@ public sealed partial class OrganizationService(
             membership.Grant(adminRoleId, userId, timeProvider);
         }
 
-        // The same self-attribution as creating the organization: there is no other actor at
-        // bootstrap, and a blank one would read as an unattributed grant.
+        // Bootstrap has no separate actor; attribute ownership to the new owner.
         membership.MarkOwner(true, userId, timeProvider);
         await membershipRepository.SaveChangesAsync(ct);
 
@@ -372,11 +366,8 @@ public sealed partial class OrganizationService(
 
         organization.Archive(actorId, timeProvider);
 
-        // Archive takes back what the organization's standing granted: every bound client's
-        // tokens and every member's tokens die with it — atomically with the mark, so no window
-        // exists where the archive is visible but tokens still serve. Reactivation revokes
-        // nothing back into place — people simply sign in again, and clients the organization
-        // suspended itself stay suspended.
+        // Commit archive state and database revocations together. Realtime disconnection
+        // cannot roll back; reactivation does not restore revoked credentials or client status.
         IExecutionStrategy strategy = dbContext.Database.CreateExecutionStrategy();
         await strategy.ExecuteAsync(
             ct,
@@ -435,9 +426,7 @@ public sealed partial class OrganizationService(
 
         organization.SuspendByPlatform(reason, actorId, timeProvider);
 
-        // The platform's freeze takes back exactly what an archive does: every bound client's
-        // tokens and every member's tokens die while it stands — atomically with the mark, so
-        // no window exists where one is visible without the other.
+        // Commit platform suspension and database token revocations together.
         IExecutionStrategy strategy = dbContext.Database.CreateExecutionStrategy();
         await strategy.ExecuteAsync(
             ct,
@@ -510,20 +499,13 @@ public sealed partial class OrganizationService(
         string orgName = organization.Name;
         TenantId tenantId = TenantId.Create(organizationId);
 
-        // The admins' addresses must be read while the memberships still exist — after the
-        // cascade there is nobody left to resolve.
+        // Capture recipients before deleting the memberships used to resolve them.
         IReadOnlyList<string> recipients = await adminEmails.ResolveAsync(organizationId, ct);
 
-        // One transaction end to end: either the organization and everything that hangs off it
-        // are gone together, or nothing is. Revocation runs first so realtime connections are
-        // hung up while the rows that name them still exist; the OpenIddict deletes clear the
-        // change tracker (see RevokedTokenDetacher), so every delete
-        // after them is an immediate SQL statement rather than tracked state. The deleted event
-        // is published through the enrolled outbox INSIDE the transaction — its envelope commits
-        // or rolls back with the rows — and only flushed to transports after the commit; a crash
-        // between the two is recovered by Wolverine's durability agent from the persisted
-        // envelope. Redelivery (execution-strategy retry after a failed commit) is possible, so
-        // every consumer of OrganizationDeletedEvent must stay idempotent.
+        // Commit Identity deletions and the outbox event together; flush only after commit.
+        // Revocation can disconnect realtime clients, an external effect that cannot roll back.
+        // Clearing tracked token graphs requires the remaining deletes to execute directly.
+        // Execution-strategy retries may redeliver the event; consumers must be idempotent.
         outbox.Enroll(dbContext);
         bool deleted = false;
         IExecutionStrategy strategy = dbContext.Database.CreateExecutionStrategy();
@@ -533,8 +515,7 @@ public sealed partial class OrganizationService(
             {
                 await using IDbContextTransaction transaction = await dbContext.Database.BeginTransactionAsync(token);
 
-                // Snapshot the bound clients inside the transaction, so a client registered
-                // after the pre-checks still dies with its organization.
+                // Snapshot clients inside the transaction, after the preliminary checks.
                 IReadOnlyList<RegisteredClient> boundClients =
                     await registeredClients.ListByOrganizationAsync(organizationId, token);
                 List<string> clientIds = [.. boundClients.Select(c => c.ClientId)];
@@ -562,9 +543,7 @@ public sealed partial class OrganizationService(
                     .Where(c => c.OrganizationId == organizationId)
                     .ExecuteDeleteAsync(token);
 
-                // Membership carries no foreign key to Organization (OrganizationId is the
-                // scope, not a navigation), so nothing cascades — every dependent row goes
-                // explicitly or it outlives the organization.
+                // Membership has no organization FK, so delete its rows explicitly.
                 await dbContext.Memberships
                     .Where(m => m.OrganizationId == id)
                     .ExecuteDeleteAsync(token);
@@ -603,9 +582,7 @@ public sealed partial class OrganizationService(
                     .Where(o => o.Id == id)
                     .ExecuteDeleteAsync(token);
 
-                // A concurrent delete that already removed the row also already published the
-                // event — publishing again would run every cross-module cascade twice. The end
-                // state this caller asked for holds either way.
+                // Publish only when this attempt deleted the organization row.
                 if (organizationRows > 0)
                 {
                     await outbox.PublishAsync(new OrganizationDeletedEvent
@@ -655,8 +632,7 @@ public sealed partial class OrganizationService(
     }
 
     /// <summary>
-    /// Changes who may join this organization. A settings row is created on demand so that an
-    /// organization which has never had its settings touched can still be opened up.
+    /// Updates enrollment settings, creating the settings row when absent.
     /// </summary>
     public async Task UpdateEnrollmentAsync(
         Guid organizationId,
@@ -675,8 +651,7 @@ public sealed partial class OrganizationService(
     }
 
     /// <summary>
-    /// A default role that does not exist is a policy that admits nobody: every join under it fails
-    /// at the moment of enrollment, far from the setting that caused it.
+    /// Rejects a nonexistent default role at configuration time.
     /// </summary>
     private async Task GuardRoleExistsAsync(Guid? roleId, CancellationToken ct)
     {
@@ -696,9 +671,8 @@ public sealed partial class OrganizationService(
     }
 
     /// <summary>
-    /// The unique constraint on organization_id is global, so the lookup has to see rows the tenant
-    /// filter would hide or the insert races it. AsTracking because the DbContext defaults to
-    /// NoTracking and mutations would otherwise go unnoticed.
+    /// Reads by organization across tenant filters to find the globally unique settings row.
+    /// Tracks it because callers mutate it and the context defaults to no tracking.
     /// </summary>
     private async Task<OrganizationSettings> GetOrCreateSettingsAsync(
         Guid organizationId, Guid actorId, CancellationToken ct)
@@ -736,8 +710,7 @@ public sealed partial class OrganizationService(
 
         await dbContext.SaveChangesAsync(ct);
 
-        // When enabling MFA with a grace period, set MfaGraceDeadline on unenrolled members
-        // so the login flow can detect they're within the grace window
+        // Give active members without MFA a grace deadline used by the login policy.
         if (requireMfa && mfaGracePeriodDays > 0)
         {
             DateTimeOffset graceDeadline = timeProvider.GetUtcNow().AddDays(mfaGracePeriodDays);
@@ -796,7 +769,7 @@ public sealed partial class OrganizationService(
     public async Task<OrganizationBrandingDto> UpdateBrandingAsync(Guid organizationId, string? displayName, string? logoUrl, string? primaryColor, Guid actorId, CancellationToken ct = default)
     {
         OrganizationId orgId = OrganizationId.Create(organizationId);
-        // AsTracking ensures EF Core detects mutations even though the DbContext defaults to NoTracking.
+        // Track changes despite the context's no-tracking default.
         OrganizationBranding? branding = await dbContext.OrganizationBrandings
             .AsTracking()
             .FirstOrDefaultAsync(b => b.OrganizationId == orgId, ct);
@@ -830,9 +803,8 @@ public sealed partial class OrganizationService(
 
     public Task<string> UploadBrandingLogoAsync(Guid organizationId, Stream logoStream, string fileName, string contentType, Guid actorId, CancellationToken ct = default)
     {
-        // TODO: Wire to Storage module via Wolverine integration event (e.g. UploadFileCommand).
-        // Should publish a file upload request to the Storage module and return the resulting URL.
-        // Tracked placeholder — currently returns a deterministic path without persisting the file.
+        // TODO: Upload through the Storage module (for example, a Wolverine upload request)
+        // and return the stored URL. This placeholder returns a path without persisting bytes.
         string logoPath = $"/storage/organizations/{organizationId}/branding/logo/{fileName}";
         return Task.FromResult(logoPath);
     }
@@ -845,14 +817,11 @@ public sealed partial class OrganizationService(
     }
 
     /// <summary>
-    /// Resolves one role name to its id. Roles are a global catalog addressed by name everywhere
-    /// authorization is expressed (<c>RolePermissionMapping</c>), so a name that is not in the
-    /// catalog is a caller error rather than an empty grant.
+    /// Resolves a global role by normalized name; missing roles are caller errors.
     /// </summary>
     private async Task<Guid> ResolveRoleIdAsync(string roleName, CancellationToken ct)
     {
-        // Identity's default normalizer upper-cases invariantly, so this matches what
-        // RoleManager wrote without paying for a case-insensitive collation scan.
+        // Match the stored normalized role name directly.
         string normalizedName = roleName.ToUpperInvariant();
 
         WallowRole? role = await dbContext.Roles

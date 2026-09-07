@@ -3,19 +3,15 @@ using Wallow.Identity.Application.DTOs;
 namespace Wallow.Identity.Application.Interfaces;
 
 /// <summary>
-/// The org-scoped client surface: an organization registers and manages its own clients. Every
-/// method is addressed by organization, and a client that belongs to a different organization is
-/// answered as not found rather than forbidden so the surface never confirms it exists. Every
-/// mutation publishes its integration event in the same transaction as its writes, so a crash
-/// after the commit can never drop the event; the <c>actor</c> is who performed it, for the
-/// event's audit trail.
+/// Organization-scoped client management. Reads and mutations do not return another
+/// organization's client. Registration and lifecycle events use the transactional outbox;
+/// configuration updates publish no event. Callers supply the audit actor.
 /// </summary>
 public interface IOrganizationClientService
 {
     /// <summary>
-    /// Registers the client and publishes <c>ClientRegisteredEvent</c> in the same transaction as
-    /// the writes, so the event — which is what creates the client's branding row — can never be
-    /// lost to a crash after the commit.
+    /// Creates the OpenIddict application and registration record with ClientRegisteredEvent
+    /// in the same transaction. Branding consumes the event asynchronously.
     /// </summary>
     Task<OrganizationClientRegistrationResult> RegisterAsync(
         Guid organizationId,
@@ -34,10 +30,8 @@ public interface IOrganizationClientService
         CancellationToken ct = default);
 
     /// <summary>
-    /// Replaces the client secret immediately, with no overlap: the old secret stops working the
-    /// moment the new one is revealed. <paramref name="revokeActiveTokens"/> also ends every token
-    /// the client was already issued. Returns <see langword="null"/> when the client is not one of
-    /// the organization's.
+    /// Replaces the secret without a grace period and optionally revokes existing tokens.
+    /// Returns null when the owned client or its OpenIddict application is absent.
     /// </summary>
     Task<OrganizationClientRegistrationResult?> RotateSecretAsync(
         Guid organizationId,
@@ -47,9 +41,8 @@ public interface IOrganizationClientService
         CancellationToken ct = default);
 
     /// <summary>
-    /// Takes the client out of service: every token it was issued is revoked and its realtime
-    /// connections are hung up, while its configuration, branding and consents stay. Returns
-    /// <see langword="null"/> when the client is not one of the organization's.
+    /// Suspends the client and revokes its tokens while retaining configuration, branding
+    /// and consent. Returns null when the owned client or application is absent.
     /// </summary>
     Task<OrganizationClientDto?> SuspendAsync(
         Guid organizationId,
@@ -58,8 +51,8 @@ public interface IOrganizationClientService
         CancellationToken ct = default);
 
     /// <summary>
-    /// Puts a suspended client back in service exactly as it was. Returns <see langword="null"/>
-    /// when the client is not one of the organization's.
+    /// Clears organization-level client suspension. Platform or organization restrictions
+    /// may still block service; revoked tokens remain revoked. Returns null if not found.
     /// </summary>
     Task<OrganizationClientDto?> ReinstateAsync(
         Guid organizationId,
@@ -68,12 +61,8 @@ public interface IOrganizationClientService
         CancellationToken ct = default);
 
     /// <summary>
-    /// Places the platform's own suspension on the client, with the operator's reason: every
-    /// token it was issued is revoked and its realtime connections are hung up, while the
-    /// client's own status is untouched, so the organization can read the reason but none of
-    /// its controls lift it. The published event also carries the organization's name and its
-    /// admins' addresses, for the notification email. Returns <see langword="null"/> when the
-    /// client is not one of the organization's.
+    /// Records platform suspension separately from client status and revokes client tokens.
+    /// The event carries the reason and organization admin recipients. Returns null if not found.
     /// </summary>
     Task<OrganizationClientDto?> SuspendByPlatformAsync(
         Guid organizationId,
@@ -83,9 +72,8 @@ public interface IOrganizationClientService
         CancellationToken ct = default);
 
     /// <summary>
-    /// Lifts the platform suspension; the client serves again unless the organization's own
-    /// suspension still stands. Returns <see langword="null"/> when the client is not one of
-    /// the organization's.
+    /// Clears platform suspension without changing client status or organization state.
+    /// Returns null when the owned client or its application is absent.
     /// </summary>
     Task<OrganizationClientDto?> ReinstateByPlatformAsync(
         Guid organizationId,
@@ -94,9 +82,8 @@ public interface IOrganizationClientService
         CancellationToken ct = default);
 
     /// <summary>
-    /// Revokes every credential the client holds, then removes it for good: the OpenIddict
-    /// application with its tokens and consents, and Wallow's own record. Returns false when the
-    /// client is not one of the organization's.
+    /// Revokes client credentials, deletes its application and registration, and publishes
+    /// the deletion event transactionally. Returns false when no owned registration exists.
     /// </summary>
     Task<bool> DeleteAsync(
         Guid organizationId,

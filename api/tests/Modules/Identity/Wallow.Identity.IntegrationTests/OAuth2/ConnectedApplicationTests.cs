@@ -7,18 +7,17 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.OAuth2;
 
 /// <summary>
-/// The self-service consent surface: GET /v1/identity/me/authorizations lists the applications
-/// the caller has consented to — their Valid permanent authorizations, nothing anyone else
-/// consented to and none of the ad-hoc bookkeeping — and DELETE withdraws one, killing every
-/// token chained to it: the refresh grant answers <c>invalid_grant</c> and a bearer call with
-/// the old access token is refused on its next request.
+/// Checks consent listing and withdrawal for the authenticated user.
+/// Withdrawal removes the listed consent and rejects subsequent refresh and bearer requests.
 /// </summary>
 public sealed class ConnectedApplicationTests(WallowApiFactory factory)
     : IdentityIntegrationTestBase(factory)
 {
     private const string Password = "Harness1234!";
     private const string ClientSecret = "connected-app-secret";
-    /// <summary>Includes <c>offline_access</c>: the withdraw test needs a refresh token to kill.</summary>
+    /// <summary>
+    /// Requests offline access so withdrawal can be checked with a refresh grant.
+    /// </summary>
     private const string Scope = "openid profile email offline_access";
 
     private static readonly string[] _clientScopes = ["openid", "profile", "email", "offline_access"];
@@ -78,15 +77,13 @@ public sealed class ConnectedApplicationTests(WallowApiFactory factory)
             new Uri($"/identity/me/authorizations/{Uri.EscapeDataString(authorizationId)}", UriKind.Relative));
         withdraw.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
-        // The refresh grant dies with the authorization it was chained to.
+        // Withdrawing consent must also revoke the session authorization used by this refresh token.
         TokenOutcome refreshed = await harness.RefreshAsync(
             seed.ClientId, ClientSecret, tokens.RefreshToken!);
         refreshed.StatusCode.Should().Be(HttpStatusCode.BadRequest, refreshed.Body);
         refreshed.Error.Should().Be("invalid_grant");
 
-        // The live access token is refused on its next request: token-entry validation reads
-        // the revoked token row, not just the signature. Over https, because the validation
-        // handler refuses plain-http requests outright.
+        // Use real bearer validation over HTTPS to check rejection after withdrawal.
         HttpClient bearer = Factory.CreateClient(
             new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
         bearer.DefaultRequestHeaders.Add("Authorization", $"Bearer {tokens.RequireAccessToken()}");

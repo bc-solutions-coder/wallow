@@ -3,46 +3,27 @@ using System.Text.Json;
 namespace Wallow.Architecture.Tests;
 
 /// <summary>
-/// Guards the removal of the public <c>wallow-dev-client</c> OIDC seed client (bead
-/// Wallow-pu6a.1.1, closing finding F1/R1 of the SDK review): a first-party client registered
-/// with no secret authenticates on client id alone, so once a fork adds any other public client
-/// the two are mutually spoofable. The remedy chosen was deletion, not conversion to a
-/// confidential client, because every frontend the repo ships (<c>apps/wallow-web</c> via its
-/// BFF, <c>apps/wallow-auth</c>) already authenticates through a client that holds a secret.
-///
-/// <para>Two classes of assertion live here. The first pins the deletion itself — the id is
-/// gone from <c>api/seed.json</c> and from every tracked source, config, and doc file — and is
-/// what fails until the client is actually removed. The second pins the invariant the deletion
-/// is most likely to break silently: the environment overrides in
-/// <c>docker/docker-compose.test.yml</c> address the seeded client array <b>positionally</b>, so
-/// deleting an entry shifts every later index down by one. An unshifted override does not error
-/// — it lands on the wrong client — and the only symptom is an OIDC round trip that fails in the
-/// e2e stack. That test therefore passes today and must keep passing after the renumber.</para>
-///
-/// <para>Static source assertions, in the same style as <see cref="WallowWebDeletionTests"/>,
-/// because the real failure only surfaces in a deployed OIDC round trip.</para>
+/// Checks removal of the retired public seed client from selected files and alignment of indexed test redirect overrides.
 /// </summary>
 public class PublicSeedClientRemovalTests
 {
-    /// <summary>The public client id this bead deletes.</summary>
+    /// <summary>
+    /// Retired public client ID excluded from the seed configuration.
+    /// </summary>
     private const string RemovedPublicClientId = "wallow-dev-client";
 
     /// <summary>
-    /// The confidential client <c>apps/wallow-web</c>'s BFF uses. It sits after the removed
-    /// client in <c>api/seed.json</c>, so it is the entry whose positional index shifts.
+    /// Confidential client used by the web BFF.
     /// </summary>
     private const string WebBffClientId = "wallow-web-client";
 
     /// <summary>
-    /// The redirect URI docker-compose.test.yml overrides onto <see cref="WebBffClientId"/>.
-    /// The host port is parameterized (Wallow-joo0), defaulting to 5053.
+    /// Parameterized redirect override expected in test Compose configuration.
     /// </summary>
     private const string TestComposeRedirectUri = "http://localhost:${E2E_WEB_PORT:-5053}/bff/callback";
 
     /// <summary>
-    /// Directories that are build output, dependencies, test artifacts, gitignored local
-    /// scratch, or immutable historical records (plans, the beads tracker export), none of
-    /// which are source a fork acts on, so none of which the deletion has to be true of.
+    /// Directories excluded from the recursive file scan.
     /// </summary>
     private static readonly HashSet<string> _prunedDirectories = new(StringComparer.Ordinal)
     {
@@ -60,7 +41,9 @@ public class PublicSeedClientRemovalTests
         "beads-archive",
     };
 
-    /// <summary>Text file extensions worth sweeping for a client id.</summary>
+    /// <summary>
+    /// File extensions included in the scan.
+    /// </summary>
     private static readonly HashSet<string> _sweptExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".cs",
@@ -81,7 +64,9 @@ public class PublicSeedClientRemovalTests
         ".http",
     };
 
-    /// <summary>Roots that hold every tracked source, config, and doc file of the repo.</summary>
+    /// <summary>
+    /// Repository subtrees included in the scan.
+    /// </summary>
     private static readonly string[] _sweptRoots =
     [
         "api",
@@ -102,7 +87,7 @@ public class PublicSeedClientRemovalTests
         "docker",
         "docker-compose.test.yml");
 
-    // ---- the deletion itself -------------------------------------------------------------
+
 
     [Fact]
     public void SeedJson_ShouldNotSeed_TheRemovedPublicClient()
@@ -151,7 +136,7 @@ public class PublicSeedClientRemovalTests
             string.Join(", ", offendingFiles));
     }
 
-    // ---- positional overrides that the deletion shifts ------------------------------------
+
 
     [Fact]
     public void TestCompose_SeederClientOverrides_ShouldTargetTheSeedJsonIndexOfTheWebBffClient()
@@ -178,7 +163,7 @@ public class PublicSeedClientRemovalTests
             webBffIndex);
     }
 
-    // ---- helpers -------------------------------------------------------------------------
+
 
     private static List<string> SweepSourceFiles()
     {
@@ -193,8 +178,7 @@ public class PublicSeedClientRemovalTests
             }
         }
 
-        // This guard spells the deleted id out in its own assertions and doc comment; excluding
-        // it keeps the sweep from reporting itself as the offender forever.
+        // Exclude this assertion file because its fixture contains the retired ID.
         string selfFileName = $"{nameof(PublicSeedClientRemovalTests)}.cs";
 
         return files

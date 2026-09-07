@@ -32,10 +32,8 @@ public sealed class LastOwnerGuard(IdentityDbContext dbContext) : ILastOwnerGuar
     {
         await using IDbContextTransaction transaction = await dbContext.Database.BeginTransactionAsync(ct);
 
-        // FOR UPDATE rather than a bare count: it holds the organization's active-owner rows for the
-        // rest of this transaction, so a second departure blocks here instead of counting the owner
-        // this one is about to take away. Under READ COMMITTED the waiter then re-reads the rows it
-        // blocked on and sees the smaller set, which is what makes the count below trustworthy.
+        // Lock active-owner rows until departure commits so concurrent departures serialize.
+        // Count after acquiring the locks to observe the preceding departure.
         // Status is stored as its name, not its ordinal (MembershipConfiguration).
         await dbContext.Database.ExecuteSqlAsync(
             $"""

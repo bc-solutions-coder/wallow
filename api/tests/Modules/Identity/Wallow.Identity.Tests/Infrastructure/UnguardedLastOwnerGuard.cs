@@ -3,10 +3,8 @@ using Wallow.Identity.Application.Interfaces;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// Runs the departure and refuses nothing. The real guard's whole job is a row lock held across a
-/// transaction, which no in-memory provider can honour, so the rule it enforces is asserted against
-/// a real Postgres in Wallow.Identity.IntegrationTests — asserting it here would only assert this
-/// class. Specs that reach for this one are specs about what a departure DOES.
+/// Executes departures without enforcing the last-owner rule.
+/// Use for departure behavior tests; PostgreSQL integration tests cover the real guard and its locks.
 /// </summary>
 internal sealed class UnguardedLastOwnerGuard : ILastOwnerGuard
 {

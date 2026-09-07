@@ -4,10 +4,7 @@ using Wallow.Shared.Kernel.Extensions;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// Global admin is a distinct, NON-assignable claim, never a role: holding the ordinary
-/// tenant "admin" role must never make a caller a global admin. Reading the flag has to go
-/// through ClaimsPrincipalExtensions (CONVENTIONS.md forbids raw FindFirst at call sites),
-/// and only the literal value "true" may grant it, mirroring the is_operator flag.
+/// Checks the dedicated global-admin claim and rejects ordinary role claims as a substitute.
 /// </summary>
 public sealed class GlobalAdminClaimTests
 {

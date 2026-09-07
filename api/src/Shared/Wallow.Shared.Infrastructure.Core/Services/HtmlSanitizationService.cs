@@ -16,7 +16,6 @@ internal sealed class HtmlSanitizationService : IHtmlSanitizationService
     {
         _sanitizer = new HtmlSanitizer();
 
-        // Allow safe formatting tags only
         _sanitizer.AllowedTags.Clear();
         foreach (string tag in new[]
         {
@@ -30,14 +29,12 @@ internal sealed class HtmlSanitizationService : IHtmlSanitizationService
             _sanitizer.AllowedTags.Add(tag);
         }
 
-        // Allow safe attributes
         _sanitizer.AllowedAttributes.Clear();
         foreach (string attr in new[] { "href", "title", "class", "id", "colspan", "rowspan" })
         {
             _sanitizer.AllowedAttributes.Add(attr);
         }
 
-        // Only allow safe URI schemes for links
         _sanitizer.AllowedSchemes.Clear();
         foreach (string scheme in new[] { "http", "https", "mailto" })
         {

@@ -6,21 +6,17 @@ using Wolverine;
 namespace Wallow.Notifications.Application.EventHandlers;
 
 /// <summary>
-/// The shape the organization-lifecycle notices share: the address of the relevant page in the
-/// web app, and one email per recipient. Kept in one place so the organization and client
-/// handlers cannot drift apart in how they resolve the web URL or fan out.
+/// Shared URL resolution and email dispatch for organization lifecycle notices.
 /// </summary>
 internal static class PlatformSuspensionEmails
 {
-    /// <summary>The organization's page in the web app — the link a suspension notice points at.</summary>
     public static string OrganizationUrl(IConfiguration configuration, Guid organizationId)
     {
         return $"{WebUrl(configuration)}/dashboard/organizations/{organizationId}";
     }
 
     /// <summary>
-    /// The organizations list — where a deletion notice points, since the deleted
-    /// organization's own page no longer exists.
+    /// Links deletion notices to the organizations list because the organization page is gone.
     /// </summary>
     public static string DashboardUrl(IConfiguration configuration)
     {
@@ -36,7 +32,10 @@ internal static class PlatformSuspensionEmails
         return webUrl.TrimEnd('/');
     }
 
-    /// <summary>One email per recipient, sent inline so a failure surfaces to the handler.</summary>
+    /// <summary>
+    /// Invokes email commands sequentially. Exceptions stop dispatch to remaining recipients;
+    /// SendEmailHandler records delivery failures without throwing them.
+    /// </summary>
     public static async Task SendAsync(
         IMessageBus bus,
         IReadOnlyList<string> recipients,

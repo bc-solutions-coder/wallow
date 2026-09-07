@@ -32,9 +32,7 @@ public sealed partial class LogoutController(
     ILogger<LogoutController> logger) : Controller
 {
     /// <summary>
-    /// Marks the browser's return trip from the notification page. Phase one renders the page
-    /// (front-channel iframes) and phase two — this marker present — runs OpenIddict's normal
-    /// end-session redirect back to the relying party.
+    /// Skips notifications on the return trip from the front-channel page.
     /// </summary>
     private const string FrontchannelCompletionMarker = "wallow_fc";
 
@@ -46,7 +44,7 @@ public sealed partial class LogoutController(
 
         LogLogoutRequest(postLogoutRedirectUri, User.Identity?.IsAuthenticated == true);
 
-        // Defense-in-depth: validate the post-logout redirect URI even though OpenIddict also validates
+        // Apply the redirect-origin allow-list in addition to OpenIddict validation.
         if (!string.IsNullOrEmpty(postLogoutRedirectUri)
             && !await redirectUriValidator.IsAllowedAsync(postLogoutRedirectUri, request?.ClientId))
         {
@@ -55,8 +53,7 @@ public sealed partial class LogoutController(
             return Redirect($"{authUrl}/error?reason=invalid_redirect_uri");
         }
 
-        // Phase two skips notification: the iframes already fired on the first pass, and the
-        // cookie sign-out below has already stripped the sid from the principal anyway.
+        // The completion marker skips notification and session resolution.
         (Guid UserId, string Sid)? session = HttpContext.Request.Query.ContainsKey(FrontchannelCompletionMarker)
             ? null
             : await ResolveSessionAsync();
@@ -69,15 +66,13 @@ public sealed partial class LogoutController(
                 sid, GetIssuer(), HttpContext.RequestAborted);
         }
 
-        // Back-channel first, before any local state changes: the POSTs are server-side and
-        // bounded, and they must run while the participation rows (ForgetAsync below) still exist.
+        // Notify before deleting the participation rows used to find recipients.
         await NotifyBackchannelAsync(session);
 
-        // End the session's tokens before local sign-out — phase two arrives after the cookie
-        // sign-out with the completion marker set, so this runs once per session.
+        // Revoke the resolved session before signing out the cookie.
         await RevokeSessionTokensAsync(session);
 
-        // Sign out the Identity cookie and let OpenIddict handle the end-session redirect
+
         await HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
         LogLogoutSignedOut();
 
@@ -103,18 +98,15 @@ public sealed partial class LogoutController(
             "Example: \"AuthUrl\": \"https://auth.yourdomain.com\"");
 
     /// <summary>
-    /// The <c>iss</c> every notification carries, which relying parties compare against their
-    /// configured issuer before destroying a session. Falls back to the request's own address
-    /// when OpenIddict has no explicit issuer configured (it then derives it the same way).
+    /// Configured issuer, falling back to request scheme, host, and PathBase.
     /// </summary>
     private Uri GetIssuer() =>
         serverOptions.CurrentValue.Issuer
         ?? new Uri(string.Concat(Request.Scheme, "://", Request.Host.ToUriComponent(), Request.PathBase.ToUriComponent()));
 
     /// <summary>
-    /// A self-contained page that loads each relying party's front-channel logout URI in a hidden
-    /// iframe, then returns to this endpoint with the completion marker so phase two can finish.
-    /// The delay gives the iframes time to land; the noscript link keeps script-less browsers moving.
+    /// Loads hidden logout iframes, then redirects after 1.5 seconds without waiting for acknowledgments.
+    /// A noscript link supports manual completion.
     /// </summary>
     private string BuildNotificationPage(IReadOnlyList<Uri> notificationUris)
     {
@@ -155,8 +147,7 @@ public sealed partial class LogoutController(
         LogLogoutPostRequest();
         (Guid UserId, string Sid)? session = await ResolveSessionAsync();
 
-        // No browser page to host front-channel iframes on a POST, but the back channel needs
-        // none: notify server-side, then drop the participation rows the notification used.
+        // POST logout sends back-channel notifications without an iframe page.
         await NotifyBackchannelAsync(session);
         await RevokeSessionTokensAsync(session);
         await HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
@@ -171,12 +162,7 @@ public sealed partial class LogoutController(
     }
 
     /// <summary>
-    /// Names the session this logout ends: the authenticated cookie's user and sid when the
-    /// browser still carries one, otherwise the <c>id_token_hint</c>'s. The hint principal is
-    /// only present when OpenIddict's end-session pipeline validated the hint — signature,
-    /// issuer and audience; a hint that fails validation is dropped and this returns null —
-    /// so its <c>sub</c> and <c>sid</c> are as trustworthy as the cookie's. This is what lets
-    /// a logout arriving after the cookie expired still revoke the session's tokens.
+    /// Uses the current principal user and sid, falling back to the OpenIddict-authenticated hint principal.
     /// </summary>
     private async Task<(Guid UserId, string Sid)?> ResolveSessionAsync()
     {
@@ -198,10 +184,7 @@ public sealed partial class LogoutController(
     }
 
     /// <summary>
-    /// Revokes every token minted under the session, so a refresh after logout answers
-    /// <c>invalid_grant</c> and the old access tokens are refused on their next bearer request.
-    /// A caller that resolved no session (phase two, or a cookie that predates sids and no
-    /// usable hint) has nothing to revoke.
+    /// Revokes the resolved session through IAccessRevoker; no session is a no-op.
     /// </summary>
     private async Task RevokeSessionTokensAsync((Guid UserId, string Sid)? session)
     {
@@ -213,9 +196,7 @@ public sealed partial class LogoutController(
     }
 
     /// <summary>
-    /// POSTs a signed logout token to every participating relying party that registered a
-    /// back-channel logout URI. Best-effort and bounded inside the notifier; a caller that
-    /// resolved no session has nobody to notify.
+    /// Invokes back-channel delivery when a session is resolved. Notifier lookup failures can propagate.
     /// </summary>
     private async Task NotifyBackchannelAsync((Guid UserId, string Sid)? session)
     {

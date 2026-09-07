@@ -9,14 +9,9 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.OAuth2;
 
 /// <summary>
-/// Consent, once granted, is a durable record: ONE permanent authorization per user and client.
-/// A later request covered by that record issues a code without a screen; a request for more asks
-/// only for the missing scopes and widens the record rather than minting a second one;
-/// <c>prompt=consent</c> re-asks and <c>prompt=none</c> refuses with <c>consent_required</c>
-/// instead of rendering UI. Only a permanent record satisfies consent — but tokens never chain to
-/// it: every sign-in mints its own per-login ad-hoc authorization for its tokens, so end-session
-/// can revoke one browser session without touching the consent record or the user's other
-/// sessions.
+/// Checks persisted permanent consent, scope expansion, and prompt handling.
+/// Repeated authorization reuses consent but creates distinct token authorizations;
+/// refresh retains its existing token authorization.
 /// </summary>
 public sealed class ConsentPersistenceTests(WallowApiFactory factory)
     : IdentityIntegrationTestBase(factory)
@@ -27,7 +22,9 @@ public sealed class ConsentPersistenceTests(WallowApiFactory factory)
     private const string WideScope = "openid profile email";
     private const string ConsentPath = "/consent";
 
-    /// <summary>The refresh grant only runs under <c>offline_access</c>, so the client registers it.</summary>
+    /// <summary>
+    /// Requests offline access for refresh-token assertions.
+    /// </summary>
     private const string RefreshScope = WideScope + " offline_access";
 
     private static readonly string[] _clientScopes = ["openid", "profile", "email", "offline_access"];
@@ -42,9 +39,7 @@ public sealed class ConsentPersistenceTests(WallowApiFactory factory)
         TokenOutcome first = await harness.ExchangeCodeAsync(
             seed.ClientId, ClientSecret, granted.Code!, granted.CodeVerifier);
 
-        // The stored consent answers for the second request — no screen — but the sign-in still
-        // mints its own per-login authorization: revoking one login's tokens must not require
-        // touching a record other logins' tokens chain to.
+        // Reuse consent while keeping token authorizations separate.
         AuthorizeOutcome again = await harness.AuthorizeAsync(seed.ClientId, WideScope);
 
         again.Code.Should().NotBeNull(again.Location?.ToString());
@@ -110,8 +105,7 @@ public sealed class ConsentPersistenceTests(WallowApiFactory factory)
         PathOf(forced.Location).Should().Be(ConsentPath);
         forced.ConsentToken.Should().NotBeNullOrEmpty();
 
-        // The POSTed decision must override the prompt=consent riding in the returnUrl,
-        // or the answer would bounce back to the screen forever.
+        // Accepting the prompt must finish consent instead of redisplaying it.
         AuthorizeOutcome answered = await harness.ConsentAsync(forced, grant: true);
         answered.Code.Should().NotBeNull(answered.Location?.ToString() ?? answered.Body);
     }
@@ -149,8 +143,7 @@ public sealed class ConsentPersistenceTests(WallowApiFactory factory)
         Seed seed = await SeedAsync();
         using AuthorizationCodeFlowHarness harness = await SignedInAsync(seed);
 
-        // No scopes requested, so nothing is "missing" — but with no permanent record at all,
-        // the user has never consented to the application itself and must be asked once.
+        // Even an empty scope request needs an initial consent record.
         AuthorizeOutcome outcome = await harness.AuthorizeAsync(seed.ClientId, scope: string.Empty);
 
         outcome.Code.Should().BeNull(outcome.Location?.ToString());
@@ -254,8 +247,7 @@ public sealed class ConsentPersistenceTests(WallowApiFactory factory)
     }
 
     /// <summary>
-    /// Plants a Valid AD-HOC authorization covering the full scope set, the shape a first-party
-    /// sign-in records — what the consent lookup must NOT accept as stored consent.
+    /// Seeds a valid ad-hoc authorization that must not satisfy permanent-consent lookup.
     /// </summary>
     private async Task SeedAdHocAuthorizationAsync(Seed seed, IEnumerable<string> scopes)
     {

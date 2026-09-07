@@ -6,7 +6,7 @@ public enum NotificationType
     TaskCompleted = 1,
     TaskComment = 2,
     SystemAlert = 3,
-    // 4 was BillingInvoice (removed)
+    // Value 4 is reserved for persisted BillingInvoice records.
     Mention = 5,
     Announcement = 6,
     SystemNotification = 7,

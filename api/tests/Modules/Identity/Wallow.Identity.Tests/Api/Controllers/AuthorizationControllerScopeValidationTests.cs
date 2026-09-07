@@ -20,15 +20,9 @@ using static OpenIddict.Abstractions.OpenIddictConstants;
 namespace Wallow.Identity.Tests.Api.Controllers;
 
 /// <summary>
-/// The authorize endpoint must not mint an access token carrying scopes the signed-in
-/// user's role does not grant. Without this, any user can append
-/// "roles.write users.manage" to their own authorize request and
-/// <see cref="Wallow.Identity.Infrastructure.Authorization.PermissionExpansionMiddleware"/>
-/// will faithfully expand those scopes into permissions — a straight privilege escalation.
-/// The two gates fail differently: a scope the OIDC client is not registered for
-/// (<see cref="IScopeSubsetValidator"/>) refuses the request, while a scope the caller's role
-/// does not cover is dropped from the grant and the rest is issued. The roles in question are
-/// the ones the client's own organization grants, never the caller's global role rows.
+/// Checks client scope validation and narrowing to organization-role permissions.
+/// <see cref="IScopeSubsetValidator"/> rejects unregistered client scopes; role-based narrowing
+/// removes permission scopes the user cannot receive.
 /// </summary>
 public sealed class AuthorizationControllerScopeValidationTests : IDisposable
 {
@@ -64,16 +58,14 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
         _membershipRoleResolver = Substitute.For<IMembershipRoleResolver>();
         _ssoClientSessionService = Substitute.For<ISsoClientSessionService>();
 
-        // Consent tokens always redeem here: these tests are about what a granted consent
-        // records, not about whether the decision is allowed through.
+        // Accept consent tokens so these tests can inspect granted scopes.
         IConsentTokenService consentTokens = Substitute.For<IConsentTokenService>();
         consentTokens.Issue(Arg.Any<string>(), Arg.Any<string>()).Returns("consent-token");
         consentTokens
             .RedeemAsync(Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(ConsentTokenOutcome.Redeemed);
 
-        // Default: the client is registered for whatever it asks for, so each test
-        // exercises only the gate it is about.
+        // Allow client scopes by default; rejection tests override this result.
         _scopeSubsetValidator = Substitute.For<IScopeSubsetValidator>();
         _scopeSubsetValidator
             .ValidateAsync(Arg.Any<string>(), Arg.Any<IEnumerable<string>>(), Arg.Any<CancellationToken>())
@@ -108,14 +100,13 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
     [Fact]
     public async Task Authorize_PlainUserRequestingScopesBeyondTheirRole_IssuesOnlyWhatTheRoleCovers()
     {
-        // Arrange - "user" grants storage and organization reads, never roles.write or
-        // users.manage. Asking for them anyway is the escalation attempt.
+        // These permission scopes exceed the user role.
         ArrangeFlow("openid profile roles.write users.manage", roles: ["user"]);
 
-        // Act
+
         IActionResult result = await _controller.Authorize();
 
-        // Assert
+
         Microsoft.AspNetCore.Mvc.SignInResult signIn =
             result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>().Subject;
         signIn.Principal.GetScopes().Should().BeEquivalentTo("openid", "profile");
@@ -124,18 +115,17 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
     [Fact]
     public async Task Authorize_ConsentGrantedForScopesBeyondTheCallersRole_PersistsOnlyTheGranted()
     {
-        // Arrange - a stored authorization outlives the request that created it, so a refused
-        // scope recorded here is an escalation the caller can redeem on any later request.
+        // Persist only granted scopes so stored consent cannot retain refused permissions.
         ArrangeFlow(
             "openid profile roles.write",
             roles: ["user"],
             clientId: ThirdPartyClientId,
             consentGranted: true);
 
-        // Act
+
         await _controller.Authorize();
 
-        // Assert
+
         await _authorizationManager.Received().CreateAsync(
             Arg.Is<OpenIddictAuthorizationDescriptor>(descriptor =>
                 descriptor.Scopes.Contains("openid")
@@ -147,15 +137,13 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
     [Fact]
     public async Task Authorize_UserWithNoRolesRequestingPrivilegedScope_IsNarrowedToNothing()
     {
-        // Arrange - a token with no role claims expands to no permissions, so every
-        // permission-bearing scope is over-broad. This is the exact hole
-        // PermissionExpansionMiddleware's scope expansion leaves open.
+        // With no organization roles, permission-bearing scopes must be removed.
         ArrangeFlow("openid storage.write", roles: []);
 
-        // Act
+
         IActionResult result = await _controller.Authorize();
 
-        // Assert
+
         Microsoft.AspNetCore.Mvc.SignInResult signIn =
             result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>().Subject;
         signIn.Principal.GetScopes().Should().BeEquivalentTo("openid");
@@ -164,17 +152,16 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
     [Fact]
     public async Task Authorize_ScopeNotRegisteredForTheClient_IsRejectedEvenForAnAdmin()
     {
-        // Arrange - the second gate: an admin's role covers the scope, but the OIDC client
-        // itself was never registered for it, so the client must not receive it.
+        // Role permission cannot substitute for client scope registration.
         ArrangeFlow("openid roles.write", roles: ["admin"]);
         _scopeSubsetValidator
             .ValidateAsync(Arg.Any<string>(), Arg.Any<IEnumerable<string>>(), Arg.Any<CancellationToken>())
             .Returns(ScopeValidationResult.Failure("The following scopes are not permitted for this service account: roles.write"));
 
-        // Act
+
         IActionResult result = await _controller.Authorize();
 
-        // Assert
+
         ForbidResult forbid = result.Should().BeOfType<ForbidResult>().Subject;
         forbid.Properties!.Items[OpenIddictServerAspNetCoreConstants.Properties.Error]
             .Should().Be(Errors.InvalidScope);
@@ -183,14 +170,13 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
     [Fact]
     public async Task Authorize_ChecksRequestedScopesAgainstTheRequestingClient()
     {
-        // Arrange - the validator is keyed on the client making the authorize request, not
-        // on the user, and it must see the scopes actually asked for.
+
         ArrangeFlow("openid storage.read", roles: ["user"]);
 
-        // Act
+
         await _controller.Authorize();
 
-        // Assert
+
         await _scopeSubsetValidator.Received(1).ValidateAsync(
             FirstPartyClientId,
             Arg.Is<IEnumerable<string>>(scopes => scopes.Contains("storage.read")),
@@ -200,14 +186,13 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
     [Fact]
     public async Task Authorize_PlainUserRequestingScopesWithinTheirRole_StillSignsIn()
     {
-        // Arrange - regression guard: "user" really does grant storage.read and
-        // organizations.read, so the ordinary case must not become collateral damage.
+
         ArrangeFlow("openid profile storage.read organizations.read", roles: ["user"]);
 
-        // Act
+
         IActionResult result = await _controller.Authorize();
 
-        // Assert
+
         Microsoft.AspNetCore.Mvc.SignInResult signIn =
             result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>().Subject;
         signIn.Principal.GetScopes().Should().BeEquivalentTo(
@@ -217,35 +202,32 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
     [Fact]
     public async Task Authorize_AdminRequestingPrivilegedScopes_StillSignsIn()
     {
-        // Arrange - regression guard: "admin" covers RolesUpdate and UsersDelete, so the
-        // very scopes refused above must go through for a caller who has earned them.
+
         ArrangeFlow("openid roles.write users.manage", roles: ["admin"]);
 
-        // Act
+
         IActionResult result = await _controller.Authorize();
 
-        // Assert
+
         result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>();
     }
 
     [Fact]
     public async Task Authorize_StandardOidcScopesOnly_StillSignsInForAPlainUser()
     {
-        // Arrange - regression guard: openid/profile/email/offline_access carry no
-        // permission at all, so they must never be role-gated.
+        // Standard OIDC scopes do not map to application permissions.
         ArrangeFlow("openid profile email offline_access", roles: ["user"]);
 
-        // Act
+
         IActionResult result = await _controller.Authorize();
 
-        // Assert
+
         result.Should().BeOfType<Microsoft.AspNetCore.Mvc.SignInResult>();
     }
 
     /// <summary>
-    /// Wires an authenticated authorize request. A first-party client skips the consent branch
-    /// entirely, so each test observes only the scope gates; naming a third-party client with
-    /// consent already granted is how a test reaches the stored-authorization branch instead.
+    /// Builds an authenticated request with implicit consent by default.
+    /// Explicit-consent cases submit a granted decision to exercise authorization persistence.
     /// </summary>
     private void ArrangeFlow(
         string scope,
@@ -278,8 +260,7 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
         httpContext.Request.Path = "/connect/authorize";
         httpContext.Request.QueryString = new QueryString("?client_id=" + clientId);
 
-        // Sid minting re-issues the identity cookie through IAuthenticationService, which the
-        // HttpContext.AuthenticateAsync/SignInAsync extensions resolve from RequestServices.
+        // Supply authentication services for SID creation and cookie reissuance.
         IAuthenticationService authenticationService = Substitute.For<IAuthenticationService>();
         authenticationService
             .AuthenticateAsync(Arg.Any<HttpContext>(), IdentityConstants.ApplicationScheme)
@@ -325,8 +306,7 @@ public sealed class AuthorizationControllerScopeValidationTests : IDisposable
                 Guid.Parse(_testUserId), _testOrganizationId, Arg.Any<CancellationToken>())
             .Returns(new Enrolled());
 
-        // The only roles that decide anything here are the ones this organization grants;
-        // whatever AspNetUserRoles holds globally is not consulted.
+        // Resolve roles for the selected organization.
         _membershipRoleResolver.GetRoleNamesAsync(
                 Guid.Parse(_testUserId), _testOrganizationId, Arg.Any<CancellationToken>())
             .Returns<IReadOnlyList<string>>([.. roles]);

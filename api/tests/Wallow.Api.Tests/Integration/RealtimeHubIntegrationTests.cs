@@ -41,22 +41,21 @@ public sealed class RealtimeHubIntegrationTests
             })
             .Build();
 
-        // SignalR with LongPolling may throw HttpRequestException or fail to connect
-        // depending on timing - check either for exception OR failed connection state
+        // Accept a failed start or a disconnected state for this unauthenticated client.
         try
         {
             await connection.StartAsync();
-            // If no exception, connection should not be in Connected state
+
             connection.State.Should().NotBe(HubConnectionState.Connected,
                 "unauthenticated clients should not be able to connect");
         }
         catch (HttpRequestException)
         {
-            // Expected - server rejected the connection
+            // Failed startup is an accepted outcome here.
         }
         catch (InvalidOperationException)
         {
-            // Also acceptable - connection was rejected
+            // Failed startup is an accepted outcome here.
         }
     }
 

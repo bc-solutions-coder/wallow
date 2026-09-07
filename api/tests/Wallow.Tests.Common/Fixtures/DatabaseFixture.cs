@@ -15,6 +15,6 @@ public class DatabaseFixture : IAsyncLifetime
 
     public async Task InitializeAsync() => await _postgres.StartAsync();
 
-    // Dispose the container after each test run to prevent container accumulation.
+
     public async Task DisposeAsync() => await _postgres.DisposeAsync();
 }

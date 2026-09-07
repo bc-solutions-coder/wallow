@@ -1,7 +1,7 @@
 using System.Reflection;
 using NetArchTest.Rules;
 
-#pragma warning disable CA1024 // MemberData source methods cannot be properties
+#pragma warning disable CA1024 // Keep callable MemberData factories.
 
 namespace Wallow.Architecture.Tests;
 

@@ -1,14 +1,12 @@
 namespace Wallow.Identity.Application.Interfaces;
 
 /// <summary>
-/// The replacement for <c>userManager.GetRolesAsync(user)</c> in every authorization context:
-/// roles are granted by an organization, so they only ever resolve against one.
+/// Resolves roles from a user's membership in a specific organization.
 /// </summary>
 public interface IMembershipRoleResolver
 {
     /// <summary>
-    /// The role names granted to this user BY this organization. Empty when there is no
-    /// membership, or the membership is not Active. Feeds RolePermissionMapping unchanged.
+    /// Returns role names for an active membership, or an empty list otherwise.
     /// </summary>
     Task<IReadOnlyList<string>> GetRoleNamesAsync(
         Guid userId,

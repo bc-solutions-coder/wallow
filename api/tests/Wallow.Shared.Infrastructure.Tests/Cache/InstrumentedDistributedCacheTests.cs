@@ -116,7 +116,7 @@ public class InstrumentedDistributedCacheTests
     [Fact]
     public void Get_WithKeyContainingColon_ExtractsPrefixUpToFirstColon()
     {
-        // Verifies prefix extraction logic handles compound keys like "settings:module:tenantId"
+
         _inner.Get("settings:module:id").Returns([1]);
 
         byte[]? result = _sut.Get("settings:module:id");

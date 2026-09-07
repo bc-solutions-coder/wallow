@@ -1,7 +1,6 @@
 namespace Wallow.Identity.Api.Contracts.Responses;
 
 /// <summary>
-/// Result of answering an MFA challenge, carrying the single-use ticket the auth frontend
-/// exchanges for a sign-in cookie.
+/// Successful MFA challenge result. The endpoint issues a browser sign-in ticket when the user has an email.
 /// </summary>
 public sealed record MfaChallengeResponse(bool Succeeded, string SignInTicket);

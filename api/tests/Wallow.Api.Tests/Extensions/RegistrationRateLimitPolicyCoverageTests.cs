@@ -6,9 +6,7 @@ using Microsoft.AspNetCore.RateLimiting;
 namespace Wallow.Api.Tests.Extensions;
 
 /// <summary>
-/// Pins the #150 requirement that registration-class rate limits apply to every org-surface
-/// mutation and to organization create: each non-GET action on the org-surface controllers
-/// must carry <c>[EnableRateLimiting("registration")]</c>.
+/// Checks registration rate-limit attributes on organization creation and organization-client mutations.
 /// </summary>
 public sealed class RegistrationRateLimitPolicyCoverageTests
 {

@@ -7,14 +7,10 @@ using Wallow.Shared.Kernel.MultiTenancy;
 namespace Wallow.Identity.Domain.Entities;
 
 /// <summary>
-/// An organization IS the tenant: <see cref="Create"/> is the only place a tenant id is
-/// minted, and it mints the tenant id from the freshly generated organization id so that
-/// <c>Id.Value == TenantId.Value</c> by construction. Nothing else may mint a tenant id.
+/// An organization defines a tenant. <see cref="Create"/> derives TenantId from the
+/// new organization ID, maintaining <c>Id.Value == TenantId.Value</c>.
+/// Organization membership and roles belong to <see cref="Membership"/>.
 /// </summary>
-/// <remarks>
-/// Who belongs to it is <see cref="Membership"/>'s concern, not this aggregate's: a person may
-/// belong to many organizations, and the roles that decide anything hang off the membership.
-/// </remarks>
 public sealed class Organization : AggregateRoot<OrganizationId>, ITenantScoped
 {
     public TenantId TenantId { get; init; }
@@ -29,9 +25,8 @@ public sealed class Organization : AggregateRoot<OrganizationId>, ITenantScoped
     public string? PlatformSuspensionReason { get; private set; }
 
     /// <summary>
-    /// Whether the platform operator has taken this organization out of service. A separate axis
-    /// from <see cref="IsActive"/>: it overrides the organization's own state without rewriting
-    /// it, and only the platform can lift it.
+    /// Platform suspension is independent of <see cref="IsActive"/>; changing the
+    /// organization's own active state does not clear it.
     /// </summary>
     public bool IsPlatformSuspended => PlatformSuspendedAt is not null;
 
@@ -45,7 +40,7 @@ public sealed class Organization : AggregateRoot<OrganizationId>, ITenantScoped
         TimeProvider timeProvider)
     {
         Id = OrganizationId.New();
-        // The org IS the tenant: mint the tenant id from the freshly generated org id.
+
         TenantId = TenantId.Create(Id.Value);
         Name = name;
         Slug = slug;
@@ -53,7 +48,7 @@ public sealed class Organization : AggregateRoot<OrganizationId>, ITenantScoped
         SetCreated(timeProvider.GetUtcNow(), createdByUserId);
     }
 
-#pragma warning disable IDE0060, RCS1163 // tenantId retained for call-site compatibility; the tenant id is minted from the new org id so Id == TenantId
+#pragma warning disable IDE0060, RCS1163 // tenantId is ignored; creation derives it from the new organization ID.
     public static Organization Create(
         TenantId tenantId,
         string name,
@@ -102,8 +97,7 @@ public sealed class Organization : AggregateRoot<OrganizationId>, ITenantScoped
     }
 
     /// <summary>
-    /// Places the platform operator's suspension, with the reason the organization's admins will
-    /// read but cannot lift.
+    /// Records the platform suspension reason, actor, and time.
     /// </summary>
     public void SuspendByPlatform(string reason, Guid actorId, TimeProvider timeProvider)
     {
@@ -137,9 +131,7 @@ public sealed class Organization : AggregateRoot<OrganizationId>, ITenantScoped
     }
 
     /// <summary>
-    /// While a platform suspension stands, the organization's own admins cannot delete it — the
-    /// freeze exists precisely so the organization cannot act on itself. The operator who can
-    /// place and lift the suspension may also end the organization while it stands.
+    /// Requires a platform operator to delete an organization under platform suspension.
     /// </summary>
     public void EnsureDeletable(bool byPlatformOperator)
     {

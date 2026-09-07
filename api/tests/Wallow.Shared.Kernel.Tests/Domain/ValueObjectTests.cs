@@ -68,7 +68,7 @@ public class ValueObjectTests
         TestValueObject vo1 = new("John", 30);
         TestValueObject vo2 = new("Jane", 25);
 
-        // Note: Hash collisions are possible but unlikely for simple cases
+        // Different values can still collide; this checks the selected fixtures.
         vo1.GetHashCode().Should().NotBe(vo2.GetHashCode());
     }
 
@@ -115,7 +115,6 @@ public class ValueObjectTests
 #pragma warning restore CA1508
     }
 
-    // Test value objects for testing
     private sealed class TestValueObject(string? name, int age) : ValueObject
     {
         protected override IEnumerable<object?> GetEqualityComponents()

@@ -65,22 +65,15 @@ public static class IdentityInfrastructureExtensions
             })
             .AddServer(options =>
             {
-                // Relative, never root-relative — see OpenIddictEndpointUris for why a leading
-                // slash breaks the path-based reverse-proxy topology.
+                // Relative paths preserve the reverse proxy PathBase.
                 options.SetAuthorizationEndpointUris(OpenIddictEndpointUris.Authorization)
                     .SetTokenEndpointUris(OpenIddictEndpointUris.Token)
                     .SetEndSessionEndpointUris(OpenIddictEndpointUris.EndSession)
                     .SetUserInfoEndpointUris(OpenIddictEndpointUris.UserInfo)
-                    // RFC 7009 token revocation. Deliberately no passthrough controller:
-                    // OpenIddict's built-in handlers authenticate the client and revoke the
-                    // token entry, and EnableTokenEntryValidation() below makes the revocation
-                    // take effect on the next API request rather than at token expiry.
+                    // OpenIddict handles revocation without a passthrough controller.
                     .SetRevocationEndpointUris(OpenIddictEndpointUris.Revocation);
 
-                // The browser reaches /connect/** through the unified auth origin's reverse
-                // proxy, so the advertised issuer must be that public origin rather than the
-                // API's own request origin. OpenIddict:Issuer still overrides it explicitly
-                // (needed when containers and browsers use different hostnames, e.g. E2E tests).
+                // Advertise the configured public issuer when requests arrive through a proxy.
                 Uri? issuer = OpenIddictIssuerResolver.Resolve(configuration);
                 if (issuer is not null)
                 {
@@ -91,24 +84,18 @@ public static class IdentityInfrastructureExtensions
                     .AllowClientCredentialsFlow()
                     .AllowRefreshTokenFlow();
 
-                // Token lifetimes (configurable via OpenIddict section)
+
                 options.SetAccessTokenLifetime(TimeSpan.FromMinutes(configuration.GetValue("OpenIddict:AccessTokenLifetimeMinutes", 15)));
                 options.SetRefreshTokenLifetime(TimeSpan.FromDays(configuration.GetValue("OpenIddict:RefreshTokenLifetimeDays", 7)));
                 options.SetIdentityTokenLifetime(TimeSpan.FromMinutes(configuration.GetValue("OpenIddict:IdentityTokenLifetimeMinutes", 10)));
 
-                // Refresh-token behaviour, pinned deliberately rather than inherited silently.
-                // Rolling stays ON (the OpenIddict default): each refresh redeems the old
-                // token and issues a new one, which is what gives reuse detection its signal.
+                // Rotate refresh tokens so redemption records can detect reuse.
                 options.Configure(o => o.DisableRollingRefreshTokens = false);
 
-                // Sliding expiration stays OFF: a refreshed token inherits the family's
-                // original expiry, so changing a client's lifetime never stretches refresh
-                // tokens already in the wild.
+                // Preserve the original expiry across refreshes.
                 options.DisableSlidingRefreshTokenExpiration();
 
-                // Replaying an already-redeemed refresh token within this window is treated as
-                // a benign concurrent retry; beyond it, OpenIddict revokes every token in the
-                // authorization family. Config-driven so tests can shrink the window.
+                // Allow concurrent refresh retries within the configured reuse window.
                 options.SetRefreshTokenReuseLeeway(TimeSpan.FromSeconds(
                     configuration.GetValue("OpenIddict:RefreshTokenReuseLeewaySeconds", 30)));
 
@@ -135,8 +122,7 @@ public static class IdentityInfrastructureExtensions
                         .AddEncryptionCertificate(X509CertificateLoader.LoadPkcs12FromFile(encryptionCertPath, encryptionCertPassword));
                 }
 
-                // Disable access token encryption so tokens are standard JWTs
-                // that can be validated by resource servers and inspected in tests.
+                // Resource servers validate signed access tokens without a decryption key.
                 options.DisableAccessTokenEncryption();
 
                 OpenIddictServerAspNetCoreBuilder aspNetCoreBuilder = options.UseAspNetCore()
@@ -145,11 +131,7 @@ public static class IdentityInfrastructureExtensions
                     .EnableEndSessionEndpointPassthrough()
                     .EnableUserInfoEndpointPassthrough();
 
-                // OpenIddict requires HTTPS on its endpoints unless this is switched off.
-                // Development and the test host have no certificate to serve; a deployment
-                // that terminates TLS in front of Kestrel and reaches the API over plain
-                // HTTP (container-to-container OIDC discovery) must opt in explicitly via
-                // OpenIddict:AllowPlainHttpEndpoints.
+                // Allow HTTP only in development/testing or through the explicit configuration opt-in.
                 if (OpenIddictTransportSecurityPolicy.ShouldDisableTransportSecurityRequirement(environment, configuration))
                 {
                     aspNetCoreBuilder.DisableTransportSecurityRequirement();
@@ -169,12 +151,7 @@ public static class IdentityInfrastructureExtensions
                     "inquiries.read", "inquiries.write",
                     "webhooks.manage");
 
-                // OpenIddict 7 implements RP-initiated logout only, so front- and back-channel
-                // logout support is Wallow's own (LogoutController notifies each participating
-                // RP's frontchannel_logout_uri; BackchannelLogoutNotifier POSTs a logout token
-                // to each backchannel_logout_uri). These flags advertise it; each
-                // session_supported promises the notification carries the session id (iss + sid
-                // on the front channel, a sid claim in every logout token on the back channel).
+                // Advertise Wallow front- and back-channel logout with session identifiers.
                 options.AddEventHandler<OpenIddictServerEvents.HandleConfigurationRequestContext>(builder =>
                     builder.UseInlineHandler(context =>
                     {
@@ -193,19 +170,10 @@ public static class IdentityInfrastructureExtensions
             {
                 options.UseLocalServer();
 
-                // Without a registered audience the handler accepts any token this issuer minted,
-                // so a token leaked from one resource is a valid credential at every other. The
-                // literal is repeated from TokenController's ApiAudience on purpose: the two sides
-                // are a contract, and sharing a symbol would let them agree without the value ever
-                // reaching a token.
+                // Accept access tokens addressed to this API.
                 options.AddAudiences("wallow-api");
 
-                // Without this, a signature-valid access token is accepted until it expires and
-                // revoking it changes nothing: the handler never consults the token entry. An
-                // organization that suspends a member has to be able to end that member's access
-                // now, not at the end of the token's lifetime, so every request pays one lookup
-                // against the token table. Tokens stay self-contained JWTs — revocation in
-                // OpenIddict is a property of token storage, not of the token format.
+                // Check token storage so revoked JWTs can be rejected before expiry.
                 options.EnableTokenEntryValidation();
 
                 options.UseAspNetCore();
@@ -224,20 +192,10 @@ public static class IdentityInfrastructureExtensions
                 ? Microsoft.AspNetCore.Http.CookieSecurePolicy.SameAsRequest
                 : Microsoft.AspNetCore.Http.CookieSecurePolicy.Always;
 
-            // Explicitly set cookie path to "/" so the auth cookie is sent regardless of
-            // PathBase. Without this, ASP.NET Core defaults to Request.PathBase (e.g. "/api"),
-            // which causes login loops when the authorize endpoint is reached via a URL that
-            // doesn't include the PathBase prefix (e.g. /connect/authorize vs /api/connect/authorize).
+            // Send the auth cookie across both prefixed API and unprefixed auth routes.
             options.Cookie.Path = "/";
 
-            // The API has no login pages — a challenge answers 401 problem+json instead of
-            // redirecting to /Account/Login, and a forbid answers 403 problem+json instead of
-            // redirecting to /Account/AccessDenied (a page that never existed). A BODY is
-            // load-bearing, not cosmetic: SecurityHeadersMiddleware sends
-            // X-Content-Type-Options: nosniff, and browsers treat a navigation to an empty
-            // response with no Content-Type as a file download. OpenIddict controllers
-            // (e.g. AuthorizationController) still own their own redirects to the Auth app
-            // via [AllowAnonymous] + manual User.Identity checks.
+            // Return API problems instead of redirecting to Identity login/access-denied pages.
             options.Events.OnRedirectToLogin = context =>
                 AuthProblemResponse.WriteAsync(context.HttpContext, StatusCodes.Status401Unauthorized);
             options.Events.OnRedirectToAccessDenied = context =>
@@ -319,7 +277,7 @@ public static class IdentityInfrastructureExtensions
             .AddCookie(IdentityConstants.ApplicationScheme)
             .AddCookie(IdentityConstants.ExternalScheme);
 
-        // External auth providers — only registered when credentials are configured
+        // Register external providers when their client identifier is configured.
         string? googleClientId = configuration["Authentication:Google:ClientId"];
         if (!string.IsNullOrEmpty(googleClientId))
         {
@@ -387,9 +345,7 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<IAuthorizationHandler, MfaPartialAuthorizationHandler>();
         services.AddAuthorization(options =>
         {
-            // Deny by default: an endpoint carrying no authorization metadata is denied rather
-            // than served anonymously. Declared here, where authorization is configured, so a fork
-            // replacing PermissionAuthorizationPolicyProvider cannot silently drop the rule.
+            // Require authentication on endpoints without explicit authorization metadata.
             options.FallbackPolicy = new AuthorizationPolicyBuilder()
                 .RequireAuthenticatedUser()
                 .Build();
@@ -407,10 +363,7 @@ public static class IdentityInfrastructureExtensions
     }
 
     /// <summary>
-    /// Registers the one revoker that ends access, whether a member's to an organization or a
-    /// client's to everything it was issued. Public because
-    /// <see cref="OrganizationService"/> depends on it, and the seeder builds that service by hand
-    /// rather than through <c>AddIdentityModule</c>.
+    /// Registers access-revocation services for the API and seeder.
     /// </summary>
     public static IServiceCollection AddAccessRevocation(this IServiceCollection services)
     {
@@ -418,8 +371,7 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<IClientAccessPolicy, ClientAccessPolicy>();
         services.AddScoped<IConnectedApplicationService, ConnectedApplicationService>();
 
-        // The host that actually serves realtime traffic registers the implementation that can
-        // close a connection; TryAdd leaves it in place and covers the hosts that serve none.
+        // Preserve a host-provided realtime revoker; other hosts use the no-op default.
         services.TryAddSingleton<IRealtimeAccessRevoker, NoOpRealtimeAccessRevoker>();
 
         return services;
@@ -429,9 +381,7 @@ public static class IdentityInfrastructureExtensions
     {
         services.Configure<PreRegisteredClientOptions>(configuration.GetSection(PreRegisteredClientOptions.SectionName));
         services.Configure<AdminBootstrapOptions>(configuration.GetSection(AdminBootstrapOptions.SectionName));
-        // Validated at start: the throttle answers a missing counter TTL with the window itself as
-        // Retry-After, and Error refuses a non-positive one, so a zero window would turn the 429
-        // into a 500 at the first throttled send.
+        // Positive windows keep fallback Retry-After values valid.
         services.AddOptions<PasswordlessOptions>()
             .Bind(configuration.GetSection(PasswordlessOptions.SectionName))
             .Validate(
@@ -481,8 +431,7 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<ILastOwnerGuard, LastOwnerGuard>();
         services.AddAccessRevocation();
 
-        // Fork extension points — TryAddScoped allows forks to register their own implementations
-        // before calling AddIdentityModule, which will skip these defaults.
+        // Preserve extension implementations registered before module setup.
         services.TryAddScoped<IClaimsEnricher, NoOpClaimsEnricher>();
         services.TryAddScoped<IRegistrationValidator, NoOpRegistrationValidator>();
         services.TryAddScoped<IExternalClaimsMapper, NoOpExternalClaimsMapper>();
@@ -494,12 +443,9 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<ISessionService, SessionService>();
         services.AddScoped<ISsoClientSessionService, SsoClientSessionService>();
 
-        // Back-channel logout rides its own HttpClient: the notifier owns its single-retry
-        // policy and per-attempt timeouts. The host's ConfigureHttpClientDefaults layers the
-        // standard resilience handler onto every client, and its own 5xx retries would multiply
-        // the notifier's — so strip it here.
+        // The notifier owns retries and timeouts; remove the host defaults to avoid duplicate retries.
         services.Configure<BackchannelLogoutOptions>(configuration.GetSection(BackchannelLogoutOptions.SectionName));
-#pragma warning disable EXTEXP0001 // RemoveAllResilienceHandlers is experimental; no stable equivalent exists.
+#pragma warning disable EXTEXP0001 // Experimental API removes inherited resilience handlers.
         services.AddHttpClient<IBackchannelLogoutNotifier, BackchannelLogoutNotifier>()
             .RemoveAllResilienceHandlers();
 #pragma warning restore EXTEXP0001

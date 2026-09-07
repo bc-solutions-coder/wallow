@@ -4,11 +4,7 @@ using Wallow.Identity.Infrastructure.Options;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// First-party status is an explicit, seed-only property, never a client id prefix, and the
-/// client ↔ organization invariant is enforced when the seed is read: a first-party client is
-/// bound to no organization, every other client to exactly one. Seed members are how an
-/// organization-bound client seeds its organization's roster, so they have no meaning on a
-/// first-party client.
+/// Checks explicit first-party flags and validation of organization bindings and seed members.
 /// </summary>
 public sealed class PreRegisteredClientInvariantTests
 {

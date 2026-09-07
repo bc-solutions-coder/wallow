@@ -1,14 +1,13 @@
 namespace Wallow.Shared.Kernel.Domain;
 
 /// <summary>
-/// Base class for value objects. Value objects are immutable and compared by their values.
-/// Examples: Email, Money, Address, DateRange.
+/// Compares values of the same runtime type by ordered equality components.
+/// Derived types must keep those components immutable.
 /// </summary>
 public abstract class ValueObject : IEquatable<ValueObject>
 {
     /// <summary>
-    /// Returns the components used for equality comparison.
-    /// Override this to specify which properties determine equality.
+    /// Returns components in the order used for equality and hashing.
     /// </summary>
     protected abstract IEnumerable<object?> GetEqualityComponents();
 

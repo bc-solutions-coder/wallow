@@ -12,11 +12,8 @@ using Wallow.Identity.Application.Interfaces;
 namespace Wallow.Identity.Api.Controllers;
 
 /// <summary>
-/// The one anonymous read behind the auth host's branded transaction screens: given the pending
-/// authorize request (the relative returnUrl the auth host was handed), who is asking the person
-/// to sign in. The returnUrl is the credential — its redirect_uri must exactly match one the
-/// client registered, so the endpoint describes a client only to a caller already inside a
-/// genuine transaction. Every failure is the same shapeless 404.
+/// Returns client branding and scope descriptions for a local authorize return URL
+/// whose redirect_uri matches a registered client redirect. This does not authenticate a transaction.
 /// </summary>
 [ApiController]
 [ApiVersion(1)]
@@ -65,9 +62,7 @@ public class AuthorizeContextController(IAuthorizeContextService authorizeContex
             return NotFound();
         }
 
-        // The consent redirect narrows the transaction's scopes to the granted set and carries
-        // them beside the returnUrl; an explicit scope parameter therefore wins over the one
-        // embedded in the authorize request.
+        // A nonblank explicit scope value overrides scopes embedded in returnUrl.
         string? effectiveScope = scope;
         if (string.IsNullOrWhiteSpace(effectiveScope) && query.TryGetValue("scope", out StringValues scopeValues))
         {

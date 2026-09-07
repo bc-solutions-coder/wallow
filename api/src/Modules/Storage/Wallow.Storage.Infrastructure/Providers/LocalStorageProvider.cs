@@ -26,7 +26,7 @@ public sealed class LocalStorageProvider(IOptions<StorageOptions> options, Local
         await using FileStream fileStream = new(filePath, FileMode.Create, FileAccess.Write, FileShare.None);
         await content.CopyToAsync(fileStream, ct);
 
-        // Return file hash as ETag equivalent
+        // Timestamp-derived upload token; this is not a content hash.
         return Convert.ToBase64String(BitConverter.GetBytes(DateTime.UtcNow.Ticks));
     }
 
@@ -95,9 +95,7 @@ public sealed class LocalStorageProvider(IOptions<StorageOptions> options, Local
 
     public Task<string> GetPresignedUrlAsync(string key, TimeSpan expiry, bool forUpload = false, CancellationToken ct = default)
     {
-        // The local filesystem has no native presigned URLs, so mint one against the
-        // key-addressed LocalStorageController endpoint: an HMAC over method + key +
-        // expiry stands in for the object store's request signature.
+        // Route signed local URLs through LocalStorageController, which validates the HMAC.
         string baseUrl = _options.BaseUrl?.TrimEnd('/') ?? new ServiceUrlsOptions().ApiUrl;
         string method = forUpload ? LocalPresignedUrlSigner.UploadMethod : LocalPresignedUrlSigner.DownloadMethod;
         long expires = DateTimeOffset.UtcNow.Add(expiry).ToUnixTimeSeconds();
@@ -109,7 +107,7 @@ public sealed class LocalStorageProvider(IOptions<StorageOptions> options, Local
 
     private string GetFilePath(string key)
     {
-        // Normalize path separators and combine with base path
+
         string normalizedKey = key.Replace('/', Path.DirectorySeparatorChar);
         string filePath = Path.GetFullPath(Path.Combine(_options.BasePath, normalizedKey));
         string baseDirectory = Path.GetFullPath(_options.BasePath);

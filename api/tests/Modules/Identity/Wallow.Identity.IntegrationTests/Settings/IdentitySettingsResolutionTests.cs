@@ -8,26 +8,14 @@ using Wallow.Tests.Common.Helpers;
 namespace Wallow.Identity.IntegrationTests.Settings;
 
 /// <summary>
-/// Wallow-dvbc: <c>IdentitySettingsController</c> injects <c>[FromKeyedServices("identity")]</c>
-/// <see cref="ISettingsService"/> and <see cref="ISettingRegistry"/>, but nothing ever registers
-/// those keyed services. <c>AddSettings&lt;TDbContext, TRegistry&gt;</c> constrains
-/// <c>TDbContext</c> to <c>TenantAwareDbContext</c>, which <c>IdentityDbContext</c> (ASP.NET
-/// Identity's <c>IdentityDbContext</c>) cannot satisfy, so Identity skips the registration
-/// entirely. Controller activation therefore throws and every identity settings endpoint 500s.
-///
-/// These tests go through the real Program/DI container so they reproduce the production
-/// failure. The existing unit test <c>IdentitySettingsControllerTests</c> does NOT cover this —
-/// it hand-registers the keyed services in its own ServiceCollection, i.e. it fakes the exact
-/// registration that is missing.
-///
-/// Backend-dependent: requires the WallowApiFactory stack (Postgres + seeded identity data).
+/// Checks keyed <see cref="ISettingsService"/> and <see cref="ISettingRegistry"/> resolution
+/// and settings endpoints through the host container.
 /// </summary>
 [Trait("Category", "Integration")]
 public class IdentitySettingsResolutionTests(WallowApiFactory factory) : IdentityIntegrationTestBase(factory)
 {
     /// <summary>
-    /// Root cause, asserted directly against the real container: the keyed 'identity'
-    /// registrations must exist. Returns null today.
+    /// Checks that both identity-keyed settings services resolve.
     /// </summary>
     [Fact]
     public void RealContainer_ResolvesKeyedIdentitySettingsServices()
@@ -40,9 +28,7 @@ public class IdentitySettingsResolutionTests(WallowApiFactory factory) : Identit
     }
 
     /// <summary>
-    /// GET leg (tenant scope). The 'admin' role expands to SystemSettings via
-    /// PermissionExpansionMiddleware, so authorization passes and the request reaches controller
-    /// activation — which is where the missing keyed service surfaces as a 500.
+    /// Checks that an admin request can read tenant settings.
     /// </summary>
     [Fact]
     public async Task GetTenantSettings_AsAdmin_ReturnsOk()
@@ -58,8 +44,7 @@ public class IdentitySettingsResolutionTests(WallowApiFactory factory) : Identit
     }
 
     /// <summary>
-    /// GET leg (user scope). This endpoint has no permission gate, so it isolates the DI
-    /// activation failure from any authorization concern.
+    /// Checks that an authenticated request can read user settings.
     /// </summary>
     [Fact]
     public async Task GetUserSettings_AsAdmin_ReturnsOk()
@@ -75,9 +60,7 @@ public class IdentitySettingsResolutionTests(WallowApiFactory factory) : Identit
     }
 
     /// <summary>
-    /// PUT leg. An unregistered key must be rejected by the registry as a 400 validation
-    /// failure (<c>Settings.UnknownKey</c>) — reaching that check proves both keyed
-    /// services resolved rather than failing with a 500 before any validation runs.
+    /// Checks a bad-request response for an unknown tenant setting key.
     /// </summary>
     [Fact]
     public async Task PutTenantSetting_WithUnknownKey_ReturnsBadRequest()

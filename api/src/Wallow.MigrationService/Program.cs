@@ -11,16 +11,15 @@ string connectionString = builder.Configuration.GetConnectionString("DefaultConn
 // IdentityDbContext requires IDataProtectionProvider
 builder.Services.AddDataProtection();
 
-// Host-owned contexts. Auth auditing belongs to no module, so it is registered explicitly here
-// rather than coming from the registry.
+// Auth audit is host-owned and absent from the module registry.
 builder.Services.AddDbContext<AuthAuditDbContext>(options =>
     options.UseNpgsql(connectionString, npgsql =>
         npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "auth_audit")));
 
-// Module-owned contexts, each against the schema its own module declares.
+
 ModuleMigrations.AddModuleDbContexts(builder.Services, connectionString);
 
-// Migration runners. Core runs first and sequentially; feature modules run in parallel afterwards.
+// Core runners finish before feature migrations run in parallel.
 builder.Services.AddSingleton<CoreMigrationRunners>(sp =>
 {
     IServiceScopeFactory scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
@@ -40,7 +39,7 @@ builder.Services.AddHostedService<MigrationWorker>();
 
 IHost host = builder.Build();
 
-// Resolve BEFORE RunAsync: RunAsync disposes the host in a finally.
+// Retain the outcome before RunAsync disposes the service provider.
 WorkerRunOutcome outcome = host.Services.GetRequiredService<WorkerRunOutcome>();
 
 await host.RunAsync();

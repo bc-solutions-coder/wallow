@@ -1,8 +1,5 @@
 namespace Wallow.Shared.Contracts.Delivery.Events;
 
-/// <summary>
-/// Published when a push notification is successfully sent.
-/// </summary>
 public sealed record PushSentEvent : IntegrationEvent
 {
     public required Guid PushId { get; init; }

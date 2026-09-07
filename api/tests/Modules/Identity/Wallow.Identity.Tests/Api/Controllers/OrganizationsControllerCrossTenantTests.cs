@@ -16,13 +16,8 @@ using WallowClaims = Wallow.Shared.Kernel.Extensions.ClaimsPrincipalExtensions;
 namespace Wallow.Identity.Tests.Api.Controllers;
 
 /// <summary>
-/// OrganizationsController.CanAddressOrganizationAsync gates every organization-scoped endpoint in
-/// the controller. The ordinary "admin" role is tenant-assignable through UsersController.AssignRole,
-/// so honouring it as a cross-tenant escape hatch hands any tenant admin full governance
-/// (read, membership, branding, settings, archive, delete) over every other tenant's organization
-/// by guessing its GUID -- the same F5 hole TenantResolutionMiddleware.HasRealmAdminRole was
-/// deleted for. The is_global_admin claim (ClaimsPrincipalExtensions.IsGlobalAdmin) is the only
-/// cross-tenant escape hatch, mirroring TenantResolutionMiddleware and PermissionExpansionMiddleware.
+/// Checks organization addressability for unrelated callers, permitted members, and global admins.
+/// An ordinary admin role must not bypass organization permission checks.
 /// </summary>
 [Trait("Category", "CrossTenant")]
 public sealed class OrganizationsControllerCrossTenantTests
@@ -31,9 +26,7 @@ public sealed class OrganizationsControllerCrossTenantTests
     private readonly IMembershipReviewService _membershipReview = Substitute.For<IMembershipReviewService>();
     private readonly ITenantContext _tenantContext = Substitute.For<ITenantContext>();
 
-    // Membership is the only non-blanket path past the tenant check. It answers one question per
-    // endpoint -- does this caller hold THAT endpoint's permission in THIS org -- and defaults to
-    // false here, so every rejection assertion below is a rejection of an unrelated caller.
+    // Default to denying access in the target organization; membership cases override this.
     private readonly IOrganizationAccessPolicy _accessPolicy = Substitute.For<IOrganizationAccessPolicy>();
     private readonly Guid _tenantOrgId = Guid.NewGuid();
     private readonly Guid _otherTenantOrgId = Guid.NewGuid();
@@ -43,11 +36,7 @@ public sealed class OrganizationsControllerCrossTenantTests
     {
         _tenantContext.TenantId.Returns(TenantId.Create(_tenantOrgId));
 
-        // Every read endpoint returns a real record for ANY organization id, so a caller that slips
-        // past the gate gets 200 OK with foreign data rather than an incidental 404 from a null
-        // lookup -- the NotFound assertions below then only hold when the gate itself rejects.
-        // The write endpoints are configured so nothing throws once the gate lets a caller through.
-        // NSubstitute discards these configuration calls, so they do not show up in ReceivedCalls().
+        // Supply successful service responses so addressability failures cannot hide behind missing data.
         _orgService.GetOrganizationByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(callInfo => new OrganizationDto(callInfo.Arg<Guid>(), "Victim Org", "victim.test", 42));
         _orgService.GetBrandingAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
@@ -80,10 +69,8 @@ public sealed class OrganizationsControllerCrossTenantTests
     }
 
     /// <summary>
-    /// Every organization-scoped endpoint, and the permission it asks a non-tenant caller for.
-    /// This map is the inventory every theory below runs over, so an endpoint added to the
-    /// controller and not to this map is gated by nothing anyone here checks;
-    /// EveryOrganizationScopedEndpoint_AppearsInTheInventory refuses to let that happen quietly.
+    /// Permissions exercised by the organization endpoint theories.
+    /// The inventory assertion compares these with reflected actions and explicit exceptions.
     /// </summary>
     private static readonly Dictionary<string, string> _endpointPermissions = new(StringComparer.Ordinal)
     {
@@ -111,16 +98,12 @@ public sealed class OrganizationsControllerCrossTenantTests
     };
 
     /// <summary>
-    /// Organization-scoped by URL but deliberately outside the gate: the caller is deciding about
-    /// their own membership, so the permission a reviewer needs would only shut them out of every
-    /// organization their token is not scoped to.
+    /// Self-service actions use the caller identity instead of organization administration permissions.
     /// </summary>
     private static readonly string[] _selfServiceEndpoints = ["Leave"];
 
     /// <summary>
-    /// Organization-scoped by URL but the platform's own controls: the is_global_admin claim,
-    /// checked inside the action, is the only key, so no tenant permission belongs in the
-    /// inventory -- a tenant caller is refused outright, own organization included.
+    /// Platform suspension actions require a global-admin claim inside the action.
     /// </summary>
     private static readonly string[] _platformEndpoints = ["PlacePlatformSuspension", "LiftPlatformSuspension"];
 
@@ -147,10 +130,7 @@ public sealed class OrganizationsControllerCrossTenantTests
     }
 
     /// <summary>
-    /// An organization-scoped action is one whose first parameter is the organization id, which is
-    /// exactly the shape CanAddressOrganizationAsync guards. Reflection asks the controller rather
-    /// than the author, so a new endpoint joins every theory here the moment it compiles — and one
-    /// that belongs outside the gate has to be named as such, never merely omitted.
+    /// Checks inventory coverage for declared actions whose first parameter is Guid id.
     /// </summary>
     [Fact]
     public void EveryOrganizationScopedEndpoint_AppearsInTheInventory()
@@ -167,11 +147,7 @@ public sealed class OrganizationsControllerCrossTenantTests
     }
 
     /// <summary>
-    /// The inventory names the permission a foreign caller is asked for; this asserts the same
-    /// permission gates the ordinary same-tenant caller, whom CanAddressOrganizationAsync waves
-    /// through on the tenant id alone. Only the [HasPermission] policy stands between them and the
-    /// endpoint, so an endpoint carrying the wrong one — or none — is open to every signed-in
-    /// member of the organization.
+    /// Checks that each inventoried action declares its expected permission policy.
     /// </summary>
     [Theory]
     [MemberData(nameof(EndpointPermissions))]
@@ -331,9 +307,7 @@ public sealed class OrganizationsControllerCrossTenantTests
     [MemberData(nameof(OrganizationScopedEndpoints))]
     public async Task PermittedMember_ThatOrganization_ReachesTheOrganizationService(string endpoint)
     {
-        // Creating an organization mints a NEW tenant id, so the creator's own tenant id can never
-        // equal it; the membership that creation records is what keeps the creator able to address
-        // what they just created.
+        // Membership permission can authorize an organization outside the token tenant.
         _accessPolicy.HasPermissionInOrganizationAsync(
                 _otherTenantOrgId, _userId, Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(true);
@@ -435,8 +409,7 @@ public sealed class OrganizationsControllerCrossTenantTests
     }
 
     /// <summary>
-    /// Both service seams the controller can reach past the gate. Asserting only one of them lets a
-    /// caller through the other unnoticed.
+    /// Collects calls to both organization and membership-review services.
     /// </summary>
     private IEnumerable<ICall> ReceivedServiceCalls() =>
         _orgService.ReceivedCalls().Concat(_membershipReview.ReceivedCalls());

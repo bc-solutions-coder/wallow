@@ -7,10 +7,7 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.OAuth2;
 
 /// <summary>
-/// The <c>organization</c> authorize parameter. A first-party client is bound to nothing and
-/// names an organization per request; the transaction then runs that organization's enrollment
-/// policy exactly as a bound client's does. Without a hint the token carries the user's single
-/// membership or no organization at all. A bound client may only name its own organization.
+/// Checks organization hints, default selection, and conflicts with registered client bindings.
 /// </summary>
 public sealed class OrganizationHintTests(WallowApiFactory factory)
     : IdentityIntegrationTestBase(factory)
@@ -122,7 +119,7 @@ public sealed class OrganizationHintTests(WallowApiFactory factory)
         AuthorizeOutcome authorize = await harness.AuthorizeAsync(
             seed.BoundClientId, Scope, organization: seed.AdminOrganizationId.ToString());
 
-        // A bound client is explicit-consent, so signing in means reaching the consent screen.
+        // This explicit-consent client has no stored consent, so expect a consent token.
         authorize.Error.Should().BeNull(authorize.Location?.ToString());
         authorize.ConsentToken.Should().NotBeNullOrEmpty();
     }

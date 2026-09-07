@@ -78,8 +78,7 @@ public class SharedContractsTests
     {
         Assembly sharedKernelAssembly = typeof(AggregateRoot<>).Assembly;
 
-        // Shared.Kernel contains EF Core value converters for strongly-typed IDs
-        // This is intentional infrastructure support and is allowed
+        // Strongly typed ID converters are an allowed EF dependency in the kernel.
         TestResult result = Types.InAssembly(sharedKernelAssembly)
             .That()
             .ResideInNamespace("Wallow.Shared.Kernel.Identity")
@@ -89,8 +88,7 @@ public class SharedContractsTests
             .HaveDependencyOn("Microsoft.EntityFrameworkCore")
             .GetResult();
 
-        // This test documents that EF Core dependency exists in Shared.Kernel
-        // for infrastructure helpers (StronglyTypedIdConverter)
+
         result.Should().NotBeNull();
     }
 }

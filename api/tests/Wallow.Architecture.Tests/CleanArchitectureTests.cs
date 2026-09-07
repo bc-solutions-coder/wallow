@@ -1,8 +1,8 @@
 using System.Reflection;
 using NetArchTest.Rules;
 
-#pragma warning disable CA1024 // MemberData source methods cannot be properties
-#pragma warning disable CA1310 // String comparison in LINQ lambdas over type names is culture-safe
+#pragma warning disable CA1024 // Keep callable MemberData factories.
+#pragma warning disable CA1310 // These checks inspect CLR type names.
 
 namespace Wallow.Architecture.Tests;
 
@@ -37,8 +37,7 @@ public class CleanArchitectureTests
 
         foreach (string dependency in forbiddenDependencies)
         {
-            // Identity module uses ASP.NET Core Identity base classes (IdentityUser, IdentityRole)
-            // which legitimately require Microsoft.AspNetCore dependency in the Domain layer
+            // Identity domain entities extend ASP.NET Core Identity types.
             if (moduleName == "Identity" && dependency == "Microsoft.AspNetCore")
             {
                 continue;
@@ -119,8 +118,7 @@ public class CleanArchitectureTests
             .BeSealed()
             .GetResult();
 
-        // Identity module's WallowUser/WallowRole extend ASP.NET Core Identity base classes
-        // (IdentityUser, IdentityRole) and cannot be sealed
+        // WallowUser and WallowRole are exempt from this sealing convention.
         if (moduleName == "Identity")
         {
             string[]? failures = result.FailingTypeNames?

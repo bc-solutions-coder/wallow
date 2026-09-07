@@ -1,22 +1,14 @@
 <Project>
 
-  <!-- ===========================================
-       .NET VERSION - CHANGE HERE FOR UPGRADES
-       To upgrade to .NET 10:
-       1. Update global.json sdk version to "10.0.100"
-       2. Change TargetFramework below to "net10.0"
-       3. Run: dotnet restore
-       4. Run: dotnet build
-       5. Fix any breaking changes
-       =========================================== -->
+  <!-- Keep TargetFramework aligned with the SDK selected in global.json. -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <!-- Enforce code style in CI builds; IDEs show warnings without blocking -->
-    <!-- Local enforcement: git config core.hooksPath .githooks (runs dotnet format on commit) -->
+    <!-- Enforce code style during builds. -->
+
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
   </PropertyGroup>
 
@@ -33,9 +25,7 @@
   <PropertyGroup>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591;NU1608</NoWarn> <!-- Missing XML comments; Humanizer 2.x locale satellites vs 3.x core -->
-    <!-- NuGet audit advisories (NU1901-NU1904) stay visible as warnings but must not
-         fail the build; newly disclosed transitive CVEs would otherwise break every
-         deploy. Track and patch vulnerable packages separately in Directory.Packages.props. -->
+    <!-- Keep NuGet advisories visible without failing builds; patch dependencies in Directory.Packages.props. -->
     <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
     <!-- Prevent recursive bin/obj nesting when content files are copied to output -->
     <DefaultItemExcludes>$(DefaultItemExcludes);**/bin/**;**/obj/**</DefaultItemExcludes>
@@ -66,8 +56,8 @@
     <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer"/>
   </ItemGroup>
 
-  <!-- Expose internal types to corresponding test projects -->
-  <!-- This allows test projects named "$(AssemblyName).Tests" to access internal types -->
+  <!-- Expose internals to the corresponding test assembly and shared test infrastructure. -->
+
   <ItemGroup Condition="'$(IsTestProject)' != 'true'">
     <InternalsVisibleTo Include="$(AssemblyName).Tests"/>
     <InternalsVisibleTo Include="Wallow.Tests.Common"/>
@@ -75,11 +65,11 @@
     <InternalsVisibleTo Include="Wallow.Architecture.Tests"/>
   </ItemGroup>
 
-  <!-- Build server configuration - prevent memory accumulation in CI -->
+  <!-- CI compiler settings -->
   <PropertyGroup>
-    <!-- Only disable MSBuild node reuse in CI (needed for clean CI builds) -->
+
     <DisableNodeReuse Condition="'$(CI)' == 'true' OR '$(GITHUB_ACTIONS)' == 'true'">true</DisableNodeReuse>
-    <!-- Only disable shared Roslyn compiler in CI (IDEs need it for performance) -->
+    <!-- Avoid retaining a shared compiler in CI. -->
     <UseSharedCompilation Condition="'$(CI)' == 'true' OR '$(GITHUB_ACTIONS)' == 'true'">false</UseSharedCompilation>
   </PropertyGroup>
 

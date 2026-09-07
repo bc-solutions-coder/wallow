@@ -4,20 +4,12 @@ using Microsoft.Extensions.Hosting;
 namespace Wallow.Identity.Infrastructure.Extensions;
 
 /// <summary>
-/// Decides whether OpenIddict may serve its endpoints over plain HTTP.
+/// Allows plain HTTP in Development and Testing, or when explicitly enabled in configuration.
 /// </summary>
-/// <remarks>
-/// OpenIddict rejects non-HTTPS requests to its endpoints unless the transport security
-/// requirement is disabled. Disabling it unconditionally means a misconfigured deployment
-/// silently serves the authorization and token endpoints in the clear, so it is off by
-/// default outside local development and has to be opted into explicitly.
-/// </remarks>
 public static class OpenIddictTransportSecurityPolicy
 {
     /// <summary>
-    /// The configuration key a deployment sets to allow plain-HTTP OpenIddict endpoints
-    /// outside development, for example when TLS terminates at a reverse proxy and
-    /// container-to-container discovery calls never leave the private network.
+    /// Configuration key for allowing plain HTTP outside Development and Testing.
     /// </summary>
     public const string AllowPlainHttpKey = "OpenIddict:AllowPlainHttpEndpoints";
 
@@ -45,8 +37,7 @@ public static class OpenIddictTransportSecurityPolicy
         ArgumentNullException.ThrowIfNull(environment);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        // Neither the local host nor the in-process test host has a certificate to serve,
-        // so they always run the OIDC endpoints over plain HTTP.
+        // Local and in-process test hosts may use HTTP.
         if (environment.IsDevelopment() || environment.IsEnvironment(TestingEnvironmentName))
         {
             return true;
@@ -58,8 +49,7 @@ public static class OpenIddictTransportSecurityPolicy
             return false;
         }
 
-        // GetValue reports a malformed value as an InvalidOperationException naming the key
-        // path, so a typo fails startup instead of silently resolving either way.
+        // Invalid boolean configuration fails instead of silently allowing HTTP.
         return configuration.GetValue<bool>(AllowPlainHttpKey);
     }
 }

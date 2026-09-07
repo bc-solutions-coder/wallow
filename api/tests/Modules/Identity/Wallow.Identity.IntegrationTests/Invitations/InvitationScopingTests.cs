@@ -12,12 +12,7 @@ using Wallow.Tests.Common.Helpers;
 namespace Wallow.Identity.IntegrationTests.Invitations;
 
 /// <summary>
-/// Which organization an invitation belongs to, and which organization's list a caller sees.
-/// Both are asserted with the tenant query filter BYPASSED, so a version that leans on the
-/// ambient filter instead of on its own scoping fails here. <c>CreateInvitationAsync</c> takes
-/// no tenant argument at all — the ambient tenant is the only one an invitation can land in.
-///
-/// Backend-dependent: requires the WallowApiFactory stack (Postgres + seeded identity data).
+/// Checks invitation ownership and organization-specific listing despite a different ambient tenant.
 /// </summary>
 [Trait("Category", "Integration")]
 public class InvitationScopingTests(WallowApiFactory factory) : IdentityIntegrationTestBase(factory)
@@ -34,8 +29,7 @@ public class InvitationScopingTests(WallowApiFactory factory) : IdentityIntegrat
         string inA = await SeedInvitationAsync(orgA);
         string inB = await SeedInvitationAsync(orgB);
 
-        // A third organization: if the list scoped on the ambient filter rather than its
-        // parameter, this would return nothing at all instead of org A's row.
+        // A different ambient tenant distinguishes explicit list scoping from the query filter.
         DbContext.SetTenant(TenantId.Create(Guid.NewGuid()));
 
         List<Invitation> listed = await Invitations.GetPagedByTenantAsync(orgA, take: 100);
@@ -87,9 +81,7 @@ public class InvitationScopingTests(WallowApiFactory factory) : IdentityIntegrat
     }
 
     /// <summary>
-    /// Seeds under the owning organization's tenant, because the save interceptor stamps
-    /// <c>TenantId</c> from the context rather than from the entity. Returns the email, which is
-    /// unique per call and so identifies the row in a shared database.
+    /// Seeds in the owning tenant and returns a unique email for lookup in the shared database.
     /// </summary>
     private async Task<string> SeedInvitationAsync(Guid organizationId)
     {

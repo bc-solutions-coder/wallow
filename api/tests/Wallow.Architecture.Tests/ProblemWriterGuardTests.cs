@@ -3,13 +3,7 @@ using System.Text.RegularExpressions;
 namespace Wallow.Architecture.Tests;
 
 /// <summary>
-/// Source-level guard for the single problem writer. Every error body the API emits must pass
-/// through <c>Wallow.Shared.Api.Problems</c> (the customizer adds <c>traceId</c>, fills
-/// <c>code</c>, normalises validation keys, and forces the generic 5xx detail), so product code
-/// must not build problem objects by hand, hand-roll a JSON error body, or call the bare
-/// <c>Problem(statusCode: ...)</c> family. The allow-list names the writer path itself and the
-/// two places that must build a <see cref="Microsoft.AspNetCore.Mvc.ProblemDetails"/> to hand to
-/// the problem-details service because no controller is in scope.
+/// Checks selected source patterns for problem construction and direct response writes outside the allowed files.
 /// </summary>
 public sealed partial class ProblemWriterGuardTests
 {
@@ -121,9 +115,7 @@ public sealed partial class ProblemWriterGuardTests
         throw new InvalidOperationException("Could not locate the repository root (pnpm-workspace.yaml).");
     }
 
-    // `new ProblemDetails` however the initializer follows (same line or the next), the
-    // `Http`/`Validation` variants, and the target-typed `ProblemDetails x = new`. The trailing
-    // word boundary keeps `new ProblemDetailsContext` out.
+    // Match explicit and target-typed problem construction without matching ProblemDetailsContext.
     [GeneratedRegex(@"\bnew\s+(Http|Validation)?ProblemDetails\b|\b(Http|Validation)?ProblemDetails\s+\w+\s*=\s*new\b")]
     private static partial Regex HandBuiltProblem();
 

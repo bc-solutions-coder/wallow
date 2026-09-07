@@ -20,13 +20,7 @@ public sealed class MigrationRemovalTests
         "src/Shared/Wallow.Shared.Infrastructure.Core/Auditing/AuthAuditingExtensions.cs",
     ];
 
-    // ModuleInitializeAsync_ShouldNotContainMigrateAsync and
-    // AuditingInitializeAsync_ShouldNotContainMigrateAsync were deleted here: both did
-    // File.ReadAllText over a src/ path and regex-matched the method bodies for "MigrateAsync",
-    // which .claude/rules/TESTING.md bans. The first had also lost its subject — the seven
-    // Initialize{Module}ModuleAsync methods it parsed were no-ops and are gone with the
-    // IWallowModule registry. Migrations belong to Wallow.MigrationService, and
-    // Wallow.MigrationService.Tests is what asserts that.
+
 
     [Fact]
     public void AllModuleExtensionFiles_ShouldExist()

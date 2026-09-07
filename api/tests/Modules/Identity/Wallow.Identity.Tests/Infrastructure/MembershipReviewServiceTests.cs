@@ -18,16 +18,7 @@ using Wolverine;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// The four answers a reviewer gives about somebody else's membership, the three listings they work
-/// from — waiting, suspended, refused — and the one decision a member makes about their own: leaving.
-///
-/// A status reaches exactly one listing: a membership no listing claims can only be acted on by
-/// somebody who already knows it exists.
-///
-/// The transitions that END access are the ones with a second obligation: a status decides only the
-/// NEXT sign-in, so anything already issued has to be revoked separately. Denial is the exception —
-/// only a Pending membership can be denied and a Pending membership never authenticated, so there
-/// is nothing outstanding to take away.
+/// Checks membership review/listing transitions, access-revocation calls and emitted audit events.
 /// </summary>
 public sealed class MembershipReviewServiceTests : IDisposable
 {
@@ -450,8 +441,7 @@ public sealed class MembershipReviewServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Nobody acts on the leaver's behalf, so the actor and the subject are the same person. An
-    /// audit trail that left the actor blank here would read as an unattributed removal.
+    /// Records the leaver as both actor and subject.
     /// </summary>
     [Fact]
     public async Task LeaveAsync_AuditsTheLeaverAsTheirOwnActor()

@@ -13,13 +13,8 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.Invitations;
 
 /// <summary>
-/// POST /identity/invitations/{token}/accept over the real stack: who a token enrolls, and who it
-/// refuses. Anyone can register an account against an address they do not control, so the address
-/// alone is not the invited person — acceptance turns on a CONFIRMED email that matches. Every
-/// refusal asserts that no membership was created, because a refusal that still grants the seat
-/// is the whole defect.
-///
-/// Backend-dependent: requires the WallowApiFactory stack (Postgres + seeded identity data).
+/// Checks invitation acceptance against persisted memberships and invitation state,
+/// including confirmed-email matching and refusals that create no membership.
 /// </summary>
 [Trait("Category", "Integration")]
 public class InvitationAcceptanceTests(WallowApiFactory factory) : IdentityIntegrationTestBase(factory)
@@ -67,8 +62,7 @@ public class InvitationAcceptanceTests(WallowApiFactory factory) : IdentityInteg
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
         (await Memberships.GetAsync(userId, invitingOrgId)).Should().BeNull();
 
-        // Settled by the refusal itself, not left for the sweep: a lapsed Pending row is a token
-        // that still resolves.
+        // Acceptance of an expired token must also mark its invitation expired.
         Invitation lapsed = await ReReadAsync(invitation.Token);
         lapsed.Status.Should().Be(InvitationStatus.Expired);
         lapsed.AcceptedByUserId.Should().BeNull();
@@ -117,9 +111,7 @@ public class InvitationAcceptanceTests(WallowApiFactory factory) : IdentityInteg
     }
 
     /// <summary>
-    /// Re-reads the row the REQUEST wrote. Seeding tracked the invitation on this test's context,
-    /// and the repository hands tracked entities back, so a plain read here returns the pre-request
-    /// instance and every status assertion passes vacuously.
+    /// Clears tracked state before reading changes written by the HTTP request.
     /// </summary>
     private async Task<Invitation> ReReadAsync(string token)
     {
@@ -141,8 +133,7 @@ public class InvitationAcceptanceTests(WallowApiFactory factory) : IdentityInteg
     }
 
     /// <summary>
-    /// Seeds the invitation under the inviting organization's tenant, because the save interceptor
-    /// stamps <c>TenantId</c> from the context rather than from the entity.
+    /// Matches the tenant context to the inviting organization for save-time tenant stamping.
     /// </summary>
     private async Task<Invitation> SeedInvitationAsync(
         Guid organizationId, string email, DateTimeOffset? expiresAt = null)

@@ -5,8 +5,7 @@ using Wallow.Shared.Kernel.Plugins;
 namespace Wallow.Shared.Infrastructure.Tests.Plugins;
 
 /// <summary>
-/// A concrete IWallowPlugin whose manifest ID is "mismatched-plugin-id".
-/// Used by PluginLoaderTests to verify the manifest ID mismatch error path.
+/// Plugin fixture used for loading and manifest-ID validation.
 /// </summary>
 public class MismatchedManifestPlugin : IWallowPlugin
 {

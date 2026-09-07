@@ -9,7 +9,6 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddSharedKernel(this IServiceCollection services)
     {
-        // Time abstraction for testable time-dependent code
         services.AddSingleton(TimeProvider.System);
 
         services.AddScoped<TenantContext>();

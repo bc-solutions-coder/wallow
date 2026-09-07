@@ -72,12 +72,12 @@ public class WallowUserEmailChangeTests
     {
         WallowUser user = CreateUser();
 
-        // First call on clean user — no-op, should not throw
+
         user.ClearPendingEmailChange();
         user.PendingEmail.Should().BeNull();
         user.PendingEmailExpiry.Should().BeNull();
 
-        // Set pending email then clear
+
         DateTimeOffset expiry = _timeProvider.GetUtcNow().AddHours(24);
         user.InitiateEmailChange("newemail@example.com", expiry, _timeProvider);
         user.PendingEmail.Should().Be("newemail@example.com", "InitiateEmailChange must set PendingEmail before we test clearing it");
@@ -86,7 +86,7 @@ public class WallowUserEmailChangeTests
         user.PendingEmail.Should().BeNull();
         user.PendingEmailExpiry.Should().BeNull();
 
-        // Second clear after already cleared — still no throw
+
         user.ClearPendingEmailChange();
         user.PendingEmail.Should().BeNull();
         user.PendingEmailExpiry.Should().BeNull();

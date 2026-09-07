@@ -15,17 +15,15 @@ public abstract class DomainException : Exception
     /// <param name="entry">The catalog entry.</param>
     /// <param name="message">A user-safe sentence replacing the entry's default, or null to keep it.</param>
     /// <param name="innerException">The cause, if any.</param>
-    /// <exception cref="ArgumentException"><paramref name="message"/> is empty.</exception>
+    /// <exception cref="ArgumentException"><paramref name="message"/> is empty or whitespace.</exception>
     protected DomainException(ErrorCatalogEntry entry, string? message = null, Exception? innerException = null)
         : base(ResolveMessage(entry, message), innerException)
     {
         Entry = entry;
     }
 
-    /// <summary>Gets the catalog entry this exception reports.</summary>
     public ErrorCatalogEntry Entry { get; }
 
-    /// <summary>Gets the machine-readable error code.</summary>
     public string Code => Entry.Code;
 
     /// <summary>Gets the kind that decides the HTTP status.</summary>
@@ -44,8 +42,7 @@ public abstract class DomainException : Exception
     }
 
     /// <summary>
-    /// Refuses an entry whose kind is not the one this exception type stands for, so the type
-    /// and the status a client sees never disagree.
+    /// Rejects entries whose kind differs from the exception's required kind.
     /// </summary>
     protected static ErrorCatalogEntry RequireKind(ErrorCatalogEntry entry, ErrorKind kind)
     {
@@ -79,7 +76,6 @@ public sealed class EntityNotFoundException : DomainException
         EntityId = entityId;
     }
 
-    /// <summary>Gets the identifier that was looked up.</summary>
     public object EntityId { get; }
 }
 

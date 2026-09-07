@@ -6,22 +6,14 @@ using Wallow.Shared.Kernel.Domain;
 namespace Wallow.Identity.Domain.Entities;
 
 /// <summary>
-/// A person's relationship with one organization. This is the entity that carries authorization:
-/// roles hang off the membership, never off the user, so a role granted by one organization
-/// confers nothing in another.
+/// A person's organization membership and role assignments.
+/// OrganizationId supplies the scope; this entity has no ambient tenant filter,
+/// so callers must explicitly constrain reads to the intended user or organization.
 /// </summary>
-/// <remarks>
-/// Deliberately NOT ITenantScoped. OrganizationId is the scope and every read filters on it
-/// explicitly; a TenantId column would duplicate it, and the tenant interceptor (which Identity
-/// does not register) would overwrite it from the ambient tenant on insert, mis-stamping any
-/// membership created while acting on behalf of a different organization.
-/// </remarks>
 public sealed class Membership : AggregateRoot<MembershipId>
 {
     /// <summary>
-    /// How long a denial stands before the same person may ask this organization again. A denial
-    /// is an answer to one request, not a ban: left permanent, the only way back is an
-    /// administrator noticing a row that appears on no list.
+    /// Cooldown before a denied person may request access or enroll again.
     /// </summary>
     public static readonly TimeSpan DenialCooldown = TimeSpan.FromDays(30);
 
@@ -30,9 +22,8 @@ public sealed class Membership : AggregateRoot<MembershipId>
     public MembershipStatus Status { get; private set; }
 
     /// <summary>
-    /// Ownership only. Grants NO permission. It answers "who is the last person who cannot be
-    /// removed" and seeds the access-request recipient fallback. Every authorization decision
-    /// reads <see cref="RoleIds"/>.
+    /// Ownership marker for last-owner protection and access-request recipient fallback.
+    /// It does not grant permissions; role resolution uses <see cref="RoleIds"/>.
     /// </summary>
     public bool IsOwner { get; private set; }
 
@@ -44,8 +35,8 @@ public sealed class Membership : AggregateRoot<MembershipId>
     private readonly List<MembershipRole> _roles = [];
 
     /// <summary>
-    /// The mapped navigation onto membership_roles. Callers want <see cref="RoleIds"/>; this
-    /// exists so a query can reach the assignments without materializing memberships.
+    /// Mapped role assignments for querying without materializing memberships.
+    /// Use <see cref="RoleIds"/> when only assignment IDs are needed.
     /// </summary>
     public IReadOnlyCollection<MembershipRole> Roles => _roles;
 
@@ -54,9 +45,8 @@ public sealed class Membership : AggregateRoot<MembershipId>
     public bool IsActive => Status == MembershipStatus.Active;
 
     /// <summary>
-    /// When a standing denial stops being an answer. Null unless the membership is denied — and
-    /// null for a denial with no review timestamp, which resolves the unanswerable case in the
-    /// direction that lets someone ask rather than the one that silently bars them forever.
+    /// Denial expiry, or null when not denied or when the review timestamp is missing.
+    /// A missing timestamp does not prevent another request.
     /// </summary>
     public DateTimeOffset? DeniedUntil =>
         Status == MembershipStatus.Denied && ReviewedAt is { } reviewedAt
@@ -80,8 +70,7 @@ public sealed class Membership : AggregateRoot<MembershipId>
     }
 
     /// <summary>
-    /// Creates a Pending membership. A Pending membership authenticates nothing and resolves
-    /// no roles.
+    /// Creates a pending membership with no role assignments.
     /// </summary>
     public static Membership RequestAccess(
         Guid userId,
@@ -143,20 +132,13 @@ public sealed class Membership : AggregateRoot<MembershipId>
         SetUpdated(timeProvider.GetUtcNow(), deniedByUserId);
     }
 
-    /// <summary>
-    /// Whether a denial is still the organization's answer.
-    /// </summary>
     public bool IsWithinDenialCooldown(TimeProvider timeProvider) =>
-        DeniedUntil is { } until && timeProvider.GetUtcNow() < until;
+    DeniedUntil is { } until && timeProvider.GetUtcNow() < until;
 
     /// <summary>
-    /// The person asks again once a denial has run its course, and waits for a review as any
-    /// requester would.
+    /// Reuses a denied membership for another request after the cooldown.
+    /// Reusing the row preserves the unique (UserId, OrganizationId) relationship.
     /// </summary>
-    /// <remarks>
-    /// The row is reused rather than replaced: (UserId, OrganizationId) is unique, so deleting one
-    /// and inserting another in the same save would race the index for no gain.
-    /// </remarks>
     public void RequestAgain(TimeProvider timeProvider)
     {
         RequireDenialSpent(timeProvider);
@@ -168,7 +150,7 @@ public sealed class Membership : AggregateRoot<MembershipId>
     }
 
     /// <summary>
-    /// The same second chance in an organization that admits anyone: there is no review to wait for.
+    /// Reactivates a denied membership with the default role after the cooldown.
     /// </summary>
     public void EnrollAgain(Guid defaultRoleId, TimeProvider timeProvider)
     {
@@ -204,10 +186,8 @@ public sealed class Membership : AggregateRoot<MembershipId>
     }
 
     /// <summary>
-    /// An administrator directly grants this membership a role. Unlike <see cref="Approve"/>
-    /// this is not the review of a request: it activates the membership from whatever status
-    /// it held, which is what "add this user to the organization" has to mean when a denied or
-    /// suspended membership already exists.
+    /// Grants a role and activates the membership from any status.
+    /// Unlike <see cref="Approve"/>, this does not require a pending request.
     /// </summary>
     public void Grant(Guid roleId, Guid grantedByUserId, TimeProvider timeProvider)
     {

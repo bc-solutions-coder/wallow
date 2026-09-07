@@ -3,14 +3,7 @@ using System.Xml.Linq;
 namespace Wallow.Architecture.Tests;
 
 /// <summary>
-/// Guards the terminal cutover of the Auth side (bead Wallow-vec7.5.3): the Blazor
-/// <c>Wallow.Auth</c> project, its two test projects, the whole .NET Playwright E2E suite
-/// (<c>Wallow.E2E.Tests</c>), and the <c>scripts/run-e2e.sh</c> driver must be gone once the
-/// React <c>apps/wallow-auth</c> app is the reachable auth UI (per-app <c>@playwright/test</c>
-/// suites replace the .NET E2E suite). Verified by static inspection of the source tree
-/// (never the live stack), mirroring <see cref="WallowWebDeletionTests"/>. The AppHost side
-/// is covered by <see cref="AppHostAuthResourceTests"/>; the CI/deploy image-build cutover by
-/// <see cref="CiAuthImageBuildTests"/>.
+/// Checks removal of the .NET auth and E2E projects from the tree, solution and test wiring.
 /// </summary>
 public class WallowAuthDeletionTests
 {
@@ -30,7 +23,7 @@ public class WallowAuthDeletionTests
     private static readonly string _runE2eScriptPath = Path.Combine(_repoRoot, "scripts", "run-e2e.sh");
     private static readonly string _ciWorkflowPath = Path.Combine(_repoRoot, ".github", "workflows", "ci.yml");
 
-    // ---- Physical deletion of the Blazor auth projects and the .NET E2E suite ----------
+
 
     [Fact]
     public void BlazorAuthProject_DirectoryShouldNotExist()
@@ -70,7 +63,7 @@ public class WallowAuthDeletionTests
             "scripts/run-e2e.sh drove the deleted Wallow.E2E.Tests suite and must be deleted with it");
     }
 
-    // ---- Solution file (Wallow.slnx) ---------------------------------------------------
+
 
     [Fact]
     public void Solution_ShouldNotReference_BlazorAuthOrE2eProjects()
@@ -96,7 +89,7 @@ public class WallowAuthDeletionTests
             "Wallow.slnx must drop Wallow.E2E.Tests once it is deleted");
     }
 
-    // ---- Build / test scripts ----------------------------------------------------------
+
 
     [Fact]
     public void RunTestsScript_ShouldNotDefine_BlazorAuthOrE2eShorthands()
@@ -116,7 +109,7 @@ public class WallowAuthDeletionTests
             "run-tests.sh must not redirect to the deleted run-e2e.sh script");
     }
 
-    // ---- CI workflow -------------------------------------------------------------------
+
 
     [Fact]
     public void CiWorkflow_ShouldNotReference_DotnetE2eSuite()

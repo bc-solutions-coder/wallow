@@ -37,8 +37,8 @@ public class PushCredentialEncryptorTests
         byte[] originalBytes = Encoding.UTF8.GetBytes(original);
         _dataProtector.Unprotect(Arg.Any<byte[]>()).Returns(originalBytes);
 
-        // The string Protect extension Base64-encodes the protected bytes,
-        // and the string Unprotect extension Base64-decodes before calling Unprotect(byte[])
+        // Supply encoded ciphertext to the string API; the substitute receives bytes.
+
         string ciphertext = Convert.ToBase64String([1, 2, 3]);
         string result = _encryptor.Decrypt(ciphertext);
 

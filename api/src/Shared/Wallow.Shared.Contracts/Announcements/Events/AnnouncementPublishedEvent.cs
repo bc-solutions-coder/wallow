@@ -1,9 +1,6 @@
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 namespace Wallow.Shared.Contracts.Announcements.Events;
 
-/// <summary>
-/// Published when an announcement is published.
-/// </summary>
 public sealed record AnnouncementPublishedEvent : IntegrationEvent
 {
     public required Guid AnnouncementId { get; init; }

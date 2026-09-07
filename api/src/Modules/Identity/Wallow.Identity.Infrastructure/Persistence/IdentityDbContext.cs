@@ -123,9 +123,7 @@ public sealed class IdentityDbContext : AspNetIdentityDbContext, ITenantAwareCon
             b.HasIndex(r => new { r.TenantId, r.NormalizedName });
         });
 
-        // ASP.NET Identity's user-role join is deliberately unmapped: roles are granted per
-        // organization and live on identity.membership_roles. A mapped user_roles table would be
-        // a second, organization-blind role directory that nothing may read.
+        // Roles belong to organization memberships; the global user-role join is not mapped.
         modelBuilder.Ignore<IdentityUserRole<Guid>>();
 
         modelBuilder.Entity<IdentityUserClaim<Guid>>(b =>

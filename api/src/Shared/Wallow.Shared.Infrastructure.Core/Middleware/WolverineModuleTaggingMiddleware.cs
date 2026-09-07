@@ -22,7 +22,6 @@ public static partial class WolverineModuleTaggingMiddleware
 
         Type messageType = envelope.Message.GetType();
 
-        // Tag the current activity with module and tenant info
         if (Activity.Current is { } activity)
         {
             string? ns = messageType.Namespace;
@@ -42,7 +41,6 @@ public static partial class WolverineModuleTaggingMiddleware
             }
         }
 
-        // Track domain event publishing
         if (envelope.Message is IDomainEvent)
         {
             Diagnostics.DomainEventsPublishedTotal.Add(1,

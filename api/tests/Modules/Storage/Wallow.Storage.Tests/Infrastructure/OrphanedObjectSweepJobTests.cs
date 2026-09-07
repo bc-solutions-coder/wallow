@@ -23,8 +23,7 @@ public sealed class OrphanedObjectSweepJobTests : IDisposable
 
     public OrphanedObjectSweepJobTests()
     {
-        // A shared open connection: with the ":memory:" connection STRING each EF operation
-        // would open a fresh connection and see an empty database.
+        // Keep the connection open so the in-memory SQLite database survives across operations.
         _connection = new SqliteConnection("DataSource=:memory:");
         _connection.Open();
 
@@ -83,9 +82,7 @@ public sealed class OrphanedObjectSweepJobTests : IDisposable
     [Fact]
     public async Task ExecuteAsync_KeepsReferencedObject_EvenWhenTheRowBelongsToAnotherTenant()
     {
-        // The row is written under a tenant the context is NOT set to, so keeping this
-        // object proves the sweep reads Files across tenants (IgnoreQueryFilters) —
-        // with the filter active the row would be invisible and the object deleted.
+        // A tenant filter would hide this reference and incorrectly allow deletion.
         const string key = "tenant-b/documents/kept.txt";
         await SeedFileAsync(_otherTenantId, key);
         SetListedObjects(new StorageObjectInfo(key, _now.AddDays(-2)));

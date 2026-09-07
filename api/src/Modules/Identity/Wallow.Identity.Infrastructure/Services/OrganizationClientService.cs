@@ -26,12 +26,9 @@ using static OpenIddict.Abstractions.OpenIddictConstants;
 namespace Wallow.Identity.Infrastructure.Services;
 
 /// <summary>
-/// Registers and manages the clients an organization owns, developer applications and service
-/// accounts alike. A registration writes two records in one transaction — the OpenIddict
-/// application carrying the OAuth configuration and the <see cref="RegisteredClient"/> row carrying
-/// what OpenIddict has no place for — and hands back the only copy of the client secret the caller
-/// will ever see. Both kinds are bound to the organization on the OpenIddict application, which is
-/// where the token endpoint reads the <c>org_id</c> claim from.
+/// Manages organization-owned applications and service accounts. Registration writes
+/// the OpenIddict application and <see cref="RegisteredClient"/> in one transaction,
+/// with the organization binding used by token issuance. The returned secret is not readable later.
 /// </summary>
 public sealed partial class OrganizationClientService(
     IOpenIddictApplicationManager applicationManager,
@@ -71,16 +68,13 @@ public sealed partial class OrganizationClientService(
 
         string clientSecret = GenerateClientSecret();
 
-        // The OpenIddict display name is the end-user-facing branded name; Branding owns it after
-        // registration. The immutable ledger name lives on the RegisteredClient row instead.
+        // Branding manages the mutable display name; RegisteredClient retains the registration name.
         string displayName = (input.BrandingDisplayName ?? input.Name).Trim();
         OpenIddictApplicationDescriptor descriptor = NewDescriptor(input.Kind, clientId, clientSecret, displayName);
         descriptor.SetTenantId(organizationId.ToString());
         ApplyConfiguration(descriptor, input.Kind, input.Configuration);
 
-        // Every organization-registered client is third-party, so an unstated lifetime is pinned
-        // to the third-party default here rather than left to the global fallback. A service
-        // account holds no refresh grant, so it gets no lifetime it could never use.
+        // Applications receive an explicit third-party default; service accounts have no refresh grant.
         if (input.Configuration.RefreshTokenLifetime is null && input.Kind == RegisteredClientKind.Application)
         {
             descriptor.SetRefreshTokenLifetime(ClientRefreshTokenLifetimes.ThirdPartyDefaultSeconds);
@@ -89,9 +83,7 @@ public sealed partial class OrganizationClientService(
         RegisteredClient record = RegisteredClient.Create(
             clientId, organizationId, input.Name, input.Kind, actor.ActorId, timeProvider);
 
-        // Both writes land on IdentityDbContext (OpenIddict's store shares it), so one transaction
-        // covers them: no application without its record, no record without its application. The
-        // event that creates the client's branding row rides the same transaction.
+        // Application, registration and branding event share the Identity transaction/outbox.
         try
         {
             await CommitAndPublishAsync(
@@ -118,8 +110,7 @@ public sealed partial class OrganizationClientService(
         }
         catch (DbUpdateException ex) when (IsUniqueViolation(ex))
         {
-            // A concurrent registration of the same name got past the lookup above; the unique
-            // index on the client id is what actually decides, so answer as the lookup would have.
+            // Translate a uniqueness failure to the same client-ID conflict as the pre-check.
             throw ClientIdTaken(input.Name, clientId);
         }
 
@@ -219,13 +210,11 @@ public sealed partial class OrganizationClientService(
         string clientSecret = GenerateClientSecret();
         OpenIddictApplicationDescriptor descriptor = new();
         await applicationManager.PopulateAsync(descriptor, application, ct);
-        // The manager re-hashes a secret that differs from the stored one, so the descriptor is
-        // the only place the plaintext ever sits.
+        // Pass plaintext to the application manager for hashing.
         descriptor.ClientSecret = clientSecret;
         record.RecordSecretRotation(actor.ActorId, timeProvider);
 
-        // Immediate, with no overlap: the old secret, the provenance and (when asked) every
-        // outstanding token change in one transaction, so a compromise response is one step.
+        // Commit secret replacement, rotation provenance and optional token revocation together.
         await CommitAndPublishAsync(
             new ClientSecretRotatedEvent
             {
@@ -272,8 +261,7 @@ public sealed partial class OrganizationClientService(
 
         record.Suspend();
 
-        // The status and the revocation land together: a suspended client with a live token, or
-        // a revoked client still marked active, is exactly the half-state the transaction forbids.
+        // Keep database status and token revocation in one transaction.
         await CommitAndPublishAsync(
             new ClientSuspendedEvent
             {
@@ -340,16 +328,13 @@ public sealed partial class OrganizationClientService(
             return null;
         }
 
-        // What the notification email needs — the admin recipients and the organization's name —
-        // is resolved before the transaction opens, so the event is complete when it is published
-        // into the outbox and nothing outlives a rolled-back commit.
+        // Capture notification recipients and organization name for the outbox event.
         IReadOnlyList<string> recipients = await adminEmails.ResolveAsync(organizationId, ct);
         Organization? organization = await organizations.GetByIdAsync(OrganizationId.Create(organizationId), ct);
 
         record.SuspendByPlatform(reason, actor.ActorId, timeProvider);
 
-        // Same shape as the organization's own suspend: the mark and the revocation land
-        // together, so no window exists where one is visible without the other.
+        // Commit platform suspension and database token revocation together.
         await CommitAndPublishAsync(
             new ClientSuspendedByPlatformEvent
             {
@@ -420,8 +405,7 @@ public sealed partial class OrganizationClientService(
 
         object? application = await applicationManager.FindByClientIdAsync(record.ClientId, ct);
 
-        // Revocation first, so the realtime connections are hung up while the client still
-        // exists to name them; the application's own tokens and consents then go with it.
+        // Request realtime disconnection while the client still exists; then delete its application.
         await CommitAndPublishAsync(
             new ClientDeletedEvent
             {
@@ -450,12 +434,9 @@ public sealed partial class OrganizationClientService(
     }
 
     /// <summary>
-    /// Runs the operation's writes and publishes its event in one transaction: the event's
-    /// envelope is published into the enrolled outbox before the commit — so it commits or rolls
-    /// back with the rows — and is flushed to subscribers only after it, so a crash between the
-    /// commit and the publish can no longer drop the event. The execution strategy wraps the
-    /// transaction because the context retries on transient faults; redelivery after an ambiguous
-    /// commit is possible (the strategy reruns the delegate), so consumers stay idempotent.
+    /// Commits writes and the outbox event together, then flushes outgoing messages.
+    /// The execution strategy may retry after an ambiguous commit; consumers must tolerate
+    /// redelivery. External effects performed by writes cannot roll back with the database.
     /// </summary>
     private async Task CommitAndPublishAsync<TEvent>(
         TEvent @event, Func<CancellationToken, Task> writes, CancellationToken ct)
@@ -496,8 +477,7 @@ public sealed partial class OrganizationClientService(
     }
 
     /// <summary>
-    /// One rule for both kinds: a client may hold the OIDC login scopes and any catalog scope that
-    /// is not reserved for the platform's own clients. Nothing outside the catalog is grantable.
+    /// Accepts login scopes and catalog scopes that are not platform-only.
     /// </summary>
     private async Task EnsureGrantableAsync(IReadOnlyList<string> requested, CancellationToken ct)
     {
@@ -528,9 +508,8 @@ public sealed partial class OrganizationClientService(
     }
 
     /// <summary>
-    /// A developer application is a confidential authorization-code client with PKCE; a service
-    /// account is a confidential client-credentials client and nothing else, so it can never be
-    /// handed a browser's authorize request.
+    /// Creates confidential clients: applications get authorization code, refresh and PKCE;
+    /// service accounts get client credentials without browser-flow permissions.
     /// </summary>
     private static OpenIddictApplicationDescriptor NewDescriptor(
         RegisteredClientKind kind, string clientId, string clientSecret, string displayName)
@@ -560,7 +539,9 @@ public sealed partial class OrganizationClientService(
         return descriptor;
     }
 
-    /// <summary>A service account ignores every URI field: it has no browser to send anywhere.</summary>
+    /// <summary>
+    /// Applies URI settings only to applications; scope and explicit lifetime settings apply to both kinds.
+    /// </summary>
     private static void ApplyConfiguration(
         OpenIddictApplicationDescriptor descriptor, RegisteredClientKind kind, ClientConfigurationInput configuration)
     {
@@ -580,15 +561,13 @@ public sealed partial class OrganizationClientService(
             descriptor.SetBackchannelLogoutSessionRequired(configuration.BackchannelLogoutSessionRequired);
         }
 
-        // Without these the client is refused every scope it asks for on its first authorize:
-        // OpenIddict grants only what the application's own permissions list allows.
+        // Record the allowed scopes on the application permission list.
         foreach (string scope in configuration.Scopes)
         {
             descriptor.Permissions.Add(Permissions.Prefixes.Scope + scope);
         }
 
-        // Null means "keep the current policy": an update omitting the field must not silently
-        // reset a client's lifetime, and registration handles its own default.
+        // Omission preserves the current lifetime; registration selects its own default.
         if (configuration.RefreshTokenLifetime is { } refreshTokenLifetime)
         {
             descriptor.SetRefreshTokenLifetime(refreshTokenLifetime);
@@ -627,8 +606,7 @@ public sealed partial class OrganizationClientService(
             descriptor.GetRefreshTokenLifetimeSeconds());
 
     /// <summary>
-    /// The issuer the application must validate tokens against: the public auth URL including any
-    /// path prefix, exactly as OpenIddict advertises it in the discovery document.
+    /// Resolves the configured issuer, falling back to the service auth URL.
     /// </summary>
     private string? ResolveIssuer()
     {

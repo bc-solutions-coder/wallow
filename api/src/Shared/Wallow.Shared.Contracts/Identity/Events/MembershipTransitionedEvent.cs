@@ -2,19 +2,10 @@
 namespace Wallow.Shared.Contracts.Identity.Events;
 
 /// <summary>
-/// Published whenever somebody's membership of an organization changes state.
-/// Consumers: Identity (auth audit trail).
+/// Reports a membership transition for the Identity audit trail.
+/// ActorId equals UserId for self-service requests, enrollment and departure.
+/// See docs/operations/audit-events.md, Membership events.
 /// </summary>
-/// <remarks>
-/// One event with a <see cref="Transition"/> discriminator rather than one record per transition:
-/// every transition carries the same four facts and differs only in which one happened, so a
-/// record apiece would be fourteen copies of one shape and fourteen handlers to keep in step.
-/// <para>
-/// <see cref="ActorId"/> is who made the change and <see cref="UserId"/> is who it was made about.
-/// They are equal for the transitions somebody performs on their own membership — requesting
-/// access, enrolling, leaving — and that equality is the record, not an omission.
-/// </para>
-/// </remarks>
 public sealed record MembershipTransitionedEvent : IntegrationEvent
 {
     public required MembershipTransition Transition { get; init; }

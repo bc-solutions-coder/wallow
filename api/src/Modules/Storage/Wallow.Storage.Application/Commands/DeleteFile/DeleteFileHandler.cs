@@ -23,10 +23,8 @@ public sealed class DeleteFileHandler(
             return Result.Failure(StorageErrors.FileNotFound);
         }
 
-        // Commit the row removal BEFORE deleting the object, never after. An object-store delete
-        // is not undone by a database rollback, so the reverse order lets a failed commit leave a
-        // row pointing at bytes that are already gone -- a permanent 404 on read. This way the
-        // worst case is an orphaned object: garbage, but nothing points at it.
+        // Commit row removals before deleting objects: a database rollback cannot restore bytes.
+        // A failed object delete then leaves an orphan rather than a row pointing at missing bytes.
         string storageKey = file.StorageKey;
 
         file.MarkAsDeleted();

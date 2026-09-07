@@ -19,10 +19,8 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.OAuth2;
 
 /// <summary>
-/// Where a request's tenant comes from once the auth cookie stops naming one. A machine caller
-/// gets it from the application record, through the whole token endpoint; a cookie caller gets
-/// none at all, because the person behind it belongs to many organizations. The second half is
-/// only safe if a row cannot be written without a tenant, so that refusal is asserted too.
+/// Checks application-property tenant claims, organization-less cookie principals,
+/// and refusal of tenant-scoped writes without a tenant.
 /// </summary>
 [Trait("Category", "Integration")]
 public sealed class TenantResolutionSourceTests(WallowApiFactory factory)

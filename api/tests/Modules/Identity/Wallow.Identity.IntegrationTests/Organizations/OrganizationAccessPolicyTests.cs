@@ -9,9 +9,7 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.Organizations;
 
 /// <summary>
-/// The gate every organization-scoped endpoint consults for an organization outside the caller's
-/// own tenant. It answers one permission at a time, so read reach and destroy reach are separate
-/// answers, and a bare membership carrying no useful role reaches nothing.
+/// Checks individual permissions granted by active membership in the requested organization.
 /// </summary>
 [Trait("Category", "Integration")]
 public class OrganizationAccessPolicyTests(WallowApiFactory factory) : IdentityIntegrationTestBase(factory)

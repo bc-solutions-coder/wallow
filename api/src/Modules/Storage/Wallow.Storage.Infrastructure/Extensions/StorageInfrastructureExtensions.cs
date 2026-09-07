@@ -87,8 +87,7 @@ public static class StorageInfrastructureExtensions
         StorageOptions storageOptions = configuration.GetSection(StorageOptions.SectionName).Get<StorageOptions>()
                              ?? new StorageOptions();
 
-        // Registered regardless of provider so LocalStorageController always resolves;
-        // under S3 its endpoints simply never receive a validly signed request.
+        // Register for every provider so LocalStorageController can always resolve its signer.
         services.AddSingleton<LocalPresignedUrlSigner>();
 
         switch (storageOptions.Provider)

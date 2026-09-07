@@ -142,7 +142,7 @@ public class MfaPartialAuthServiceTests
             JsonSerializer.Serialize(payload),
             TimeSpan.FromMilliseconds(1));
 
-        // Wait briefly so the protection expires
+        // Let the one-millisecond protection lifetime elapse.
         await Task.Delay(50);
 
         _httpContext.Request.Headers.Cookie = $"{CookieName}={Uri.EscapeDataString(protectedValue)}";
@@ -184,7 +184,7 @@ public class MfaPartialAuthServiceTests
 
         string? setCookieHeader = _httpContext.Response.Headers.SetCookie.ToString();
         setCookieHeader.Should().Contain(CookieName);
-        // A deleted cookie should have an expiration in the past
+
         setCookieHeader.Should().Contain("expires=");
     }
 

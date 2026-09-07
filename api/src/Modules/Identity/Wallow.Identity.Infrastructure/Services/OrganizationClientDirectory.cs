@@ -7,10 +7,8 @@ using Wallow.Shared.Kernel.Identity.Authorization;
 namespace Wallow.Identity.Infrastructure.Services;
 
 /// <summary>
-/// Identity's answer to "does client X belong to organization Y", exposed through
-/// <see cref="IOrganizationClientDirectory"/> so a module hanging a sub-resource off the
-/// org-scoped client surface (Branding) never reaches OpenIddict or Identity's persistence.
-/// A missing client and a foreign client are the same null on purpose.
+/// Exposes organization-client ownership and management permission checks through
+/// <see cref="IOrganizationClientDirectory"/>. Missing and foreign clients both return null.
 /// </summary>
 public sealed class OrganizationClientDirectory(
     IRegisteredClientRepository registeredClients,

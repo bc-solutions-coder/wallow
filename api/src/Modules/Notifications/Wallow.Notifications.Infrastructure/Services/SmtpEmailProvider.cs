@@ -57,7 +57,7 @@ public sealed partial class SmtpEmailProvider(
 
     private MimeMessage BuildMessageWithAttachment(EmailDeliveryRequest request)
     {
-        const int maxAttachmentSizeBytes = 10 * 1024 * 1024; // 10MB
+        const int maxAttachmentSizeBytes = 10 * 1024 * 1024;
 
         ReadOnlyMemory<byte> attachment = request.Attachment!.Value;
 

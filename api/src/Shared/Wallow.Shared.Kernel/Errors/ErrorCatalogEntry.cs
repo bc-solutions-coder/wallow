@@ -7,11 +7,9 @@ namespace Wallow.Shared.Kernel.Errors;
 /// status, and the user-safe sentence a response carries when the raising site supplies none.
 /// </summary>
 /// <remarks>
-/// Entries are the only way to construct an <see cref="Results.Error"/> or a
-/// <see cref="Domain.DomainException"/>, so every code that can reach a client is declared in
-/// exactly one catalog and reaches the OpenAPI document from there. A code is dotted PascalCase
-/// <c>Area.Reason</c>; the constructor refuses anything else so a malformed code fails the
-/// catalog's static initialiser instead of leaking into a response.
+/// Used to construct <see cref="Results.Error"/> and <see cref="Domain.DomainException"/>.
+/// Codes must have the dotted PascalCase form <c>Area.Reason</c>; construction rejects
+/// malformed codes and blank default messages.
 /// </remarks>
 public sealed partial record ErrorCatalogEntry
 {
@@ -22,7 +20,7 @@ public sealed partial record ErrorCatalogEntry
     /// <param name="kind">The kind that decides the HTTP status.</param>
     /// <param name="defaultMessage">The user-safe sentence used when no override is supplied.</param>
     /// <exception cref="ArgumentException">
-    /// <paramref name="code"/> is not <c>Area.Reason</c>, or <paramref name="defaultMessage"/> is empty.
+    /// <paramref name="code"/> is not <c>Area.Reason</c>, or <paramref name="defaultMessage"/> is empty or whitespace.
     /// </exception>
     public ErrorCatalogEntry(string code, ErrorKind kind, string defaultMessage)
     {

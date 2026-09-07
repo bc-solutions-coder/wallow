@@ -3,8 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Wallow.Identity.IntegrationTests.Resilience;
 
 /// <summary>
-/// Tests HTTP client resilience policies (circuit breaker behavior).
-/// Uses WireMock to simulate upstream service failures.
+/// Resilience fixture setup with no test methods.
 /// </summary>
 [Collection("IdentityResilience")]
 [Trait("Category", "Integration")]

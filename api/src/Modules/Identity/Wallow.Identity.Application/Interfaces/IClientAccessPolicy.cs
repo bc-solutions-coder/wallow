@@ -7,14 +7,13 @@ namespace Wallow.Identity.Application.Interfaces;
 public sealed record ClientAccessRefusal(string Reason, string Description);
 
 /// <summary>
-/// The one answer to "is this client currently serviceable?" — the effective state the authorize
-/// and token endpoints both consult, so they cannot drift apart. A registered client is served
-/// only while it is active, not platform-suspended, and its organization is neither archived nor
-/// platform-suspended. First-party clients are bound to no organization and are never refused
-/// here.
+/// Evaluates client and organization suspension/archive state for registered clients.
+/// Missing records receive no refusal here; callers must validate client existence separately.
 /// </summary>
 public interface IClientAccessPolicy
 {
-    /// <summary>The refusal in force for <paramref name="clientId"/>, or null when the client is serviceable.</summary>
+    /// <summary>
+    /// Returns the applicable refusal or null when this policy finds none.
+    /// </summary>
     Task<ClientAccessRefusal?> EvaluateAsync(string? clientId, CancellationToken ct = default);
 }

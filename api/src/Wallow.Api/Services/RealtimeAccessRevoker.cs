@@ -3,8 +3,8 @@ using Wallow.Shared.Contracts.Realtime;
 namespace Wallow.Api.Services;
 
 /// <summary>
-/// Closes both kinds of realtime connection this host serves — the SSE streams and the hub
-/// sockets — for one person in one tenant, or for every holder of one client's tokens.
+/// Closes matching SSE and hub connections registered in this host process,
+/// by user and tenant or by client id.
 /// </summary>
 public sealed partial class RealtimeAccessRevoker(
     SseConnectionManager sseConnections,

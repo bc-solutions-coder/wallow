@@ -6,11 +6,8 @@ using Wallow.Shared.Kernel.Results;
 namespace Wallow.Identity.Application.Commands.BootstrapAdmin;
 
 /// <summary>
-/// Creates the first administrator AND the organization that makes them one - joining it as
-/// owner when the seed already created it. Creating only the
-/// user left an account that resolved no roles anywhere and a setup gate that never closed: the
-/// gate asks whether an Active membership holds an admin-granting role, and a bare user has no
-/// membership to hold one.
+/// Creates an administrator and enrolls them as owner of a matching organization,
+/// or creates that organization. An existing user causes bootstrap to return without changes.
 /// </summary>
 public sealed partial class BootstrapAdminHandler(
     IBootstrapAdminService bootstrapAdminService,
@@ -38,10 +35,7 @@ public sealed partial class BootstrapAdminHandler(
             command.LastName,
             ct);
 
-        // The seed may already have created the organization named here - production seeds the
-        // one the dashboard client is bound to, and no admin - so bootstrap joins it rather than
-        // minting a sibling nobody's client points at. Either way the owner membership carrying
-        // the admin role is the only grant in this flow, and the only one authorization reads.
+        // Reuse a seeded organization so the administrator joins the organization clients already use.
         OrganizationDto? existing = await FindOrganizationByNameAsync(command.OrganizationName, ct);
 
         Guid organizationId;
@@ -70,8 +64,7 @@ public sealed partial class BootstrapAdminHandler(
     private partial void LogAdminAlreadyExists(string email);
 
     /// <summary>
-    /// The same match the seeder applies when it binds a client to an organization by name, so a
-    /// deployment that seeds "Wallow" and types "wallow" on the setup page lands in one organization.
+    /// Finds a case-insensitive exact name match among organization search results.
     /// </summary>
     private async Task<OrganizationDto?> FindOrganizationByNameAsync(string name, CancellationToken ct)
     {

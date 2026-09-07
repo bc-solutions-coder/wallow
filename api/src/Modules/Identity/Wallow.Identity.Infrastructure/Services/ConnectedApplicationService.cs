@@ -8,12 +8,8 @@ using static OpenIddict.Abstractions.OpenIddictConstants;
 namespace Wallow.Identity.Infrastructure.Services;
 
 /// <summary>
-/// The consent ledger a user can read and edit. Connected applications are the user's Valid
-/// permanent authorizations — the durable consent records — never the per-login ad-hoc rows
-/// sign-ins leave behind. Tokens chain to those ad-hoc rows, not to the consent record, so
-/// withdrawing consent revokes the permanent record and then walks the user's tokens for that
-/// application (and the ad-hoc rows they chain to): refresh dies with <c>invalid_grant</c> and
-/// token-entry validation refuses the surviving access tokens on their next request.
+/// Lists valid permanent consent records. Withdrawal attempts to revoke the selected
+/// record, the user's tokens for its application, and matching ad-hoc authorizations.
 /// </summary>
 public sealed partial class ConnectedApplicationService(
     IOpenIddictAuthorizationManager authorizationManager,
@@ -100,8 +96,7 @@ public sealed partial class ConnectedApplicationService(
                 }
             }
 
-            // The per-login ad-hoc rows the tokens chained to die with them, so nothing Valid
-            // is left pointing at the application.
+            // Revoke matching ad-hoc authorizations as well as their tokens.
             await foreach (object adHoc in authorizationManager.FindBySubjectAsync(subject, ct))
             {
                 if (string.Equals(

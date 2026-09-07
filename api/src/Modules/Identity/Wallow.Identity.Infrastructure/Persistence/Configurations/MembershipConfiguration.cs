@@ -49,9 +49,7 @@ public sealed class MembershipConfiguration : IEntityTypeConfiguration<Membershi
         builder.Ignore(e => e.RoleIds);
         builder.Ignore(e => e.IsActive);
 
-        // The uniqueness guarantee the design doc states as a composite primary key. The surrogate
-        // key exists because Entity<TId> carries a single Id; this index is what makes a second
-        // membership for the same pair impossible.
+        // Keep one membership per user/organization alongside the surrogate entity key.
         builder.HasIndex(e => new { e.UserId, e.OrganizationId }).IsUnique();
         builder.HasIndex(e => e.OrganizationId);
 
@@ -75,8 +73,7 @@ public sealed class MembershipConfiguration : IEntityTypeConfiguration<Membershi
 
             role.Property(r => r.RoleId).HasColumnName("role_id");
 
-            // Referential integrity against the global role catalog: without it, deleting a role
-            // leaves dangling GUIDs the resolver silently drops.
+            // Cascade role deletion to its assignments so no dangling role IDs remain.
             role.HasOne<WallowRole>()
                 .WithMany()
                 .HasForeignKey(r => r.RoleId)

@@ -32,7 +32,7 @@ public class ModuleToggleTests
 
         InvokeAddWallowModules(services, configuration);
 
-        // Identity is a required platform dependency — always registered even when the feature flag is false
+        // Identity is core and remains registered with its flag disabled.
         bool hasIdentityDbContext = services.Any(
             sd => sd.ServiceType == typeof(IdentityDbContext));
 
@@ -45,8 +45,7 @@ public class ModuleToggleTests
     {
         ServiceCollection services = new();
 
-        // Only the flags under test are set: every optional module is off unless its flag says otherwise,
-        // so this covers both an explicit "false" (Storage, Announcements) and an absent flag (the rest).
+        // Explicitly disable the two module contexts asserted below.
         IConfiguration configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
@@ -94,7 +93,7 @@ public class ModuleToggleTests
 
     private static void InvokeAddWallowModules(IServiceCollection services, IConfiguration configuration)
     {
-        // Modules resolve IConnectionMultiplexer at registration time for Redis-backed services
+        // Supply Redis for module service registration.
         IConnectionMultiplexer mockRedis = Substitute.For<IConnectionMultiplexer>();
         services.AddSingleton(mockRedis);
 

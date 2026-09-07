@@ -6,11 +6,8 @@ using Wallow.Identity.Domain.Identity;
 namespace Wallow.Identity.Infrastructure.Services;
 
 /// <summary>
-/// Effective client state, resolved from the registered client and its organization: the client
-/// must be active and free of platform suspension, and its organization must be neither archived
-/// nor platform-suspended. The most specific refusal wins, client before organization, so a
-/// client suspended by its own organization is reported as that even while its organization is
-/// also out of service.
+/// Checks client suspension before organization archive or suspension.
+/// Missing client or organization records produce no refusal here.
 /// </summary>
 public sealed class ClientAccessPolicy(
     IRegisteredClientRepository registeredClients,

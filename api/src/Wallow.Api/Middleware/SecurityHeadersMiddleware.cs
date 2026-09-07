@@ -53,8 +53,7 @@ internal sealed class SecurityHeadersMiddleware(RequestDelegate next, IWebHostEn
                    "connect-src 'self' ws: wss:";
         }
 
-        // OpenIddict authorization endpoints may render HTML responses (e.g., consent pages,
-        // error pages) that require inline scripts and styles to function correctly.
+        // The logout notification page uses an inline redirect script.
         if (path.HasValue && path.StartsWithSegments("/connect"))
         {
             return "default-src 'self'; " +

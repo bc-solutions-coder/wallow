@@ -3,13 +3,8 @@ using Microsoft.Extensions.Configuration;
 namespace Wallow.Identity.Infrastructure.Extensions;
 
 /// <summary>
-/// Resolves the issuer OpenIddict advertises in its discovery document and bakes into the
-/// iss claim of every token it mints.
+/// Resolves the public issuer from configuration for OpenIddict discovery and tokens.
 /// </summary>
-/// <remarks>
-/// The OIDC endpoints are reached through the unified auth origin's reverse proxy, so the
-/// issuer must be that public origin rather than the API's own request origin.
-/// </remarks>
 public static class OpenIddictIssuerResolver
 {
     /// <summary>The explicit issuer override key.</summary>
@@ -28,7 +23,7 @@ public static class OpenIddictIssuerResolver
     /// (leaving OpenIddict to derive the issuer from the request origin).
     /// </returns>
     /// <exception cref="InvalidOperationException">
-    /// A configured value is not an absolute URI.
+    /// A configured value is not an absolute HTTP or HTTPS URI.
     /// </exception>
     public static Uri? Resolve(IConfiguration configuration)
     {

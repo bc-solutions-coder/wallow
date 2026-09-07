@@ -76,20 +76,20 @@ public static partial class NotificationsModuleExtensions
 
         services.AddTenantAwareScopedContext<NotificationsDbContext>();
 
-        // Email repositories
+
         services.AddScoped<IEmailMessageRepository, EmailMessageRepository>();
         services.AddScoped<IEmailPreferenceRepository, EmailPreferenceRepository>();
 
-        // InApp notification repositories
+
         services.AddScoped<INotificationRepository, NotificationRepository>();
 
-        // SMS repositories
+
         services.AddScoped<ISmsMessageRepository, SmsMessageRepository>();
 
-        // Channel preference repositories
+
         services.AddScoped<IChannelPreferenceRepository, ChannelPreferenceRepository>();
 
-        // Push repositories
+
         services.AddScoped<IDeviceRegistrationRepository, DeviceRegistrationRepository>();
         services.AddScoped<ITenantPushConfigurationRepository, TenantPushConfigurationRepository>();
         services.AddScoped<IPushMessageRepository, PushMessageRepository>();
@@ -101,7 +101,7 @@ public static partial class NotificationsModuleExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // SMTP resilience pipeline
+
         services.AddResiliencePipeline("smtp", builder =>
         {
             builder
@@ -117,22 +117,22 @@ public static partial class NotificationsModuleExtensions
                 });
         });
 
-        // Email services
+
         services.Configure<SmtpSettings>(configuration.GetSection("Smtp"));
         RegisterEmailProvider(services, configuration);
         services.AddScoped<IEmailService, EmailProviderAdapter>();
         services.AddScoped<IEmailTemplateService, SimpleEmailTemplateService>();
 
-        // InApp notification services
+
         services.AddScoped<INotificationService, SseNotificationService>();
 
-        // Preference checking
+
         services.AddScoped<INotificationPreferenceChecker, NotificationPreferenceChecker>();
 
-        // Background jobs
+
         services.AddScoped<RetryFailedEmailsJob>();
 
-        // SMS services
+
         services.Configure<TwilioSettings>(configuration.GetSection("TwilioSettings"));
 
         string? twilioAccountSid = configuration["TwilioSettings:AccountSid"];
@@ -147,7 +147,7 @@ public static partial class NotificationsModuleExtensions
             services.AddScoped<ISmsProvider, NullSmsProvider>();
         }
 
-        // Push services
+
         services.AddDataProtection();
         services.Configure<PushSettings>(configuration.GetSection("PushSettings"));
         services.AddSingleton<IPushCredentialEncryptor, PushCredentialEncryptor>();

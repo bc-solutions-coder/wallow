@@ -7,8 +7,7 @@ using Wallow.Identity.Domain.Entities;
 namespace Wallow.Identity.IntegrationTests;
 
 /// <summary>
-/// Seeds test users via ASP.NET Core Identity and test OAuth2 clients via OpenIddict.
-/// Used by integration tests that need realistic identity state.
+/// Seeds Identity users and OpenIddict clients for integration tests.
 /// </summary>
 public sealed class IdentityFixture
 {
@@ -55,7 +54,7 @@ public sealed class IdentityFixture
     {
         UserManager<WallowUser> userManager = services.GetRequiredService<UserManager<WallowUser>>();
 
-        // Seed admin user to satisfy SetupMiddleware (which blocks requests until an admin exists)
+        // Seed an administrator so setup does not block ordinary test requests.
         WallowUser? existingAdmin = await userManager.FindByEmailAsync(AdminUserEmail);
         if (existingAdmin is null)
         {
@@ -73,9 +72,7 @@ public sealed class IdentityFixture
                 throw new InvalidOperationException($"Failed to seed admin user: {errors}");
             }
 
-            // SetupMiddleware reads authorization's own directory: an Active membership holding a
-            // role that grants AdminAccess. Creating the organization with this user as its
-            // creator is what mints that membership — there is no global role directory to add to.
+            // Creating the organization enrolls its creator with a role that closes the setup gate.
             IOrganizationService organizationService =
                 services.GetRequiredService<IOrganizationService>();
 
@@ -99,8 +96,7 @@ public sealed class IdentityFixture
             TestUserEmail,
             TimeProvider.System);
 
-        // The sign-in manager requires a confirmed email, so without this the seeded user can be
-        // authenticated by a fabricated principal but never by a password.
+        // Password sign-in requires confirmed email in this configuration.
         user.EmailConfirmed = true;
 
         IdentityResult result = await userManager.CreateAsync(user, TestUserPassword);

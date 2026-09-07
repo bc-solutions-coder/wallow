@@ -10,11 +10,7 @@ using Wallow.Tests.Common.Helpers;
 namespace Wallow.Api.Tests.Integration;
 
 /// <summary>
-/// The failure sweep over the auth and MFA routes: every way sign-in, registration, token
-/// redemption and MFA can fail answers the unified problem contract with an <c>Auth.*</c>,
-/// <c>Mfa.*</c> or shared code and the catalogued user-safe <c>detail</c>. Unknown accounts on
-/// the credential paths collapse into <c>Auth.InvalidCredentials</c>, and the passwordless
-/// throttle answers 429 <c>RateLimit.Exceeded</c> with a <c>Retry-After</c>.
+/// Checks problem responses for selected authentication and MFA failures, including passwordless throttling.
 /// </summary>
 [Collection(nameof(ApiIntegrationTestCollection))]
 [Trait("Category", "Integration")]
@@ -71,8 +67,7 @@ public sealed class AuthErrorContractTests : IDisposable
     [Fact]
     public async Task External_Login_With_An_Unknown_Provider_Returns_400_Provider_Unsupported()
     {
-        // An empty provider never reaches the action: the required query parameter fails model
-        // validation first, which the shared sweep covers.
+        // Use a nonempty provider to reach provider lookup after model validation.
         HttpResponseMessage response = await _client.GetAsync($"{AuthBase}/external-login?provider=Nope&returnUrl=/");
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -152,8 +147,7 @@ public sealed class AuthErrorContractTests : IDisposable
     [Fact]
     public async Task Passwordless_Throttle_Returns_429_With_Retry_After()
     {
-        // Sends for an unknown address succeed silently (no enumeration) but still spend the
-        // per-address window, so the first request past the limit is the throttled one.
+        // Unknown addresses still consume the per-address send limit.
         string email = $"{Guid.NewGuid():N}@nobody.test";
         HttpResponseMessage response = await _client.PostAsJsonAsync($"{AuthBase}/passwordless/otp", new { email });
         for (int attempt = 0; attempt < 10 && response.StatusCode != HttpStatusCode.TooManyRequests; attempt++)
@@ -204,10 +198,6 @@ public sealed class AuthErrorContractTests : IDisposable
         return email;
     }
 
-    /// <summary>
-    /// The shared contract assertion (<see cref="ProblemAssertions"/>) with this sweep's catalog,
-    /// pinning <c>detail</c> to the entry's own sentence.
-    /// </summary>
     private Task<JsonElement> AssertProblemAsync(HttpResponseMessage response, int expectedStatus, ErrorCatalogEntry expected) =>
-        response.AssertProblemAsync(_catalog, expectedStatus, expected);
+    response.AssertProblemAsync(_catalog, expectedStatus, expected);
 }

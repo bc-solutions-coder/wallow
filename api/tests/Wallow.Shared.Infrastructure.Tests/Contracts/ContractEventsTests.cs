@@ -10,7 +10,7 @@ namespace Wallow.Shared.Infrastructure.Tests.Contracts;
 
 public class ContractEventsTests
 {
-    // ── Delivery events ──────────────────────────────────────────────────
+
 
     [Fact]
     public void EmailSentEvent_WithAllProperties_HasCorrectValues()
@@ -68,7 +68,7 @@ public class ContractEventsTests
         evt.RecipientId.Should().Be(recipientId);
     }
 
-    // ── Identity events ──────────────────────────────────────────────────
+
 
     [Fact]
     public void OrganizationCreatedEvent_WithAllProperties_HasCorrectValues()
@@ -172,7 +172,7 @@ public class ContractEventsTests
         evt.NewRole.Should().Be("Admin");
     }
 
-    // ── Notifications events ─────────────────────────────────────────────
+
 
     [Fact]
     public void NotificationCreatedEvent_WithAllProperties_HasCorrectValues()
@@ -194,7 +194,7 @@ public class ContractEventsTests
         evt.Type.Should().Be("info");
     }
 
-    // ── Inquiries events ─────────────────────────────────────────────────
+
 
     [Fact]
     public void InquirySubmittedEvent_WithAllProperties_HasCorrectValues()
@@ -257,7 +257,7 @@ public class ContractEventsTests
         evt.SubmitterEmail.Should().Be("user@example.com");
     }
 
-    // ── Announcements events ─────────────────────────────────────────────
+
 
     [Fact]
     public void AnnouncementPublishedEvent_WithAllProperties_HasCorrectValues()
@@ -284,7 +284,7 @@ public class ContractEventsTests
         evt.TargetUserIds.Should().HaveCount(2);
     }
 
-    // ── Storage contracts ────────────────────────────────────────────────
+
 
     [Fact]
     public void UploadFileCommand_Constructor_SetsAllProperties()

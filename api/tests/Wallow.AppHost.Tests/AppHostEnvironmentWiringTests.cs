@@ -5,21 +5,8 @@ using AwesomeAssertions;
 namespace Wallow.AppHost.Tests;
 
 /// <summary>
-/// Verifies the Aspire AppHost wires the required OIDC/BFF/API configuration onto the
-/// wallow-web and wallow-auth Node resources (Wallow-xzha.1.1). Without these, the first
-/// BFF request under 'pnpm backend' 500s because loadBffConfigFromEnv() throws on the
-/// missing variables, and wallow-auth's passthrough proxy cannot resolve its upstream API.
-///
-/// Known-correct target values are the Aspire-local ports set in Wallow.AppHost/Program.cs.
-/// They deliberately do NOT match docker/docker-compose.test.yml, which uses :5050 for both the
-/// issuer and the metadata URL because the containerised origins differ. Do not "align" them.
-///
-/// The vars naming where the API listens assert the manifest placeholder
-/// <c>{wallow-api.bindings.http.url}</c> rather than a literal, because Program.cs derives them
-/// from the API resource's endpoint. That is the point: in Publish mode the value stays a
-/// per-environment binding, and a regression to a hardcoded URL would show up here as a literal.
-/// Locally the same reference resolves to http://localhost:5001 — the DCP proxy in front of
-/// Wallow.Api, whose port its launchSettings applicationUrl pins.
+/// Checks declared BFF and auth-proxy configuration in the Aspire application model.
+/// API URLs must retain endpoint bindings in publish output.
 /// </summary>
 public sealed class AppHostEnvironmentWiringTests : IClassFixture<AppHostFixture>
 {
@@ -27,7 +14,9 @@ public sealed class AppHostEnvironmentWiringTests : IClassFixture<AppHostFixture
     private const string AuthResourceName = "wallow-auth";
     private const string ApiResourceName = "wallow-api";
 
-    /// <summary>How an <c>EndpointReference</c> to the API's http binding renders in Publish mode.</summary>
+    /// <summary>
+    /// API endpoint placeholder expected in publish output.
+    /// </summary>
     private const string ApiBinding = "{wallow-api.bindings.http.url}";
 
     private readonly AppHostFixture _fixture;
@@ -43,8 +32,7 @@ public sealed class AppHostEnvironmentWiringTests : IClassFixture<AppHostFixture
             .OfType<IResourceWithEnvironment>()
             .Single(r => r.Name == resourceName);
 
-        // Publish-mode resolution turns literal env into literals and references into manifest
-        // placeholders, so declared configuration can be asserted without starting any container.
+        // Inspect publish configuration without starting the resources.
         IExecutionConfigurationResult result = await ExecutionConfigurationBuilder
             .Create(resource)
             .WithEnvironmentVariablesConfig()
@@ -62,12 +50,7 @@ public sealed class AppHostEnvironmentWiringTests : IClassFixture<AppHostFixture
     {
         Dictionary<string, string> env = await GetEnvironmentAsync(WebResourceName);
 
-        // The dev issuer is the wallow-auth origin, not the API's: appsettings.Development.json
-        // sets AuthUrl=http://localhost:3002 and OpenIddictIssuerResolver echoes it, so the client
-        // must EXPECT :3002 while fetching discovery from the API directly. Assert both: either one
-        // alone permits a mismatched pair that would break the real flow. The issuer stays a
-        // literal because it must equal what the API derives from AuthUrl, not wherever the auth
-        // app happens to listen.
+        // The expected issuer follows AuthUrl, while discovery is fetched from the API binding.
         env.Should().ContainKey("OIDC_ISSUER").WhoseValue.Should().Be("http://localhost:3002");
         env.Should().ContainKey("OIDC_METADATA_URL").WhoseValue.Should()
             .Be($"{ApiBinding}/.well-known/openid-configuration");
@@ -103,9 +86,7 @@ public sealed class AppHostEnvironmentWiringTests : IClassFixture<AppHostFixture
     {
         Dictionary<string, string> env = await GetEnvironmentAsync(AuthResourceName);
 
-        // WithReference(api) alone is not enough — the Node host never reads the
-        // services__wallow-api__* discovery vars it injects, so the passthrough proxy's upstream
-        // has to be named outright.
+        // The auth proxy reads this explicit upstream setting.
         env.Should().ContainKey("WALLOW_API_INTERNAL_URL").WhoseValue.Should().Be(ApiBinding);
     }
 

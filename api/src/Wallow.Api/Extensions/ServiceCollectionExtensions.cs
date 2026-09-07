@@ -27,8 +27,7 @@ namespace Wallow.Api.Extensions;
 internal static partial class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Tag applied by <c>TestSupportController</c>; its operations are internal-only scaffolding
-    /// and must never reach the public v1 document or the generated SDK client.
+    /// Tag identifying operations excluded from the public OpenAPI document.
     /// </summary>
     private const string TestSupportTagName = "Test Support";
 
@@ -36,36 +35,22 @@ internal static partial class ServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // Problem Details
-        // One problem contract for every error body: customizer, writer, camelCase validation
-        // keys and the problem-response OpenAPI convention (Wallow.Shared.Api.Problems).
+        // Share runtime problem formatting and OpenAPI problem conventions.
         services.AddWallowProblemDetails();
 
-        // Global Exception Handler
+
         services.AddExceptionHandler<GlobalExceptionHandler>();
 
-        // The kernel's status-generic catalog and the shared settings catalog. Every module
-        // registers its own from Add<Module>Module; these calls guarantee the aggregated
-        // ErrorCatalog resolves even in a host with no modules, so the OpenAPI ErrorCode enum
-        // is always emitted.
+        // Shared catalogs remain available even when optional modules are disabled.
         services.AddErrorCatalog(typeof(SharedErrors));
         services.AddErrorCatalog(typeof(SettingsErrors));
 
-        // XML documentation comments for the "v1" OpenAPI document. The framework's XML
-        // comment support is a compile-time interceptor that attaches to user-code
-        // AddOpenApi call sites; Asp.Versioning's versioned AddOpenApi call lives inside
-        // its own assembly, where the interceptor cannot reach. This call is deliberately
-        // redundant as a registration (AV0029, suppressed via NoWarn in the csproj — the
-        // interceptor re-emits the call in generated source, out of reach of a pragma)
-        // but is the anchor the interceptor needs: it configures the same named
-        // OpenApiOptions ("v1" = the version's group name) the versioned pipeline
-        // resolves. The package's runtime XmlCommentsTransformer is not a substitute —
-        // it renders <see cref> references as empty text and misattributes method
-        // summaries to parameter descriptions. A future v2 needs its own call.
+        // Anchor XML-comment interception in this assembly for the named v1 document.
+        // The versioning package registers its call elsewhere; AV0029 is suppressed in the project.
+        // Additional document versions need matching local anchors.
         services.AddOpenApi("v1");
 
-        // Health checks - connection strings resolved lazily via factories
-        // to support Testcontainers dynamic connection strings
+        // Resolve connection strings lazily so test hosts can replace them.
         IHealthChecksBuilder healthChecks = services.AddHealthChecks()
             .AddNpgSql(
                 sp => sp.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection")!,
@@ -80,15 +65,14 @@ internal static partial class ServiceCollectionExtensions
                 name: "redis",
                 tags: ["infrastructure", "ready"])
 
-            // Not tagged "ready" on purpose: a poison message in the DLQ must degrade /health
-            // without failing readiness probes and restart-looping the container (Wallow-qi90.2).
+            // Exclude dead letters from readiness while reporting them on the full health endpoint.
             .AddCheck<WolverineDeadLetterQueueHealthCheck>("wolverine-dlq", tags: ["messaging"])
             .AddCheck("startup", () => HealthCheckResult.Healthy(),
                 tags: ["startup"])
             .AddCheck("startup-ready", () => HealthCheckResult.Healthy(),
                 tags: ["infrastructure", "ready"]);
 
-        // S3 health check - only when S3 storage provider is configured
+
         StorageOptions storageOptions = configuration.GetSection(StorageOptions.SectionName).Get<StorageOptions>()
                                         ?? new StorageOptions();
         if (storageOptions.Provider == StorageProvider.S3)
@@ -160,9 +144,7 @@ internal static partial class ServiceCollectionExtensions
                 HttpContext httpContext = context.HttpContext;
                 httpContext.Response.StatusCode = 429;
 
-                // RedisRateLimiting leases publish the library's RateLimitMetadataName entries,
-                // not the framework's MetadataName ones — reading the framework names here
-                // silently yields no headers at all.
+                // Read the Redis limiter metadata names to populate rejection headers.
                 if (context.Lease.TryGetMetadata(RateLimitMetadataName.RetryAfter, out int retryAfterSeconds))
                 {
                     httpContext.Response.Headers["Retry-After"] =
@@ -178,8 +160,7 @@ internal static partial class ServiceCollectionExtensions
 
                 IProblemDetailsService problemDetailsService =
                     httpContext.RequestServices.GetRequiredService<IProblemDetailsService>();
-                // The catalog's own user-safe sentence: a 4xx `detail` is shown to
-                // people verbatim, so the Retry-After hint stays in the header.
+                // Keep Retry-After in the header and use the catalog problem detail.
                 await problemDetailsService.TryWriteProblemAsync(
                     httpContext,
                     SharedErrors.RateLimitExceeded);
@@ -194,18 +175,14 @@ internal static partial class ServiceCollectionExtensions
         return httpContext.RequestServices.GetRequiredService<IOptions<RateLimitingOptions>>().Value;
     }
 
-    // Partition keys are prefixed with the policy name so two policies keyed on the same
-    // principal never share a Redis counter. UseRateLimiter runs after authentication and
-    // tenant resolution (see Program.cs), so a user or tenant is genuinely available here;
-    // the IP fallback only covers anonymous traffic.
+    // Prefix counters by policy; use user id, then remote IP, then unknown.
     private static string GetUserPartitionKey(HttpContext httpContext, string policy)
     {
         string? userId = httpContext.User.GetUserId();
         return $"{policy}:{userId ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
     }
 
-    // ITenantContext rather than HttpContext.Items: TenantResolutionMiddleware sets both,
-    // but ApiKeyAuthenticationMiddleware sets only the context, so this covers both paths.
+    // API-key authentication populates ITenantContext even without a request item.
     private static string GetTenantPartitionKey(HttpContext httpContext, string policy)
     {
         ITenantContext tenantContext = httpContext.RequestServices.GetRequiredService<ITenantContext>();
@@ -218,9 +195,7 @@ internal static partial class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Configures one versioned OpenAPI document. Asp.Versioning registers a document per
-    /// discovered API version, named by its ApiExplorer group name (e.g. "v1"), and invokes
-    /// this callback once for each; the same transformer pipeline applies to every version.
+    /// Applies the host transformer pipeline to a versioned OpenAPI document.
     /// </summary>
     internal static void ConfigureVersionedOpenApiDocument(
         VersionedOpenApiOptions options,
@@ -331,9 +306,7 @@ internal static partial class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Asp.Versioning's ApiExplorer transformer stamps empty-string summaries on operations and
-    /// empty-string descriptions on parameters that have no XML docs. Empty strings are noise in
-    /// the contract (and churn in the committed snapshot), so drop them back to null.
+    /// Removes empty operation summaries/descriptions and concrete parameter descriptions.
     /// </summary>
     internal static Task TransformDocumentScrubEmptyPlaceholders(OpenApiDocument document)
     {
@@ -382,16 +355,13 @@ internal static partial class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Name of the shared <c>components.schemas</c> entry that enumerates every error code the
-    /// API can write into a problem response's <c>code</c> member.
+    /// Schema name for the aggregated catalog error-code enum.
     /// </summary>
     internal const string ErrorCodeSchemaName = "ErrorCode";
 
     /// <summary>
-    /// Exports the aggregated error catalog as <c>components.schemas.ErrorCode</c>: a string enum
-    /// listing every registered code, with each entry's default sentence in
-    /// <c>x-enum-descriptions</c>. The problem-details schemas gain a <c>code</c> property that
-    /// references it, so the generated SDK client types the member as a union of known codes.
+    /// Exports catalog codes and descriptions, then adds problem-contract fields to
+    /// schemas whose names end in ProblemDetails.
     /// </summary>
     internal static Task TransformDocumentErrorCodes(OpenApiDocument document, ErrorCatalog catalog)
     {
@@ -421,8 +391,7 @@ internal static partial class ServiceCollectionExtensions
             }
         };
 
-        // Every problem-details shape, including a fork's ProblemDetails subclass, carries the
-        // members the problem contract always writes, and none it always drops.
+        // Match the schema naming convention used for problem responses.
         List<string> problemSchemaNames = components.Schemas.Keys
             .Where(name => name.EndsWith("ProblemDetails", StringComparison.Ordinal))
             .ToList();
@@ -454,10 +423,8 @@ internal static partial class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Every error response whose body is a problem-details shape is served as
-    /// <c>application/problem+json</c>, whatever media types the API explorer inferred from the
-    /// output formatters. The document says so, so a generated client parses the body as JSON and
-    /// a reader sees the content type the wire actually carries.
+    /// Uses application/problem+json for numeric error responses referencing a schema
+    /// whose name ends in ProblemDetails.
     /// </summary>
     internal static Task TransformDocumentProblemContentTypes(OpenApiDocument document)
     {
@@ -535,7 +502,7 @@ internal static partial class ServiceCollectionExtensions
         OpenApiOperation operation,
         OpenApiOperationTransformerContext context)
     {
-        // If the controller already has an explicit [Tags] attribute, don't override
+
         if (context.Description.ActionDescriptor.EndpointMetadata.OfType<TagsAttribute>().Any())
         {
             return Task.CompletedTask;
@@ -565,8 +532,7 @@ internal static partial class ServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(operation);
         ArgumentNullException.ThrowIfNull(context);
 
-        // MethodInfo.Name, not ActionName: an [ActionName] override renames the route, not the
-        // C# method, and the generated SDK reads better keyed to the method the API actually has.
+        // Keep operation ids tied to C# method names even when ActionName changes.
         if (context.Description.ActionDescriptor is ControllerActionDescriptor descriptor)
         {
             operation.OperationId = $"{descriptor.ControllerName}{descriptor.MethodInfo.Name}";

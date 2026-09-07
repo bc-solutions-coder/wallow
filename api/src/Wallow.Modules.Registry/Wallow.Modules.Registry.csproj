@@ -1,21 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- TargetFramework, Nullable, etc. inherited from Directory.Build.props -->
-  <!-- Package versions managed in Directory.Packages.props -->
+
+
 
   <PropertyGroup>
     <RootNamespace>Wallow.Modules.Registry</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Wallow.Shared.Infrastructure declares IWallowModule. It also arrives transitively through
-         the seven module Infrastructure references below, but the type is named directly in this
-         project's public surface, so the reference is stated rather than inherited. -->
+    <!-- IWallowModule is part of this project's public surface. -->
     <ProjectReference Include="..\Shared\Wallow.Shared.Infrastructure\Wallow.Shared.Infrastructure.csproj" />
 
-    <!-- The reason this project exists: it is the one place that references all seven module
-         Infrastructure assemblies AND can be referenced by both hosts. Wallow.Shared.Infrastructure
-         cannot hold the list because the modules reference it, not the other way round. -->
+    <!-- Keep the module list below both hosts. Placing it in Shared.Infrastructure would create a dependency cycle. -->
     <ProjectReference Include="..\Modules\Identity\Wallow.Identity.Infrastructure\Wallow.Identity.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Branding\Wallow.Branding.Infrastructure\Wallow.Branding.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Notifications\Wallow.Notifications.Infrastructure\Wallow.Notifications.Infrastructure.csproj" />

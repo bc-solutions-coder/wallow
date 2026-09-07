@@ -15,14 +15,14 @@ public sealed partial class MigrationWorker(
 
         try
         {
-            // Core contexts must be migrated first (Identity, Audit, AuthAudit) - sequentially
+            // Migrate core module contexts and auth audit before feature contexts.
             foreach (IMigrationRunner runner in coreRunners.Runners)
             {
                 LogMigratingContext(runner.ContextName);
                 await runner.MigrateAsync(stoppingToken);
             }
 
-            // Feature module contexts can be migrated in parallel
+
             LogMigratingFeatureModules();
             await Task.WhenAll(featureRunners.Runners.Select(runner => runner.MigrateAsync(stoppingToken)));
 
@@ -30,8 +30,7 @@ public sealed partial class MigrationWorker(
         }
         catch (Exception ex)
         {
-            // The host swallows this after logging it, exiting the process 0. Program.cs reads this
-            // flag to exit non-zero instead, so Compose's service_completed_successfully gate holds.
+            // Preserve failure for the process exit code so dependent services do not start.
             outcome.MarkFailed();
             LogMigrationFailed(ex);
             throw;

@@ -10,8 +10,7 @@ using Wallow.Shared.Kernel.Identity.Authorization;
 namespace Wallow.Identity.Api.Controllers;
 
 /// <summary>
-/// What the caller can be told about themselves, independent of the organization their token
-/// is scoped to.
+/// Caller-scoped identity reads that do not require an organization context.
 /// </summary>
 [ApiController]
 [ApiVersion(1)]
@@ -23,18 +22,8 @@ namespace Wallow.Identity.Api.Controllers;
 public class MeController(IOrganizationService orgService) : ControllerBase
 {
     /// <summary>
-    /// The organizations the caller belongs to.
+    /// Lists the caller active organization memberships without requiring a management permission.
     /// </summary>
-    /// <remarks>
-    /// This is the organization picker's data: a first-party app lists these and re-authorizes
-    /// with the <c>organization</c> hint to switch context. The token it holds still opens one
-    /// organization's door at a time, so the switch is a new authorize round-trip, never a
-    /// header. Reachable without an organization, because a caller who belongs to three and
-    /// has picked none must be able to see them.
-    ///
-    /// Asks for no permission — the answer is about the caller, and demanding one would hide
-    /// every organization but the one their token is scoped to, which is the question.
-    /// </remarks>
     [HttpGet("organizations")]
     [ProducesResponseType(typeof(IReadOnlyList<MyOrganizationDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<MyOrganizationDto>>> GetOrganizations(CancellationToken ct)

@@ -29,7 +29,7 @@ public sealed class BackchannelLogoutNotifierTests
         _sessions.ListBackchannelRecipientsAsync(TestSid, Arg.Any<CancellationToken>())
             .Returns(recipients);
 
-#pragma warning disable CA2000 // The notifier takes ownership of the HttpClient
+#pragma warning disable CA2000 // The client wraps a test-owned message handler.
     private BackchannelLogoutNotifier CreateSut(
         HttpMessageHandler handler,
         BackchannelLogoutOptions? options = null,
@@ -46,8 +46,7 @@ public sealed class BackchannelLogoutNotifierTests
             Substitute.For<IOptionsMonitor<OpenIddictServerOptions>>();
         serverOptionsMonitor.CurrentValue.Returns(serverOptions);
 
-        // AllowPrivateNetworkHosts skips DNS so unit tests never resolve real hosts, and a zero
-        // retry delay keeps the single-retry path synchronous under the fake time provider.
+        // Bypass DNS for the default fixture and avoid advancing fake time during retry delays.
         options ??= new BackchannelLogoutOptions { AllowPrivateNetworkHosts = true };
         options.RetryDelay = TimeSpan.Zero;
 
@@ -93,8 +92,7 @@ public sealed class BackchannelLogoutNotifierTests
             .TryGetProperty("http://schemas.openid.net/event/backchannel-logout", out JsonElement _)
             .Should().BeTrue();
 
-        // A nonce is what lets relying parties tell a replayed id token from a logout token, so
-        // the spec forbids it here.
+        // OIDC forbids nonce so a logout token cannot be used as an ID token.
         payload.RootElement.TryGetProperty("nonce", out JsonElement _).Should().BeFalse();
     }
 
@@ -132,8 +130,7 @@ public sealed class BackchannelLogoutNotifierTests
 
         handler.Requests.Should().HaveCount(2);
 
-        // The token is minted once per recipient: the retry re-sends the same instruction, it
-        // does not issue a new one.
+        // A retry must reuse the recipient's signed token.
         ExtractToken(handler.Requests[1].Body).Should().Be(ExtractToken(handler.Requests[0].Body));
     }
 
@@ -146,7 +143,7 @@ public sealed class BackchannelLogoutNotifierTests
 
         await sut.NotifyAsync(TestSid, _userId, _issuer, CancellationToken.None);
 
-        // A 4xx is the relying party rejecting this token — re-sending it cannot succeed.
+        // This policy does not retry a rejected 400 response.
         handler.Requests.Should().ContainSingle();
     }
 
@@ -190,7 +187,7 @@ public sealed class BackchannelLogoutNotifierTests
 
         handler.Requests.Select(r => r.Uri).Should().BeEquivalentTo([_logoutUri, otherUri]);
 
-        // Each relying party gets its own token: the audience is the pairwise claim.
+        // Each token targets its recipient client ID.
         handler.Requests
             .Select(r => new JsonWebToken(ExtractToken(r.Body)).Audiences.Single())
             .Should().BeEquivalentTo([TestClientId, "rp-two"]);
@@ -251,8 +248,7 @@ public sealed class BackchannelLogoutNotifierTests
     }
 
     /// <summary>
-    /// Answers each request with the next scripted status code (200 once the script runs out) and
-    /// records every request. Recipients fan out in parallel, so recording is locked.
+    /// Records requests under a lock and returns scripted status codes, then 200.
     /// </summary>
     private sealed class ScriptedHandler(params HttpStatusCode[] statusCodes) : HttpMessageHandler
     {

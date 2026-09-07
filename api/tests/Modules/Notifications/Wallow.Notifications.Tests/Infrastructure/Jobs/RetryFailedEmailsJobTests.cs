@@ -16,7 +16,7 @@ public class RetryFailedEmailsJobTests
     private readonly TimeProvider _timeProvider = Substitute.For<TimeProvider>();
     private readonly RetryFailedEmailsJob _sut;
 
-#pragma warning disable CA2000 // LoggerFactory disposal not needed in tests
+#pragma warning disable CA2000 // Test logger factory is not disposed.
     public RetryFailedEmailsJobTests()
     {
         _timeProvider.GetUtcNow().Returns(DateTimeOffset.UtcNow);

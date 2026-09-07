@@ -7,15 +7,14 @@ using Wallow.Shared.Kernel.MultiTenancy;
 namespace Wallow.ApiKeys.Domain.Entities;
 
 /// <summary>
-/// Represents a hashed API key bound to a service account within a tenant.
-/// The plaintext key is never stored — only a hash for verification.
+/// Stores an API key hash and its tenant-scoped owner; never the plaintext secret.
 /// </summary>
 public sealed class ApiKey : AuditableEntity<ApiKeyId>, ITenantScoped
 {
     public TenantId TenantId { get; init; }
 
     /// <summary>
-    /// The service account client ID this key authenticates as.
+    /// Owner identifier; the API-key service stores the user ID as a string.
     /// </summary>
     public string ServiceAccountId { get; private set; } = string.Empty;
 
@@ -32,7 +31,8 @@ public sealed class ApiKey : AuditableEntity<ApiKeyId>, ITenantScoped
     private readonly List<string> _scopes = [];
 
     /// <summary>
-    /// OAuth2 scopes granted to this API key, must be a subset of the service account's scopes.
+    /// Granted OAuth scopes. Creation endpoints validate them against caller permissions
+    /// and, for service-account callers, the client's permitted scopes.
     /// </summary>
     public IReadOnlyList<string> Scopes => _scopes.AsReadOnly();
 
@@ -41,9 +41,6 @@ public sealed class ApiKey : AuditableEntity<ApiKeyId>, ITenantScoped
     /// </summary>
     public DateTimeOffset? ExpiresAt { get; private set; }
 
-    /// <summary>
-    /// Whether this key has been revoked.
-    /// </summary>
     public bool IsRevoked { get; private set; }
 
     // ReSharper disable once UnusedMember.Local

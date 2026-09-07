@@ -12,7 +12,7 @@ namespace Wallow.Identity.Domain.Errors;
 /// </remarks>
 public static class IdentityErrors
 {
-    // Users and organizations
+
 
     public static readonly ErrorCatalogEntry UserNotFound = new(
         "Identity.UserNotFound", ErrorKind.NotFound, "User not found");
@@ -74,7 +74,7 @@ public static class IdentityErrors
     public static readonly ErrorCatalogEntry OrganizationNameMismatch = new(
         "Identity.OrganizationNameMismatch", ErrorKind.BusinessRule, "The confirmed name does not match the organization name");
 
-    // Memberships
+
 
     public static readonly ErrorCatalogEntry UserIdRequired = new(
         "Identity.UserIdRequired", ErrorKind.BusinessRule, "User ID cannot be empty");
@@ -106,7 +106,7 @@ public static class IdentityErrors
     public static readonly ErrorCatalogEntry DenialCooldown = new(
         "Identity.DenialCooldown", ErrorKind.BusinessRule, "A recent request to this organization was denied; it may be asked again later");
 
-    // Invitations
+
 
     public static readonly ErrorCatalogEntry InvitationEmailRequired = new(
         "Identity.InvitationEmailRequired", ErrorKind.BusinessRule, "Invitation email cannot be empty");
@@ -123,7 +123,7 @@ public static class IdentityErrors
     public static readonly ErrorCatalogEntry InvitationEmailMismatch = new(
         "Identity.InvitationEmailMismatch", ErrorKind.BusinessRule, "This invitation was issued to a different email address");
 
-    // Clients and scopes
+
 
     public static readonly ErrorCatalogEntry ClientIdRequired = new(
         "Identity.ClientIdRequired", ErrorKind.BusinessRule, "Client id cannot be empty");
@@ -167,9 +167,9 @@ public static class IdentityErrors
     public static readonly ErrorCatalogEntry ScopeCategoryRequired = new(
         "Identity.ScopeCategoryRequired", ErrorKind.BusinessRule, "API scope category cannot be empty");
 
-    // Settings
 
-    // Sign-in, account and MFA outcomes
+
+
 
     public static readonly ErrorCatalogEntry AuthInvalidCredentials = new(
         "Auth.InvalidCredentials", ErrorKind.Unauthenticated, "The email address or password is incorrect.");

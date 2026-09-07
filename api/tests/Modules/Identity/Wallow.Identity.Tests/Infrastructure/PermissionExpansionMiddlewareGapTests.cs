@@ -8,8 +8,7 @@ namespace Wallow.Identity.Tests.Infrastructure;
 public class PermissionExpansionMiddlewareGapTests
 {
     /// <summary>
-    /// The organization the principal names. Expansion is refused for a principal that
-    /// names none, so every fixture asserting a mapping has to carry one.
+    /// Organization claim used by these tenant-scoped expansion fixtures.
     /// </summary>
     private const string TenantId = "0f3a1c2e-5b8d-4a71-9c62-7e4d0a1b3f56";
 

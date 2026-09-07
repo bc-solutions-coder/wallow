@@ -8,10 +8,8 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.OAuth2;
 
 /// <summary>
-/// A third-party client bound to an organization is a relying party, not a screen of ours: a
-/// user the organization refuses is sent back to the client's redirect URI with
-/// <c>access_denied</c> and an <c>error_description</c> naming why, never to the auth host's
-/// own pages. A pending request is refused the same way, but the request stays recorded.
+/// Checks relying-party access_denied responses for membership refusals and pending approval,
+/// including the recorded pending request.
 /// </summary>
 public sealed class BoundClientRefusalTests(WallowApiFactory factory)
     : IdentityIntegrationTestBase(factory)

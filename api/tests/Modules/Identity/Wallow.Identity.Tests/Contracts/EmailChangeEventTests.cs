@@ -3,7 +3,7 @@ using Wallow.Shared.Contracts.Identity.Events;
 
 namespace Wallow.Identity.Tests.Contracts;
 
-#pragma warning disable CA1034 // Nested types should not be visible (xUnit test grouping pattern)
+#pragma warning disable CA1034 // Public nested classes group the xUnit event tests.
 public static class EmailChangeEventTests
 {
     public class UserEmailChangeRequestedEventTests

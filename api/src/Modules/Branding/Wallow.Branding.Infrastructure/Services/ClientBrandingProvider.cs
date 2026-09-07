@@ -5,10 +5,8 @@ using Wallow.Shared.Contracts.Branding;
 namespace Wallow.Branding.Infrastructure.Services;
 
 /// <summary>
-/// The cross-module face of Branding's reads. <see cref="FindAsync"/> is the same cached read as
-/// <see cref="IClientBrandingService"/>, narrowed to the shape <see cref="PublicClientBranding"/>
-/// promises consumers outside the module; <see cref="FindCurrentDisplayNameAsync"/> deliberately
-/// bypasses that cache so synchronization consumers always see the latest committed write.
+/// Exposes cached public branding to other modules. Display-name synchronization bypasses
+/// that cache to read the current stored value.
 /// </summary>
 public sealed class ClientBrandingProvider(
     IClientBrandingService brandingService,

@@ -6,9 +6,7 @@ using Wolverine.Attributes;
 namespace Wallow.Identity.Infrastructure.Handlers;
 
 /// <summary>
-/// The attribute is load-bearing. Wolverine's conventional discovery matches a type name ending in
-/// "Handler" or "Consumer" and reads instance methods; a static class named "...Handlers" satisfies
-/// neither, so without it every method here is silently unreachable and nothing is ever audited.
+/// Records authentication and governance events. WolverineHandler explicitly includes this static handler class.
 /// </summary>
 [WolverineHandler]
 public static class AuthAuditEventHandlers
@@ -50,8 +48,7 @@ public static class AuthAuditEventHandlers
     }
 
     /// <summary>
-    /// The transition is spelled into the event type rather than kept in a column of its own, so a
-    /// membership decision is queried the same way every other audited event is.
+    /// Encodes the membership transition in EventType for audit filtering.
     /// </summary>
     public static Task Handle(MembershipTransitionedEvent message, IAuthAuditService authAuditService)
     {
@@ -77,8 +74,7 @@ public static class AuthAuditEventHandlers
     }
 
     /// <summary>
-    /// A client has no user to be the subject, so the actor stands in both columns: the row is
-    /// about what an admin did, and the client it was done to is named in its own column.
+    /// Uses the actor as the audit subject and records the affected client separately.
     /// </summary>
     public static Task Handle(ClientRegisteredEvent message, IAuthAuditService authAuditService) =>
         RecordClientEventAsync(

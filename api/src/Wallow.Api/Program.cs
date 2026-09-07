@@ -55,8 +55,7 @@ using Wolverine.FluentValidation;
 using Wolverine.Persistence;
 using Wolverine.Postgresql;
 
-// Note: Using CreateLogger() instead of CreateBootstrapLogger() to support
-// multiple WebApplicationFactory instances in integration tests
+// A regular logger supports multiple WebApplicationFactory hosts in one process.
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
@@ -73,23 +72,23 @@ try
 
     builder.AddServiceDefaults();
 
-    // Ensure the host doesn't hang indefinitely during shutdown
+    // Set the cooperative shutdown timeout.
     builder.Services.Configure<HostOptions>(options =>
     {
         options.ShutdownTimeout = TimeSpan.FromSeconds(10);
     });
 
-    // Initialize telemetry diagnostics with configurable namespace prefix
+
     string namespacePrefix = builder.Configuration["Logging:NamespacePrefix"] ?? "Wallow";
     Wallow.Shared.Kernel.Diagnostics.Initialize(namespacePrefix);
 
-    // Suppress Kestrel server header to avoid exposing server technology
+
     builder.WebHost.ConfigureKestrel((context, options) =>
     {
         options.AddServerHeader = false;
         options.Limits.MaxRequestBodySize = 1_048_576;
 
-        // Apply configurable connection limits from Performance section
+
         long? maxConcurrentConnections = context.Configuration.GetValue<long?>("Performance:KestrelMaxConcurrentConnections");
         long? maxConcurrentUpgradedConnections = context.Configuration.GetValue<long?>("Performance:KestrelMaxConcurrentUpgradedConnections");
 
@@ -104,7 +103,7 @@ try
         }
     });
 
-    // Apply thread pool tuning from Performance section
+
     IConfigurationSection performanceSection = builder.Configuration.GetSection(PerformanceOptions.SectionName);
     int workerThreads = performanceSection.GetValue<int>("ThreadPoolMinWorkerThreads");
     int completionPortThreads = performanceSection.GetValue<int>("ThreadPoolMinCompletionPortThreads");
@@ -113,7 +112,7 @@ try
         ThreadPool.SetMinThreads(workerThreads, completionPortThreads);
     }
 
-    // Serilog
+
     builder.Host.UseSerilog((context, services, configuration) =>
     {
         configuration
@@ -144,7 +143,7 @@ try
                 "{#else}{StatusCode}{#end}{#end}" +
                 " {@m}\n{@x}"));
 
-        // OpenTelemetry log export — conditional on EnableLogging flag
+
         if (context.Configuration.GetValue<bool>("OpenTelemetry:EnableLogging", false))
         {
             string otlpEndpoint = context.Configuration["OpenTelemetry:OtlpEndpoint"]!;
@@ -164,9 +163,7 @@ try
         }
     });
 
-    // Redis — register before modules so that module service registration
-    // (e.g. Identity DataProtection key persistence) can resolve IConnectionMultiplexer.
-    // Uses a factory to defer the actual connection until first resolution.
+    // Register Redis before modules that resolve it during service registration.
     builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
     {
         IConfiguration config = sp.GetRequiredService<IConfiguration>();
@@ -175,88 +172,30 @@ try
         return ConnectionMultiplexer.Connect(connectionString);
     });
 
-    // ============================================================================
-    // WALLOW MODULES
-    // Explicit module registration via WallowModules.cs
-    // See docs/plans/2026-02-13-modular-monolith-consolidation.md
-    // ============================================================================
+
     IReadOnlyList<IWallowModule> enabledModules = Wallow.Api.WallowModules.AddWallowModules(
         builder.Services, builder.Configuration, builder.Environment);
     builder.Services.AddAuthAuditing(builder.Configuration);
 
-    // The one handler-discovery list, shared by Wolverine below and by the AsyncAPI document near
-    // the bottom of this file. Both used to run their own AppDomain.CurrentDomain.GetAssemblies()
-    // scan over every "Wallow.*" name, which made the discovered handler set a function of what
-    // earlier code happened to touch first — and, measured, gave the two scans DIFFERENT sets
-    // rather than merely differently-ordered ones.
+    // Share the enabled handler assembly set between Wolverine and AsyncAPI.
     Assembly[] handlerAssemblies =
     [
-        // The host itself. Wolverine also picks this up through opts.ApplicationAssembly below;
-        // naming it here is what keeps the AsyncAPI document looking at the same set.
+        // Include host handlers in both discovery consumers.
         typeof(Wallow.Api.WallowModules).Assembly,
 
-        // Wallow.Shared.Infrastructure belongs to no module but owns two real Wolverine handlers
-        // (SettingsCacheInvalidationHandlers, for TenantSettingChangedEvent and
-        // UserSettingChangedEvent), so the host declares it unconditionally.
+        // Shared infrastructure owns settings-change handlers outside any module.
         typeof(IWallowModule).Assembly,
 
         .. enabledModules.SelectMany(module => module.HandlerAssemblies),
     ];
 
-    // Wolverine — unified CQRS mediator + message bus.
-    //
-    // This call ends with ExtensionDiscovery.ManualOnly — the argument is ~200 lines below,
-    // on the closing line of UseWolverine, which is why it is called out here.
-    //
-    // ManualOnly is NOT a workaround for the macOS native-DLL crash (exit 139/134) it was
-    // originally added for. That crash was a property of the pre-6.0 AssemblyFinder, which
-    // probed the bin directory at startup and could load QuestPDF/Skia natives. Wolverine 6.0
-    // (GH-2902) deleted that scan outright and replaced it with a compile-time source
-    // generator: JasperFx.SourceGenerator emits a JasperFx.Generated.DiscoveredExtensions
-    // manifest per assembly, which Wolverine reads through the application's REFERENCE GRAPH.
-    // Per guide/extensions.md, "as of Wolverine 6.0 there is no runtime bin-directory assembly
-    // scan for extensions". Wallow is on 6.21.0, so nothing probes the bin directory with or
-    // without the flag.
-    //
-    // What ManualOnly still governs is IWolverineExtension AUTO-discovery. It is retained for
-    // explicit control over which extensions load — not for the crash. Note the coupling to
-    // UseRuntimeCompilation() immediately below, which is only necessary BECAUSE of it.
+    // Manual extension discovery below requires explicit runtime-compiler registration.
     builder.Host.UseWolverine(opts =>
     {
-        // Wolverine 6 removed the runtime Roslyn compiler from the core package.
-        // We use TypeLoadMode.Dynamic (compile handler/middleware code at runtime),
-        // so the runtime compiler must be registered explicitly. Referencing the
-        // WolverineFx.RuntimeCompilation package alone does not auto-register it here,
-        // so call it directly. See https://wolverinefx.net/guide/codegen.html (GH-2876).
-        //
-        // "Does not auto-register" is true ONLY because of ExtensionDiscovery.ManualOnly:
-        // the package ships an IWolverineExtension, and auto-discovery is exactly the
-        // mechanism ManualOnly turns off. The two are coupled in both directions — dropping
-        // ManualOnly would make this call redundant, and keeping it makes this call REQUIRED.
-        // Without it, TypeLoadMode.Dynamic has no compiler and every handler fails to build.
+        // Dynamic handler code generation needs the runtime compiler with ManualOnly discovery.
         opts.UseRuntimeCompilation();
 
-        // Wolverine 6 defaults ServiceLocationPolicy to NotAllowed: any handler or
-        // middleware dependency the codegen cannot inline-construct throws
-        // InvalidServiceLocationException at codegen time instead of silently falling
-        // back to the container (which logged a "will throw in Wolverine 6.0" warning
-        // under the previous AllowedButWarn stopgap). Keep the strict default so a new
-        // accidental service location fails fast, and explicitly opt in the handful of
-        // dependencies whose registrations genuinely require runtime resolution:
-        //   - ITenantContext / ITenantContextSetter are forwarded to a single
-        //     request-scoped TenantContext via an opaque lambda factory. Service
-        //     location is the correct behavior here: inlining a fresh 'new TenantContext()'
-        //     would hand handlers an empty tenant instead of the instance the HTTP
-        //     tenant-resolution middleware populated for the request.
-        //   - ISetupStatusChecker (behind IsSetupRequiredHandler) reaches IdentityDbContext,
-        //     registered by AddDbContext's framework factory, which the codegen cannot see
-        //     through.
-        //   - IBootstrapAdminService and IOrganizationService (behind BootstrapAdminHandler) reach
-        //     ASP.NET Identity's UserManager and OpenIddict's managers, both registered as opaque
-        //     lambda factories the codegen cannot see through either.
-        // HandlerCodegenTests compiles every discovered handler and fails if this list is short one
-        // entry; WolverineCodegenPolicyTests asserts the list itself has not grown unnoticed.
-        // See https://wolverinefx.net/guide/codegen.html.
+        // Keep service location explicit for opaque factories and request-scoped tenant instances.
         opts.ServiceLocationPolicy = ServiceLocationPolicy.NotAllowed;
         opts.CodeGeneration.AlwaysUseServiceLocationFor<IOpenIddictApplicationManager>();
         opts.CodeGeneration.AlwaysUseServiceLocationFor<ITenantContext>();
@@ -265,148 +204,61 @@ try
         opts.CodeGeneration.AlwaysUseServiceLocationFor<IBootstrapAdminService>();
         opts.CodeGeneration.AlwaysUseServiceLocationFor<IOrganizationService>();
 
-        // ASP.NET's authorization handlers are not Wolverine handlers, but they match its naming
-        // convention exactly: the class ends in "Handler" and AuthorizationHandler<T> exposes a
-        // public HandleAsync(AuthorizationHandlerContext). Left alone, Wolverine builds a message
-        // chain for AuthorizationHandlerContext whose dependencies (SignInManager, UserManager)
-        // cannot be inlined, so a type nothing ever sends fails the codegen policy.
+        // ASP.NET authorization handlers must not become Wolverine message handlers.
         opts.Discovery.CustomizeHandlerDiscovery(types => types.Excludes.Implements<IAuthorizationHandler>());
 
-        // Pin the application assembly explicitly. Wolverine otherwise infers it with a
-        // stack walk whose result is cached in a process-wide static (JasperFxOptions.
-        // RememberedApplicationAssembly), so in a test process that stands up several hosts
-        // the first one to boot decides for all of them. Every host in the suite currently
-        // boots this same Program.cs, so the inferred value is already Wallow.Api — this is
-        // preventive, not a fix. The setter also Fills the discovery collection, which is why
-        // Wallow.Api appears twice in the assembly list; that duplicate is harmless.
+        // Pin the application assembly when multiple test hosts share a process.
         opts.ApplicationAssembly = typeof(WallowModules).Assembly;
 
-        // Give every handler for a message type its own chain, its own local queue, and its own
-        // retry loop. Under the default (ClassicCombineIntoOneLogicalHandler) all handlers for a
-        // message are welded into ONE logical handler behind ONE retry loop, so a failure in a
-        // late handler re-runs the earlier ones that already committed — duplicate emails,
-        // duplicate notification rows. Four message types have more than one handler today:
-        // EmailVerifiedEvent (2, and it crosses a module boundary: Inquiries links the submitter,
-        // Notifications sends the welcome email), InquirySubmittedEvent (3),
-        // InquiryCommentAddedEvent (3) and InquiryStatusChangedEvent (2). Under the default a
-        // Notifications failure retried the Inquiries link-up — a module boundary violated by a
-        // retry policy. Separated is what JasperFx recommends for modular monoliths, and
-        // MultipleHandlerSeparationTests pins the behaviour.
-        //
-        // Consequence to know about: the handlers for one message now run CONCURRENTLY on
-        // independent local queues. There is no ordering between the email send, the in-app
-        // notification write and the SSE push any more; none of them depended on it.
+        // Separate handlers have independent queues and retries; their execution order is unspecified.
         opts.MultipleHandlerBehavior = MultipleHandlerBehavior.Separated;
 
-        // Discover handlers in exactly the assemblies the enabled modules declare — never by
-        // scanning the AppDomain. The old scan was correct only by coincidence: a disabled module's
-        // .Application assembly stays unloaded purely because its AddXModule body never ran and so
-        // never touched a type in it. A refactor moving that type to .Domain would have dropped
-        // every handler in that assembly with no error at all, just fewer chains. Registering by
-        // [assembly: WolverineModule] instead is not an option: it discovers unconditionally, so a
-        // DISABLED module's handlers would be found, codegen would build chains for them, and
-        // ServiceLocationPolicy.NotAllowed above would throw on DI that was never registered.
+        // Discover only host/shared handlers and assemblies declared by enabled modules.
         foreach (Assembly assembly in handlerAssemblies)
         {
             opts.Discovery.IncludeAssembly(assembly);
         }
 
-        // Align message storage schema across all stores (PostgreSQL)
-        // This prevents conflicts when PersistMessagesWithPostgresql() is used
+        // Use the same message-storage schema for all persistence registrations.
         opts.Durability.MessageStorageSchemaName = "wolverine";
 
-        // PostgreSQL persistence for the durable outbox/inbox. Registered in EVERY environment,
-        // Testing included. Wolverine.EntityFrameworkCore's EfCoreEnvelopeTransaction throws
-        // "This Wolverine application is not using Database backed message persistence" the first
-        // time a transactional handler chain runs against a host with no message store, so a host
-        // without one cannot execute a transactional chain at all — and leaving Testing without a
-        // store would make the transactional path the only path production takes but no test does.
-        // The test host already owns a Testcontainers Postgres (Wallow.Tests.Common's
-        // WallowApiFactory), and Wolverine migrates its own "wolverine" schema into it on startup:
-        // AutoBuildMessageStorageOnStartup defaults to CreateOrUpdate.
+        // Transactional handlers need PostgreSQL message storage in Testing as well as deployed hosts.
         string pgConnectionString = builder.Configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Database connection string not configured");
         opts.PersistMessagesWithPostgresql(pgConnectionString, "wolverine");
 
         if (builder.Environment.IsEnvironment("Testing"))
         {
-            // Solo mode skips leadership election and node assignment, and starts the durability
-            // agents immediately. Every test class boots its own host against its own throwaway
-            // container, so a second node never exists; Balanced mode would only add its election
-            // round-trips to each of those cold starts. This is JasperFx's own recommendation for
-            // test harnesses (guide/testing.html — "Running Wolverine in Solo Mode").
+            // Isolated test hosts do not need multi-node assignment.
             opts.Durability.Mode = DurabilityMode.Solo;
         }
 
-        // EF Core transaction integration — enlist Wolverine messages in EF Core transactions.
-        //
-        // Lightweight, NOT the default Eager. Eager opens the unit of work with an explicit
-        // DbContext.Database.BeginTransactionAsync(); all seven modules configure
-        // npgsql.EnableRetryOnFailure(...) on their DbContext, which installs
-        // NpgsqlRetryingExecutionStrategy, and that strategy refuses a user-initiated transaction
-        // ("The configured execution strategy 'NpgsqlRetryingExecutionStrategy' does not support
-        // user-initiated transactions"). Measured: Eager + AutoApplyTransactions returns 500 on
-        // login in CrossOrgRoleIsolationTests, thrown out of the generated SendEmailCommand handler.
-        // Lightweight instead treats DbContext.SaveChangesAsync() as the sole transaction boundary,
-        // so the unit of work runs inside EF's own execution strategy and the retry policy survives.
-        // Removing EnableRetryOnFailure from the modules was rejected: it would surrender
-        // transient-fault retry on every DB call in the product, HTTP paths included, to fix a
-        // message-handler problem.
-        //
-        // What Lightweight gives up: operations that bypass SaveChangesAsync are outside the
-        // handler's unit of work. Notifications uses these in TenantPushConfigurationRepository,
-        // NotificationRepository, and DeviceRegistrationRepository. Each mutation is a single
-        // statement, atomic on its own.
+        // Lightweight transactions use SaveChangesAsync with the EF retry strategy.
+        // Direct SQL mutations remain outside that SaveChanges unit of work.
         opts.UseEntityFrameworkCoreTransactions(TransactionMiddlewareMode.Lightweight);
 
-        // Apply that transaction middleware to every chain whose service dependencies transitively
-        // reach a module DbContext: the chain gains a <Module>DbContext.SaveChangesAsync
-        // postprocessor, so the handler's writes and the outgoing messages it cascades commit
-        // together instead of the handler saving mid-flight and the messages escaping a later
-        // failure. Measured: 65 of the 88 top-level HandlerGraph.Chains, and 66 of the 94
-        // HandlerGraph.AllChains() — the pair differs because MultipleHandlerBehavior.Separated
-        // replaces each of the four multi-handler message types' parent chain with its per-handler
-        // sticky sub-chains (88 - 4 + 10 = 94). The policy does reach those sub-chains: exactly one
-        // of the ten is transactional (EmailVerifiedEvent's Inquiries handler, the only one of the
-        // ten that touches a DbContext), which is the +1. Quote AllChains() when quoting one number.
-        //
-        // Two things this makes newly fatal, both currently clean:
-        //   - A chain whose transitive dependencies reach MORE THAN ONE DbContext throws out of
-        //     EFCorePersistenceFrameProvider.DetermineDbContextType at codegen time — i.e. on the
-        //     first message of that type, not at startup. Keep a handler inside one module's
-        //     DbContext; cross-module work goes through an integration event, not a second
-        //     repository.
-        //   - A handler that saves explicitly and then dispatches (SendNotificationHandler pushes
-        //     to realtime after its save) must keep that ordering. Dropping the explicit save so
-        //     the postprocessor covers it would move the push BEFORE the commit and give SSE
-        //     consumers a read-your-writes race.
+        // Add transaction middleware to chains that expose a DbContext.
+        // Keep one visible context per chain and explicit saves before realtime dispatch.
         opts.Policies.AutoApplyTransactions();
 
-        // Standard error handling policies (retry, DLQ)
+
         opts.ConfigureStandardErrorHandling();
         opts.ConfigureMessageLogging();
 
-        // FluentValidation middleware — validates commands before handlers.
-        // Each module registers its own validators (AddXApplication -> AddValidatorsFromAssembly),
-        // so Wolverine must NOT also discover them: its scan appends registrations with a plain
-        // IServiceCollection.Add, leaving two IValidator<T> entries per command. Two registrations
-        // flip FluentValidationPolicy from ExecuteOne(IValidator<T>) to
-        // ExecuteMany(IEnumerable<IValidator<T>>), and the enumerable is service-located from the
-        // root provider — which throws "Cannot resolve scoped service
-        // 'IEnumerable<IValidator<T>>' from root provider" under Development scope validation.
+        // Modules register validators; rediscovery would add duplicate registrations.
         opts.UseFluentValidation(RegistrationBehavior.ExplicitRegistration);
 
-        // Module tagging middleware — tags Wolverine messages with wallow.module
+
         opts.Policies.AddMiddleware(typeof(WolverineModuleTaggingMiddleware));
 
-        // Tenant middleware — stamps outgoing messages with TenantId and restores it on incoming
+        // Preserve tenant context across message dispatch.
         opts.Policies.AddMiddleware(typeof(TenantStampingMiddleware));
         opts.Policies.AddMiddleware(typeof(TenantRestoringMiddleware));
 
-        // Authorization middleware — validates tenant context on external messages
+        // Require a tenant header on remote messages.
         opts.Policies.AddMiddleware(typeof(WolverineAuthorizationMiddleware));
 
-        // For integration tests - discover handlers from test assemblies
+
         if (builder.Environment.IsEnvironment("Testing"))
         {
             string? testAssemblyName = builder.Configuration["Wolverine:TestAssembly"];
@@ -414,7 +266,7 @@ try
             {
                 try
                 {
-                    // Try to load the assembly if not already loaded
+
                     Assembly testAssembly = AppDomain.CurrentDomain.GetAssemblies()
                         .FirstOrDefault(a => a.FullName == testAssemblyName)
                         ?? Assembly.Load(testAssemblyName);
@@ -429,36 +281,31 @@ try
             }
         }
 
-        // Durable inbox/outbox on all endpoints (skip in Testing environment)
-        // Inbox: guarantees at-least-once delivery with automatic deduplication (idempotency)
-        // Outbox: guarantees messages are sent only after the transaction commits
+        // Enable endpoint durability policies outside Testing.
         if (!builder.Environment.IsEnvironment("Testing"))
         {
             opts.Policies.UseDurableInboxOnAllListeners();
             opts.Policies.UseDurableOutboxOnAllSendingEndpoints();
         }
-        // ExtensionDiscovery.ManualOnly — disables IWolverineExtension auto-discovery, which is
-        // why UseRuntimeCompilation() above must be called explicitly. It is NOT a guard against
-        // the pre-6.0 bin-directory scan; that scan no longer exists. See the comment on the
-        // UseWolverine call itself.
+        // Explicit discovery keeps extension loading under host control.
     }, ExtensionDiscovery.ManualOnly);
 
     builder.Services.AddSingleton<IPresenceService, RedisPresenceService>();
     builder.Services.AddSingleton<IRealtimeDispatcher, SignalRRealtimeDispatcher>();
 
-    // Distributed cache — reuses the singleton IConnectionMultiplexer registered above
+    // Reuse the singleton Redis connection for distributed caching.
     builder.Services.AddStackExchangeRedisCache(_ => { });
     builder.Services.AddSingleton<IConfigureOptions<RedisCacheOptions>>(sp =>
     {
         IConnectionMultiplexer mux = sp.GetRequiredService<IConnectionMultiplexer>();
         return new ConfigureNamedOptions<RedisCacheOptions>(
             Options.DefaultName,
-#pragma warning disable CA2025 // Singleton IConnectionMultiplexer lifetime is managed by DI, not the Task
+#pragma warning disable CA2025 // DI owns the singleton connection lifetime.
             options => options.ConnectionMultiplexerFactory = () => Task.FromResult(mux));
 #pragma warning restore CA2025
     });
 
-    // Wrap IDistributedCache with instrumented decorator for cache hit/miss metrics
+
     builder.Services.AddSingleton<IDistributedCache>(sp =>
     {
         IOptions<RedisCacheOptions> options =
@@ -467,7 +314,7 @@ try
         return new InstrumentedDistributedCache(inner);
     });
 
-    // HybridCache — L1 in-memory + L2 distributed (Valkey) with automatic stampede protection
+    // Combine local and distributed cache storage.
     builder.Services.AddHybridCache(options =>
     {
         options.DefaultEntryOptions = new HybridCacheEntryOptions
@@ -477,17 +324,16 @@ try
         };
     });
 
-    // SSE real-time — connection manager, Redis-backed dispatcher, and subscriber
+
     builder.Services.AddSingleton<SseConnectionManager>();
     builder.Services.AddSingleton<ISseDispatcher, RedisSseDispatcher>();
     builder.Services.AddHostedService<SseRedisSubscriber>();
 
-    // This host owns the open connections, so it owns the only implementation that can close
-    // them; the identity module registers a no-op default for hosts that serve none.
+    // Replace the Identity no-op revoker with the local connection revoker.
     builder.Services.AddSingleton<RealtimeConnectionRegistry>();
     builder.Services.AddSingleton<IRealtimeAccessRevoker, RealtimeAccessRevoker>();
 
-    // SignalR with Redis backplane — reuses the singleton IConnectionMultiplexer registered above
+    // Share the Redis connection with the SignalR backplane.
     builder.Services.AddSingleton<IUserIdProvider, SubClaimUserIdProvider>();
     builder.Services.AddSignalR()
         .AddStackExchangeRedis(options =>
@@ -500,19 +346,16 @@ try
         IConnectionMultiplexer mux = sp.GetRequiredService<IConnectionMultiplexer>();
         return new ConfigureNamedOptions<RedisOptions>(
             Options.DefaultName,
-#pragma warning disable CA2025 // mux is a DI-managed singleton, not disposed here
+#pragma warning disable CA2025 // DI owns the singleton connection lifetime.
             options => options.ConnectionFactory = _ => Task.FromResult<IConnectionMultiplexer>(mux));
 #pragma warning restore CA2025
     });
 
-    // Core services
+
     builder.Services.AddHttpContextAccessor();
     IMvcBuilder mvcBuilder = builder.Services.AddControllersWithViews();
 
-    // A disabled module must have no HTTP surface, not a broken one. Dropping its application part
-    // here — while the part list is what AddControllersWithViews just populated, and before anything
-    // reads a feature off it — keeps its controllers out of the ActionDescriptorCollection that
-    // routing, Asp.Versioning's ApiExplorer and the OpenAPI document generator all read from.
+    // Remove disabled-module controllers before routing and OpenAPI discover them.
     mvcBuilder.ConfigureApplicationPartManager(manager =>
         Wallow.Api.WallowModules.RemoveDisabledModuleApiParts(manager, enabledModules));
 
@@ -545,31 +388,23 @@ try
 
     WebApplication app = builder.Build();
 
-    // Aggregate the module error catalogs now rather than on the first OpenAPI request, so a code
-    // declared by two catalogs fails startup in every environment, not only where the document
-    // is served.
+    // Validate duplicate error codes at startup, before any document request.
     _ = app.Services.GetRequiredService<ErrorCatalog>();
 
-    // Opt-in PathBase for reverse-proxy path-based routing (e.g. /api)
+
     string? pathBase = app.Configuration["PathBase"];
     if (!string.IsNullOrEmpty(pathBase))
     {
         app.UsePathBase(pathBase);
     }
 
-    // ============================================================================
-    // WALLOW MODULES INITIALIZATION
-    // Explicit module initialization via WallowModules.cs
-    // ============================================================================
+
     await Wallow.Api.WallowModules.InitializeWallowModulesAsync(app, enabledModules);
     await app.InitializeAuthAuditingAsync();
 
-    // Middleware pipeline (order matters!)
 
-    // Forwarded headers — must run before any middleware that inspects the request scheme.
-    // Cloudflare (and other reverse proxies) terminate TLS and forward HTTP with
-    // X-Forwarded-For / X-Forwarded-Proto headers. Without this, OpenIddict sees HTTP
-    // and rejects requests with "This server only accepts HTTPS requests" (ID2083).
+
+    // Restore the forwarded scheme before HTTPS and authentication middleware inspect it.
     if (!app.Environment.IsDevelopment())
     {
         ForwardedHeadersOptions forwardedHeadersOptions = new()
@@ -577,21 +412,16 @@ try
             ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor
                 | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto,
         };
-        // Clear defaults so headers are accepted from any proxy in the chain.
-        // Safe because Kestrel is not directly exposed to the internet.
+        // Trust forwarded headers from any sender; deployment must restrict direct Kestrel access.
         forwardedHeadersOptions.KnownIPNetworks.Clear();
         forwardedHeadersOptions.KnownProxies.Clear();
         app.UseForwardedHeaders(forwardedHeadersOptions);
     }
 
-    // Exception handling. Parameterless on purpose: GlobalExceptionHandler (IExceptionHandler)
-    // handles everything, with the problem-details writer as the built-in fallback. The previous
-    // "/error" re-execution path pointed at a route that never existed.
+    // Use registered exception handlers and problem writers without route re-execution.
     app.UseExceptionHandler();
 
-    // Any 4xx/5xx that reaches the client with an empty body gets a problem+json document
-    // (405s, framework-issued 415s, ...). A body is load-bearing under the nosniff header:
-    // browsers turn an empty, Content-Type-less error navigation into a file download.
+    // Fill eligible empty error responses through the registered problem writer.
     app.UseStatusCodePages();
     app.UseSerilogRequestLogging(options =>
     {
@@ -620,7 +450,7 @@ try
                 diagnosticContext.Set("TenantName", tenantNameStr);
             }
 
-            // Detect SSE vs HTTP protocol
+
             bool isSse = string.Equals(
                 httpContext.Response.ContentType,
                 "text/event-stream",
@@ -629,31 +459,29 @@ try
         };
     });
 
-    // Correlation ID (read X-Correlation-Id or generate, push to LogContext + Activity)
+
     app.UseMiddleware<CorrelationIdMiddleware>();
 
-    // Setup gate (redirects non-setup requests to setup wizard when admin bootstrap is pending)
+    // Reject protected requests with Setup.Required while bootstrap is pending.
     app.UseMiddleware<SetupMiddleware>();
 
-    // Security headers (CSP, X-Content-Type-Options, etc.)
+
     app.UseMiddleware<SecurityHeadersMiddleware>();
 
-    // HTTPS enforcement
+
     if (!app.Environment.IsDevelopment())
     {
         app.UseHsts();
         app.UseHttpsRedirection();
     }
 
-    // API version rewrite (backward compat: /api/foo → /api/v1/foo)
-    // Must run before routing so the rewritten path is what the router sees.
+    // Rewrite unversioned paths before route matching.
     app.UseMiddleware<ApiVersionRewriteMiddleware>();
 
-    // Explicit routing placement — ensures the version rewrite runs before route matching.
-    // Without this, .NET auto-inserts UseRouting() at the start of the pipeline.
+    // Place routing here so it observes the rewritten path.
     app.UseRouting();
 
-    // Dev tools — version-segmented API docs (one OpenAPI doc per API version group)
+
     if (app.Environment.IsDevelopment())
     {
         string scalarAppName = builder.Configuration["Branding:AppName"] ?? "Wallow";
@@ -670,7 +498,7 @@ try
 
     app.MapDefaultEndpoints();
 
-    // Health checks
+
     app.MapHealthChecks("/health", new HealthCheckOptions
     {
         Predicate = _ => true,
@@ -694,7 +522,7 @@ try
         ResponseWriter = WriteHealthCheckResponse
     }).AllowAnonymous();
 
-    // Info endpoint (non-production only — avoid exposing version info in production)
+
     if (!app.Environment.IsProduction())
     {
         app.MapGet("/", () => Results.Ok(new
@@ -705,51 +533,37 @@ try
         })).ExcludeFromDescription().AllowAnonymous();
     }
 
-    // API key authentication (checks X-Api-Key header first, falls through to JWT if not present)
-    // Only register when ApiKeys module is enabled — the middleware depends on IApiKeyService
+    // API-key middleware requires the enabled ApiKeys service registration.
     if (enabledModules.IsModuleEnabled<ApiKeysModule>())
     {
         app.UseMiddleware<ApiKeyAuthenticationMiddleware>();
     }
 
-    // Authentication (OpenIddict token validation)
+
     app.UseAuthentication();
 
-    // Tenant resolution (reads org claim from JWT → populates ITenantContext)
-    // Note: For API key auth, tenant is already set by ApiKeyAuthenticationMiddleware
+    // Resolve bearer/cookie tenant context; API keys may have populated it already.
     app.UseMiddleware<TenantResolutionMiddleware>();
 
-    // Tenant observability (sets wallow.tenant_id on Activity tag + W3C Baggage for downstream propagation)
+
     app.UseMiddleware<TenantBaggageMiddleware>();
 
-    // Permission expansion (reads roles → expands to PermissionType claims)
+
     app.UseMiddleware<PermissionExpansionMiddleware>();
 
-    // Rate limiting — deliberately AFTER authentication and tenant resolution so the
-    // per-user and per-tenant partition keys see a real principal; any earlier and every
-    // policy silently degrades to per-IP. Development opts out entirely; Testing runs the
-    // limiter with the generous limits in appsettings.Testing.json so partitioning is
-    // provable in integration tests. Requests count toward a window regardless of the
-    // downstream status code.
+    // Partition limits after authentication and tenant resolution; Development opts out.
     if (!app.Environment.IsDevelopment())
     {
         app.UseRateLimiter();
     }
 
-    // Unmatched paths become a 404 problem before authorization runs. With no endpoint, the
-    // authorization FallbackPolicy challenges the request, and under the nosniff header a
-    // browser navigation to a typo'd URL downloads an empty file instead of showing an error.
-    // Deliberately a middleware rather than a MapFallback endpoint: a catch-all endpoint joins
-    // every routing DFA node, and ConsumesMatcherPolicy then drops controllers that declare
-    // [Consumes] from the no-Content-Type edge — every bodyless GET on such a controller would
-    // 404. It would also swallow 405s. Endpoint-less handlers that run earlier (OpenIddict's
-    // request handlers inside UseAuthentication) are unaffected; the Hangfire dashboard runs
-    // later and owns its path, so it is exempted here.
+    // Return 404 before fallback authorization can challenge an unmatched path.
+    // Use middleware so no catch-all route changes controller matching; Hangfire handles its own path.
     app.Use(static async (context, next) =>
     {
         if (context.GetEndpoint() is null && !context.Request.Path.StartsWithSegments("/hangfire"))
         {
-            // UseStatusCodePages turns the empty response into a problem+json body.
+
             context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
         }
@@ -757,32 +571,30 @@ try
         await next();
     });
 
-    // Authorization (checks [HasPermission] attributes)
+
     app.UseAuthorization();
 
-    // Session management (track activity on the active-session ledger)
+
     app.UseSessionActivity();
 
-    // Module tagging (tags HTTP requests with wallow.module for observability)
+
     app.UseMiddleware<ModuleTaggingMiddleware>();
 
-    // Service account usage tracking
+
     app.UseServiceAccountTracking();
 
-    // Hangfire dashboard
+
     app.UseHangfireDashboard();
 
-    // Endpoints
+
     app.MapControllers();
 
     app.MapHub<RealtimeHub>("/hubs/realtime");
-    // Kept out of the API description: the stream is text/event-stream, so there is no response
-    // body schema to publish and its untyped 200 would generate an SDK client method returning
-    // unknown. Browsers consume it through EventSource, not the generated client.
+    // EventSource consumes this stream; exclude its untyped response from SDK generation.
     app.MapGet("/events", SseEndpoint.HandleSseConnection).RequireAuthorization().ExcludeFromDescription();
     app.MapAsyncApiEndpoints(handlerAssemblies);
 
-    // API-level recurring jobs (use DI-based IRecurringJobManager, not static RecurringJob)
+
     await using (AsyncServiceScope jobScope = app.Services.CreateAsyncScope())
     {
         IRecurringJobManager jobManager = jobScope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
@@ -824,8 +636,7 @@ try
         }
 
     }
-    // Unhook OpenTelemetry Redis profiler before DI disposal to prevent ObjectDisposedException
-    // race condition when SignalR's RedisHubLifetimeManager unsubscribes during shutdown
+    // Detach Redis profiling before SignalR unsubscribes during DI disposal.
     IHostApplicationLifetime lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
     lifetime.ApplicationStopping.Register(() =>
     {
@@ -836,7 +647,7 @@ try
         }
     });
 
-    // Startup configuration validation — fail fast if critical settings are missing
+
     if (!app.Environment.IsEnvironment("Testing"))
     {
         Dictionary<string, string?> requiredConfig = new()
@@ -857,7 +668,7 @@ try
                 "Ensure all required settings are configured in appsettings or environment variables.");
         }
 
-        // Dev credential guardrails — prevent development secrets from being used in non-Development environments
+        // Reject recognized development credential placeholders outside Development and Testing.
         if (!app.Environment.IsDevelopment())
         {
             List<string> devCredentialViolations = [];
@@ -920,7 +731,7 @@ finally
     await Log.CloseAndFlushAsync();
 }
 
-// Health check response writer
+
 static Task WriteHealthCheckResponse(HttpContext context, HealthReport report)
 {
     context.Response.ContentType = "application/json";

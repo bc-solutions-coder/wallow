@@ -1,4 +1,4 @@
-# EditorConfig is awesome: https://EditorConfig.org
+
 
 # Top-most EditorConfig file
 root = true
@@ -132,7 +132,7 @@ dotnet_style_prefer_is_null_check_over_reference_equality_method = true:warning
 
 # C# Code Style Rules
 
-# var preferences - NEVER use var, always explicit types
+# Prefer explicit types
 csharp_style_var_for_built_in_types = false:warning
 csharp_style_var_when_type_is_apparent = false:warning
 csharp_style_var_elsewhere = false:warning
@@ -188,7 +188,7 @@ dotnet_diagnostic.CA1000.severity = warning
 # CA1001: Types that own disposable fields should be disposable
 dotnet_diagnostic.CA1001.severity = warning
 
-# CA1030: Consider making 'Raise*' an event
+# CA1030: Use events where appropriate
 # Disabled: DDD patterns use RaiseDomainEvent which is intentionally not a C# event
 dotnet_diagnostic.CA1030.severity = none
 
@@ -196,19 +196,19 @@ dotnet_diagnostic.CA1030.severity = none
 dotnet_diagnostic.CA1031.severity = silent
 
 # CA1032: Implement standard exception constructors
-# Disabled: All exceptions inherit DomainException which enforces structured creation
+# Domain exceptions use structured constructors.
 dotnet_diagnostic.CA1032.severity = none
 
-# CA1054: URI parameters should not be strings
+# CA1054: URI-like parameters should not be strings
 # Disabled: DTOs and contracts use string URLs for serialization simplicity
 dotnet_diagnostic.CA1054.severity = none
 
-# CA1056: URI properties should not be strings
+# CA1056: URI-like properties should not be strings
 # Disabled: DTOs and contracts use string URLs for serialization simplicity
 dotnet_diagnostic.CA1056.severity = none
 
 # CA1062: Validate arguments of public methods
-# Disabled: We use nullable reference types for null safety instead
+# Nullable annotations guide callers; boundary code owns runtime null checks.
 dotnet_diagnostic.CA1062.severity = none
 
 # CA1303: Do not pass literals as localized parameters
@@ -235,7 +235,7 @@ dotnet_diagnostic.CA1711.severity = none
 # CA1716: Identifiers should not match keywords
 dotnet_diagnostic.CA1716.severity = suggestion
 
-# CA1720: Identifiers should not contain type names
+# CA1720: Identifier contains type name
 dotnet_diagnostic.CA1720.severity = none
 
 # CA1724: Type names should not match namespaces
@@ -245,25 +245,25 @@ dotnet_diagnostic.CA1724.severity = suggestion
 dotnet_diagnostic.CA1812.severity = none
 
 # CA1515: Consider making public types internal
-# Disabled: This is an application, not a library. Test classes must be public for xUnit discovery.
+# Public types support module contracts and test discovery.
 dotnet_diagnostic.CA1515.severity = none
 
-# CA1816: Call GC.SuppressFinalize correctly
+# CA1816: Dispose methods should call SuppressFinalize
 dotnet_diagnostic.CA1816.severity = warning
 
 # CA1822: Mark members as static
 dotnet_diagnostic.CA1822.severity = suggestion
 
-# CA2007: Do not directly await a Task
+# CA2007: Consider calling ConfigureAwait on the awaited task
 dotnet_diagnostic.CA2007.severity = none
 
-# CA2011: Do not assign property within its setter
+# CA2011: Avoid infinite recursion
 dotnet_diagnostic.CA2011.severity = warning
 
 # CA2012: Use ValueTasks correctly
 dotnet_diagnostic.CA2012.severity = warning
 
-# CA2016: Forward CancellationToken parameter
+# CA2016: Forward the 'CancellationToken' parameter to methods
 dotnet_diagnostic.CA2016.severity = suggestion
 
 # CA2201: Do not raise reserved exception types
@@ -284,13 +284,13 @@ dotnet_diagnostic.CA2225.severity = none
 # CA2227: Collection properties should be read only
 dotnet_diagnostic.CA2227.severity = none
 
-# CA2234: Pass System.Uri objects instead of strings
+# CA2234: Pass system uri objects instead of strings
 dotnet_diagnostic.CA2234.severity = suggestion
 
 # CA2245: Do not assign a property to itself
 dotnet_diagnostic.CA2245.severity = warning
 
-# CA2249: Consider using String.Contains instead of String.IndexOf
+# CA2249: Consider using 'string.Contains' instead of 'string.IndexOf'
 dotnet_diagnostic.CA2249.severity = suggestion
 
 # IDE0001: Simplify name
@@ -502,7 +502,7 @@ dotnet_naming_symbols.private_fields.applicable_accessibilities = private
 dotnet_naming_style.start_with_underscore.capitalization = camel_case
 dotnet_naming_style.start_with_underscore.required_prefix = _
 
-# Public members should be PascalCase
+# Public, internal, and protected members use PascalCase
 dotnet_naming_rule.public_members_should_be_pascal_case.severity = warning
 dotnet_naming_rule.public_members_should_be_pascal_case.symbols = public_members
 dotnet_naming_rule.public_members_should_be_pascal_case.style = pascal_case
@@ -529,9 +529,9 @@ dotnet_naming_symbols.parameters.applicable_kinds = parameter
 dotnet_naming_symbols.parameters.applicable_accessibilities = *
 
 # StyleCop Analyzer Rules
-# Documentation rules - disabled for baseline, will enable incrementally
+# Documentation rules
 
-# SA0001: XML comment analysis is disabled due to project configuration
+# SA0001: XML comment analysis disabled
 dotnet_diagnostic.SA0001.severity = none
 
 # SA1600: Elements should be documented
@@ -597,7 +597,7 @@ dotnet_diagnostic.SA1621.severity = none
 # SA1622: Generic type parameter documentation should have text
 dotnet_diagnostic.SA1622.severity = none
 
-# SA1623: Property summary documentation should begin with standard text
+# SA1623: Property summary documentation should match accessors
 dotnet_diagnostic.SA1623.severity = none
 
 # SA1624: Property summary documentation should omit accessor with restricted access
@@ -651,7 +651,7 @@ dotnet_diagnostic.SA1643.severity = none
 # SA1644: Documentation headers should not contain blank lines
 dotnet_diagnostic.SA1644.severity = none
 
-# SA1648: Inherit doc should be used with inheriting class
+# SA1648: inheritdoc should be used with inheriting class
 dotnet_diagnostic.SA1648.severity = none
 
 # SA1649: File name should match first type name
@@ -663,7 +663,7 @@ dotnet_diagnostic.SA1651.severity = none
 # SA1652: Enable XML documentation output
 dotnet_diagnostic.SA1652.severity = none
 
-# Ordering rules - align with existing .editorconfig
+# Ordering rules
 # SA1200: Using directives should be placed correctly (outside namespace - already configured)
 dotnet_diagnostic.SA1200.severity = warning
 
@@ -706,10 +706,10 @@ dotnet_diagnostic.SA1212.severity = warning
 # SA1213: Event accessors should follow order
 dotnet_diagnostic.SA1213.severity = warning
 
-# SA1214: Readonly elements should appear before non-readonly elements
+# SA1214: Readonly fields should appear before non-readonly fields
 dotnet_diagnostic.SA1214.severity = none
 
-# Readability rules - defer to cleanup tasks
+# Readability rules
 # SA1101: Prefix local calls with this
 dotnet_diagnostic.SA1101.severity = none
 
@@ -898,7 +898,7 @@ dotnet_diagnostic.SA1508.severity = none
 # SA1509: Opening braces should not be preceded by blank line
 dotnet_diagnostic.SA1509.severity = none
 
-# SA1510: Chained statement blocks should not be preceded by a blank line
+# SA1510: Chained statement blocks should not be preceded by blank line
 dotnet_diagnostic.SA1510.severity = none
 
 # SA1511: While-do footer should not be preceded by blank line
@@ -922,7 +922,7 @@ dotnet_diagnostic.SA1516.severity = none
 # SA1517: Code should not contain blank lines at start of file
 dotnet_diagnostic.SA1517.severity = none
 
-# SA1518: Code should not contain blank lines at end of file
+# SA1518: Use line endings correctly at end of file
 dotnet_diagnostic.SA1518.severity = none
 
 # SA1519: Braces should not be omitted from multi-line child statement
@@ -931,7 +931,7 @@ dotnet_diagnostic.SA1519.severity = none
 # SA1520: Use braces consistently
 dotnet_diagnostic.SA1520.severity = none
 
-# Spacing rules - defer to .editorconfig settings
+# Spacing rules
 # SA1000-SA1028: Spacing rules
 dotnet_diagnostic.SA1000.severity = warning
 dotnet_diagnostic.SA1001.severity = warning
@@ -973,10 +973,10 @@ dotnet_diagnostic.SA1311.severity = warning
 # Disabled: underscore discard parameters in lambdas (e.g. (_, context) => ...) are idiomatic C#
 dotnet_diagnostic.SA1313.severity = none
 
-# ======================================
+
 # Roslynator Analyzer Rules
 # https://josefpihrt.github.io/docs/roslynator/analyzers
-# ======================================
+
 
 # RCS1001: Add braces (when expression spans over multiple lines)
 dotnet_diagnostic.RCS1001.severity = warning
@@ -987,7 +987,7 @@ dotnet_diagnostic.RCS1003.severity = warning
 # RCS1005: Simplify nested using statement
 dotnet_diagnostic.RCS1005.severity = suggestion
 
-# RCS1006: Merge else clause with nested if statement
+# RCS1006: Merge 'else' with nested 'if'
 dotnet_diagnostic.RCS1006.severity = suggestion
 
 # RCS1013: Use predefined type
@@ -996,7 +996,7 @@ dotnet_diagnostic.RCS1013.severity = warning
 # RCS1015: Use nameof operator
 dotnet_diagnostic.RCS1015.severity = warning
 
-# RCS1018: Add accessibility modifiers
+# RCS1018: Add/remove accessibility modifiers
 dotnet_diagnostic.RCS1018.severity = warning
 
 # RCS1019: Order modifiers
@@ -1008,7 +1008,7 @@ dotnet_diagnostic.RCS1020.severity = warning
 # RCS1021: Convert lambda expression body to expression body
 dotnet_diagnostic.RCS1021.severity = suggestion
 
-# RCS1031: Remove unnecessary braces
+# RCS1031: Remove unnecessary braces in switch section
 dotnet_diagnostic.RCS1031.severity = none
 
 # RCS1032: Remove redundant parentheses
@@ -1017,22 +1017,22 @@ dotnet_diagnostic.RCS1032.severity = suggestion
 # RCS1033: Remove redundant boolean literal
 dotnet_diagnostic.RCS1033.severity = warning
 
-# RCS1036: Remove redundant empty line
+# RCS1036: [deprecated] Remove unnecessary blank line
 dotnet_diagnostic.RCS1036.severity = suggestion
 
 # RCS1037: Remove trailing white-space
 dotnet_diagnostic.RCS1037.severity = warning
 
-# RCS1038: Remove empty statement
+# RCS1038: [deprecated] Remove empty statement
 dotnet_diagnostic.RCS1038.severity = warning
 
 # RCS1039: Remove argument list from attribute
 dotnet_diagnostic.RCS1039.severity = suggestion
 
-# RCS1040: Remove empty else clause
+# RCS1040: [deprecated] Remove empty 'else' clause
 dotnet_diagnostic.RCS1040.severity = warning
 
-# RCS1041: Remove empty initializer
+# RCS1041: [deprecated] Remove empty initializer
 dotnet_diagnostic.RCS1041.severity = warning
 
 # RCS1042: Remove enum default underlying type
@@ -1054,7 +1054,7 @@ dotnet_diagnostic.RCS1048.severity = suggestion
 # RCS1049: Simplify boolean comparison
 dotnet_diagnostic.RCS1049.severity = warning
 
-# RCS1055: Avoid semicolon at the end of declaration
+# RCS1055: Unnecessary semicolon at the end of declaration
 dotnet_diagnostic.RCS1055.severity = warning
 
 # RCS1058: Use compound assignment
@@ -1063,10 +1063,10 @@ dotnet_diagnostic.RCS1058.severity = suggestion
 # RCS1060: Declare each type in separate file
 dotnet_diagnostic.RCS1060.severity = none
 
-# RCS1061: Merge if statement with nested if statement
+# RCS1061: Merge 'if' with nested 'if'
 dotnet_diagnostic.RCS1061.severity = suggestion
 
-# RCS1066: Remove empty finally clause
+# RCS1066: [deprecated] Remove empty 'finally' clause
 dotnet_diagnostic.RCS1066.severity = warning
 
 # RCS1068: Simplify logical negation
@@ -1081,7 +1081,7 @@ dotnet_diagnostic.RCS1070.severity = warning
 # RCS1071: Remove redundant base constructor call
 dotnet_diagnostic.RCS1071.severity = suggestion
 
-# RCS1072: Remove empty namespace declaration
+# RCS1072: [deprecated] Remove empty namespace declaration
 dotnet_diagnostic.RCS1072.severity = warning
 
 # RCS1073: Convert 'if' to 'return' statement
@@ -1093,7 +1093,7 @@ dotnet_diagnostic.RCS1074.severity = suggestion
 # RCS1077: Optimize LINQ method call
 dotnet_diagnostic.RCS1077.severity = suggestion
 
-# RCS1078: Use "" or 'nameof' instead of null or empty string
+# RCS1078: Use "" or 'string.Empty'
 dotnet_diagnostic.RCS1078.severity = warning
 
 # RCS1079: Throwing of new NotImplementedException
@@ -1108,19 +1108,19 @@ dotnet_diagnostic.RCS1084.severity = suggestion
 # RCS1085: Use auto-implemented property
 dotnet_diagnostic.RCS1085.severity = suggestion
 
-# RCS1089: Use ++ operator instead of assignment
+# RCS1089: Use --/++ operator instead of assignment
 dotnet_diagnostic.RCS1089.severity = suggestion
 
-# RCS1090: Add call to 'ConfigureAwait' (or remove)
+# RCS1090: Add/remove 'ConfigureAwait(false)' call
 dotnet_diagnostic.RCS1090.severity = none
 
-# RCS1091: Remove empty region
+# RCS1091: [deprecated] Remove empty region
 dotnet_diagnostic.RCS1091.severity = warning
 
-# RCS1093: Remove file with no code
+# RCS1093: File contains no code
 dotnet_diagnostic.RCS1093.severity = warning
 
-# RCS1096: Convert 'HasFlag' call to bitwise operation (or vice versa)
+# RCS1096: Use 'HasFlag' method or bitwise operator
 dotnet_diagnostic.RCS1096.severity = none
 
 # RCS1097: Remove redundant 'ToString' call
@@ -1135,7 +1135,7 @@ dotnet_diagnostic.RCS1099.severity = warning
 # RCS1102: Make class static
 dotnet_diagnostic.RCS1102.severity = suggestion
 
-# RCS1103: Convert 'if' to 'return' statement
+# RCS1103: Convert 'if' to assignment
 dotnet_diagnostic.RCS1103.severity = suggestion
 
 # RCS1104: Simplify conditional expression
@@ -1144,10 +1144,10 @@ dotnet_diagnostic.RCS1104.severity = suggestion
 # RCS1105: Unnecessary interpolation
 dotnet_diagnostic.RCS1105.severity = warning
 
-# RCS1106: Remove empty destructor
+# RCS1106: [deprecated] Remove empty destructor
 dotnet_diagnostic.RCS1106.severity = warning
 
-# RCS1107: Remove redundant 'async' await
+# RCS1107: Remove redundant 'ToCharArray' call
 dotnet_diagnostic.RCS1107.severity = warning
 
 # RCS1110: Declare type inside namespace
@@ -1285,10 +1285,10 @@ dotnet_diagnostic.RCS1174.severity = warning
 # RCS1175: Unused 'this' parameter
 dotnet_diagnostic.RCS1175.severity = warning
 
-# RCS1176: Use 'var' instead of explicit type (when the type is not obvious)
+# RCS1176: [deprecated] Use 'var' instead of explicit type (when the type is not obvious)
 dotnet_diagnostic.RCS1176.severity = none
 
-# RCS1177: Use 'var' instead of explicit type (in foreach)
+# RCS1177: [deprecated] Use 'var' instead of explicit type (in foreach)
 dotnet_diagnostic.RCS1177.severity = none
 
 # RCS1179: Unnecessary assignment
@@ -1366,7 +1366,7 @@ dotnet_diagnostic.RCS1205.severity = suggestion
 # RCS1206: Use conditional access instead of conditional expression
 dotnet_diagnostic.RCS1206.severity = suggestion
 
-# RCS1207: Convert anonymous function to method group (or vice versa)
+# RCS1207: Use anonymous function or method group
 dotnet_diagnostic.RCS1207.severity = none
 
 # RCS1208: Reduce 'if' nesting
@@ -1378,7 +1378,7 @@ dotnet_diagnostic.RCS1209.severity = suggestion
 # RCS1210: Return completed task instead of returning null
 dotnet_diagnostic.RCS1210.severity = warning
 
-# RCS1211: Remove unnecessary 'else' clause
+# RCS1211: Remove unnecessary 'else'
 dotnet_diagnostic.RCS1211.severity = suggestion
 
 # RCS1212: Remove redundant assignment
@@ -1426,7 +1426,7 @@ dotnet_diagnostic.RCS1226.severity = none
 # RCS1227: Validate arguments correctly
 dotnet_diagnostic.RCS1227.severity = suggestion
 
-# RCS1228: Unused element in documentation comment
+# RCS1228: Unused element in a documentation comment
 dotnet_diagnostic.RCS1228.severity = none
 
 # RCS1229: Use async/await when necessary
@@ -1543,10 +1543,10 @@ dotnet_diagnostic.RCS1267.severity = suggestion
 # RCS1268: Simplify numeric comparison
 dotnet_diagnostic.RCS1268.severity = suggestion
 
-# ======================================
+
 # Meziantou Analyzer Rules
 # https://github.com/meziantou/Meziantou.Analyzer/tree/main/docs/Rules
-# ======================================
+
 
 # MA0001: StringComparison is missing
 dotnet_diagnostic.MA0001.severity = warning
@@ -1599,7 +1599,7 @@ dotnet_diagnostic.MA0016.severity = none
 # MA0017: Abstract types should not have public or internal constructors
 dotnet_diagnostic.MA0017.severity = warning
 
-# MA0018: Do not declare static members on generic types (deprecated - use CA1000)
+# MA0018: Do not declare static members on generic types (deprecated; use CA1000 instead)
 dotnet_diagnostic.MA0018.severity = none
 
 # MA0019: Use EventArgs.Empty
@@ -1635,13 +1635,13 @@ dotnet_diagnostic.MA0028.severity = suggestion
 # MA0029: Combine LINQ methods
 dotnet_diagnostic.MA0029.severity = suggestion
 
-# MA0030: Remove useless DefaultValue attribute
+# MA0030: Remove useless OrderBy call
 dotnet_diagnostic.MA0030.severity = warning
 
 # MA0031: Optimize Enumerable.Count() usage
 dotnet_diagnostic.MA0031.severity = suggestion
 
-# MA0032: Use an overload with a CancellationToken argument
+# MA0032: Use an overload with a CancellationToken argument, even when no token is available in scope
 dotnet_diagnostic.MA0032.severity = suggestion
 
 # MA0033: Do not tag instance fields with ThreadStaticAttribute
@@ -1653,10 +1653,10 @@ dotnet_diagnostic.MA0035.severity = warning
 # MA0036: Make class static
 dotnet_diagnostic.MA0036.severity = suggestion
 
-# MA0037: Remove empty finalizer
+# MA0037: Remove empty statement
 dotnet_diagnostic.MA0037.severity = warning
 
-# MA0038: Make method static (deprecated)
+# MA0038: Make method static (deprecated, use CA1822 instead)
 dotnet_diagnostic.MA0038.severity = none
 
 # MA0039: Do not write your own certificate validation method
@@ -1665,10 +1665,10 @@ dotnet_diagnostic.MA0039.severity = warning
 # MA0040: Forward the CancellationToken parameter to methods that take one
 dotnet_diagnostic.MA0040.severity = suggestion
 
-# MA0041: Make property static (deprecated)
+# MA0041: Make property static (deprecated, use CA1822 instead)
 dotnet_diagnostic.MA0041.severity = none
 
-# MA0042: Do not use blocking calls in an async method
+# MA0042: Do not use blocking calls when the calling method is async
 dotnet_diagnostic.MA0042.severity = warning
 
 # MA0043: Use nameof operator in ArgumentException
@@ -1677,7 +1677,7 @@ dotnet_diagnostic.MA0043.severity = warning
 # MA0044: Remove useless ToString call
 dotnet_diagnostic.MA0044.severity = warning
 
-# MA0045: Do not use blocking call in a sync method (deprecated)
+# MA0045: Do not use blocking calls, even when the calling method must become async
 dotnet_diagnostic.MA0045.severity = none
 
 # MA0046: Use EventHandler<T> to declare events
@@ -1701,7 +1701,7 @@ dotnet_diagnostic.MA0051.severity = none
 # MA0052: Replace constant Enum.ToString with nameof
 dotnet_diagnostic.MA0052.severity = warning
 
-# MA0053: Make class sealed
+# MA0053: Make class or record sealed
 dotnet_diagnostic.MA0053.severity = none
 
 # MA0054: Embed the caught exception as innerException
@@ -1725,7 +1725,7 @@ dotnet_diagnostic.MA0059.severity = warning
 # MA0060: The value returned by Stream.Read/Stream.ReadAsync is not used
 dotnet_diagnostic.MA0060.severity = warning
 
-# MA0061: Method overrides should not change parameter defaults
+# MA0061: Method overrides should not change default values
 dotnet_diagnostic.MA0061.severity = warning
 
 # MA0062: Non-flags enums should not be marked with "FlagsAttribute"
@@ -1779,7 +1779,7 @@ dotnet_diagnostic.MA0077.severity = warning
 # MA0078: Use 'Cast' instead of 'Select' to cast
 dotnet_diagnostic.MA0078.severity = suggestion
 
-# MA0079: Forward cancellation token using cancellation token.ThrowIfCancellationRequested
+# MA0079: Forward the CancellationToken using .WithCancellation()
 dotnet_diagnostic.MA0079.severity = suggestion
 
 # MA0080: Use a cancellation token using .WithCancellation()
@@ -1821,7 +1821,7 @@ dotnet_diagnostic.MA0091.severity = warning
 # MA0092: Sender should be 'null' for static events
 dotnet_diagnostic.MA0092.severity = warning
 
-# MA0093: EventArgs should not be null
+# MA0093: EventArgs should not be null when raising an event
 dotnet_diagnostic.MA0093.severity = warning
 
 # MA0094: A class that provides CompareTo(T) should implement IComparable<T>
@@ -1860,10 +1860,10 @@ dotnet_diagnostic.MA0104.severity = none
 # MA0105: Use the lambda parameters instead of using a closure
 dotnet_diagnostic.MA0105.severity = warning
 
-# MA0106: Avoid closure by using an overload with the 'owner' parameter
+# MA0106: Avoid closure by using an overload with the 'factoryArgument' parameter
 dotnet_diagnostic.MA0106.severity = suggestion
 
-# MA0107: Do not use culture-sensitive object.Equals
+# MA0107: Do not use object.ToString
 dotnet_diagnostic.MA0107.severity = warning
 
 # MA0108: Remove redundant argument value
@@ -1875,7 +1875,7 @@ dotnet_diagnostic.MA0109.severity = none
 # MA0110: Use the Regex source generator
 dotnet_diagnostic.MA0110.severity = suggestion
 
-# MA0111: Use pattern matching instead of sequence of && or ||
+# MA0111: Use string.Create instead of FormattableString
 dotnet_diagnostic.MA0111.severity = none
 
 # MA0112: Use 'Count > 0' instead of 'Any()'
@@ -1890,10 +1890,10 @@ dotnet_diagnostic.MA0114.severity = suggestion
 # MA0115: Unknown component parameter
 dotnet_diagnostic.MA0115.severity = warning
 
-# MA0116: Parameters with [SupplyParameterFromQuery] attributes should also be marked [Parameter]
+# MA0116: Parameters with [SupplyParameterFromQuery] attributes should also be marked as [Parameter]
 dotnet_diagnostic.MA0116.severity = warning
 
-# MA0117: Parameters with [EditorRequired] attributes should also be marked [Parameter]
+# MA0117: Parameters with [EditorRequired] attributes should also be marked as [Parameter]
 dotnet_diagnostic.MA0117.severity = warning
 
 # MA0118: [JSInvokable] methods must be public
@@ -1908,13 +1908,13 @@ dotnet_diagnostic.MA0120.severity = suggestion
 # MA0121: Do not overwrite parameter value
 dotnet_diagnostic.MA0121.severity = none
 
-# MA0122: Parameters with [SupplyParameterFromForm] attributes should also be marked [Parameter]
+# MA0122: Parameters with [SupplyParameterFromQuery] attributes are only valid in routable components (@page)
 dotnet_diagnostic.MA0122.severity = warning
 
 # MA0123: Sequence number must be a constant
 dotnet_diagnostic.MA0123.severity = warning
 
-# MA0124: Log parameter type is not valid
+# MA0124: Microsoft.Extensions.Logging parameter type is not valid
 dotnet_diagnostic.MA0124.severity = warning
 
 # MA0125: The list of log parameter types contains an invalid type
@@ -1941,13 +1941,13 @@ dotnet_diagnostic.MA0131.severity = warning
 # MA0132: Do not convert implicitly to DateTimeOffset
 dotnet_diagnostic.MA0132.severity = suggestion
 
-# MA0133: Use DateTimeOffset instead of DateTime
+# MA0133: Use DateTimeOffset instead of relying on the implicit conversion
 dotnet_diagnostic.MA0133.severity = none
 
 # MA0134: Observe result of async calls
 dotnet_diagnostic.MA0134.severity = warning
 
-# MA0135: A class that defines Dispose() should also define a finalizer
+# MA0135: The log parameter has no configured type
 dotnet_diagnostic.MA0135.severity = none
 
 # MA0136: Raw String contains an implicit end of line character
@@ -1957,28 +1957,28 @@ dotnet_diagnostic.MA0136.severity = none
 # Relaxed: Wolverine handlers use 'Handle' not 'HandleAsync' by convention
 dotnet_diagnostic.MA0137.severity = suggestion
 
-# MA0138: Do not use default timeout on CancellationTokenSource
+# MA0138: Do not use 'Async' suffix when a method does not return an awaitable type
 dotnet_diagnostic.MA0138.severity = none
 
-# MA0139: Use non-generic method
+# MA0139: Serilog parameter type is not valid
 dotnet_diagnostic.MA0139.severity = suggestion
 
 # MA0140: Both if and else branch have identical code
 dotnet_diagnostic.MA0140.severity = warning
 
-# MA0141: Use pattern matching instead of inequality operators for null check
+# MA0141: Use 'is not null' instead of '!= null'
 dotnet_diagnostic.MA0141.severity = none
 
-# MA0142: Use pattern matching instead of equality operators for null check
+# MA0142: Use 'is null' instead of '== null'
 dotnet_diagnostic.MA0142.severity = none
 
 # MA0143: Primary constructor parameters should be readonly
 dotnet_diagnostic.MA0143.severity = warning
 
-# MA0144: Use pattern matching instead of Type.IsAssignableTo
+# MA0144: Use System.OperatingSystem to check the current OS
 dotnet_diagnostic.MA0144.severity = suggestion
 
-# MA0145: Signature is not compatible with source generated regex
+# MA0145: Signature for [UnsafeAccessorAttribute] method is not valid
 dotnet_diagnostic.MA0145.severity = warning
 
 # MA0146: Name must be set explicitly on local functions
@@ -1987,13 +1987,13 @@ dotnet_diagnostic.MA0146.severity = none
 # MA0147: Avoid async void method for delegate
 dotnet_diagnostic.MA0147.severity = warning
 
-# MA0148: Use pattern matching instead of equality operators for discrete value
+# MA0148: Use 'is' patterns instead of '==' for constant values
 dotnet_diagnostic.MA0148.severity = none
 
-# MA0149: Use pattern matching instead of inequality operators for discrete value
+# MA0149: Use 'is not' patterns instead of '!=' for constant values
 dotnet_diagnostic.MA0149.severity = none
 
-# MA0150: Do not call the default object.ToString explicitly
+# MA0150: Do not call ToString() when the type falls back to object.ToString()
 dotnet_diagnostic.MA0150.severity = warning
 
 # MA0151: DebuggerDisplay must contain valid members
@@ -2008,13 +2008,13 @@ dotnet_diagnostic.MA0153.severity = warning
 # MA0154: Use langword in XML comment
 dotnet_diagnostic.MA0154.severity = none
 
-# MA0155: Use 'in' modifier for a readonly struct in a method signature
+# MA0155: Do not use async void methods
 dotnet_diagnostic.MA0155.severity = none
 
-# MA0156: Use 'in' parameter modifier
+# MA0156: Use 'Async' suffix when a method returns IAsyncEnumerable<T>
 dotnet_diagnostic.MA0156.severity = none
 
-# MA0157: Do not use SetEnvironmentVariable
+# MA0157: Do not use 'Async' suffix when a method returns IAsyncEnumerable<T>
 dotnet_diagnostic.MA0157.severity = none
 
 # MA0158: Use System.Threading.Lock
@@ -2026,7 +2026,7 @@ dotnet_diagnostic.MA0159.severity = suggestion
 # MA0160: Use ContainsKey instead of TryGetValue
 dotnet_diagnostic.MA0160.severity = suggestion
 
-# CA1861: Prefer 'static readonly' fields over constant array arguments
+# CA1861: Avoid constant arrays as arguments
 # Suppressed in EF Core migrations (auto-generated code, not hand-written)
 [**/Migrations/**.cs]
 dotnet_diagnostic.CA1861.severity = none

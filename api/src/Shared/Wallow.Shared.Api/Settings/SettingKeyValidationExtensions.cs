@@ -4,8 +4,7 @@ using Wallow.Shared.Kernel.Settings;
 namespace Wallow.Shared.Api.Settings;
 
 /// <summary>
-/// Turns a <see cref="SettingKeyValidator"/> classification into the <see cref="Result"/> a
-/// settings endpoint answers with, so every module refuses a key with the same code.
+/// Maps setting-key classifications to shared endpoint error codes.
 /// </summary>
 public static class SettingKeyValidationExtensions
 {

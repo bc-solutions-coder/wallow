@@ -75,7 +75,7 @@ public class WallowUserMfaLockoutTests
         WallowUser user = CreateUser();
         int maxAttempts = 3;
 
-        // First lockout
+
         for (int i = 0; i < maxAttempts; i++)
         {
             user.RecordMfaFailure(maxAttempts, _timeProvider);
@@ -84,11 +84,11 @@ public class WallowUserMfaLockoutTests
         DateTimeOffset firstLockoutEnd = user.MfaLockoutEnd!.Value;
         TimeSpan firstDuration = firstLockoutEnd - _timeProvider.GetUtcNow();
 
-        // Advance past first lockout
+
         _timeProvider.Advance(firstDuration + TimeSpan.FromSeconds(1));
         user.ResetMfaAttempts();
 
-        // Second lockout
+
         for (int i = 0; i < maxAttempts; i++)
         {
             user.RecordMfaFailure(maxAttempts, _timeProvider);
@@ -107,7 +107,7 @@ public class WallowUserMfaLockoutTests
         WallowUser user = CreateUser();
         int maxAttempts = 3;
 
-        // Trigger a lockout
+
         for (int i = 0; i < maxAttempts; i++)
         {
             user.RecordMfaFailure(maxAttempts, _timeProvider);

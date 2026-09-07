@@ -10,10 +10,8 @@ using Wallow.Shared.Kernel.Identity;
 namespace Wallow.ApiKeys.Tests.Infrastructure;
 
 /// <summary>
-/// When Identity announces an organization's deletion, every API key in that tenant dies with
-/// it: the PostgreSQL rows are revoked with the deleting actor's id, and the Valkey validation
-/// entries are dropped so a key in flight stops validating immediately. Every cache name is
-/// derived from the PostgreSQL row, so the drops never depend on what the cache still holds.
+/// Verifies row revocation and cache deletion for an organization, including expired
+/// cache entries and already-revoked keys.
 /// </summary>
 public sealed class OrganizationDeletedHandlerTests
 {
@@ -71,7 +69,7 @@ public sealed class OrganizationDeletedHandlerTests
         await _redis.Received(1).KeyDeleteAsync("apikey:hash-cold");
         await _redis.Received(1).KeyDeleteAsync($"apikey:id:{key.Id.Value}");
         await _redis.Received(1).SetRemoveAsync($"apikeys:user:{_keyOwnerId}", key.Id.Value.ToString());
-        // The names come from the row, never from cached JSON — the cache is never even read.
+        // Cleanup must derive names from the row without reading cached metadata.
         await _redis.DidNotReceive().StringGetAsync(Arg.Any<RedisKey>());
     }
 

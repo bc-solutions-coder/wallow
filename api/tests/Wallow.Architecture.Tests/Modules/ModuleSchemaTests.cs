@@ -16,28 +16,9 @@ using Wallow.Shared.Kernel.Extensions;
 namespace Wallow.Architecture.Tests.Modules;
 
 /// <summary>
-/// Guards the "one schema per module, declared once" property across every host that builds a
-/// module's <see cref="DbContext"/>.
+/// Compares module declarations, models and history-table SQL with schema names in committed migration operations.
+/// Migration operations provide an independent expectation when source schema declarations change.
 /// </summary>
-/// <remarks>
-/// <para>
-/// The expectation these tests compare against is deliberately NOT <see cref="IWallowModule.SchemaName"/>.
-/// It is read out of the module's own checked-in EF migrations — the generated
-/// <c>Migrations/*_InitialCreate.cs</c> operations, whose <c>schema:</c> arguments were baked in by
-/// <c>dotnet ef migrations add</c> and are independent of any constant the module source declares
-/// today. Those operations are what actually create the tables in Postgres, so they are the ground
-/// truth for "where this module's data lives"; everything else (the module's declared
-/// <c>SchemaName</c>, each host's <c>MigrationsHistoryTable</c>, the model's default schema) is
-/// checked against them rather than against each other. A guard that only compared the hosts to
-/// <c>SchemaName</c> would pass happily if a schema were renamed everywhere in source while the
-/// committed migrations still created the old one.
-/// </para>
-/// <para>
-/// Nothing here opens a database connection: the connection string is syntactically valid and
-/// unreachable, EF builds its model, its migration operations and its history-table script entirely
-/// in memory, and no test calls <c>Migrate</c>, <c>EnsureCreated</c> or any query.
-/// </para>
-/// </remarks>
 public class ModuleSchemaTests : IClassFixture<ModuleSchemaHostsFixture>
 {
     private readonly ModuleSchemaHostsFixture _hosts;
@@ -178,9 +159,7 @@ public class ModuleSchemaTests : IClassFixture<ModuleSchemaHostsFixture>
     }
 
     /// <summary>
-    /// Reads the schema Npgsql will actually name in the <c>CREATE TABLE</c> it emits for
-    /// <c>__EFMigrationsHistory</c>. <see cref="IHistoryRepository.GetCreateScript"/> is pure SQL
-    /// generation — it opens no connection — which is what lets this suite stay in the fast tier.
+    /// Reads the history-table schema from generated SQL without opening a connection.
     /// </summary>
     private static string MigrationsHistorySchemaOf(DbContext context)
     {
@@ -190,8 +169,7 @@ public class ModuleSchemaTests : IClassFixture<ModuleSchemaHostsFixture>
     }
 
     /// <summary>
-    /// Pulls the schema out of <c>CREATE TABLE IF NOT EXISTS &lt;schema&gt;."__EFMigrationsHistory"</c>,
-    /// tolerating either quoted or bare identifiers.
+    /// Extracts the simple quoted or bare schema qualifier preceding the history-table name.
     /// </summary>
     private static string SchemaQualifierIn(string createScript)
     {
@@ -215,8 +193,7 @@ public class ModuleSchemaTests : IClassFixture<ModuleSchemaHostsFixture>
     }
 
     /// <summary>
-    /// The distinct schemas the module's committed migrations name, across every operation in every
-    /// migration — including the ones nested inside a <see cref="CreateTableOperation"/>.
+    /// Collects schema properties and EnsureSchema names from migration Up operations, including table children.
     /// </summary>
     private static IReadOnlyList<string> SchemasNamedByMigrations(DbContext context)
     {
@@ -307,8 +284,7 @@ public class ModuleSchemaTests : IClassFixture<ModuleSchemaHostsFixture>
 }
 
 /// <summary>
-/// A module <see cref="DbContext"/> plus whatever owns its lifetime in the host that produced it —
-/// the context itself for a pooled factory, the enclosing scope for a scoped registration.
+/// Disposes a context through its owner: the context itself or its service scope.
 /// </summary>
 public sealed class ModuleDbContextLease : IDisposable
 {
@@ -329,15 +305,12 @@ public sealed class ModuleDbContextLease : IDisposable
 }
 
 /// <summary>
-/// Builds the API host's and the migration host's real containers once for the whole suite, each
-/// through that host's own production registration code rather than a hand-rolled
-/// <see cref="DbContextOptions"/> — building the options by hand would test the test, not the host.
+/// Builds providers using API and migration registration methods for context inspection.
 /// </summary>
 public sealed class ModuleSchemaHostsFixture : IDisposable
 {
     /// <summary>
-    /// Syntactically valid and deliberately unreachable. Nothing in this suite connects; the same
-    /// string is already used by <c>ModuleRegistryTests</c> for the same reason.
+    /// Connection settings used for in-memory model and SQL generation.
     /// </summary>
     private const string UnreachableConnectionString = "Host=localhost;Database=test";
 
@@ -363,8 +336,7 @@ public sealed class ModuleSchemaHostsFixture : IDisposable
     }
 
     /// <summary>
-    /// Creates the context the API host would use, out of the module's own
-    /// <c>AddPooledDbContextFactory</c> registration.
+    /// Creates a context through the API module factory registration.
     /// </summary>
     public ModuleDbContextLease CreateApiHostContext(Type contextType)
     {
@@ -375,20 +347,13 @@ public sealed class ModuleSchemaHostsFixture : IDisposable
 
         DbContext context = (DbContext)createDbContext.Invoke(factory, null)!;
 
-        // The pooled factory hands out a context the caller owns; returning it to the pool is what
-        // disposing it means here.
+        // The factory-created context belongs to the caller.
         return new ModuleDbContextLease(context, context);
     }
 
     /// <summary>
-    /// Creates the context the migration host would use, out of
-    /// <c>ModuleMigrations.AddModuleDbContexts</c>'s schema-scoped registration.
+    /// Creates a migration context in a new scope; the returned lease owns that scope.
     /// </summary>
-    /// <remarks>
-    /// <c>AddModuleDbContexts</c> registers scoped contexts, and a scoped context is owned by its
-    /// scope — disposing the context itself would poison the container for every later caller. The
-    /// scope is what the lease disposes.
-    /// </remarks>
     public ModuleDbContextLease CreateMigrationHostContext(Type contextType)
     {
         IServiceScope scope = _migrationHost.CreateScope();
@@ -407,13 +372,11 @@ public sealed class ModuleSchemaHostsFixture : IDisposable
     {
         ServiceCollection services = new();
 
-        // Modules resolve IConnectionMultiplexer at registration time for Redis-backed services.
+        // Supply Redis for module service registration.
         IConnectionMultiplexer mockRedis = Substitute.For<IConnectionMultiplexer>();
         services.AddSingleton(mockRedis);
 
-        // Program.cs registers the shared kernel before the modules; six of the seven module
-        // DbContext registrations resolve TenantSaveChangesInterceptor out of it while building
-        // their DbContextOptions.
+        // Register tenant interceptors before constructing module context options.
         services.AddSharedKernel();
 
         IConfiguration configuration = new ConfigurationBuilder()
@@ -435,8 +398,7 @@ public sealed class ModuleSchemaHostsFixture : IDisposable
     {
         ServiceCollection services = new();
 
-        // Program.cs registers this before the module contexts; IdentityDbContext's constructor
-        // takes an IDataProtectionProvider.
+        // IdentityDbContext requires data protection.
         services.AddDataProtection();
 
         Assembly migrationAssembly = Assembly.Load("Wallow.MigrationService");

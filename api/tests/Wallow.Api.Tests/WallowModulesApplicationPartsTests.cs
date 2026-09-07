@@ -10,16 +10,8 @@ using Wallow.Storage.Api.Controllers;
 namespace Wallow.Api.Tests;
 
 /// <summary>
-/// The unit half of "a disabled module has no HTTP surface": whether the host's part manager still
-/// carries the <see cref="ApplicationPart"/> of a module that is switched off.
+/// Checks removal of disabled module API parts using real assembly identities and a stub enabled set.
 /// </summary>
-/// <remarks>
-/// Deliberately keyed on assembly identity, not on a name or a namespace string — the parts are built
-/// from real controller types in the two real module assemblies, so a test that passes here cannot be
-/// passing because two strings happened to match. The enabled set is a stub module declared by this
-/// test rather than a production module instance, so the assertion is about the method's own behaviour
-/// and not about what the registry currently contains.
-/// </remarks>
 public sealed class WallowModulesApplicationPartsTests
 {
     private static readonly Assembly _apiKeysApiAssembly = typeof(ApiKeysController).Assembly;
@@ -55,8 +47,7 @@ public sealed class WallowModulesApplicationPartsTests
     [Fact]
     public void RemoveDisabledModuleApiParts_LeavesAnAssemblyItDoesNotOwnAlone()
     {
-        // The host's own assembly belongs to no module. Only assemblies the method explicitly claims
-        // as a module's .Api assembly may ever be removal candidates.
+        // The host assembly is outside the module API assemblies owned by this filter.
         ApplicationPartManager manager = CreateManagerWithParts(_hostAssembly);
 
         WallowModules.RemoveDisabledModuleApiParts(manager, []);
@@ -93,7 +84,9 @@ public sealed class WallowModulesApplicationPartsTests
     private static IEnumerable<Assembly> AssembliesOf(ApplicationPartManager manager) =>
         manager.ApplicationParts.OfType<AssemblyPart>().Select(part => part.Assembly);
 
-    /// <summary>A module that exists only inside this test assembly; only its name is read.</summary>
+    /// <summary>
+    /// Supplies the module name used by the application-part filter.
+    /// </summary>
     private sealed class StubModule(string name) : IWallowModule
     {
         public string Name => name;

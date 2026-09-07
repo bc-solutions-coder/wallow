@@ -7,15 +7,8 @@ using Wolverine.Persistence.Durability;
 namespace Wallow.Api.HealthChecks;
 
 /// <summary>
-/// Surfaces the Wolverine dead-letter queue as a health signal and a depth gauge (Wallow-qi90.2).
-/// A dead-lettered envelope is work the API accepted, answered 200 for, and then silently dropped
-/// after retry exhaustion; before this check the only evidence was a row in
-/// <c>wolverine.wolverine_dead_letters</c> that nothing read. A non-empty queue reports
-/// <see cref="HealthStatus.Degraded" /> rather than Unhealthy, and the registration deliberately
-/// omits the "ready" tag: a poison message must show up on <c>/health</c> without failing
-/// readiness probes and restart-looping the container. The depth lands on the
-/// <c>Wallow.Messaging</c> meter every evaluation, so the periodic health publisher doubles as
-/// the metric sampler.
+/// Reports a nonempty dead-letter queue as Degraded and records its depth on Wallow.Messaging.
+/// Storage-query failures are Unhealthy. Host registration omits the ready tag.
 /// </summary>
 internal sealed class WolverineDeadLetterQueueHealthCheck(IMessageStore messageStore) : IHealthCheck
 {

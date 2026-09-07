@@ -12,23 +12,8 @@ using Wallow.Storage.Infrastructure.Modules;
 namespace Wallow.Api.Tests;
 
 /// <summary>
-/// The membership semantics <c>Program.cs</c>'s two module gates now evaluate: whether the enabled
-/// set <c>AddWallowModules</c> returned contains a given module.
+/// Checks enabled-set membership for registered module types and rejection of unknown types.
 /// </summary>
-/// <remarks>
-/// <para>
-/// The gate is named by TYPE rather than by a flag string on purpose, and that is the guarantee this
-/// bead actually buys: <c>IsModuleEnabled&lt;ApiKeysModule&gt;()</c> cannot be misspelled, and a
-/// rename of the module class is a compile error at the call site instead of a branch that silently
-/// takes the "disabled" path. A test cannot demonstrate that — the compiler is the enforcement. What
-/// these facts pin is the part that IS expressible at runtime: the true/false answer for a shipped
-/// module, and the refusal to answer at all for a type the registry does not ship.
-/// </para>
-/// <para>
-/// Real production module instances, not a name-carrying stub: the two call sites reference these
-/// exact types, so a stub would prove something narrower than what ships.
-/// </para>
-/// </remarks>
 public sealed class WallowModulesModuleEnablementTests
 {
     [Fact]
@@ -61,10 +46,7 @@ public sealed class WallowModulesModuleEnablementTests
     [Fact]
     public void IsModuleEnabled_ReadsMembershipOnly_NotTheFeatureFlagTheModuleIsNamedAfter()
     {
-        // The failure mode the bead exists to close, stated directly. A module the registry forces on
-        // regardless of its flag (IWallowModule.IsCore) is IN the enabled set even though
-        // FeatureManagement would answer false for it. The gate reads the set, so it agrees with the
-        // registry rather than with the flag — there is no second opinion left to disagree with.
+        // Core-module membership must be honored independently of feature-flag values.
         IWallowModule identity = WallowModuleRegistry.All.Single(module => module is IdentityModule);
         identity.IsCore.Should().BeTrue(
             "this fact is only about a core module; if Identity stopped being one, pick another");
@@ -78,8 +60,7 @@ public sealed class WallowModulesModuleEnablementTests
     [Fact]
     public void IsModuleEnabled_Throws_ForATypeTheRegistryDoesNotShip()
     {
-        // Unknown module must be loud, not silently false. Returning false here would reintroduce the
-        // exact bug in a new costume: a gate that reads "disabled" for a module nobody can switch on.
+        // An unregistered type is a caller error, not a disabled module.
         IReadOnlyList<IWallowModule> enabledModules = [new StorageModule()];
 
         Action asking = () => enabledModules.IsModuleEnabled<UnshippedModule>();
@@ -100,7 +81,9 @@ public sealed class WallowModulesModuleEnablementTests
         asking.Should().Throw<ArgumentNullException>();
     }
 
-    /// <summary>A module that exists only inside this test assembly, so the registry cannot ship it.</summary>
+    /// <summary>
+    /// Module fixture absent from the production registry.
+    /// </summary>
     private sealed class UnshippedModule : IWallowModule
     {
         public string Name => "Unshipped";

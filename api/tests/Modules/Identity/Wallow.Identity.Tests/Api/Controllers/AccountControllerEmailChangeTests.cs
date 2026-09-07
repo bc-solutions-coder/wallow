@@ -93,7 +93,7 @@ public class AccountControllerEmailChangeTests
     {
         Guid userId = id ?? _userId;
         WallowUser user = WallowUser.Create("Test", "User", email ?? TestEmail, TimeProvider.System);
-        // Set Id via reflection since WallowUser inherits from IdentityUser<Guid>
+        // Align the created user ID with the authenticated test principal.
         typeof(IdentityUser<Guid>).GetProperty(nameof(IdentityUser<Guid>.Id))!.SetValue(user, userId);
         return user;
     }
@@ -145,7 +145,7 @@ public class AccountControllerEmailChangeTests
     {
         WallowUser user = CreateTestUser();
         _userManager.FindByIdAsync(_userId.ToString()).Returns(user);
-        // Simulate 4th attempt (exceeds max 3/hour)
+        // Simulate a fourth request against the three-request limit.
         _redisDb.StringIncrementAsync(Arg.Any<RedisKey>(), Arg.Any<long>(), Arg.Any<CommandFlags>()).Returns(4L);
 
         IActionResult result = await _controller.ChangeEmail(new ChangeEmailRequest(NewEmail));
@@ -162,7 +162,7 @@ public class AccountControllerEmailChangeTests
     public async Task ConfirmEmailChange_WithValidToken_ReturnsOkAndPublishesEvent()
     {
         WallowUser user = CreateTestUser();
-        // Set PendingEmailExpiry to future
+
         typeof(WallowUser).GetProperty(nameof(WallowUser.PendingEmailExpiry))!
             .SetValue(user, new DateTimeOffset(2026, 3, 29, 13, 0, 0, TimeSpan.Zero));
         typeof(WallowUser).GetProperty(nameof(WallowUser.PendingEmail))!
@@ -191,7 +191,7 @@ public class AccountControllerEmailChangeTests
     public async Task ConfirmEmailChange_WhenExpired_AnswersTokenExpired()
     {
         WallowUser user = CreateTestUser();
-        // Set PendingEmailExpiry to past
+
         typeof(WallowUser).GetProperty(nameof(WallowUser.PendingEmailExpiry))!
             .SetValue(user, new DateTimeOffset(2026, 3, 29, 11, 0, 0, TimeSpan.Zero));
         _userManager.FindByIdAsync(_userId.ToString()).Returns(user);

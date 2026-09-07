@@ -5,12 +5,8 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.OAuth2;
 
 /// <summary>
-/// End-session at the auth host ends the whole session, not just the cookie: every token minted
-/// under the session's <c>sid</c> is revoked, so a refresh after logout answers
-/// <c>invalid_grant</c> and the old access token is refused on its next bearer request. The
-/// revocation is scoped to the one session — a second browser session of the same user, even
-/// through the same client, keeps refreshing — which is exactly why tokens chain to a per-login
-/// ad-hoc authorization rather than to the shared permanent consent record.
+/// Checks refresh and bearer rejection after logout, with another browser session left usable.
+/// Also checks logout with valid, mismatched-client, and tampered ID-token hints.
 /// </summary>
 public sealed class EndSessionRevocationTests(WallowApiFactory factory)
     : IdentityIntegrationTestBase(factory)
@@ -28,7 +24,7 @@ public sealed class EndSessionRevocationTests(WallowApiFactory factory)
         using AuthorizationCodeFlowHarness harness = await SignedInAsync(seed);
         TokenOutcome tokens = await ConsentedTokensAsync(harness, seed);
 
-        // The positive baseline that keeps the 401 below honest: a live token passes validation.
+        // Establish that the token works before testing revocation.
         HttpResponseMessage preLogout = await BearerCallAsync(tokens.RequireAccessToken());
         preLogout.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -56,13 +52,12 @@ public sealed class EndSessionRevocationTests(WallowApiFactory factory)
 
         await LogoutAsync(first);
 
-        // The first session is dead...
+
         TokenOutcome firstRefreshed = await first.RefreshAsync(
             seed.ClientId, ClientSecret, firstTokens.RefreshToken!);
         firstRefreshed.Error.Should().Be("invalid_grant", firstRefreshed.Body);
 
-        // ...and the second is untouched: its refresh grant still rotates, and its access token
-        // still authorises a bearer call.
+        // The other session must still refresh and use its newly issued access token.
         TokenOutcome secondRefreshed = await second.RefreshAsync(
             seed.ClientId, ClientSecret, secondTokens.RefreshToken!);
         secondRefreshed.StatusCode.Should().Be(HttpStatusCode.OK, secondRefreshed.Body);
@@ -105,11 +100,8 @@ public sealed class EndSessionRevocationTests(WallowApiFactory factory)
         using AuthorizationCodeFlowHarness harness = await SignedInAsync(seed);
         TokenOutcome tokens = await ConsentedTokensAsync(harness, seed);
 
-        // A cookie-less browser: the auth-host session cookie expired or was cleared before the
-        // relying party sent the user to end-session with the id_token it still holds. The hint
-        // is the only thing naming the session, and it must be enough to revoke its tokens.
-        // Https, because hint validation derives the expected issuer from the request when no
-        // explicit issuer is configured — over http the hint's https iss would never match.
+        // Send only the ID-token hint from a fresh cookie container.
+        // Match the HTTPS issuer used when the token was issued.
         using HttpClient anonymous = Factory.CreateClient(
             new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
         using HttpResponseMessage logout = await anonymous.GetAsync(new Uri(
@@ -137,8 +129,7 @@ public sealed class EndSessionRevocationTests(WallowApiFactory factory)
         using AuthorizationCodeFlowHarness harness = await SignedInAsync(seed);
         TokenOutcome tokens = await ConsentedTokensAsync(harness, seed);
 
-        // A hint is only as good as the client presenting it: a different registered client
-        // replaying someone else's id_token fails the audience check, so the session lives on.
+        // An ID-token hint presented with another client ID must not revoke this session.
         using HttpClient anonymous = Factory.CreateClient(
             new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
         using HttpResponseMessage logout = await anonymous.GetAsync(new Uri(
@@ -160,9 +151,7 @@ public sealed class EndSessionRevocationTests(WallowApiFactory factory)
         using AuthorizationCodeFlowHarness harness = await SignedInAsync(seed);
         TokenOutcome tokens = await ConsentedTokensAsync(harness, seed);
 
-        // A forged hint must never reach the revocation path: OpenIddict drops a hint whose
-        // signature does not verify, so the session stays alive. Https like the honest-hint
-        // test, so the only difference from the passing case is the broken signature.
+        // Keep the issuer scheme unchanged while corrupting the hint signature.
         string tampered = string.Concat(tokens.RequireIdToken()[..^4], "AAAA");
         using HttpClient anonymous = Factory.CreateClient(
             new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
@@ -178,7 +167,9 @@ public sealed class EndSessionRevocationTests(WallowApiFactory factory)
         bearerCall.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    /// <summary>Ends the session the way a browser does: a GET to the end-session endpoint.</summary>
+    /// <summary>
+    /// Requests end-session with the harness cookie and rejects server errors.
+    /// </summary>
     private static async Task LogoutAsync(AuthorizationCodeFlowHarness harness)
     {
         using HttpResponseMessage logout = await harness.Client.GetAsync(
@@ -203,8 +194,7 @@ public sealed class EndSessionRevocationTests(WallowApiFactory factory)
     }
 
     /// <summary>
-    /// A bearer call that runs real JWT validation, not the test auth handler. Over https,
-    /// because the validation handler refuses plain-http requests outright.
+    /// Calls over HTTPS with synthetic authentication disabled to exercise bearer validation.
     /// </summary>
     private async Task<HttpResponseMessage> BearerCallAsync(string accessToken)
     {

@@ -317,7 +317,7 @@ public sealed class SseEndpointTests
             _logger,
             cts.Token);
 
-        // Wait long enough for at least one heartbeat (15s timer)
+        // Allow the 15-second heartbeat timer to tick before cancellation.
         await Task.Delay(TimeSpan.FromSeconds(16));
         await cts.CancelAsync();
         await sseTask;

@@ -3,10 +3,7 @@ using System.Xml.Linq;
 namespace Wallow.Architecture.Tests;
 
 /// <summary>
-/// Guards the AppHost cutover from the Blazor Wallow.Auth project resource to a Node.js
-/// Aspire resource that runs apps/wallow-auth. Verified by static inspection of the AppHost
-/// source, csproj, and Directory.Packages.props (mirrors AspirePackageVersionTests), because
-/// exercising the real AppHost would attempt to start containers and the whole dev stack.
+/// Checks AppHost source and project metadata for the Node auth resource.
 /// </summary>
 public class AppHostAuthResourceTests
 {

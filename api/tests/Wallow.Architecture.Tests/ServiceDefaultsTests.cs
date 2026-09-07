@@ -12,7 +12,7 @@ public sealed class ServiceDefaultsTests : IDisposable
     {
         WebApplicationBuilder builder = WebApplication.CreateBuilder();
 
-        // Ensure no OTEL endpoint is configured
+
         builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"] = null;
 
         builder.AddServiceDefaults();
@@ -24,8 +24,7 @@ public sealed class ServiceDefaultsTests : IDisposable
     [Fact]
     public void AddServiceDefaults_ShouldRegisterServiceDiscovery()
     {
-        // Service discovery registers ServiceEndpointWatcherFactory in the DI container.
-        // We look for it by name because the test project does not reference the ServiceDiscovery package directly.
+        // Resolve the discovery service by its assembly-qualified name.
         Type? serviceDiscoveryType = Type.GetType(
             "Microsoft.Extensions.ServiceDiscovery.ServiceEndpointWatcherFactory, Microsoft.Extensions.ServiceDiscovery");
 
@@ -41,8 +40,7 @@ public sealed class ServiceDefaultsTests : IDisposable
     [Fact]
     public void MapDefaultEndpoints_ShouldNotRegisterHealthEndpoint()
     {
-        // Health checks are now mapped by each app's Program.cs with custom response writers,
-        // not by MapDefaultEndpoints.
+        // Hosts own detailed health routes; defaults supply the liveness route.
         List<string> routePatterns = GetRoutePatterns();
 
         routePatterns.Should().NotContain(p => p.Contains("health"),
@@ -60,8 +58,7 @@ public sealed class ServiceDefaultsTests : IDisposable
 
     private List<string> GetRoutePatterns()
     {
-        // Minimal API endpoints are registered on the app's own data sources,
-        // which are accessed via the IEndpointRouteBuilder interface.
+
         IEndpointRouteBuilder routeBuilder = _app;
         return routeBuilder.DataSources
             .SelectMany(ds => ds.Endpoints)
@@ -73,14 +70,14 @@ public sealed class ServiceDefaultsTests : IDisposable
     [Fact]
     public void AddServiceDefaults_ShouldNotThrow_WhenOtelEndpointIsAbsent()
     {
-        // Arrange - create a fresh builder with no OTEL config
+
         WebApplicationBuilder freshBuilder = WebApplication.CreateBuilder();
         freshBuilder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"] = null;
 
-        // Act
+
         Action act = () => freshBuilder.AddServiceDefaults();
 
-        // Assert
+
         act.Should().NotThrow(
             "AddServiceDefaults should not throw when OTEL_EXPORTER_OTLP_ENDPOINT is absent from config");
     }

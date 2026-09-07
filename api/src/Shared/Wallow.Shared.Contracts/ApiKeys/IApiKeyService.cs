@@ -11,10 +11,10 @@ public interface IApiKeyService
     /// <param name="name">Friendly name for the key</param>
     /// <param name="userId">The user ID this key belongs to</param>
     /// <param name="tenantId">The tenant ID this key is scoped to</param>
-    /// <param name="scopes">Optional permission scopes (null = all permissions)</param>
+    /// <param name="scopes">Permission scopes; null stores an empty scope list</param>
     /// <param name="expiresAt">Optional expiration date</param>
-    /// <param name="ct">Cancellation token</param>
-    /// <returns>The created API key (only returned once, store securely!)</returns>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The full API key, returned only at creation; store it securely.</returns>
     Task<ApiKeyCreateResult> CreateApiKeyAsync(
         string name,
         Guid userId,
@@ -44,19 +44,13 @@ public interface IApiKeyService
     Task<bool> RevokeApiKeyAsync(string keyId, Guid userId, CancellationToken ct = default);
 }
 
-/// <summary>
-/// Result of creating an API key.
-/// </summary>
 public sealed record ApiKeyCreateResult(
     bool Success,
     string? KeyId,
     string? ApiKey,  // The full key - only returned on creation
-    string? Prefix,  // First 8 chars for identification
+    string? Prefix,  // "sk_live_" plus the first 8 secret characters
     string? Error);
 
-/// <summary>
-/// Result of validating an API key.
-/// </summary>
 public sealed record ApiKeyValidationResult(
     bool IsValid,
     string? KeyId,

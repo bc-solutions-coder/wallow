@@ -266,9 +266,7 @@ public sealed class OpenIddictRedirectUriValidatorTests
     }
 
     /// <summary>
-    /// Registers an application under <paramref name="clientId"/> and keeps it in the global
-    /// ListAsync result as well, mirroring production where every client is enumerable. A
-    /// per-client lookup must therefore ignore the other clients' origins.
+    /// Adds an application to both client lookup and global enumeration, so tests can detect cross-client origin leakage.
     /// </summary>
     private void SetupClient(string clientId, string[] redirectUris, string[] postLogoutUris)
     {

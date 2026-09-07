@@ -30,9 +30,7 @@ public partial class TenantResolutionMiddleware(RequestDelegate next, ILogger<Te
                 LogTenantResolved(orgId, resolvedTenantName);
             }
 
-            // Allow X-Tenant-Id header only for the non-assignable global-admin claim and for
-            // explicitly flagged platform operators. The "admin" role is granted tenant-side
-            // through UsersController.AssignRole, so it must never reach another tenant.
+            // Tenant roles cannot authorize an override; require a global administrator or operator.
             string? headerTenantId = context.Request.Headers["X-Tenant-Id"].FirstOrDefault();
             if (!string.IsNullOrEmpty(headerTenantId))
             {
@@ -112,9 +110,8 @@ public partial class TenantResolutionMiddleware(RequestDelegate next, ILogger<Te
 public partial class TenantResolutionMiddleware
 {
     /// <summary>
-    /// An organization-less token reaches only endpoints marked
-    /// <see cref="AllowWithoutOrganizationAttribute"/> (and anonymous ones). The auth host's own
-    /// cookie session is exempt: it is the sign-in surface, never a tenant-scoped API caller.
+    /// Requires organization context unless the endpoint allows anonymous or organization-free access,
+    /// or the principal uses the Identity application-cookie scheme.
     /// </summary>
     private static bool RequiresOrganization(HttpContext context)
     {

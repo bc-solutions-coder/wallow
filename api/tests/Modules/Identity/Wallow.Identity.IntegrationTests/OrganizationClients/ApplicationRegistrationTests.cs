@@ -7,10 +7,7 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.OrganizationClients;
 
 /// <summary>
-/// The org-scoped client surface: an organization admin or manager registers a developer
-/// application and receives everything needed to run it. Backend-dependent because the surface
-/// writes an OpenIddict application and a registered-client row in one request and the
-/// permission check crosses the tenant query filter.
+/// Checks organization application registration, permission boundaries, and returned client configuration.
 /// </summary>
 [Trait("Category", "Integration")]
 public class ApplicationRegistrationTests(WallowApiFactory factory) : IdentityIntegrationTestBase(factory)
@@ -199,8 +196,7 @@ public class ApplicationRegistrationTests(WallowApiFactory factory) : IdentityIn
     }
 
     /// <summary>
-    /// The point of the whole surface: what a manager registers is a client a person can sign in
-    /// through — consent, code, tokens carrying the organization the client is bound to.
+    /// Exercises a registered application through consent and token exchange with its organization claim.
     /// </summary>
     [Fact]
     public async Task RegisteredApplication_CompletesAFullLogin_ScopedToItsOrganization()
@@ -254,8 +250,7 @@ public class ApplicationRegistrationTests(WallowApiFactory factory) : IdentityIn
         };
 
     /// <summary>
-    /// Creates an organization owned by a throwaway user so the test's own caller can be enrolled
-    /// under any role — the creator is always an admin.
+    /// Creates a separate owner so the test caller can be enrolled with the selected role.
     /// </summary>
     private async Task<Guid> OrganizationOwnedBySomeoneElseAsync(string name)
     {
@@ -265,8 +260,7 @@ public class ApplicationRegistrationTests(WallowApiFactory factory) : IdentityIn
     }
 
     /// <summary>
-    /// Enrolls a fresh user under <paramref name="roleName"/> and makes the test client act as
-    /// them; returns the email so a test can also sign that person in through the real login.
+    /// Enrolls a fresh user and sets synthetic caller headers, returning the email for password login.
     /// </summary>
     private async Task<string> ActAsEnrolledAsync(Guid orgId, string roleName)
     {

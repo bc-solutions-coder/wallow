@@ -294,8 +294,7 @@ public class OrganizationsControllerTests
         ok.Value.Should().BeAssignableTo<IReadOnlyList<ReviewedMembershipDto>>().Which.Should().HaveCount(1);
     }
 
-    // Who decided is part of the record every one of these writes, and the only trustworthy source
-    // for it is the caller's own token — never anything the request body could carry.
+    // Forward the authenticated reviewer as the audit actor.
     [Fact]
     public async Task ApproveMember_RecordsTheSignedInReviewerAsTheActor()
     {

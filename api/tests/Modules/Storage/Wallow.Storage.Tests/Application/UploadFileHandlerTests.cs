@@ -39,15 +39,15 @@ public class UploadFileHandlerTests
     [Fact]
     public async Task Handle_WhenBucketNotFound_ReturnsFailure()
     {
-        // Arrange
+
         UploadFileCommand command = CreateCommand();
         _bucketRepository.GetByNameAsync(command.BucketName, Arg.Any<CancellationToken>())
             .Returns((StorageBucket?)null);
 
-        // Act
+
         Result<UploadResult> result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Contain("NotFound");
     }
@@ -55,17 +55,17 @@ public class UploadFileHandlerTests
     [Fact]
     public async Task Handle_WhenContentTypeNotAllowed_ReturnsFailure()
     {
-        // Arrange
+
         StorageBucket bucket = StorageBucket.Create(TenantId.New(), "test-bucket", allowedContentTypes: ["image/*"]);
         UploadFileCommand command = CreateCommand(contentType: "application/pdf");
 
         _bucketRepository.GetByNameAsync(command.BucketName, Arg.Any<CancellationToken>())
             .Returns(bucket);
 
-        // Act
+
         Result<UploadResult> result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+
         result.IsFailure.Should().BeTrue();
         result.Error.Kind.Should().Be(ErrorKind.Validation);
         result.Error.Message.Should().Contain("Content type");
@@ -74,17 +74,17 @@ public class UploadFileHandlerTests
     [Fact]
     public async Task Handle_WhenFileSizeExceeded_ReturnsFailure()
     {
-        // Arrange
+
         StorageBucket bucket = StorageBucket.Create(TenantId.New(), "test-bucket", maxFileSizeBytes: 1000);
         UploadFileCommand command = CreateCommand(sizeBytes: 2000);
 
         _bucketRepository.GetByNameAsync(command.BucketName, Arg.Any<CancellationToken>())
             .Returns(bucket);
 
-        // Act
+
         Result<UploadResult> result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+
         result.IsFailure.Should().BeTrue();
         result.Error.Kind.Should().Be(ErrorKind.Validation);
         result.Error.Message.Should().Contain("size");
@@ -93,7 +93,7 @@ public class UploadFileHandlerTests
     [Fact]
     public async Task Handle_WhenValid_UploadsFileAndSavesMetadata()
     {
-        // Arrange
+
         StorageBucket bucket = StorageBucket.Create(TenantId.New(), "test-bucket");
         UploadFileCommand command = CreateCommand();
 
@@ -102,10 +102,10 @@ public class UploadFileHandlerTests
         _storageProvider.UploadAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns("etag-123");
 
-        // Act
+
         Result<UploadResult> result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeNull();
         result.Value.FileName.Should().Be(command.FileName);
@@ -125,7 +125,7 @@ public class UploadFileHandlerTests
     [Fact]
     public async Task Handle_StorageKeyFormat_IncludesTenantAndBucket()
     {
-        // Arrange
+
         StorageBucket bucket = StorageBucket.Create(TenantId.New(), "invoices");
         Guid tenantId = Guid.NewGuid();
         UploadFileCommand command = CreateCommand(tenantId: tenantId, bucketName: "invoices", path: "2024/02");
@@ -139,10 +139,10 @@ public class UploadFileHandlerTests
         _storageProvider.When(x => x.UploadAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()))
             .Do(ci => capturedKey = ci.ArgAt<string>(1));
 
-        // Act
+
         Result<UploadResult> result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+
         result.IsSuccess.Should().BeTrue();
         capturedKey.Should().NotBeNull();
         capturedKey.Should().StartWith($"tenant-{tenantId}");
@@ -153,7 +153,7 @@ public class UploadFileHandlerTests
     [Fact]
     public async Task Handle_WhenUploadingDuplicateFile_IsIdempotent()
     {
-        // Arrange
+
         StorageBucket bucket = StorageBucket.Create(TenantId.New(), "test-bucket");
         UploadFileCommand command = CreateCommand();
 
@@ -162,11 +162,11 @@ public class UploadFileHandlerTests
         _storageProvider.UploadAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns("etag-123");
 
-        // Act
+
         Result<UploadResult> result1 = await _handler.Handle(command, CancellationToken.None);
         Result<UploadResult> result2 = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+
         result1.IsSuccess.Should().BeTrue();
         result2.IsSuccess.Should().BeTrue();
         result1.Value.FileName.Should().Be(result2.Value.FileName);
@@ -186,7 +186,7 @@ public class UploadFileHandlerTests
     [Fact]
     public async Task Handle_WhenFileScanFails_ReturnsFailureWithThreatName()
     {
-        // Arrange
+
         StorageBucket bucket = StorageBucket.Create(TenantId.New(), "test-bucket");
         UploadFileCommand command = CreateCommand();
 
@@ -195,10 +195,10 @@ public class UploadFileHandlerTests
         _fileScanner.ScanAsync(Arg.Any<Stream>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(FileScanResult.Infected("Trojan.Generic"));
 
-        // Act
+
         Result<UploadResult> result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+
         result.IsFailure.Should().BeTrue();
         result.Error.Kind.Should().Be(ErrorKind.Validation);
         result.Error.Message.Should().Contain("Trojan.Generic");
@@ -210,7 +210,7 @@ public class UploadFileHandlerTests
     [Fact]
     public async Task Handle_WhenSizeExceedsTenantUploadLimit_ReturnsFailure()
     {
-        // Arrange — the bucket allows the size (no per-bucket cap), the tenant setting does not.
+        // Only the tenant limit rejects this size; the bucket has no cap.
         StorageBucket bucket = StorageBucket.Create(TenantId.New(), "test-bucket");
         UploadFileCommand command = CreateCommand(sizeBytes: 2L * 1024 * 1024);
 
@@ -219,10 +219,10 @@ public class UploadFileHandlerTests
         _limitsProvider.GetLimitsAsync(command.TenantId, Arg.Any<CancellationToken>())
             .Returns(StorageLimits.Create(1, "*", 1024));
 
-        // Act
+
         Result<UploadResult> result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+
         result.IsFailure.Should().BeTrue();
         result.Error.Kind.Should().Be(ErrorKind.Validation);
         result.Error.Message.Should().Contain("upload limit");
@@ -233,7 +233,7 @@ public class UploadFileHandlerTests
     [Fact]
     public async Task Handle_WhenExtensionNotInTenantAllowlist_ReturnsFailure()
     {
-        // Arrange
+
         StorageBucket bucket = StorageBucket.Create(TenantId.New(), "test-bucket");
         UploadFileCommand command = CreateCommand(fileName: "malicious.exe", contentType: "application/octet-stream");
 
@@ -242,10 +242,10 @@ public class UploadFileHandlerTests
         _limitsProvider.GetLimitsAsync(command.TenantId, Arg.Any<CancellationToken>())
             .Returns(StorageLimits.Create(50, "jpg,png,pdf", 1024));
 
-        // Act
+
         Result<UploadResult> result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+
         result.IsFailure.Should().BeTrue();
         result.Error.Kind.Should().Be(ErrorKind.Validation);
         result.Error.Message.Should().Contain("not allowed");
@@ -256,7 +256,7 @@ public class UploadFileHandlerTests
     [Fact]
     public async Task Handle_WhenTenantQuotaWouldBeExceeded_ReturnsFailure()
     {
-        // Arrange — 1 MB quota, nearly used up; the new file pushes past it.
+        // The upload exceeds the remaining 500 bytes of tenant quota.
         StorageBucket bucket = StorageBucket.Create(TenantId.New(), "test-bucket");
         UploadFileCommand command = CreateCommand(sizeBytes: 1000);
 
@@ -267,10 +267,10 @@ public class UploadFileHandlerTests
         _fileRepository.GetTotalSizeBytesAsync(Arg.Any<CancellationToken>())
             .Returns((1024L * 1024) - 500);
 
-        // Act
+
         Result<UploadResult> result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
+
         result.IsFailure.Should().BeTrue();
         result.Error.Kind.Should().Be(ErrorKind.Validation);
         result.Error.Message.Should().Contain("quota");

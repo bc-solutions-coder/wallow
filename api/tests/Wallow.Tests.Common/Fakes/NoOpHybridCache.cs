@@ -3,8 +3,7 @@ using Microsoft.Extensions.Caching.Hybrid;
 namespace Wallow.Tests.Common.Fakes;
 
 /// <summary>
-/// A pass-through HybridCache implementation for unit tests that always invokes
-/// the factory function without any caching, ensuring test isolation.
+/// Invokes the value factory on every read and ignores cache mutations.
 /// </summary>
 public sealed class NoOpHybridCache : HybridCache
 {

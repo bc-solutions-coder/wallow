@@ -8,7 +8,7 @@ namespace Wallow.Notifications.Tests.Infrastructure.Services;
 
 public class LogPushProviderTests
 {
-#pragma warning disable CA2000 // LoggerFactory disposal not needed in tests
+#pragma warning disable CA2000 // Test logger factory is not disposed.
     private readonly LogPushProvider _provider = new(
         LoggerFactory.Create(b => b.AddSimpleConsole().SetMinimumLevel(LogLevel.Trace))
             .CreateLogger<LogPushProvider>());
@@ -190,7 +190,7 @@ public class LogPushProviderTests
         _provider.Should().BeAssignableTo<IPushProvider>();
     }
 
-#pragma warning disable CA2000 // LoggerFactory disposal not needed in tests
+#pragma warning disable CA2000 // Test logger factory is not disposed.
     [Fact]
     public async Task SendAsync_WithLoggingDisabled_StillReturnsSuccess()
     {

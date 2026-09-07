@@ -17,12 +17,7 @@ using Wolverine;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// A denial answers one request rather than barring a person: it stands for the cooldown, and after
-/// that the organization's CURRENT policy decides what asking again gets them. A reviewer can also
-/// lift it early.
-///
-/// Both ways back reuse or delete the one row, never add a second — (UserId, OrganizationId) is
-/// unique, so a spec that lets a duplicate through here is describing an insert the database refuses.
+/// Checks retry after denial cooldown and early clearance without duplicate membership rows.
 /// </summary>
 public sealed class DenialCooldownTests : IDisposable
 {
@@ -109,8 +104,7 @@ public sealed class DenialCooldownTests : IDisposable
     }
 
     /// <summary>
-    /// The organization opened up while the denial ran. Nothing about a spent denial outranks the
-    /// policy in force when they ask.
+    /// An open enrollment policy applies after the denial cooldown expires.
     /// </summary>
     [Fact]
     public async Task AskingAgainOfAnOpenOrganization_AdmitsThemOutright()

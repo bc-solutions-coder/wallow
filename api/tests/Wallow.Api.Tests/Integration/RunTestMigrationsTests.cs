@@ -15,15 +15,8 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Api.Tests.Integration;
 
 /// <summary>
-/// Guards the two things a registry-driven <c>RunTestMigrationsAsync</c> can silently drop: a module
-/// the method does not name itself, and the auth-audit context that belongs to no module at all.
+/// Checks migration of supplied probe modules and the host-owned auth-audit context.
 /// </summary>
-/// <remarks>
-/// The probe modules below are declared by this test, not by <c>WallowModuleRegistry</c>. That is the
-/// point: an assertion derived from the same registry the production code reads would pass no matter
-/// how the method were written, so the only honest proof of "a newly registered module IS migrated"
-/// is a module the production code has never heard of.
-/// </remarks>
 [Collection(nameof(ApiIntegrationTestCollection))]
 [Trait("Category", "Integration")]
 public sealed class RunTestMigrationsTests : IDisposable
@@ -35,20 +28,17 @@ public sealed class RunTestMigrationsTests : IDisposable
     {
         _factory = factory;
 
-        // Touching Services boots the real Testing host, which is what runs RunTestMigrationsAsync
-        // against the fresh Testcontainers Postgres. Every schema in that database got there this way.
+        // Build the Testing host before reading its container connection string.
         string connectionString = factory.Services.GetRequiredService<IConfiguration>()
             .GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("The test host has no DefaultConnection.");
 
         ServiceCollection services = new();
 
-        // IdentityDbContext's only non-options dependency.
+        // Identity persistence requires data protection.
         services.AddDataProtection();
 
-        // Identity is registered because today's implementation resolves it by name whatever module
-        // list it is handed. Without it the method throws before reaching the probe, and the failure
-        // would be about Identity rather than about the module that was ignored.
+        // Register Identity alongside the host-owned and probe contexts.
         AddSchemaScopedDbContext<IdentityDbContext>(services, connectionString, "identity");
         AddSchemaScopedDbContext<AuthAuditDbContext>(services, connectionString, "auth_audit");
         AddSchemaScopedDbContext<ProbeFeatureDbContext>(services, connectionString, ProbeFeatureDbContext.Schema);
@@ -86,8 +76,7 @@ public sealed class RunTestMigrationsTests : IDisposable
     [Fact]
     public async Task RunTestMigrationsAsync_MigratesTheHostOwnedAuthAuditContext_WhichNoModuleDeclares()
     {
-        // A module list that does not declare the auth-audit context. It belongs to no module by design
-        // (IWallowModule.DbContextTypes says so), so nothing but an explicit host-owned line migrates it.
+        // The supplied module does not declare AuthAuditDbContext.
         await WallowModules.RunTestMigrationsAsync(_provider, [new ProbeFeatureModule()]);
 
         (await GetAppliedMigrationsAsync<AuthAuditDbContext>()).Should().NotBeEmpty(
@@ -97,8 +86,7 @@ public sealed class RunTestMigrationsTests : IDisposable
     [Fact]
     public async Task TestHostBoot_MigratesTheHostOwnedAuthAuditContext()
     {
-        // The end-to-end half of the same criterion: this database's schema comes only from the
-        // Testing host's own boot, so an empty history here means the boot path dropped it.
+
         await using AsyncServiceScope scope = _factory.Services.CreateAsyncScope();
 
         IEnumerable<string> authAudit = await scope.ServiceProvider
@@ -110,10 +98,7 @@ public sealed class RunTestMigrationsTests : IDisposable
     [Fact]
     public async Task TestHostBoot_MigratesAModuleThatIsEnabledOnlyByConfiguration()
     {
-        // ApiKeys is the one module that ships disabled (appsettings.json sets Modules.ApiKeys=false)
-        // and WallowApiFactory never overrides it, so the flag is arranged here rather than assumed.
-        // UseSetting, not ConfigureAppConfiguration: the flags are read while services are being
-        // registered, which is before ConfigureAppConfiguration's sources are in play.
+        // Enable the normally disabled module before service registration reads the flag.
         using WebApplicationFactory<Program> apiKeysEnabled = _factory.WithWebHostBuilder(builder =>
             builder.UseSetting("FeatureManagement:Modules.ApiKeys", "true"));
 
@@ -189,7 +174,7 @@ public sealed class ProbeCoreModule : IWallowModule
 }
 
 /// <summary>
-/// An intentionally empty context: the model is irrelevant, only whether its migration was applied is.
+/// Empty model used to observe migration application through the history table.
 /// </summary>
 public sealed class ProbeFeatureDbContext(DbContextOptions<ProbeFeatureDbContext> options) : DbContext(options)
 {
@@ -203,8 +188,7 @@ public sealed class ProbeCoreDbContext(DbContextOptions<ProbeCoreDbContext> opti
 }
 
 /// <summary>
-/// Hand-written rather than scaffolded — the context has no model to scaffold from. Applying it writes
-/// a row to the probe schema's <c>__EFMigrationsHistory</c>, which is what the assertions read.
+/// Creates a probe marker table; assertions observe the migration history entry.
 /// </summary>
 [DbContext(typeof(ProbeFeatureDbContext))]
 [Migration(Id)]

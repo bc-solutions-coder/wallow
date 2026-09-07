@@ -93,9 +93,7 @@ public class AuthAuditEventHandlersTests
     }
 
     /// <summary>
-    /// One event type per transition, spelled mechanically from the transition name, so a new
-    /// transition needs no new handler and a query for "everything that happened to this
-    /// membership" is a prefix match.
+    /// Checks the Membership-prefixed event type and audit fields for each listed transition.
     /// </summary>
     [Theory]
     [InlineData(MembershipTransition.AccessRequested, "MembershipAccessRequested")]
@@ -138,8 +136,7 @@ public class AuthAuditEventHandlersTests
     }
 
     /// <summary>
-    /// Who did it is the whole point of the record, so it survives even when it is the same person
-    /// the record is about.
+    /// Checks actor preservation when actor and subject are the same user.
     /// </summary>
     [Fact]
     public async Task Handle_MembershipTransitionedEvent_KeepsTheActorWhenItIsTheSubject()

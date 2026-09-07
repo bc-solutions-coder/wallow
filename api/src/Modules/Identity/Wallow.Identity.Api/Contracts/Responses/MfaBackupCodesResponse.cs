@@ -1,7 +1,6 @@
 namespace Wallow.Identity.Api.Contracts.Responses;
 
 /// <summary>
-/// Regenerated one-time backup codes. The plaintext codes are returned here and nowhere else —
-/// only their hashes are persisted.
+/// New plaintext backup codes. Only hashes are stored for later verification.
 /// </summary>
 public sealed record MfaBackupCodesResponse(IReadOnlyList<string> Codes);

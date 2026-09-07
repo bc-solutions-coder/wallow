@@ -56,10 +56,8 @@ public static class ApiKeysInfrastructureExtensions
 
         services.AddTenantAwareScopedContext<ApiKeysDbContext>();
 
-        // ApiKeys repositories
         services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
 
-        // ApiKeys services
         services.AddSingleton<IRedisDatabase>(sp =>
         {
             IConnectionMultiplexer mux = sp.GetRequiredService<IConnectionMultiplexer>();

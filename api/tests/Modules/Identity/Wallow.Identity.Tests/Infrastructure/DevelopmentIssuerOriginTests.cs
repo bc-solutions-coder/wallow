@@ -4,31 +4,12 @@ using Wallow.Identity.Infrastructure.Extensions;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// Verifies that the issuer OpenIddict advertises in local Development resolves to the
-/// unified apps/wallow-auth origin rather than to another app's origin.
+/// Runs the issuer resolver against checked-in development settings and excludes the listed reserved ports.
 /// </summary>
-/// <remarks>
-/// <para>
-/// <see cref="OpenIddictIssuerResolverTests"/> covers the resolver's behaviour against
-/// synthetic configuration. These tests instead feed the real, checked-in
-/// api/src/Wallow.Api/appsettings.Development.json through the real resolver, because the
-/// Development issuer is a shipped configuration value that no other test binds: the
-/// resolver falls back to <see cref="OpenIddictIssuerResolver.AuthUrlKey"/> whenever
-/// OpenIddict:Issuer is unset, and it is unset in every checked-in appsettings file.
-/// </para>
-/// <para>
-/// The assertions deliberately constrain which origin the issuer may NOT occupy rather than
-/// pinning a literal URL. Every port listed in <see cref="ReservedPorts"/> is owned by a
-/// different process in the local dev topology (see the port table in CLAUDE.md), so an
-/// issuer landing on one of them advertises an origin that does not serve /connect/*, which
-/// breaks Authorization Code + PKCE login without any startup error.
-/// </para>
-/// </remarks>
 public sealed class DevelopmentIssuerOriginTests
 {
     /// <summary>
-    /// Ports already owned by another process in the local dev topology, with the owner used
-    /// as the assertion's reason. The Development issuer must occupy none of them.
+    /// Ports excluded by the development issuer test.
     /// </summary>
     public static TheoryData<int, string> ReservedPorts =>
         new()

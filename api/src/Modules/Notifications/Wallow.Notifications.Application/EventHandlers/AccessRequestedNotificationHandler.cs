@@ -10,9 +10,8 @@ namespace Wallow.Notifications.Application.EventHandlers;
 public static class AccessRequestedNotificationHandler
 {
     /// <summary>
-    /// One email per recipient. An event carrying no recipients sends nothing and is not an
-    /// error: the pending membership is the durable record of the request, and Identity has
-    /// already decided there is nobody to tell.
+    /// Invokes one email command per recipient; an empty recipient list is valid.
+    /// Identity saves the pending membership before publishing, so email is not the request record.
     /// </summary>
     public static async Task Handle(
         AccessRequestedEvent message,

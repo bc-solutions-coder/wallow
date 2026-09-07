@@ -5,9 +5,7 @@ using Wallow.Identity.Application.Helpers;
 namespace Wallow.Identity.Api.Extensions;
 
 /// <summary>
-/// Writes Wallow-defined properties on an authorization record. The Infrastructure layer reads
-/// them back through its own twin; both address the property through
-/// <see cref="AuthorizationProperties.OrganizationId"/>.
+/// Writes organization and session metadata using keys shared with infrastructure readers.
 /// </summary>
 public static class OpenIddictAuthorizationExtensions
 {

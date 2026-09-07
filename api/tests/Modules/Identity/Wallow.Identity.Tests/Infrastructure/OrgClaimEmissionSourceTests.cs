@@ -7,13 +7,7 @@ using Wallow.Identity.Infrastructure.Services;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// T5.3 (Wallow-w6s6.5.3) regression guard, pinned BEFORE the membership-read change per the
-/// plan's explicit risk: the <c>org_id</c>/<c>org_name</c> claims emitted by
-/// AuthorizationController.BuildClaimsIdentityAsync are sourced from the
-/// <see cref="ClientTenantResolver"/> — <c>org_id == ClientTenantInfo.TenantId</c> and
-/// <c>org_name == ClientTenantInfo.TenantName</c> (which is the resolved organization's Name).
-/// If a membership change were to break tenant resolution, these guards catch the claim
-/// regression immediately.
+/// Checks client tenant IDs and organization names resolved for claim construction.
 /// </summary>
 public sealed class OrgClaimEmissionSourceTests
 {
@@ -47,8 +41,7 @@ public sealed class OrgClaimEmissionSourceTests
 
         tenantInfo.Should().NotBeNull();
 
-        // Mirrors AuthorizationController.BuildClaimsIdentityAsync: org_id and org_name come
-        // straight off the resolved ClientTenantInfo.
+
         string orgIdClaim = tenantInfo!.TenantId.ToString();
         string? orgNameClaim = tenantInfo.TenantName;
 
@@ -77,7 +70,7 @@ public sealed class OrgClaimEmissionSourceTests
 
         tenantInfo.Should().NotBeNull();
         tenantInfo!.TenantId.Should().Be(orgId);
-        // org_name claim is only added when TenantName is non-null (AuthorizationController.cs).
+
         tenantInfo.TenantName.Should().BeNull();
     }
 }

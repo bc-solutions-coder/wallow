@@ -34,7 +34,7 @@ public class IdentityResilienceTestFactory : WallowApiFactory
         {
             services.AddSingleton<TimeProvider>(_fakeTimeProvider);
 
-            // Remove all health checks for resilience tests — we only test HTTP client behavior
+            // Keep dependency health probes out of this fixture.
             services.Configure<HealthCheckServiceOptions>(options =>
             {
                 options.Registrations.Clear();

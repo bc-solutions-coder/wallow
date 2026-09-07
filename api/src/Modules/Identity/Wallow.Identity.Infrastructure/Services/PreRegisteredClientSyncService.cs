@@ -31,8 +31,7 @@ public sealed partial class PreRegisteredClientSyncService(
     {
         PreRegisteredClientOptions config = options.Value;
 
-        // Hard-fail before touching OpenIddict at all: a misconfigured deployment must not create
-        // an accidentally-public client, nor delete existing registrations on its way to throwing.
+        // Validate the complete configuration before mutating registrations.
         config.Validate();
 
         HashSet<string> configuredClientIds = new(config.Clients.Select(c => c.ClientId), StringComparer.OrdinalIgnoreCase);
@@ -71,12 +70,8 @@ public sealed partial class PreRegisteredClientSyncService(
     }
 
     /// <summary>
-    /// Converge Wallow's own client registry with the seed. The OpenIddict application holds
-    /// the OAuth configuration, but the org-clients surface (suspend, reinstate, rotate,
-    /// delete) addresses a client through its <see cref="RegisteredClient"/> row alone — a
-    /// tenant-bound seed client without one is invisible to the organization that owns it.
-    /// Only ownership converges here: the row's lifecycle status belongs to the organization,
-    /// so an existing row under the right owner is never touched.
+    /// Syncs organization ownership in the <see cref="RegisteredClient"/> registry.
+    /// Rows already owned by the configured organization retain their lifecycle state.
     /// </summary>
     private async Task SyncRegistryRowAsync(PreRegisteredClientDefinition client, Guid? tenantId, CancellationToken ct)
     {
@@ -84,8 +79,7 @@ public sealed partial class PreRegisteredClientSyncService(
 
         if (tenantId is null)
         {
-            // A client bound to no organization is the platform's own — no organization may
-            // manage it, so it has no place in the registry.
+            // Platform clients have no organization registry row.
             if (record is not null)
             {
                 registeredClients.Remove(record);
@@ -103,9 +97,7 @@ public sealed partial class PreRegisteredClientSyncService(
 
         if (record is not null)
         {
-            // The seed moved the client to another organization. Ownership is the seed's to
-            // state; the lifecycle status is not — a fresh row under the new owner starts
-            // Active rather than inheriting a suspension the old owner placed.
+            // Ownership changes replace the registry row and reset its lifecycle state to Active.
             registeredClients.Remove(record);
         }
 
@@ -113,8 +105,7 @@ public sealed partial class PreRegisteredClientSyncService(
             ? RegisteredClientKind.ServiceAccount
             : RegisteredClientKind.Application;
 
-        // Seeding from client config has no human actor, so provenance falls back to
-        // Guid.Empty the same way AddMemberAsync records system-initiated membership.
+        // Seed operations have no user actor.
         RegisteredClient row = RegisteredClient.Create(
             client.ClientId, tenantId.Value, client.DisplayName, kind, Guid.Empty, timeProvider);
         registeredClients.Add(row);
@@ -186,15 +177,14 @@ public sealed partial class PreRegisteredClientSyncService(
             changed = true;
         }
 
-        // Ensure source tag is set
+
         if (!descriptor.Properties.ContainsKey(SourcePropertyKey))
         {
             descriptor.Properties[SourcePropertyKey] = JsonSerializer.SerializeToElement(SourcePropertyValue);
             changed = true;
         }
 
-        // Sync consent type: the authorize endpoint reads it to decide whether the user sees the
-        // consent screen, so a flag flipped in the seed has to reach the stored application.
+        // Apply changes to the configured consent policy.
         string expectedConsentType = ConsentTypeFor(client);
         if (!string.Equals(descriptor.ConsentType, expectedConsentType, StringComparison.Ordinal))
         {
@@ -202,9 +192,7 @@ public sealed partial class PreRegisteredClientSyncService(
             changed = true;
         }
 
-        // Sync the refresh-token lifetime: seed rows converge on an explicit per-client setting
-        // (the declared value, or the first-party/third-party default), so an edited seed value
-        // reaches the stored application on the next sync. Applies to new tokens only.
+        // Pin the configured or default lifetime for future tokens; existing tokens retain theirs.
         if (RefreshTokenLifetimeFor(client) is { } expectedLifetime
             && descriptor.GetRefreshTokenLifetimeSeconds() != expectedLifetime)
         {
@@ -212,7 +200,7 @@ public sealed partial class PreRegisteredClientSyncService(
             changed = true;
         }
 
-        // Sync frontchannel_logout_uri
+
         Uri? expectedFrontchannelUri = client.FrontchannelLogoutUri is null
             ? null
             : new Uri(client.FrontchannelLogoutUri);
@@ -222,7 +210,7 @@ public sealed partial class PreRegisteredClientSyncService(
             changed = true;
         }
 
-        // Sync backchannel_logout_uri + backchannel_logout_session_required
+
         Uri? expectedBackchannelUri = client.BackchannelLogoutUri is null
             ? null
             : new Uri(client.BackchannelLogoutUri);
@@ -238,7 +226,7 @@ public sealed partial class PreRegisteredClientSyncService(
             changed = true;
         }
 
-        // Sync tenant_id
+
         string? currentTenantId = descriptor.GetTenantId();
         string? expectedTenantId = resolvedTenantId?.ToString();
         if (!string.Equals(currentTenantId, expectedTenantId, StringComparison.OrdinalIgnoreCase))
@@ -259,11 +247,7 @@ public sealed partial class PreRegisteredClientSyncService(
 
     private async Task DeleteRemovedClientsAsync(HashSet<string> configuredClientIds, CancellationToken ct)
     {
-        // Two passes on purpose. ListAsync streams straight off an open Npgsql data reader, and that
-        // reader owns the connection until the enumeration completes, so deleting from inside the
-        // loop issues a second command on a busy connection and throws
-        // NpgsqlOperationInProgressException ("A command is already in progress") — which fails the
-        // whole seeder. Collect first, delete after the reader is done.
+        // Finish streaming applications before deleting; the reader owns the database connection.
         List<(object Application, string ClientId)> removed = [];
 
         await foreach (object application in applicationManager.ListAsync(int.MaxValue, 0, ct))
@@ -293,8 +277,7 @@ public sealed partial class PreRegisteredClientSyncService(
         {
             await applicationManager.DeleteAsync(application, ct);
 
-            // The registry row is this module's shadow of the application; an orphaned row
-            // would leave a ghost client on the organization's management surface.
+            // Remove the management registry entry with its OpenIddict application.
             RegisteredClient? record = await registeredClients.GetByClientIdAsync(clientId, ct);
             if (record is not null)
             {
@@ -324,7 +307,7 @@ public sealed partial class PreRegisteredClientSyncService(
                 return match.Id;
             }
 
-            // Auto-create the organization if it doesn't exist
+
             Guid orgId = await organizationService.CreateOrganizationAsync(client.TenantName, ct: ct);
             LogTenantCreated(client.ClientId, client.TenantName);
             await EnsureSeedMembersAsync(orgId, client, ct);
@@ -359,8 +342,7 @@ public sealed partial class PreRegisteredClientSyncService(
             }
 
             string roleName = ResolveSeedMemberRole(client, email);
-            // Seeding from client config has no human actor, so the audit actor falls back to
-            // Guid.Empty the same way CreateOrganizationAsync treats system-initiated creation.
+            // Seed operations have no user actor.
             await organizationService.AddMemberAsync(orgId, user.Id, roleName, Guid.Empty, ct);
             LogSeedMemberAdded(client.ClientId, email, roleName);
         }
@@ -378,17 +360,14 @@ public sealed partial class PreRegisteredClientSyncService(
         => clientId.StartsWith("sa-", StringComparison.Ordinal);
 
     /// <summary>
-    /// First-party clients are the platform's own, so the user is never asked to consent to
-    /// them; every organization-registered client goes through the consent screen. The seed's
-    /// explicit flag is the only thing that decides this — never the client id.
+    /// Uses the explicit first-party flag to choose implicit or explicit consent.
     /// </summary>
     private static string ConsentTypeFor(PreRegisteredClientDefinition client)
         => client.FirstParty ? ConsentTypes.Implicit : ConsentTypes.Explicit;
 
     /// <summary>
-    /// The per-client refresh-token lifetime a seed row must carry: the declared value, or the
-    /// first-party/third-party default when the seed states none. A service account holds no
-    /// refresh grant, so it carries no lifetime at all.
+    /// Returns the configured refresh-token lifetime or the client-kind default.
+    /// Returns null for service accounts, for which sync does not write a lifetime.
     /// </summary>
     private static int? RefreshTokenLifetimeFor(PreRegisteredClientDefinition client)
         => IsServiceAccount(client.ClientId)

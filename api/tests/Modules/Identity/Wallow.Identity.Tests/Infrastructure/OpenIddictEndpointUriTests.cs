@@ -3,24 +3,18 @@ using Wallow.Identity.Infrastructure.Extensions;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// Pins the resolution semantics of the OIDC endpoint URIs handed to OpenIddict.
+/// Checks that endpoint URI resolution preserves a path-prefixed base.
 /// </summary>
-/// <remarks>
-/// These were once root-relative ("/connect/authorize"), which silently broke the whole
-/// path-based reverse-proxy topology: OpenIddict resolves a relative endpoint URI against the
-/// request's base URI (scheme + host + PathBase, with a trailing slash), and an absolute-path
-/// reference replaces that base's path outright. Endpoint matching then never recognised
-/// "/api/connect/authorize", so AuthorizationController threw "The OpenID Connect request
-/// cannot be retrieved", and discovery advertised "/connect/*" URLs the proxy did not route.
-/// The tests below assert the URI arithmetic itself, so restoring a leading slash fails here
-/// rather than only in a live Caddy smoke test.
-/// </remarks>
 public sealed class OpenIddictEndpointUriTests
 {
-    /// <summary>The base URI OpenIddict builds for a request served under PathBase "/api".</summary>
+    /// <summary>
+    /// Path-prefixed request base used by the URI tests.
+    /// </summary>
     private static readonly Uri _prefixedBase = new("https://auth.example.com/api/");
 
-    /// <summary>The base URI OpenIddict builds when the API is served at the origin root.</summary>
+    /// <summary>
+    /// Origin-root request base used by the URI tests.
+    /// </summary>
     private static readonly Uri _rootBase = new("https://auth.example.com/");
 
     public static TheoryData<string> AllEndpointUris()
@@ -67,7 +61,7 @@ public sealed class OpenIddictEndpointUriTests
     [Fact]
     public void RootRelativeEndpointUri_LosesThePathBase()
     {
-        // The regression itself, stated as arithmetic: this is what "/connect/authorize" did.
+        // A leading slash replaces the base path.
         Uri resolved = new(_prefixedBase, "/" + OpenIddictEndpointUris.Authorization);
 
         resolved.AbsoluteUri.Should().Be("https://auth.example.com/connect/authorize");

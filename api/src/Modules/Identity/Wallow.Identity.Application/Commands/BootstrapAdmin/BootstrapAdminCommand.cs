@@ -1,9 +1,7 @@
 namespace Wallow.Identity.Application.Commands.BootstrapAdmin;
 
 /// <summary>
-/// The first-run wizard's whole input. <paramref name="OrganizationName"/> is required because
-/// roles are granted per organization: an administrator with no organization holds no permission
-/// anywhere, so bootstrap has to know which organization it is creating.
+/// First-run administrator details and the organization in which to grant the admin role.
 /// </summary>
 public sealed record BootstrapAdminCommand(
     string Email,
@@ -13,8 +11,7 @@ public sealed record BootstrapAdminCommand(
     string OrganizationName);
 
 /// <summary>
-/// Handles the low-level Identity operations needed for admin bootstrapping.
-/// Implemented in Infrastructure using UserManager and RoleManager.
+/// User and role operations used by bootstrap and seeding.
 /// </summary>
 public interface IBootstrapAdminService
 {
@@ -22,8 +19,8 @@ public interface IBootstrapAdminService
     Task<Guid> CreateUserAsync(string email, string password, string firstName, string lastName, CancellationToken ct = default);
 
     /// <summary>
-    /// Stamps the non-assignable global-administrator claim onto a seeded user. There is no
-    /// counterpart on any tenant-facing surface: the claim is provisioned here or not at all.
+    /// Provisions a seeded user with the global-administrator claim.
+    /// Tenant-facing endpoints do not expose this operation.
     /// </summary>
     Task GrantGlobalAdminAsync(Guid userId, CancellationToken ct = default);
     Task<bool> UserExistsAsync(string email, CancellationToken ct = default);

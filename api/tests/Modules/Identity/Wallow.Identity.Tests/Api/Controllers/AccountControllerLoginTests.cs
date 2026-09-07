@@ -88,7 +88,7 @@ public class AccountControllerLoginTests
         WallowUser user = WallowUser.Create("Test", "User", TestEmail, TimeProvider.System);
         if (mfaEnabled)
         {
-            // MfaEnabled is a private setter — use reflection or the domain method
+            // Set fixture state without running MFA enrollment.
             typeof(WallowUser).GetProperty(nameof(WallowUser.MfaEnabled))!
                 .SetValue(user, true);
         }

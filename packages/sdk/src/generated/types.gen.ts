@@ -15,10 +15,8 @@ export type AccountLoginRequest = {
 };
 
 /**
- * Result of a cookie-based sign-in attempt. A 200 covers four outcomes — signed in, MFA
- * challenge required, MFA enrollment required, and MFA enrollment required within a grace
- * period — so every member beyond bool AccountLoginResponse.Succeeded is present only for the outcome it
- * describes.
+ * Password sign-in result. A successful response may carry a sign-in ticket, an MFA
+ * challenge requirement, or an enrollment requirement with an optional grace deadline.
  */
 export type AccountLoginResponse = {
   succeeded: boolean;
@@ -29,9 +27,7 @@ export type AccountLoginResponse = {
 };
 
 /**
- * Success envelope returned by the cookie-auth account endpoints that report only whether the
- * operation was carried out (registration, password reset, e-mail verification, magic link and
- * OTP dispatch).
+ * Success response for account operations that return no additional data.
  */
 export type AccountOperationResponse = {
   succeeded: boolean;
@@ -58,9 +54,7 @@ export type AddInquiryCommentRequest = {
 };
 
 /**
- * Role is the name of the role this organization grants the member ("admin", "manager",
- * "user"). It is required: roles are per (user, organization), so there is no default to fall
- * back on.
+ * User and required role name to add to the organization.
  */
 export type AddMemberRequest = {
   userId: string;
@@ -85,7 +79,7 @@ export type AnnouncementTarget = number;
 export type AnnouncementType = number;
 
 /**
- * Response when creating a new API key (includes the full key).
+ * Creation response containing the plaintext key, returned only once.
  */
 export type ApiKeyCreatedResponse = {
   keyId: string;
@@ -97,7 +91,7 @@ export type ApiKeyCreatedResponse = {
 };
 
 /**
- * Response containing API key metadata.
+ * API key metadata without the plaintext secret.
  */
 export type ApiKeyResponse = {
   keyId: string;
@@ -205,21 +199,17 @@ export type ClientResponse = {
   frontchannelLogoutUri?: null | string;
   backchannelLogoutUri?: null | string;
   /**
-   * The client's declaration that its logout tokens must carry `sid`. Wallow always
-   * includes `sid`, so this is registration metadata echoed back, not a delivery switch.
+   * Stored session-required registration flag. Wallow includes sid in logout tokens regardless of this value.
    */
   backchannelLogoutSessionRequired?: boolean;
   /**
-   * Refresh-token lifetime in seconds, bounding newly issued refresh tokens. Absent on a
-   * client registered before per-client lifetimes existed, where the global configuration
-   * decides.
+   * Per-client refresh-token lifetime in seconds, or null when no parseable setting is present.
    */
   refreshTokenLifetime?: null | number | string;
 };
 
 /**
- * The tenant an OIDC client belongs to, used by the auth frontend to brand the login screen
- * before any user is authenticated.
+ * Organization binding resolved for an OIDC client before authentication.
  */
 export type ClientTenantResponse = {
   tenantId: string;
@@ -232,8 +222,7 @@ export type CompleteUploadResponse = {
 };
 
 /**
- * An application the user has granted durable consent to: one Valid permanent authorization,
- * named by the client it authorizes and the scopes the user agreed to.
+ * One valid permanent authorization representing a user's consent to an application.
  */
 export type ConnectedApplicationDto = {
   id: string;
@@ -244,8 +233,7 @@ export type ConnectedApplicationDto = {
 };
 
 /**
- * First-run wizard input. The organization is part of it because roles are granted per
- * organization: without one the new administrator would hold no permission anywhere.
+ * First-run administrator credentials and the organization in which to grant ownership.
  */
 export type CreateAdminRequest = {
   email: string;
@@ -270,9 +258,6 @@ export type CreateAnnouncementRequest = {
   imageUrl?: null | string;
 };
 
-/**
- * Request to create a new API key.
- */
 export type CreateApiKeyRequest = {
   name: string;
   scopes?: null | Array<string>;
@@ -298,15 +283,10 @@ export type CreateChangelogEntryRequest = {
 };
 
 /**
- * Scopes is what the client may ever request at the authorize endpoint. Omitting it grants the
- * OIDC sign-in baseline; API scopes are opt-in. FrontchannelLogoutUri is the absolute http(s)
- * address the logout page notifies (in a hidden iframe, with iss + sid) when the SSO session
- * ends; omitting it opts the client out of logout notifications. BackchannelLogoutUri is the
- * absolute address the server POSTs a signed logout token to over the back channel — plain http
- * is acceptable here because admin-registered clients are confidential.
- * BackchannelLogoutSessionRequired echoes the OIDC registration flag; Wallow always includes
- * `sid` either way. RefreshTokenLifetime is seconds; unset, the client gets the third-party
- * default of one day. It bounds new refresh tokens only.
+ * Confidential client registration. Null or empty Scopes selects the OIDC sign-in baseline.
+ * Omitted logout URLs disable their respective channels; back-channel HTTP is allowed.
+ * BackchannelLogoutSessionRequired is stored metadata; logout tokens always carry sid.
+ * RefreshTokenLifetime is seconds for future tokens and defaults to one day.
  */
 export type CreateClientRequest = {
   name: string;
@@ -348,9 +328,7 @@ export type CurrentUserResponse = {
   roles?: Array<string>;
   permissions?: Array<string>;
   /**
-   * Whether the caller holds the platform operator's own authority — minted as its own
-   * claim at sign-in, never derived from organization roles. The web app renders the
-   * platform-suspension controls only for callers carrying it.
+   * Whether the caller carries the global-administrator claim, independent of organization roles.
    */
   isGlobalAdmin?: boolean;
 };
@@ -370,9 +348,7 @@ export type DeviceRegistrationResponse = {
 };
 
 /**
- * How an organization admits someone who is not already a member. Invitation acceptance is not
- * governed by this — being invited by a member holding `OrganizationsManageMembers` is itself
- * the authorization.
+ * Controls self-service enrollment. Invitation acceptance bypasses this policy.
  */
 export type EnrollmentPolicy = number;
 
@@ -452,16 +428,14 @@ export type InvitationResponse = {
 export type LoginMethod = number;
 
 /**
- * Regenerated one-time backup codes. The plaintext codes are returned here and nowhere else —
- * only their hashes are persisted.
+ * New plaintext backup codes. Only hashes are stored for later verification.
  */
 export type MfaBackupCodesResponse = {
   codes: Array<string>;
 };
 
 /**
- * Result of answering an MFA challenge, carrying the single-use ticket the auth frontend
- * exchanges for a sign-in cookie.
+ * Successful MFA challenge result. The endpoint issues a browser sign-in ticket when the user has an email.
  */
 export type MfaChallengeResponse = {
   succeeded: boolean;
@@ -478,8 +452,7 @@ export type MfaDisableRequest = {
 };
 
 /**
- * Confirmation that TOTP enrollment completed, carrying the one-time backup codes. The plaintext
- * codes are returned here and nowhere else — only their hashes are persisted.
+ * TOTP enrollment confirmation with plaintext backup codes. Only code hashes are stored.
  */
 export type MfaEnrollmentConfirmedResponse = {
   succeeded: boolean;
@@ -495,8 +468,7 @@ export type MfaEnrollmentSecretResponse = {
 };
 
 /**
- * A short-lived token the web app hands to the auth app's enrollment screen, which exchanges it
- * for the partial-auth cookie the enrollment endpoints authenticate against.
+ * Short-lived token exchangeable for the partial-auth cookie used during MFA enrollment.
  */
 export type MfaEnrollmentTokenResponse = {
   token: string;
@@ -528,9 +500,7 @@ export type MfaVerifyRequest = {
 };
 
 /**
- * One organization the caller may sign in to. A client is bound to a single organization, so
- * an app can only ever link to the others — the slug is what it links with, and the name is
- * what it shows.
+ * An active membership's organization, including its slug for navigation.
  */
 export type MyOrganizationDto = {
   organizationId: string;
@@ -560,9 +530,8 @@ export type OrganizationBrandingResponse = {
 };
 
 /**
- * The one-time reveal a registration or a secret rotation answers with: the client secret is
- * returned here and never again, and the issuer and API base URL are what the client's
- * environment must point at.
+ * Registration or rotation response revealing the new secret, issuer, and API base URL.
+ * Read endpoints do not return the stored secret.
  */
 export type OrganizationClientRegistrationResponse = {
   client: OrganizationClientResponse;
@@ -586,8 +555,7 @@ export type OrganizationClientResponse = {
   postLogoutRedirectUris: Array<string>;
   backchannelLogoutUri?: null | string;
   /**
-   * The client's declaration that its logout tokens must carry `sid`. Wallow always
-   * includes `sid`, so this is registration metadata echoed back, not a delivery switch.
+   * Stored session-required registration flag. Wallow includes sid in logout tokens regardless of this value.
    */
   backchannelLogoutSessionRequired?: boolean;
   scopes: Array<string>;
@@ -601,20 +569,17 @@ export type OrganizationClientResponse = {
    */
   platformSuspendedAt?: null | string;
   /**
-   * The operator's reason, readable by the organization's admins but not liftable by them.
+   * Platform suspension reason. Organization administrators cannot lift the platform suspension.
    */
   platformSuspensionReason?: null | string;
   /**
-   * Refresh-token lifetime in seconds, bounding newly issued refresh tokens. Absent on a
-   * client registered before per-client lifetimes existed (the global configuration decides)
-   * and on service accounts, which hold no refresh grant.
+   * Per-client refresh-token lifetime in seconds, or null when no parseable setting is present.
    */
   refreshTokenLifetime?: null | number | string;
 };
 
 /**
- * The platform-suspension pair is present so the owning organization's admins can read the
- * operator's reason; only a global admin can place or lift the suspension itself.
+ * Organization details, including the platform suspension reason visible to its admins.
  */
 export type OrganizationDto = {
   id: string;
@@ -673,8 +638,7 @@ export type PagedResultOfUserDto = {
 };
 
 /**
- * Result of verifying a magic link or one-time code, carrying the single-use ticket the auth
- * frontend exchanges for a sign-in cookie.
+ * Passwordless verification result with the email and ticket for browser sign-in.
  */
 export type PasswordlessVerificationResponse = {
   succeeded: boolean;
@@ -683,9 +647,7 @@ export type PasswordlessVerificationResponse = {
 };
 
 /**
- * Places a platform suspension. The reason is the operator's and travels with the suspension:
- * the affected organization's admins read it, only a global admin removes it. The length cap
- * matches the column both suspension marks persist the reason into.
+ * Reason recorded with a platform suspension, limited to the storage column maximum of 1000 characters.
  */
 export type PlatformSuspensionRequest = {
   reason: string;
@@ -726,7 +688,7 @@ export type ProblemDetails = {
 export type PushPlatform = number;
 
 /**
- * Whether a candidate post-login redirect URI is registered for the requesting client.
+ * Whether the redirect URI has an allowed origin for the supplied client context.
  */
 export type RedirectUriValidationResponse = {
   allowed: boolean;
@@ -740,8 +702,8 @@ export type RegisterDeviceRequest = {
 };
 
 /**
- * Optional initial branding for an application: the end-user-facing display name (defaults to
- * the client's name) and a tagline. Ignored for service accounts, which face no end user.
+ * Initial application display name and tagline. Omitted display name uses the client name;
+ * service accounts ignore branding.
  */
 export type RegisterOrganizationClientBranding = {
   displayName?: null | string;
@@ -749,13 +711,10 @@ export type RegisterOrganizationClientBranding = {
 };
 
 /**
- * Registers a client on behalf of an organization. `Kind` is `application` for a
- * developer application a person signs in to or `service-account` for a client-credentials
- * client. Name and the derived client id are immutable once registered. An application needs at
- * least one redirect URI, absolute, fragment-free, and https or http://localhost; a service
- * account ignores every URI field. Both need at least one scope.
- * `RefreshTokenLifetime` is seconds; unset, an application gets the third-party default of
- * one day. It bounds new refresh tokens only — tokens already issued keep their expiry.
+ * Organization client registration: application or service-account. Both require scopes.
+ * Applications require an absolute, fragment-free HTTPS or loopback HTTP redirect;
+ * service accounts ignore URI fields. Name and client id cannot be changed here after registration.
+ * RefreshTokenLifetime is seconds for future application refresh tokens, defaulting to one day.
  */
 export type RegisterOrganizationClientRequest = {
   kind: string;
@@ -797,8 +756,7 @@ export type RoleResponse = {
 };
 
 /**
- * Rotates a client's secret. `RevokeActiveTokens` additionally ends every token the client
- * was already issued, so a compromise response cuts every live session in the same step.
+ * Rotates the secret. RevokeActiveTokens also requests revocation of issued client tokens.
  */
 export type RotateOrganizationClientSecretRequest = {
   revokeActiveTokens?: boolean;
@@ -859,11 +817,8 @@ export type SettingUpdateRequest = {
 };
 
 /**
- * Whether first-run setup is still open and, while it is, the organization the bootstrap
- * administrator will own. OrganizationName is the one organization the seed
- * already created (the one the dashboard client is bound to) so the setup page can offer it
- * rather than let the visitor type a name that creates a sibling; `null` when
- * setup is complete or when there is not exactly one organization to offer.
+ * Whether first-run setup is open. OrganizationName is offered only while setup is open
+ * and exactly one organization exists.
  */
 export type SetupStatusResponse = {
   setupRequired: boolean;
@@ -909,12 +864,8 @@ export type UpdateAnnouncementRequest = {
 };
 
 /**
- * A full replacement of the client's mutable registration — omitting FrontchannelLogoutUri or
- * BackchannelLogoutUri un-registers the client from that logout channel, matching how the URI
- * lists replace rather than merge. RefreshTokenLifetime is the one deliberate exception: a
- * `null` keeps the client's current lifetime, because silently resetting a
- * security policy on an unrelated edit is a trap. A value (seconds) applies to newly issued
- * refresh tokens only.
+ * Replaces name and URI fields. Omitted logout URLs disable those channels.
+ * Null RefreshTokenLifetime preserves the current lifetime; seconds apply to future tokens.
  */
 export type UpdateClientRequest = {
   name: string;
@@ -937,10 +888,8 @@ export type UpdateOrganizationBrandingRequest = {
 };
 
 /**
- * Everything about a client its organization may change after registration. Name and client id
- * are immutable and deliberately absent. A `null``RefreshTokenLifetime`
- * keeps the client's current lifetime; a value (seconds) applies to newly issued refresh tokens
- * only.
+ * Replaces application URIs, back-channel settings, and scopes. Null RefreshTokenLifetime
+ * preserves the current lifetime; a value in seconds applies to future tokens.
  */
 export type UpdateOrganizationClientRequest = {
   redirectUris: Array<string>;
@@ -952,9 +901,8 @@ export type UpdateOrganizationClientRequest = {
 };
 
 /**
- * Who may join an organization and on what terms. Separate from
- * UpdateOrganizationSettingsRequest because these fields are gated on the right to
- * manage members, not the right to edit settings.
+ * Enrollment policy, request-email address, and default role. Updating these requires
+ * member-management permission; UpdateOrganizationSettingsRequest uses settings permission.
  */
 export type UpdateOrganizationEnrollmentRequest = {
   enrollmentPolicy: EnrollmentPolicy;

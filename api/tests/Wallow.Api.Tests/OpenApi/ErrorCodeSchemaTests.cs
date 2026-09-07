@@ -7,9 +7,7 @@ using ApiServiceCollectionExtensions = Wallow.Api.Extensions.ServiceCollectionEx
 namespace Wallow.Api.Tests.OpenApi;
 
 /// <summary>
-/// The catalog-to-document half of the error-code export: the aggregated catalog becomes one
-/// string enum with a description per code, and every problem-details schema points its
-/// <c>code</c> property at it.
+/// Checks error-code enum export and references from schemas named with the ProblemDetails suffix.
 /// </summary>
 public class ErrorCodeSchemaTests
 {

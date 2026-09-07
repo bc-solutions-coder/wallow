@@ -1,8 +1,7 @@
 namespace Wallow.Identity.Application.Queries.IsSetupRequired;
 
 /// <summary>
-/// Checks whether the initial admin setup has been completed.
-/// Implemented in Infrastructure using ASP.NET Core Identity.
+/// Reports whether an active membership with an admin-granting role is still needed.
 /// </summary>
 public interface ISetupStatusChecker
 {

@@ -37,7 +37,7 @@ public sealed class PluginAssemblyLoadContextTests : IDisposable
         PluginAssemblyLoadContext context = new(_tempDirectory);
         AssemblyName assemblyName = new();
 
-        // Runtime rejects empty assembly names before Load is invoked
+        // An empty assembly name is rejected.
         Action act = () => context.LoadFromAssemblyName(assemblyName);
 
         act.Should().Throw<ArgumentException>();
@@ -49,9 +49,7 @@ public sealed class PluginAssemblyLoadContextTests : IDisposable
         PluginAssemblyLoadContext context = new(_tempDirectory);
         AssemblyName assemblyName = new("NonExistent.Assembly");
 
-        // When DLL doesn't exist in plugin dir, Load returns null which
-        // causes fallback to Default context. Default context will throw
-        // FileNotFoundException for truly unknown assemblies.
+        // A missing plugin DLL falls back to the default context, which also cannot resolve this name.
         Action act = () => context.LoadFromAssemblyName(assemblyName);
 
         act.Should().Throw<FileNotFoundException>();
@@ -60,7 +58,7 @@ public sealed class PluginAssemblyLoadContextTests : IDisposable
     [Fact]
     public void Load_WhenDllExistsInPluginDirectory_LoadsAssembly()
     {
-        // Copy a real assembly to the temp plugin directory
+
         string sourceAssembly = typeof(PluginAssemblyLoadContext).Assembly.Location;
         string targetPath = Path.Combine(_tempDirectory, Path.GetFileName(sourceAssembly));
         File.Copy(sourceAssembly, targetPath);

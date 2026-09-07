@@ -32,9 +32,8 @@ public abstract class TenantAwareDbContext<TContext> : DbContext, ITenantAwareCo
                 ParameterExpression parameter = Expression.Parameter(entityType.ClrType, "e");
                 MemberExpression property = Expression.Property(parameter, nameof(ITenantScoped.TenantId));
 
-                // Reference this._tenantId — EF Core's QueryFilterRewritingExpressionVisitor
-                // rebinds the ConstantExpression to the current context instance at query time,
-                // so this works correctly with pooled DbContextFactory.
+                // Reference the context field so tenant filtering uses the querying context
+                // rather than capturing a tenant value when the shared model is built.
                 ConstantExpression contextExpression = Expression.Constant(this);
                 MemberExpression tenantIdField = Expression.Field(
                     contextExpression,

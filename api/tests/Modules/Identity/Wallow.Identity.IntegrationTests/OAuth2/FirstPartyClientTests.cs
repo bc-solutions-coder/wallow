@@ -4,10 +4,8 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.OAuth2;
 
 /// <summary>
-/// First-party is a property the seed stamps on a client, never something the client id says.
-/// A first-party client — whatever its id — signs a user in with no consent screen and no
-/// organization; a lookalike id registered as anything else goes through consent like every
-/// other third-party client.
+/// Checks that consent type, not client-ID naming, controls consent.
+/// First-party sign-in can succeed without an organization; explicit-consent clients require a binding.
 /// </summary>
 public sealed class FirstPartyClientTests(WallowApiFactory factory)
     : IdentityIntegrationTestBase(factory)

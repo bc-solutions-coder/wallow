@@ -45,7 +45,6 @@ public class RedisApiKeyServiceTests
         result.Prefix.Should().StartWith("sk_live_");
         result.Error.Should().BeNull();
 
-        // Verify Redis writes
         await _db.Received().StringSetAsync(
             Arg.Is<RedisKey>(k => k.ToString().StartsWith("apikey:")),
             Arg.Any<RedisValue>(),

@@ -11,11 +11,8 @@ using WallowClaims = Wallow.Shared.Kernel.Extensions.ClaimsPrincipalExtensions;
 namespace Wallow.Tests.Common.Helpers;
 
 /// <summary>
-/// Stands in for the production "SmartScheme" policy scheme, and selects the same way it does:
-/// a bearer credential is honoured here, and everything else falls through to the real ASP.NET
-/// Identity cookie. The fall-through is what lets a test drive a browser flow — the authorize
-/// endpoint reads the cookie and never a bearer token — and it costs nothing when no cookie is
-/// present, because the cookie handler then authenticates nobody.
+/// Uses synthetic test credentials when an authorization header or access-token query is present.
+/// Otherwise delegates to the Identity cookie; X-Test-Auth-Skip selects real bearer validation.
 /// </summary>
 public sealed class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
 {
@@ -27,16 +24,14 @@ public sealed class TestAuthHandler : AuthenticationHandler<AuthenticationScheme
 
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        // The opt-out header runs the REAL bearer validation instead of a synthetic principal, so
-        // a spec can assert what an actual JWT is worth — signature, audience, and the token
-        // entry, meaning a revoked token is refused and a valid one is honoured.
+        // Let tests opt into the configured OpenIddict validation handler.
         if (Request.Headers.TryGetValue("X-Test-Auth-Skip", out StringValues skipHeader) && skipHeader == "true")
         {
             return await Context.AuthenticateAsync(
                 OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme);
         }
 
-        // Check for Authorization header or SignalR access_token query param
+
         bool hasAuthHeader = Request.Headers.ContainsKey("Authorization");
         bool hasAccessToken = Request.Query.ContainsKey("access_token");
 
@@ -45,7 +40,7 @@ public sealed class TestAuthHandler : AuthenticationHandler<AuthenticationScheme
             return await Context.AuthenticateAsync(IdentityConstants.ApplicationScheme);
         }
 
-        // Extract token from either Authorization header or query param
+
         string? token = null;
         if (hasAccessToken)
         {
@@ -60,10 +55,10 @@ public sealed class TestAuthHandler : AuthenticationHandler<AuthenticationScheme
             }
         }
 
-        // Try to parse user ID and roles from test token (for SignalR tests)
+
         (string UserId, string[] Roles)? parsedToken = JwtTokenHelper.ParseToken(token);
 
-        // Allow tests to specify custom user ID via header (takes precedence)
+        // Explicit test headers take precedence over the encoded identity.
         string userId;
         string[] roles;
 
@@ -76,13 +71,13 @@ public sealed class TestAuthHandler : AuthenticationHandler<AuthenticationScheme
         }
         else if (parsedToken.HasValue)
         {
-            // Use user ID and roles from parsed token
+
             userId = parsedToken.Value.UserId;
             roles = parsedToken.Value.Roles;
         }
         else
         {
-            // Default to admin user
+
             userId = TestConstants.AdminUserId.ToString();
             roles = new[] { "admin" };
         }
@@ -97,8 +92,7 @@ public sealed class TestAuthHandler : AuthenticationHandler<AuthenticationScheme
             new(ClaimTypes.Email, $"{userId}@test.com"),
         };
 
-        // An organization-less principal: the first-party token a user with several (or no)
-        // memberships receives when no organization hint was sent.
+        // Model a principal without an organization claim.
         bool withoutOrganization = Request.Headers.TryGetValue("X-Test-No-Organization", out StringValues noOrgHeader)
             && noOrgHeader == "true";
         if (!withoutOrganization)
@@ -111,16 +105,14 @@ public sealed class TestAuthHandler : AuthenticationHandler<AuthenticationScheme
             claims.Add(new Claim(ClaimTypes.Role, role.Trim()));
         }
 
-        // The platform operator's own claim, minted at sign-in for users granted global
-        // administration; never derived from roles, which are organization-scoped.
+        // Global administration is a separate claim from organization roles.
         if (Request.Headers.TryGetValue("X-Test-Global-Admin", out StringValues globalAdminHeader)
             && globalAdminHeader == "true")
         {
             claims.Add(new Claim(WallowClaims.GlobalAdminClaimType, "true"));
         }
 
-        // Space-separated, matching the "scope" claim of a real token, so a test principal can
-        // carry granted scopes for PermissionExpansionMiddleware to expand into permissions.
+        // Permission expansion reads space-separated scopes from this claim.
         if (Request.Headers.TryGetValue("X-Test-Scopes", out StringValues scopesHeader))
         {
             claims.Add(new Claim("scope", scopesHeader.ToString()));

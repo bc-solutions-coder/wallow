@@ -23,13 +23,10 @@ public sealed partial class UserEnrollmentService(
     public async Task<EnrollmentOutcome> EnrollAsync(
         Guid userId, Guid organizationId, CancellationToken ct = default)
     {
-        // An existing row decides on its own terms. Reading it first is also what makes a repeat
-        // authorize idempotent: a second Pending row would outlive the first one's denial and
-        // hand the person a fresh request every time they retried.
+        // Reuse existing membership state instead of creating a second request row.
         Membership? existing = await memberships.GetAsync(userId, organizationId, ct);
 
-        // A denial that has run its course stops being the organization's answer. What replaces it
-        // is not a second chance of its own: the current policy decides, exactly as for a stranger.
+        // Once denial expires, the current enrollment policy decides what replaces it.
         Membership? spentDenial = existing is { Status: MembershipStatus.Denied }
             && !existing.IsWithinDenialCooldown(timeProvider)
                 ? existing
@@ -58,9 +55,8 @@ public sealed partial class UserEnrollmentService(
             return new Rejected(EnrollmentReasons.NotAMember);
         }
 
-        // Required under every policy, not only the self-service ones: an unverified address is
-        // an unproven claim to an identity, and a second membership is exactly what somebody who
-        // typed a stranger's address at signup would be reaching for.
+        // Verify email before applying policy to a new membership or spent denial.
+        // Existing active/pending memberships returned earlier.
         if (!user.EmailConfirmed)
         {
             LogEnrollmentRefusedUnverifiedEmail(userId, organizationId);
@@ -78,7 +74,7 @@ public sealed partial class UserEnrollmentService(
             case EnrollmentPolicy.RequestApproval:
                 return await RecordRequestAsync(user, organization, spentDenial, ct);
 
-            // InviteOnly, and any policy a fork adds without deciding what it means here.
+            // InviteOnly and unknown policies refuse self-service enrollment.
             default:
                 return new Rejected(EnrollmentReasons.NotAMember);
         }
@@ -89,8 +85,7 @@ public sealed partial class UserEnrollmentService(
     {
         Guid organizationId = organization.Id.Value;
 
-        // Always the organization's default, never a role inherited from another membership:
-        // roles are granted by an organization and carry no authority outside it.
+        // Resolve this organization's default role rather than inheriting roles from elsewhere.
         Guid roleId = await defaultRoleResolver.ResolveAsync(organizationId, ct);
 
         if (spentDenial is null)
@@ -137,8 +132,7 @@ public sealed partial class UserEnrollmentService(
         IReadOnlyList<string> recipients = await recipientResolver.ResolveAsync(organizationId, ct);
         if (recipients.Count == 0)
         {
-            // The membership row is the durable record, so a request nobody can be told about is
-            // still a request. Someone will find it on the pending list.
+            // The saved pending membership remains the request record even without email recipients.
             LogAccessRequestHasNoRecipients(user.Id, organizationId);
         }
 
@@ -159,8 +153,7 @@ public sealed partial class UserEnrollmentService(
     }
 
     /// <summary>
-    /// Enrolment is self-service, so the actor and the subject are the same person. Recording that
-    /// equality is the point: a blank actor would read as an unattributed admission.
+    /// Self-service enrollment records the same user as actor and subject.
     /// </summary>
     private ValueTask PublishTransitionAsync(
         MembershipTransition transition, Guid organizationId, Guid userId) =>
@@ -175,8 +168,7 @@ public sealed partial class UserEnrollmentService(
         });
 
     /// <summary>
-    /// An organization that has never been configured admits nobody: a policy nobody has chosen
-    /// must be the one that grants nothing.
+    /// Missing settings default to InviteOnly, disabling self-service enrollment.
     /// </summary>
     private async Task<EnrollmentPolicy> ResolvePolicyAsync(Guid organizationId, CancellationToken ct)
     {
@@ -190,9 +182,8 @@ public sealed partial class UserEnrollmentService(
     }
 
     /// <summary>
-    /// The outcome an existing membership already describes. Suspended and Denied are reviewed
-    /// refusals — reversing one is a decision an administrator makes explicitly, never something
-    /// the refused person triggers by signing in again.
+    /// Maps existing status after the caller has excluded spent denials.
+    /// Suspension and a standing denial remain refusals.
     /// </summary>
     private static EnrollmentOutcome FromExisting(MembershipStatus status) => status switch
     {

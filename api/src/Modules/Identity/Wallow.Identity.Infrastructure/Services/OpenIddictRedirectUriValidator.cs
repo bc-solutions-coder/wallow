@@ -13,7 +13,7 @@ public sealed class OpenIddictRedirectUriValidator(
 {
     private const string CacheKeyPrefix = "allowed_redirect_origins:";
 
-    // Cache slot used when no client_id is known; holds the union of every registered client's origins.
+    // Without a client_id, cache all registered origins plus AuthUrl.
     private const string AllClientsCacheKey = $"{CacheKeyPrefix}*";
 
     private static readonly HybridCacheEntryOptions _cacheOptions = new()

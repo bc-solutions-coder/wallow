@@ -7,8 +7,7 @@ using static OpenIddict.Abstractions.OpenIddictConstants;
 namespace Wallow.Identity.Tests.Api.Userinfo;
 
 /// <summary>
-/// The userinfo body is scope-gated: a relying party sees only what the scopes it was granted
-/// cover. <c>org_id</c>/<c>org_name</c> ride with <c>profile</c>.
+/// Checks scope-gated userinfo projection, including organization claims under profile.
 /// </summary>
 public sealed class UserinfoClaimsTests
 {

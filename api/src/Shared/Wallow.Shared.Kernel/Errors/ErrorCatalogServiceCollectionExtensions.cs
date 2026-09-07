@@ -9,10 +9,8 @@ namespace Wallow.Shared.Kernel.Errors;
 public static class ErrorCatalogServiceCollectionExtensions
 {
     /// <summary>
-    /// Contributes a module's static error catalog. Call it from the module's
-    /// <c>Add&lt;Module&gt;</c> extension; the host resolves the aggregated
-    /// <see cref="ErrorCatalog"/> from every registration. The catalog is read eagerly so a
-    /// malformed one fails at registration rather than at the first response.
+    /// Registers a module's catalog for host aggregation. Reads entries immediately to reject
+    /// invalid catalogs during registration; duplicate codes are checked when the aggregate resolves.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="catalogType">The static class whose public static entries form the catalog.</param>

@@ -14,10 +14,10 @@ public static partial class FileNameSanitizer
             return DefaultFileName;
         }
 
-        // Normalize backslashes so Path.GetFileName works cross-platform
+        // Treat both path separators alike on every host OS.
         string normalized = fileName.Replace('\\', '/');
 
-        // Strip path components — only keep the final segment
+
         int lastSlash = normalized.LastIndexOf('/');
         string name = lastSlash >= 0 ? normalized[(lastSlash + 1)..] : normalized;
 
@@ -29,14 +29,14 @@ public static partial class FileNameSanitizer
         // Remove dangerous characters: control chars, null bytes, quotes, semicolons, newlines
         name = DangerousCharsRegex().Replace(name, string.Empty);
 
-        // Replace remaining invalid filename chars with underscore
+
         char[] invalidChars = Path.GetInvalidFileNameChars();
         foreach (char c in invalidChars)
         {
             name = name.Replace(c, '_');
         }
 
-        // Trim whitespace that may have been exposed
+        // Character removal can expose leading or trailing whitespace.
         name = name.Trim();
 
         if (string.IsNullOrWhiteSpace(name) || name is "." or "..")
@@ -44,7 +44,7 @@ public static partial class FileNameSanitizer
             return DefaultFileName;
         }
 
-        // Limit length while preserving extension
+        // Preserve the extension when it fits within the filename limit.
         if (name.Length > MaxFileNameLength)
         {
             string extension = Path.GetExtension(name);

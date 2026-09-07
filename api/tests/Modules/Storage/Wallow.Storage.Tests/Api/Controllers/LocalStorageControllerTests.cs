@@ -8,11 +8,6 @@ using Wallow.Storage.Infrastructure.Providers;
 
 namespace Wallow.Storage.Tests.Api.Controllers;
 
-/// <summary>
-/// Exercises the key-addressed endpoints LocalStorageProvider's presigned URLs point at,
-/// against a real provider over a temp directory: possession of a valid signature is the
-/// entire authorization model, so most of these tests are about rejecting bad signatures.
-/// </summary>
 public sealed class LocalStorageControllerTests : IDisposable
 {
     private readonly string _tempPath;
@@ -144,7 +139,7 @@ public sealed class LocalStorageControllerTests : IDisposable
     [Fact]
     public async Task Download_WithUploadSignature_Returns403()
     {
-        // An upload URL must not double as a download URL.
+
         string key = "tenant-1/bucket/report.txt";
         using MemoryStream upload = new([1, 2, 3]);
         await _provider.UploadAsync(upload, key, "text/plain");
@@ -210,7 +205,7 @@ public sealed class LocalStorageControllerTests : IDisposable
     [Fact]
     public async Task Upload_WithDownloadSignature_Returns403AndWritesNothing()
     {
-        // A download URL must not authorize a write.
+
         string key = "tenant-1/bucket/incoming.txt";
         _controller.HttpContext.Request.Body = new MemoryStream([1, 2, 3]);
         long expires = FutureExpiry;

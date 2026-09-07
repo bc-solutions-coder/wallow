@@ -4,7 +4,7 @@ namespace Wallow.Shared.Infrastructure.Tests.Contracts;
 
 public class ApiKeyContractTests
 {
-    // ── ApiKeyCreateResult ────────────────────────────────────────────────
+
 
     [Fact]
     public void ApiKeyCreateResult_Success_HasCorrectValues()
@@ -44,7 +44,7 @@ public class ApiKeyContractTests
         result.Error.Should().Be("API key limit exceeded");
     }
 
-    // ── ApiKeyValidationResult ────────────────────────────────────────────
+
 
     [Fact]
     public void ApiKeyValidationResult_Valid_HasCorrectValues()
@@ -128,7 +128,7 @@ public class ApiKeyContractTests
         result.Scopes[1].Should().Be("billing:read");
     }
 
-    // ── ApiKeyMetadata ────────────────────────────────────────────────────
+
 
     [Fact]
     public void ApiKeyMetadata_WithAllFields_HasCorrectValues()

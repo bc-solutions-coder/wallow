@@ -1,28 +1,12 @@
 using System.Reflection;
 
-#pragma warning disable CA1024 // MemberData source methods cannot be properties
+#pragma warning disable CA1024 // Keep callable MemberData factories.
 
 namespace Wallow.Architecture.Tests;
 
 /// <summary>
-/// Fails a non-inlinable Wolverine handler dependency at the offending type, in the default test
-/// run, without Docker.
-///
-/// <para>Wolverine generates a handler adapter per message type and inlines the constructor calls
-/// for that handler's dependencies. When it cannot inline one it falls back to a service locator,
-/// and <c>Program.cs</c> sets <c>ServiceLocationPolicy.NotAllowed</c>, which turns that fallback
-/// into an <c>InvalidServiceLocationException</c>. Codegen is lazy — it runs on the first message
-/// of that type — so the exception surfaces inside a background envelope, three retries later, in
-/// the dead-letter queue, behind an HTTP 200. That is how one constructor parameter on
-/// SendEmailHandler killed every transactional email in the product and was found by four browser
-/// specs rather than by this suite.</para>
-///
-/// <para><c>Wallow.Api.Tests.Integration.HandlerCodegenTests</c> is the precise check: it compiles
-/// every discovered handler against the real container and reports exactly what the codegen could
-/// not construct. It needs Testcontainers, so it is <c>Category=Integration</c> and runs in CI's
-/// integration job, not in <c>./scripts/run-tests.sh</c>. These tests are the coarse half that
-/// does run there — static, so they judge visibility rather than the resolved container, and they
-/// name the offending type instead of the handler that failed to compile.</para>
+/// Checks dependency visibility and selected Wolverine registration text in the fast test tier.
+/// HandlerCodegenTests exercises generation against the integration host.
 /// </summary>
 public class WolverineCodegenPolicyTests
 {
@@ -32,11 +16,7 @@ public class WolverineCodegenPolicyTests
         _repoRoot, "api", "src", "Wallow.Api", "Program.cs");
 
     /// <summary>
-    /// The interfaces <c>Program.cs</c> exempts from the policy, and the entire justification for
-    /// each: the registration is an opaque lambda factory or a framework factory the codegen
-    /// cannot see through. The list grows one entry at a time in reaction to a production-shaped
-    /// failure, so it is restated here — an addition has to be a deliberate edit in two places
-    /// rather than a quiet third line in a config block.
+    /// Expected service-location exemptions, requiring an explicit test update when the host list changes.
     /// </summary>
     private static readonly string[] _expectedServiceLocationExemptions =
     [
@@ -57,13 +37,7 @@ public class WolverineCodegenPolicyTests
     }
 
     /// <summary>
-    /// A non-public implementation is the first half of the defect class: Wolverine cannot emit
-    /// <c>new Foo(...)</c> for a type the generated assembly cannot see. The rule is deliberately
-    /// coarser than the real failure — it judges every handler-reachable interface implementation,
-    /// not just the ones a handler happens to depend on today — because the alternative is a rule
-    /// that goes green until someone adds a constructor parameter, which is exactly the moment it
-    /// is needed. The second half (opaque lambda registrations) is invisible to a static rule and
-    /// is covered by HandlerCodegenTests.
+    /// Checks public visibility of nonnested infrastructure implementations of application and shared interfaces.
     /// </summary>
     [Theory]
     [MemberData(nameof(GetModuleNames))]
@@ -72,8 +46,7 @@ public class WolverineCodegenPolicyTests
         Assembly applicationAssembly = Assembly.Load($"Wallow.{moduleName}.Application");
         Assembly infrastructureAssembly = Assembly.Load($"Wallow.{moduleName}.Infrastructure");
 
-        // Shared.Contracts counts too: it is the one assembly modules reference across boundaries,
-        // so an interface declared there is reachable from a handler in any of the seven.
+        // Shared interfaces can also be dependencies of module handlers.
         Assembly contractsAssembly = Assembly.Load("Wallow.Shared.Contracts");
 
         HashSet<Type> handlerReachableInterfaces =
@@ -92,7 +65,7 @@ public class WolverineCodegenPolicyTests
                 .Order()
         ];
 
-        // BeEmpty reports only the first item, and these arrive in batches — name them all.
+        // Include every violating type in the assertion message.
         violations.Should().BeEmpty(
             "Wolverine's generated handler code constructs its dependencies inline, so a handler " +
             "taking one of these interfaces fails codegen with InvalidServiceLocationException on " +
@@ -100,10 +73,7 @@ public class WolverineCodegenPolicyTests
     }
 
     /// <summary>
-    /// Every exemption widens the policy for one interface across every handler, so the list is
-    /// asserted rather than reviewed. Reads the source because the options are configured inside
-    /// the API composition root, which needs EF, Redis and signing certificates to build — the
-    /// same trade-off <see cref="AccessTokenAudienceTests"/> makes.
+    /// Checks the service-location exemption list in the API composition source.
     /// </summary>
     [Fact]
     public void ServiceLocationExemptions_ShouldMatch_TheExpectedList()
@@ -127,11 +97,7 @@ public class WolverineCodegenPolicyTests
     }
 
     /// <summary>
-    /// ASP.NET's authorization handlers match Wolverine's discovery convention exactly — the class
-    /// ends in "Handler" and <c>AuthorizationHandler&lt;T&gt;</c> exposes a public
-    /// <c>HandleAsync(AuthorizationHandlerContext)</c> — so without this exclusion Wolverine builds
-    /// a message chain for <c>AuthorizationHandlerContext</c> whose SignInManager and UserManager
-    /// dependencies cannot be inlined. A type nothing ever sends then fails the codegen policy.
+    /// Checks exclusion of ASP.NET authorization handlers from message discovery.
     /// </summary>
     [Fact]
     public void HandlerDiscovery_ShouldExclude_AspNetAuthorizationHandlers()

@@ -8,12 +8,13 @@ using OpenIddict.Abstractions;
 namespace Wallow.Identity.Api.Controllers;
 
 /// <summary>
-/// The consent half of the authorize endpoint: what the consent screen is sent, and how the
-/// decision it posts back is tied to the request it answers.
+/// Consent-screen redirects and request fingerprints for posted consent decisions.
 /// </summary>
 public sealed partial class AuthorizationController
 {
-    /// <summary>The form field the consent screen posts its single-use token under.</summary>
+    /// <summary>
+    /// Form field carrying the consent token.
+    /// </summary>
     public const string ConsentTokenParameter = "consent_token";
 
     /// <summary>The form field carrying the decision: <see cref="ConsentGranted"/> or <see cref="ConsentDenied"/>.</summary>
@@ -23,10 +24,7 @@ public sealed partial class AuthorizationController
     public const string ConsentDenied = "denied";
 
     /// <summary>
-    /// The parameters that carry a consent decision rather than describe the authorize request.
-    /// They are stripped from the request the consent screen is told to come back to, and from the
-    /// fingerprint the token is bound to, so the same request digests the same way on the GET that
-    /// mints the token and the POST that redeems it.
+    /// Consent fields excluded from both the return URL and request fingerprint.
     /// </summary>
     private static readonly ImmutableHashSet<string> _consentParameters = ImmutableHashSet.Create(
         StringComparer.Ordinal,
@@ -34,8 +32,7 @@ public sealed partial class AuthorizationController
         ConsentDecisionParameter);
 
     /// <summary>
-    /// Sends the user to the consent screen with the request to come back to, the client and
-    /// scopes the decision is about, and a token minted for this user and this request.
+    /// Builds a consent redirect with the user-bound token and scopes to display.
     /// </summary>
     private RedirectResult RedirectToConsent(
         OpenIddictRequest request,
@@ -46,13 +43,10 @@ public sealed partial class AuthorizationController
     {
         string authUrl = GetRequiredAuthUrl();
 
-        // Rebuilt from the OpenIddict request rather than read off the URL: a POSTed decision
-        // carries the request in its body, and the GET may carry flags that must not come back.
+        // Rebuild from parsed parameters so POST bodies retain the authorize request.
         string returnUrl = Request.PathBase + Request.Path + QueryString.Create(AuthorizeParameters(request));
 
-        // The granted scopes ride along space-delimited (OAuth's own delimiter, and what the
-        // authorize-context endpoint splits on): they are the substance of the decision the screen asks
-        // the user to make, and asking to consent to a scope that will never be issued is a lie.
+        // The consent screen and authorize-context endpoint use space-delimited scopes.
         string consentScopes = string.Join(" ", grantedScopes);
         string token = consentTokenService.Issue(userId, fingerprint);
 
@@ -64,8 +58,7 @@ public sealed partial class AuthorizationController
     }
 
     /// <summary>
-    /// A digest of the authorize request a consent decision answers, stable across the GET that
-    /// shows the screen and the POST that answers it.
+    /// Hashes sorted authorize parameters after removing consent fields.
     /// </summary>
     private static string ConsentRequestFingerprint(OpenIddictRequest request)
     {

@@ -12,10 +12,8 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.OrganizationClients;
 
 /// <summary>
-/// The lifecycle half of the org-scoped client surface: suspending a client ends every credential
-/// it holds without touching its configuration or consents, reinstating brings it back exactly as
-/// it was, and deleting removes it and everything that hung off it. Proven against the real
-/// authorize and token endpoints, the real bearer validation, and the host's own realtime registry.
+/// Checks client suspension, reinstatement, deletion, and re-registration through HTTP.
+/// Verifies token rejection, consent reuse, branding cleanup, and registry cancellation.
 /// </summary>
 [Trait("Category", "Integration")]
 public class ClientLifecycleTests(WallowApiFactory factory) : OrganizationClientsTestBase(factory)
@@ -51,8 +49,7 @@ public class ClientLifecycleTests(WallowApiFactory factory) : OrganizationClient
         reinstated.GetProperty("status").GetString().Should().Be("active");
         reinstated.GetProperty("redirectUris").GetArrayLength().Should().Be(1, "configuration survives a suspension");
 
-        // The consent granted before the suspension is still on file: the authorize request goes
-        // straight to a code instead of back through the consent screen.
+        // Reinstatement must reuse existing consent.
         AuthorizeOutcome again = await Harness.AuthorizeAsync(clientId, LoginScope);
         again.ConsentToken.Should().BeNull(again.Location?.ToString());
         again.Code.Should().NotBeNullOrEmpty(again.Body);
@@ -106,7 +103,7 @@ public class ClientLifecycleTests(WallowApiFactory factory) : OrganizationClient
         (string clientId, string secret) = await RegisterApplicationAsync(orgId, "Delete App");
         TokenOutcome tokens = await SignInThroughAsync(email, clientId, secret);
         await HarnessTokenShouldBeAliveAsync(tokens.AccessToken!, "the token is alive until the client is deleted");
-        // Registration itself creates the branding row through the integration event; wait for it.
+        // Wait for registration-created branding before testing its deletion.
         await WaitForAsync(async () => await BrandingOfAsync(clientId) is not null);
         (await BrandingOfAsync(clientId)).Should().NotBeNull("registration creates the branding row");
 
@@ -115,8 +112,7 @@ public class ClientLifecycleTests(WallowApiFactory factory) : OrganizationClient
 
         AuthorizeOutcome unknown = await Harness.AuthorizeAsync(clientId, LoginScope);
         unknown.Code.Should().BeNull();
-        // OpenIddict refuses an unknown client_id on the spot: no redirect anywhere, and the
-        // request-level error rather than a client-authentication one.
+        // A deleted client must fail request validation rather than redirect to its callback.
         unknown.Body.Should().Contain("error:invalid_request", "a deleted client is an unknown client");
         unknown.Body.Should().Contain("The specified 'client_id' is invalid.");
         (unknown.Location?.OriginalString ?? string.Empty).Should().NotStartWith(AuthorizationCodeFlowHarness.RedirectUri);
@@ -133,7 +129,7 @@ public class ClientLifecycleTests(WallowApiFactory factory) : OrganizationClient
         await WaitForAsync(async () => await BrandingOfAsync(clientId) is null);
         (await BrandingOfAsync(clientId)).Should().BeNull("branding goes with the client");
 
-        // The same name derives the same id, and the new client carries none of the old one's consents.
+        // Re-registering the same ID must require new consent.
         (string reborn, string rebornSecret) = await RegisterApplicationAsync(orgId, "Delete App");
         reborn.Should().Be(clientId);
         AuthorizeOutcome consent = await Harness.AuthorizeAsync(clientId, LoginScope);
@@ -173,8 +169,7 @@ public class ClientLifecycleTests(WallowApiFactory factory) : OrganizationClient
     }
 
     /// <summary>
-    /// Registers a stream the way the SSE endpoint does for a token the client issued, and hands
-    /// back the token the endpoint would be waiting on.
+    /// Adds a connection directly to the SSE registry and returns its cancellation token.
     /// </summary>
     private CancellationToken OpenRealtimeStreamAsync(Guid userId, Guid orgId, string clientId)
     {

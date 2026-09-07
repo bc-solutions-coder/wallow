@@ -3,14 +3,7 @@ using System.Text.Json;
 namespace Wallow.Architecture.Tests;
 
 /// <summary>
-/// Wallow does not write its own dead-letter log line, because Wolverine already does:
-/// <c>WolverineRuntime</c> logs "Envelope {envelope} was moved to the error queue" at Error
-/// (event id 108) with the exception attached, and the envelope rendering names the message
-/// type — exactly what bead Wallow-qi90.2 asks for. The only thing this repo owns on that path
-/// is the Serilog level override for the "Wolverine" source: raise it past Error in any
-/// committed appsettings file and the sole terminal log of a dropped message vanishes, which is
-/// how the SendEmailHandler incident stayed invisible. These tests pin every appsettings file
-/// that carries the override to a level Error-level events pass through.
+/// Checks that declared Wolverine log thresholds in the listed settings files allow Error events.
 /// </summary>
 public class WolverineDeadLetterLoggingTests
 {
@@ -33,8 +26,7 @@ public class WolverineDeadLetterLoggingTests
 
         if (effectiveLevel is null)
         {
-            // No Serilog section, or one that names no level reaching the Wolverine source —
-            // this file inherits from appsettings.json, which the base-file case covers.
+            // This file declares no threshold for the check to evaluate.
             return;
         }
 
@@ -46,8 +38,7 @@ public class WolverineDeadLetterLoggingTests
     }
 
     /// <summary>
-    /// The level governing the "Wolverine" source in one file: its explicit override when
-    /// present, otherwise the file's own Default, otherwise null (nothing declared here).
+    /// Reads this file's Wolverine override, then its default threshold, or null if neither is declared.
     /// </summary>
     private static string? ResolveEffectiveWolverineLevel(JsonElement root)
     {

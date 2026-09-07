@@ -1,8 +1,7 @@
 namespace Wallow.Identity.Application.DTOs;
 
 /// <summary>
-/// The platform-suspension pair is present so the owning organization's admins can read the
-/// operator's reason; only a global admin can place or lift the suspension itself.
+/// Organization details, including the platform suspension reason visible to its admins.
 /// </summary>
 public record OrganizationDto(
     Guid Id,

@@ -29,8 +29,7 @@ public class OrganizationTests
         Organization org = Organization.Create(
             _tenantId, "Acme Corp", "acme-corp", _testUserId, TimeProvider.System);
 
-        // Organization.Create is the only place a tenant id is minted, and it mints it from
-        // the freshly generated org id.
+        // New organizations derive their tenant ID from their own ID.
         org.TenantId.Value.Should().Be(org.Id.Value);
     }
 
@@ -42,8 +41,7 @@ public class OrganizationTests
         Organization second = Organization.Create(
             _tenantId, "Beta Corp", "beta-corp", _testUserId, TimeProvider.System);
 
-        // Each Create mints its own id/tenant equivalence; the caller-supplied value
-        // does not determine the tenant id (Create is the single mint point).
+        // The supplied tenant value does not determine the new organization tenant ID.
         second.TenantId.Should().NotBe(first.TenantId);
         first.TenantId.Value.Should().Be(first.Id.Value);
         second.TenantId.Value.Should().Be(second.Id.Value);

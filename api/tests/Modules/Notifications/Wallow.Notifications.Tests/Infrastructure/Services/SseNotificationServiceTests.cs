@@ -13,7 +13,7 @@ public class SseNotificationServiceTests
     private readonly TimeProvider _timeProvider = Substitute.For<TimeProvider>();
     private readonly SseNotificationService _sut;
 
-#pragma warning disable CA2000 // LoggerFactory disposal not needed in tests
+#pragma warning disable CA2000 // Test logger factory is not disposed.
     public SseNotificationServiceTests()
     {
         _timeProvider.GetUtcNow().Returns(new DateTimeOffset(2025, 6, 15, 12, 0, 0, TimeSpan.Zero));

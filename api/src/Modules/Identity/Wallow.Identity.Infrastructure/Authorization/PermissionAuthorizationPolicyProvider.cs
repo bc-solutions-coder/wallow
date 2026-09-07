@@ -29,10 +29,8 @@ public class PermissionAuthorizationPolicyProvider(IOptions<AuthorizationOptions
         _fallbackProvider.GetDefaultPolicyAsync();
 
     /// <summary>
-    /// Returns the fallback policy <see cref="AuthorizationOptions.FallbackPolicy"/> declares, so a
-    /// fork configuring a stricter one is honoured. Falls back to deny-anonymous when nothing is
-    /// configured: <see cref="AuthorizationOptions.FallbackPolicy"/> defaults to null, and a null
-    /// fallback means an endpoint without authorization metadata is served anonymously.
+    /// Returns <see cref="AuthorizationOptions.FallbackPolicy"/> when configured;
+    /// otherwise requires an authenticated user on endpoints without authorization metadata.
     /// </summary>
     public async Task<AuthorizationPolicy?> GetFallbackPolicyAsync() =>
         await _fallbackProvider.GetFallbackPolicyAsync()

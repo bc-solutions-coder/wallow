@@ -24,15 +24,11 @@ internal sealed class SetupMiddleware
             && !context.Request.Path.StartsWithSegments("/health", StringComparison.OrdinalIgnoreCase)
             && !context.Request.Path.StartsWithSegments("/.well-known", StringComparison.OrdinalIgnoreCase)
             && !context.Request.Path.StartsWithSegments("/connect", StringComparison.OrdinalIgnoreCase)
-            // OpenAPI contract and Scalar docs are anonymous, development-only metadata
-            // endpoints (not tenant operations) - keep them reachable before setup so
-            // tooling and the CI OpenAPI drift check can read the contract.
+            // Keep contract and API-reference endpoints reachable before setup.
             && !context.Request.Path.StartsWithSegments("/openapi", StringComparison.OrdinalIgnoreCase)
             && !context.Request.Path.StartsWithSegments("/scalar", StringComparison.OrdinalIgnoreCase))
         {
-            // 503 with Setup.Required: the code tells the client what to do (the setup status
-            // endpoint and the bootstrap-admin endpoint stay reachable); the detail is the
-            // contract's fixed 5xx sentence.
+            // Setup.Required directs clients to the still-accessible setup endpoints.
             IProblemDetailsService problemDetailsService =
                 context.RequestServices.GetRequiredService<IProblemDetailsService>();
             await problemDetailsService.TryWriteProblemAsync(context, SharedErrors.SetupRequired);

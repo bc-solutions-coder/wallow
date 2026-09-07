@@ -127,7 +127,7 @@ public sealed class StorageController(IMessageBus bus, ITenantContext tenantCont
     [HttpPost("upload")]
     [HasPermission(PermissionType.StorageWrite)]
     [EnableRateLimiting("upload")]
-    [RequestSizeLimit(100 * 1024 * 1024)] // 100MB
+    [RequestSizeLimit(100 * 1024 * 1024)]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(UploadResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]

@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- TargetFramework, Nullable, etc. inherited from Directory.Build.props -->
-  <!-- Package versions managed in Directory.Packages.props -->
+
+
 
   <PropertyGroup>
     <RootNamespace>Wallow.Shared.Kernel</RootNamespace>

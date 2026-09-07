@@ -14,44 +14,15 @@ using Wolverine.Tracking;
 namespace Wallow.Api.Tests.Integration;
 
 /// <summary>
-/// Pins <c>MultipleHandlerBehavior.Separated</c>: when a message type has several handlers, one
-/// handler failing must not re-run the siblings that already committed.
-/// <para>
-/// Under Wolverine's default (<c>ClassicCombineIntoOneLogicalHandler</c>) every handler for a
-/// message is welded into ONE logical handler behind ONE retry loop and ONE envelope. A failure in
-/// a late handler therefore replays the earlier ones — a second welcome email, a second in-app
-/// notification row, a second SSE push. Worse, the failure and the replay can be in different
-/// modules: a Notifications email failure used to retry the Inquiries submitter link-up, a module
-/// boundary crossed by a retry policy rather than by a contract.
-/// </para>
-/// <para>
-/// The lever is data, not a test double. <c>SendEmailValidator</c> rejects a <c>To</c> that is not
-/// an email address, and FluentValidation runs as Wolverine middleware, so an event carrying a
-/// malformed recipient makes exactly the email handler throw inside its <c>bus.InvokeAsync</c>
-/// while its siblings are untouched. Nothing in the host is stubbed for these tests.
-/// </para>
-/// <para>
-/// The mode-discriminating assertion is the envelope ledger. Separated gives every handler its own
-/// <c>local://</c> queue, so one publish becomes N envelopes on N distinct destinations, N-1 of
-/// which succeed exactly once. Classic gives one envelope on one destination that fails outright,
-/// so the healthy siblings show zero successes. "Exactly once" is what rules out the replay: with
-/// <c>OnAnyException().RetryTimes(1)</c> a Classic-mode sibling ordered before the failure runs
-/// twice and one ordered after it runs not at all — never exactly once.
-/// </para>
-/// <para>
-/// Three of the four message types also get a committed-state assertion (the linked inquiry, the
-/// in-app notification rows). <see cref="InquiryStatusChangedEvent"/>'s only healthy sibling is the
-/// SSE push, whose sole effect is a Redis publish that leaves nothing to read back, so that one
-/// rests on the envelope ledger alone.
-/// </para>
+/// Checks that retrying a poisoned email handler leaves sibling handlers with one execution each.
+/// Uses tracked envelope destinations plus inquiry/notification state where available.
 /// </summary>
 [Collection(nameof(ApiIntegrationTestCollection))]
 [Trait("Category", "Integration")]
 public sealed class MultipleHandlerSeparationTests(WallowApiFactory factory)
 {
     /// <summary>
-    /// Not an email address, so <c>SendEmailValidator</c> fails it before the handler body runs.
-    /// Whichever handler carries it into <c>SendEmailCommand</c> is the one that throws.
+    /// Invalid recipient used to fail SendEmail validation.
     /// </summary>
     private const string PoisonedRecipient = "separation-probe-not-an-email";
 
@@ -60,11 +31,7 @@ public sealed class MultipleHandlerSeparationTests(WallowApiFactory factory)
     [Fact]
     public async Task EmailVerified_LinksTheInquiry_WhenTheNotificationsSiblingFails()
     {
-        // The lead case: the two handlers live in different modules. Inquiries links every unlinked
-        // inquiry left behind by the address that was just verified; Notifications sends the welcome
-        // email. Reusing the poisoned string as the verified address is what puts them in conflict —
-        // it is a legitimate inquiry email as far as Inquiries is concerned and a validation failure
-        // as far as the email pipeline is concerned.
+        // The inquiry accepts this address, while email validation rejects it.
         Guid userId = Guid.NewGuid();
         string email = $"{PoisonedRecipient}-{Guid.NewGuid():N}";
 
@@ -95,9 +62,7 @@ public sealed class MultipleHandlerSeparationTests(WallowApiFactory factory)
     [Fact]
     public async Task InquirySubmitted_WritesOneAdminNotification_WhenTheEmailSiblingFails()
     {
-        // Three handlers: admin email, admin in-app notification, tenant SSE push. The admin email
-        // address is the poisoned one, so the in-app write is the sibling that must survive — and it
-        // is the one whose duplication is visible, because a replay leaves a second row.
+        // A duplicated notification row would reveal a replay of the healthy sibling.
         Guid adminUserId = Guid.NewGuid();
 
         ITrackedSession session = await PublishAndWaitAsync(new InquirySubmittedEvent
@@ -120,8 +85,7 @@ public sealed class MultipleHandlerSeparationTests(WallowApiFactory factory)
     [Fact]
     public async Task InquiryCommentAdded_WritesOneSubmitterNotification_WhenTheEmailSiblingFails()
     {
-        // Three handlers: submitter email, submitter in-app notification, SSE push. A public comment
-        // written by someone other than the submitter is the shape that exercises all three.
+        // A public comment by another author reaches the submitter notification paths.
         Guid submitterUserId = Guid.NewGuid();
 
         ITrackedSession session = await PublishAndWaitAsync(new InquiryCommentAddedEvent
@@ -146,8 +110,7 @@ public sealed class MultipleHandlerSeparationTests(WallowApiFactory factory)
     [Fact]
     public async Task InquiryStatusChanged_StillPushesOverSse_WhenTheEmailSiblingFails()
     {
-        // Two handlers: submitter email and tenant SSE push. The SSE push writes to Redis and
-        // returns nothing readable, so the envelope ledger is the whole assertion here.
+        // This case checks the SSE handler through tracking, without asserting a delivered client event.
         ITrackedSession session = await PublishAndWaitAsync(new InquiryStatusChangedEvent
         {
             InquiryId = Guid.NewGuid(),
@@ -169,15 +132,11 @@ public sealed class MultipleHandlerSeparationTests(WallowApiFactory factory)
             .PublishMessageAndWaitAsync(message, null);
 
     /// <summary>
-    /// Asserts the envelope ledger for one publish: <paramref name="handlerCount"/> independent
-    /// envelopes on distinct local queues, exactly one of which was retried into the dead-letter
-    /// queue while every other one was delivered once and succeeded once.
+    /// Checks one dead-lettered destination, distinct successful destinations and execution counts.
     /// </summary>
     private static void AssertHandlersRanIndependently<TMessage>(ITrackedSession session, int handlerCount)
     {
-        // A handler that exhausts its retries lands in MovedToErrorQueue, not MessageFailed —
-        // OnAnyException().RetryTimes(1).Then.MoveToErrorQueue() is the repo's terminal policy, and
-        // tracking reports the terminal outcome.
+        // Inspect the terminal dead-letter outcome.
         EnvelopeRecord[] deadLettered = RecordsOf<TMessage>(session.MovedToErrorQueue);
 
         deadLettered.Should().HaveCount(
@@ -207,9 +166,7 @@ public sealed class MultipleHandlerSeparationTests(WallowApiFactory factory)
             "a handler sharing the poisoned handler's queue shares its retry loop, which is the " +
             "duplicated side effect this setting exists to prevent");
 
-        // The sharpest statement of the defect: the retry replayed the failing handler and nothing
-        // else. Inline retries reuse the same delivery, so count execution attempts rather than
-        // transport receipts. Avoid pinning the retry count to a particular error policy.
+        // Count executions to distinguish handler retries from transport deliveries.
         ILookup<bool, EnvelopeRecord> executions =
             RecordsOf<TMessage>(session.Executed).ToLookup(record => QueueOf(record) == poisonedQueue);
 
@@ -224,8 +181,7 @@ public sealed class MultipleHandlerSeparationTests(WallowApiFactory factory)
     }
 
     /// <summary>
-    /// The <c>local://</c> queue an envelope was routed to. Under Separated that is the handler's
-    /// own queue, which is what makes "did these two handlers share a retry loop?" answerable.
+    /// Returns the tracked envelope destination or fails if it is missing.
     /// </summary>
     private static Uri QueueOf(EnvelopeRecord record) =>
         record.Envelope?.Destination

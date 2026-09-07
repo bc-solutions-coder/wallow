@@ -12,13 +12,8 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.Invitations;
 
 /// <summary>
-/// The two invitation paths that must reach OUTSIDE the ambient tenant. Verification is anonymous,
-/// so no tenant resolves at all; acceptance runs as the invited person, whose current organization
-/// is by definition not the one inviting them; and the expiry sweep runs from a background job with
-/// no tenant either. Under the tenant query filter each of those matches nothing, so all three
-/// bypass it — these facts fail if that bypass is removed.
-///
-/// Backend-dependent: requires the WallowApiFactory stack (Postgres + seeded identity data).
+/// Checks anonymous verification, acceptance from another organization,
+/// and expiry cleanup without an ambient tenant.
 /// </summary>
 [Trait("Category", "Integration")]
 public class InvitationTenantReachTests(WallowApiFactory factory) : IdentityIntegrationTestBase(factory)
@@ -36,8 +31,7 @@ public class InvitationTenantReachTests(WallowApiFactory factory) : IdentityInte
         string email = $"invited-{Guid.NewGuid():N}@wallow.dev";
         Invitation invitation = await SeedInvitationAsync(invitingOrgId, email);
 
-        // A bare client: the invited person clicks the link before signing in, so the request
-        // carries no token and the middleware resolves no tenant.
+        // Send verification without authentication headers.
         using HttpClient anonymous = Factory.CreateClient();
         HttpResponseMessage response = await anonymous.GetAsync(
             $"/identity/invitations/verify/{invitation.Token}");
@@ -90,8 +84,7 @@ public class InvitationTenantReachTests(WallowApiFactory factory) : IdentityInte
     }
 
     /// <summary>
-    /// Seeds under the owning organization's tenant, because the save interceptor stamps
-    /// <c>TenantId</c> from the context rather than from the entity.
+    /// Matches the context tenant to the invitation owner for save-time stamping.
     /// </summary>
     private async Task<Invitation> SeedInvitationAsync(
         Guid organizationId, string email, DateTimeOffset? expiresAt = null)

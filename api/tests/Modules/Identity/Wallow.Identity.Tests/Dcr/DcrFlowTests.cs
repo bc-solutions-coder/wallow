@@ -10,24 +10,19 @@ using Wallow.Shared.Kernel.Identity.Authorization;
 namespace Wallow.Identity.Tests.Dcr;
 
 /// <summary>
-/// Verifies core DCR (Dynamic Client Registration) flow behaviors:
-/// - sa-prefixed clients get scope-based permission expansion
-/// - Non-sa-prefixed clients get role-based expansion (no roles = no permissions)
-/// - ServiceAccountTrackingMiddleware lazily creates metadata for unknown sa-* clients
+/// Checks permission expansion for synthetic client principals and client-ID usage buffering.
 /// </summary>
 public class DcrFlowTests
 {
     /// <summary>
-    /// The organization the principal names. Expansion is refused for a principal that names
-    /// none, so every fixture asserting a mapping has to carry one.
+    /// Organization claim required by the permission-expansion fixtures.
     /// </summary>
     private const string TenantId = "0f3a1c2e-5b8d-4a71-9c62-7e4d0a1b3f56";
 
     [Fact]
     public async Task ServiceAccount_WithSaPrefix_GetsPermissionsFromScopes()
     {
-        // A DCR-registered client with sa- prefix and inquiries scopes should get
-        // inquiries.read and inquiries.write mapped to permission claims
+
         List<Claim> claims =
         [
             new Claim("azp", "sa-wallow-api"),
@@ -62,8 +57,7 @@ public class DcrFlowTests
     [Fact]
     public async Task ServiceAccount_WithSaPrefix_TokenContainsBothScopesAndAudience()
     {
-        // Simulates a token from a DCR-registered sa-wallow-api client
-        // that has both inquiries scopes and the wallow-api audience
+        // Supply scopes and audience on a synthetic service-account principal.
         List<Claim> claims =
         [
             new Claim("azp", "sa-wallow-api"),
@@ -82,11 +76,11 @@ public class DcrFlowTests
         PermissionExpansionMiddleware middleware = new(_ => Task.CompletedTask);
         await middleware.InvokeAsync(httpContext);
 
-        // Verify audience claim is present
+
         string? audience = httpContext.User.FindFirst("aud")?.Value;
         audience.Should().Be("wallow-api");
 
-        // Verify both scope permissions are expanded
+
         List<string> permissions = httpContext.User.FindAll("permission")
             .Select(c => c.Value)
             .ToList();
@@ -98,8 +92,7 @@ public class DcrFlowTests
     [Fact]
     public async Task Client_WithoutSaPrefix_NoRoles_StillGetsScopePermissions()
     {
-        // A user client without the sa- prefix gets role-based expansion (empty here)
-        // plus scope-based expansion as a supplement
+        // Scope expansion also applies to a user client without role claims.
         List<Claim> claims =
         [
             new Claim("azp", "my-frontend-app"),
@@ -127,8 +120,7 @@ public class DcrFlowTests
     [Fact]
     public async Task TrackingMiddleware_SaClient_RecordsToBuffer()
     {
-        // When an sa-* client makes a successful API call,
-        // the tracking middleware should record the client ID to the buffer
+
         ServiceAccountUsageBuffer buffer = new();
         ILogger<ServiceAccountTrackingMiddleware> logger = NullLogger<ServiceAccountTrackingMiddleware>.Instance;
 
@@ -156,7 +148,7 @@ public class DcrFlowTests
     [Fact]
     public async Task TrackingMiddleware_NonSaClient_DoesNotRecord()
     {
-        // Clients without sa- or app- prefix should not be recorded
+
         ServiceAccountUsageBuffer buffer = new();
         ILogger<ServiceAccountTrackingMiddleware> logger = NullLogger<ServiceAccountTrackingMiddleware>.Instance;
 
@@ -184,7 +176,7 @@ public class DcrFlowTests
     [Fact]
     public async Task TrackingMiddleware_AppClient_RecordsToBuffer()
     {
-        // app-* prefixed clients should also be recorded
+
         ServiceAccountUsageBuffer buffer = new();
         ILogger<ServiceAccountTrackingMiddleware> logger = NullLogger<ServiceAccountTrackingMiddleware>.Instance;
 

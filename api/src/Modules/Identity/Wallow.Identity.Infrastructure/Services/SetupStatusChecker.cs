@@ -8,16 +8,14 @@ using Wallow.Shared.Kernel.Identity.Authorization;
 namespace Wallow.Identity.Infrastructure.Services;
 
 /// <summary>
-/// Decides whether the <c>[AllowAnonymous]</c> setup endpoints stay open. "An administrator
-/// exists" means an Active membership holding a role that grants <see cref="PermissionType.AdminAccess"/>
-/// — the same thing authorization reads, and the only role directory this schema has.
+/// Keeps setup open until an active membership holds a role granting
+/// <see cref="PermissionType.AdminAccess"/>.
 /// </summary>
 public sealed class SetupStatusChecker(IdentityDbContext context) : ISetupStatusChecker
 {
     public async Task<bool> IsSetupRequiredAsync(CancellationToken ct = default)
     {
-        // Roles are a global catalog seeded outside any tenant, and this runs unauthenticated
-        // with no ambient tenant resolved, so both reads bypass the tenant filters.
+        // Setup runs without a tenant and must find administrators across organizations.
         List<WallowRole> roles = await context.Roles
             .IgnoreQueryFilters()
             .Where(r => r.Name != null)

@@ -80,9 +80,7 @@ public sealed class ClientBrandingRepositoryTests : IDisposable
     }
 
     /// <summary>
-    /// The sync read must see the latest committed write even when this scope already tracks the
-    /// row — a tracking query would hand back the tracked (stale) instance via identity
-    /// resolution, which is exactly the freshness hole the display-name sync exists to close.
+    /// Synchronization must read the committed display name even when this context tracks an older row.
     /// </summary>
     [Fact]
     public async Task FindDisplayNameAsync_ReadsTheCommittedValue_NotAnAlreadyTrackedInstance()
@@ -152,10 +150,8 @@ public sealed class ClientBrandingRepositoryTests : IDisposable
     }
 
     /// <summary>
-    /// client_id is unique repo-wide, so branding does not partition by tenant and the lookup must
-    /// find a row created by another organization. Writes are authorized on the OIDC application's
-    /// creatorUserId, not on the ambient tenant, and a filtered miss here would send UpsertBranding
-    /// down its insert branch and into that unique index.
+    /// Client IDs are globally unique; the repository read must find other tenants' branding.
+    /// Write authorization belongs to the controller's organization client-directory check.
     /// </summary>
     [Fact]
     public async Task GetByClientIdAsync_WhenBrandingBelongsToAnotherTenant_ReturnsBranding()
@@ -173,8 +169,7 @@ public sealed class ClientBrandingRepositoryTests : IDisposable
     }
 
     /// <summary>
-    /// The public GET is AllowAnonymous, so no tenant resolves and the filter would compare
-    /// tenant_id against default — matching nothing, then caching that null for five minutes.
+    /// Anonymous branding reads have no resolved tenant; tenant filtering would hide this row.
     /// </summary>
     [Fact]
     public async Task GetByClientIdAsync_WhenNoTenantResolved_ReturnsBranding()
@@ -192,9 +187,8 @@ public sealed class ClientBrandingRepositoryTests : IDisposable
     }
 
     /// <summary>
-    /// UpsertBranding's create branch races ClientRegisteredHandler on the client_id unique
-    /// index; when the database rejects the losing insert, the repository must surface the typed
-    /// exception and detach the loser so the caller can re-fetch the winner and update it.
+    /// A concurrent insert must produce a typed exception and detach the losing entry
+    /// so the caller can retry as an update.
     /// </summary>
     [Fact]
     public async Task SaveChangesAsync_OnAUniqueViolation_ThrowsTyped_AndDetachesTheLosingInsert()
@@ -239,9 +233,7 @@ public sealed class ClientBrandingRepositoryTests : IDisposable
     }
 
     /// <summary>
-    /// If a unique violation ever arrives with nothing pending to detach, the typed exception's
-    /// contract ("the losing insert has been detached — retry as an update") would be false, so
-    /// the original failure must propagate instead.
+    /// Without a pending insert to detach, preserve the original unique-violation exception.
     /// </summary>
     [Fact]
     public async Task SaveChangesAsync_OnAUniqueViolationWithNoPendingInsert_RethrowsTheOriginal()
@@ -261,16 +253,12 @@ public sealed class ClientBrandingRepositoryTests : IDisposable
     }
 
     /// <summary>
-    /// The other half of the double race: a client deletion removes the row while a PUT is
-    /// retrying its write as an update. EF reports the vanished row as a concurrency failure;
-    /// the repository must surface it typed and detach the stale entry so the Api layer never
-    /// has to sniff EF exception types.
+    /// Concurrent row deletion must produce a typed exception and detach the stale entry.
     /// </summary>
     [Fact]
     public async Task SaveChangesAsync_WhenTheRowWasDeletedUnderneath_ThrowsTyped_AndDetachesTheStaleEntry()
     {
-        // Mark a row Modified that was never saved to the store — to the provider this is exactly
-        // an update whose target row a concurrent deletion already removed.
+        // Modifying an absent row simulates an update after concurrent deletion.
         ClientBranding stale = ClientBranding.Create("client-1", "My App");
         _dbContext.ClientBrandings.Attach(stale);
         _dbContext.Entry(stale).State = EntityState.Modified;
@@ -284,9 +272,7 @@ public sealed class ClientBrandingRepositoryTests : IDisposable
     }
 
     /// <summary>
-    /// The event's envelope must ride the save's own transaction — enrolled before the write,
-    /// published into the enrolled outbox, and flushed to subscribers only afterwards — so a
-    /// crash between the save and the publish can no longer leave consumers permanently stale.
+    /// The save must enroll its context before publishing through the outbox, then flush delivery.
     /// </summary>
     [Fact]
     public async Task SaveChangesAndPublishAsync_PersistsTheRow_AndPublishesThroughTheEnrolledOutbox()

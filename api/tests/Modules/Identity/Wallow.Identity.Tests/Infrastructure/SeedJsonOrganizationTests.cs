@@ -6,9 +6,8 @@ using Wallow.Identity.Infrastructure.Options;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// The repo-root seed.json declares the organization every seeded client belongs to, and the terms
-/// on which it admits people. A fork that runs the seeder unchanged gets these terms, so the shipped
-/// default must not be one that admits anyone who can reach the sign-in page.
+/// Checks declared seed organizations and their enrollment settings.
+/// Clients with a tenantName must refer to a declared organization.
 /// </summary>
 public sealed class SeedJsonOrganizationTests
 {
@@ -50,8 +49,7 @@ public sealed class SeedJsonOrganizationTests
     [Fact]
     public void EverySeededClientBelongsToADeclaredOrganization()
     {
-        // A client whose tenantName names no declared organization still gets one created for it,
-        // silently on the InviteOnly default — the case this seed section exists to make explicit.
+        // Explicit declarations make enrollment settings visible instead of relying on creation defaults.
         List<string> declared = LoadSeededOrganizations().Select(o => o.Name).ToList();
 
         foreach (string tenantName in LoadSeededClientTenantNames())

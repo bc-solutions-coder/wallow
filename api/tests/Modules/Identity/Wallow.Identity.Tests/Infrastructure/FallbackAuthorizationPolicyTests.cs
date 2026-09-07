@@ -6,27 +6,13 @@ using Wallow.Identity.Infrastructure.Authorization;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// Deny-by-default function-level authorization (bead Wallow-pu6a.6.5, closing finding F13 and
-/// guardrail R23 of the SDK review, which are the same finding: "No FallbackPolicy — a new
-/// controller without [Authorize] is silently anonymous").
-///
-/// <para><see cref="PermissionAuthorizationPolicyProvider"/> today hardcodes its fallback policy
-/// instead of returning the one <c>AuthorizationOptions.FallbackPolicy</c> declares, so the
-/// deny-by-default rule is invisible at the registration site and a fork that configures a
-/// stricter fallback (extra scheme, extra requirement) silently gets the hardcoded one instead.
-/// The remedy is to delegate to the configured fallback and keep the deny-anonymous policy only
-/// as the last-resort default when nothing is configured.</para>
-///
-/// <para><see cref="PermissionAuthorizationPolicyProviderTests"/> already covers the
-/// permission-policy lookup and the no-configuration default; this file covers only the
-/// delegation contract the fix adds. The companion assertion that the application actually
-/// configures a fallback lives in <c>Wallow.Architecture.Tests.DenyByDefaultAuthorizationTests</c>,
-/// because the wiring is inside a private registration method behind an OpenIddict/EF/Redis
-/// composition root that cannot be built in a unit test.</para>
+/// Checks that the permission-policy provider returns a configured fallback and retains its requirements.
 /// </summary>
 public class FallbackAuthorizationPolicyTests
 {
-    /// <summary>A scheme name no default policy would produce, so the delegation is unambiguous.</summary>
+    /// <summary>
+    /// Distinct scheme used to identify the configured fallback.
+    /// </summary>
     private const string ConfiguredFallbackScheme = "wallow-fallback-scheme";
 
     [Fact]

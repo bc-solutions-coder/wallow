@@ -6,8 +6,7 @@ Solution: `api/Wallow.slnx`. Central build config, analyzers, and the
 ## Commands
 
 ```bash
-# Full backend via the Aspire host (Api + Auth + Web + MigrationService + SeederService,
-# plus Postgres, Valkey, Garage, Mailpit and ClamAV containers)
+# Aspire starts the API, both React apps, migrations, seeding, and infrastructure.
 dotnet run --project api/src/Wallow.AppHost        # == `pnpm backend` from repo root
 
 dotnet run --project api/src/Wallow.Api            # just the API — http://localhost:5001
@@ -16,10 +15,9 @@ dotnet run --project api/src/Wallow.SeederService  # seed roles/scopes/admin/OID
 dotnet build api/Wallow.slnx                       # always path the solution as api/Wallow.slnx
 dotnet format api/Wallow.slnx                      # before every commit; stage what it changes
 
-# Tests: shorthands (module names, api, arch, seeder, migrations, shared, kernel) run a target's
-# fast suites; `integration`/`all` select Category=Integration solution-wide (Docker); a second
-# argument narrows the tier (`./scripts/run-tests.sh storage integration`). Anything else is a
-# project path — a typo'd shorthand exits 2 and prints the shorthand list.
+# Shorthands run fast suites. `integration` runs Category=Integration solution-wide;
+# `all` runs both tiers. Use a second argument to narrow the tier to one target
+# (for example, ./scripts/run-tests.sh storage integration). Unknown targets exit 2.
 ./scripts/run-tests.sh <shorthand|path> [integration]
 
 # EF Core migrations (per module DbContext)

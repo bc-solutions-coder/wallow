@@ -3,8 +3,7 @@ using Wallow.Identity.Application.DTOs;
 namespace Wallow.Identity.Application.Interfaces;
 
 /// <summary>
-/// The self-service consent surface: the applications a user has durably consented to, and the
-/// withdrawal that ends one — the authorization and every token chained to it.
+/// Lists permanent consent records and withdraws consent plus the user's application tokens.
 /// </summary>
 public interface IConnectedApplicationService
 {
@@ -13,9 +12,9 @@ public interface IConnectedApplicationService
         Guid userId, CancellationToken ct = default);
 
     /// <summary>
-    /// Withdraws one consent: revokes the authorization and every token chained to it. False when
-    /// the authorization does not exist, is not the caller's, or is not a permanent consent
-    /// record — indistinguishable on purpose, so the endpoint can answer 404 to all three.
+    /// Attempts to revoke a valid permanent consent, all the user's tokens for its application,
+    /// and matching ad-hoc authorizations. Returns false for malformed IDs, missing records,
+    /// wrong ownership, or records that are not valid permanent consent.
     /// </summary>
     Task<bool> WithdrawAsync(Guid userId, string authorizationId, CancellationToken ct = default);
 }

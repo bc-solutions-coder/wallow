@@ -48,10 +48,7 @@ public sealed partial class PasswordlessService : IPasswordlessService
         _options = options.Value;
         _logger = logger;
 
-        // Sign magic-link tokens through Data Protection's shared, persisted key ring
-        // (app name "Wallow", persisted to Redis) rather than an extracted key. Deriving a
-        // raw key from protector.Protect was non-deterministic, so a token minted in the
-        // send request could never be validated in the later verify request (Wallow-gfph).
+        // Use the shared Data Protection key ring so another request/instance can validate the token.
         _protector = dataProtectionProvider.CreateProtector(ProtectorPurpose);
     }
 
@@ -134,7 +131,7 @@ public sealed partial class PasswordlessService : IPasswordlessService
             return Result.Failure<string>(IdentityErrors.AuthTokenExpired);
         }
 
-        // Delete token after use (one-time use)
+        // Remove after validation; the separate read/delete is not atomic across concurrent calls.
         await _redis.KeyDeleteAsync(redisKey);
 
         LogMagicLinkValidated(email);
@@ -191,7 +188,7 @@ public sealed partial class PasswordlessService : IPasswordlessService
             return Result.Failure<string>(IdentityErrors.AuthOtpInvalid);
         }
 
-        // Delete code after use (one-time use)
+        // Remove after validation; concurrent calls can read the code before this delete.
         await _redis.KeyDeleteAsync(redisKey);
 
         LogOtpValidated(email);

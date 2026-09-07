@@ -9,10 +9,8 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.OAuth2;
 
 /// <summary>
-/// Covers what the authorize endpoint does with a scope the caller's roles do not reach. It
-/// narrows the grant rather than refusing the request, so the assertion is on the issued token's
-/// scope claim and on what PermissionExpansionMiddleware can still make of it — an HTTP 200 says
-/// nothing, because refusing and narrowing both leave the rest of the flow working.
+/// Checks granted token scopes and derived permissions after role-based narrowing,
+/// and refusal of a scope not registered for the client.
 /// </summary>
 public sealed class ScopeNarrowingTests(WallowApiFactory factory)
     : IdentityIntegrationTestBase(factory)
@@ -23,7 +21,9 @@ public sealed class ScopeNarrowingTests(WallowApiFactory factory)
     /// <summary>Maps to StorageRead, which the "user" role holds.</summary>
     private const string ReachableScope = "storage.read";
 
-    /// <summary>Maps to UsersDelete, which only "admin" holds.</summary>
+    /// <summary>
+    /// Maps to UsersDelete, outside the baseline user role.
+    /// </summary>
     private const string PrivilegedScope = "users.manage";
 
     private static readonly string[] _clientScopes =
@@ -85,8 +85,8 @@ public sealed class ScopeNarrowingTests(WallowApiFactory factory)
     }
 
     /// <summary>
-    /// Runs the real middleware over the real token, which is the only way to say the refused
-    /// scope grants nothing: the permission claim is minted downstream, never carried in the token.
+    /// Reconstructs a principal from selected issued-token claims and runs permission expansion.
+    /// This helper does not validate the JWT signature.
     /// </summary>
     private static async Task<IReadOnlyList<string>> ExpandPermissionsAsync(string accessToken)
     {
@@ -116,8 +116,7 @@ public sealed class ScopeNarrowingTests(WallowApiFactory factory)
             .ToList();
 
     /// <summary>
-    /// The caller must be a plain member, so a second user owns the organization: creating one
-    /// enrolls its creator as an admin, and an admin reaches every scope under test.
+    /// Uses another owner so the caller has only the baseline membership role.
     /// </summary>
     private async Task<(string Email, string ClientId, Guid OrganizationId)> SeedAsync()
     {

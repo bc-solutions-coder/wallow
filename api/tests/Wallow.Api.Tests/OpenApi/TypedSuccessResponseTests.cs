@@ -7,24 +7,18 @@ using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.AspNetCore.Routing;
 using Wallow.ServiceDefaults;
 
-#pragma warning disable CA1024 // MemberData source methods cannot be properties
+#pragma warning disable CA1024 // Keep callable MemberData factories.
 
 namespace Wallow.Api.Tests.OpenApi;
 
 /// <summary>
-/// Guards the document-shape invariant that no operation emits a body-bearing success response —
-/// any 2xx other than 204 — without a body schema. An untyped success response generates an SDK
-/// client method returning <c>unknown</c>, so every action that can answer such a code must either
-/// return <c>ActionResult{T}</c> or declare <c>[ProducesResponseType(typeof(T), code)]</c>.
-/// This is the reflection-level half of the rule; the SDK's <c>openapi-regen.test.ts</c> enforces
-/// the same invariant against the generated document, and neither subsumes the other — this one
-/// fails at build time on the offending action, that one on the regenerated snapshot.
+/// Checks reflected controller metadata for untyped success responses.
+/// The SDK openapi-regen test checks the generated document separately.
 /// </summary>
 public class TypedSuccessResponseTests
 {
     /// <summary>
-    /// Tag marking internal-only endpoints, which a document transformer strips from the public
-    /// v1 document before it ever reaches the SDK generator.
+    /// Tag excluded from the public document by the test-support transformer.
     /// </summary>
     private const string TestSupportTagName = "Test Support";
 
@@ -98,9 +92,7 @@ public class TypedSuccessResponseTests
     }
 
     /// <summary>
-    /// The shape <c>InvitationsController.Create</c> uses: ApiExplorer back-fills the inferred
-    /// <c>ActionResult{T}</c> body into a bare 2xx entry, so the document schema is present and the
-    /// action is not an offender. Widening the gate past 200 must not regress into flagging this.
+    /// Accepts a declared 201 when the action supplies an ActionResult body type.
     /// </summary>
     [Fact]
     public void Detector_PassesABareCreatedWhoseBodyIsInferredFromActionResultOfT()
@@ -170,16 +162,8 @@ public class TypedSuccessResponseTests
     }
 
     /// <summary>
-    /// Mirrors how <c>ApiResponseTypeProvider</c> builds each body-bearing success entry: an explicit
-    /// typed <c>[ProducesResponseType]</c> supplies that entry's schema, and an <c>ActionResult{T}</c>
-    /// return type is back-filled into every declared 2xx entry that names no type of its own — which
-    /// is why a bare <c>[ProducesResponseType(201)]</c> on such an action still reaches the document
-    /// with a schema. Absent both, the response is emitted with no schema. An action that declares no
-    /// response metadata at all falls back to the implicit default 200, and that fallback alone is
-    /// 200-specific: declaring any response — even a 404 — suppresses it.
-    /// A <c>[Produces]</c> content-type declaration alone never causes a response to be emitted: it
-    /// only sets the content-type of whatever responses are already declared, and is not itself
-    /// an <c>IApiResponseMetadataProvider</c> entry.
+    /// Accepts an inferred body type; otherwise checks declared success types.
+    /// Without response attributes, treats the implicit 200 as untyped.
     /// </summary>
     private static bool EmitsUntypedSuccessResponse(Type controller, MethodInfo action)
     {
@@ -204,9 +188,7 @@ public class TypedSuccessResponseTests
     }
 
     /// <summary>
-    /// A 2xx that can carry a body, and so must name a schema. 204 is excluded because it has no body
-    /// by definition. Mirrors <c>isBodyBearingSuccessCode</c> in the SDK's document-level invariant
-    /// (<c>packages/sdk/src/openapi-regen.test.ts</c>), which guards the same rule one layer down.
+    /// Applies this gate to 2xx responses except 204, matching the SDK document check.
     /// </summary>
     private static bool IsBodyBearingSuccessCode(int statusCode)
     {
@@ -214,8 +196,7 @@ public class TypedSuccessResponseTests
     }
 
     /// <summary>
-    /// Returns the body type ASP.NET Core infers from the action's return type, or <see langword="null"/>
-    /// when the action returns a non-generic result and therefore carries no inferable schema.
+    /// Unwraps Task or ValueTask and extracts an ActionResult body type, if present.
     /// </summary>
     private static Type? GetInferredSuccessType(Type returnType)
     {
@@ -237,8 +218,7 @@ public class TypedSuccessResponseTests
     }
 
     /// <summary>
-    /// A body type only produces a schema when it names a real contract. <see cref="object"/> and the
-    /// result abstractions serialize to an empty schema, which is exactly the untyped case this guards.
+    /// Excludes void, object and result abstractions from accepted body types.
     /// </summary>
     private static bool IsTypedBody(Type? bodyType)
     {
@@ -257,9 +237,7 @@ public class TypedSuccessResponseTests
     }
 
     /// <summary>
-    /// Only <c>[ApiController]</c> controllers get <c>ApiExplorer.IsVisible</c> turned on, so the OIDC
-    /// controllers — which carry the plain <c>[Controller]</c> attribute — never reach the OpenAPI
-    /// document and cannot contribute an untyped 200 to it.
+    /// Selects controllers with ApiController or an explicit IgnoreApi=false setting.
     /// </summary>
     private static bool IsVisibleToApiExplorer(Type controller)
     {
@@ -292,15 +270,12 @@ public class TypedSuccessResponseTests
     }
 
     /// <summary>
-    /// Body contract for the fixture controllers below. Any named type satisfies
-    /// <see cref="IsTypedBody"/>; the members exist only so it is a plausible response.
+    /// Named response contract for the reflection fixtures.
     /// </summary>
     private sealed record FixtureResponse(Guid Id);
 
     /// <summary>
-    /// The defect shape this gate exists to catch: a bare non-200 success code on an action whose
-    /// return type carries nothing for ApiExplorer to infer, so the document emits a schemaless 201.
-    /// This is exactly the untyped 201 that Wallow-td30 had to fix on POST /v1/inquiries/{id}/comments.
+    /// Declares an untyped 201 with no inferred body type.
     /// </summary>
     [ApiController]
     private sealed class BareCreatedFixtureController : ControllerBase
@@ -310,7 +285,9 @@ public class TypedSuccessResponseTests
         public Task<IActionResult> Create() => throw new NotSupportedException("Reflection fixture; never invoked.");
     }
 
-    /// <summary>An untyped success code hiding behind a correctly typed 200 on the same action.</summary>
+    /// <summary>
+    /// Declares a typed 200 alongside an untyped 202.
+    /// </summary>
     [ApiController]
     private sealed class TypedOkWithBareAcceptedFixtureController : ControllerBase
     {
@@ -320,7 +297,9 @@ public class TypedSuccessResponseTests
         public Task<IActionResult> Enqueue() => throw new NotSupportedException("Reflection fixture; never invoked.");
     }
 
-    /// <summary>No response metadata at all, so ApiExplorer falls back to a schemaless default 200.</summary>
+    /// <summary>
+    /// Has neither response attributes nor an inferred body type.
+    /// </summary>
     [ApiController]
     private sealed class NoResponseMetadataFixtureController : ControllerBase
     {
@@ -328,7 +307,9 @@ public class TypedSuccessResponseTests
         public Task<IActionResult> Get() => throw new NotSupportedException("Reflection fixture; never invoked.");
     }
 
-    /// <summary>A bare 201 whose schema ApiExplorer back-fills from <c>ActionResult{T}</c>.</summary>
+    /// <summary>
+    /// Supplies an inferred body type for a bare 201.
+    /// </summary>
     [ApiController]
     private sealed class InferredCreatedFixtureController : ControllerBase
     {
@@ -337,7 +318,6 @@ public class TypedSuccessResponseTests
         public Task<ActionResult<FixtureResponse>> Create() => throw new NotSupportedException("Reflection fixture; never invoked.");
     }
 
-    /// <summary>A 201 that names its body outright.</summary>
     [ApiController]
     private sealed class TypedCreatedFixtureController : ControllerBase
     {
@@ -346,7 +326,9 @@ public class TypedSuccessResponseTests
         public Task<IActionResult> Create() => throw new NotSupportedException("Reflection fixture; never invoked.");
     }
 
-    /// <summary>204 carries no body by definition, so a bare declaration is correct rather than untyped.</summary>
+    /// <summary>
+    /// Declares 204, which this gate excludes.
+    /// </summary>
     [ApiController]
     private sealed class NoContentFixtureController : ControllerBase
     {
@@ -356,8 +338,7 @@ public class TypedSuccessResponseTests
     }
 
     /// <summary>
-    /// Only a non-success code is declared. It needs no schema of its own, and declaring any response
-    /// metadata suppresses ApiExplorer's implicit 200, so nothing schemaless reaches the document.
+    /// Declares only 404, outside this success-response gate.
     /// </summary>
     [ApiController]
     private sealed class ClientErrorOnlyFixtureController : ControllerBase

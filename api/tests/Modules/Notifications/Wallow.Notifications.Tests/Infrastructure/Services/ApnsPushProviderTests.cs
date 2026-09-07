@@ -18,7 +18,7 @@ public class ApnsPushProviderTests
         "Test Body",
         TimeProvider.System);
 
-#pragma warning disable CA2000 // LoggerFactory disposal not needed in tests
+#pragma warning disable CA2000 // Test logger factory is not disposed.
     private static ILogger<ApnsPushProvider> CreateLogger()
     {
         return LoggerFactory.Create(b => b.AddSimpleConsole().SetMinimumLevel(LogLevel.Trace))
@@ -26,7 +26,7 @@ public class ApnsPushProviderTests
     }
 #pragma warning restore CA2000
 
-#pragma warning disable CA2000 // Provider takes ownership of HttpClient
+#pragma warning disable CA2000 // The helper retains the client through the provider; neither disposes it.
     private static ApnsPushProvider CreateProvider(HttpMessageHandler handler)
     {
         HttpClient httpClient = new(handler);

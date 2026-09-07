@@ -3,7 +3,6 @@ namespace Wallow.Shared.Contracts.Identity.Events;
 
 /// <summary>
 /// Published when an admin clears a user's MFA lockout.
-/// Consumers: Audit logging
 /// </summary>
 public sealed record UserMfaLockoutClearedEvent : IntegrationEvent
 {

@@ -262,8 +262,7 @@ public class ResilienceExtensionsLoggingTests
         object state = args[2]!;
         Exception? exception = args[3] as Exception;
 
-        // The formatter is the 5th argument (index 4), but it's typed as Func<TState, Exception?, string>
-        // We need to invoke it via reflection since TState is internal
+        // Read the generated state text; the concrete state type is not named here.
         System.Reflection.MethodInfo toStringMethod = state.GetType().GetMethod("ToString")!;
         return (string)toStringMethod.Invoke(state, null)!;
     }

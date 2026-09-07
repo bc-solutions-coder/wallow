@@ -16,7 +16,7 @@ public sealed class SmtpEmailProviderTests
         DefaultFromAddress = "noreply@test.com",
         DefaultFromName = "Test Sender",
         Host = "localhost",
-        Port = 19999, // Intentionally wrong port — no server listening
+        Port = 19999, // Tests expect SMTP connection failure at this port.
         TimeoutSeconds = 1
     });
 
@@ -27,7 +27,7 @@ public sealed class SmtpEmailProviderTests
         return LoggerFactory.Create(b => b.AddSimpleConsole().SetMinimumLevel(LogLevel.Trace));
     }
 
-#pragma warning disable CA2000 // LoggerFactory disposal not needed in tests
+#pragma warning disable CA2000 // Test logging factories are created by CreateSut.
     public SmtpEmailProviderTests()
     {
         ResiliencePipelineBuilder builder = new();
@@ -60,7 +60,7 @@ public sealed class SmtpEmailProviderTests
     public async Task SendAsync_WithOversizedAttachment_ThrowsInvalidOperationException()
     {
         SmtpEmailProvider sut = CreateSut();
-        byte[] largeAttachment = new byte[11 * 1024 * 1024]; // 11MB exceeds 10MB limit
+        byte[] largeAttachment = new byte[11 * 1024 * 1024];
         EmailDeliveryRequest request = new(
             "recipient@test.com", null, "Subject", "Body",
             Attachment: new ReadOnlyMemory<byte>(largeAttachment),
@@ -85,7 +85,7 @@ public sealed class SmtpEmailProviderTests
 
         EmailDeliveryResult result = await sut.SendAsync(request);
 
-        // Will fail on SMTP connection, not on attachment validation
+
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().NotContain("exceeds maximum allowed size");
     }
@@ -96,10 +96,9 @@ public sealed class SmtpEmailProviderTests
         SmtpEmailProvider sut = CreateSut();
         EmailDeliveryRequest request = new("recipient@test.com", null, "Subject", "Body");
 
-        // Should not throw — message building with null From should use defaults
+
         EmailDeliveryResult result = await sut.SendAsync(request);
 
-        // Fails on SMTP, not message building
         result.ErrorMessage.Should().NotBeNull();
     }
 
@@ -111,7 +110,6 @@ public sealed class SmtpEmailProviderTests
 
         EmailDeliveryResult result = await sut.SendAsync(request);
 
-        // Fails on SMTP, not message building
         result.ErrorMessage.Should().NotBeNull();
     }
 
@@ -134,7 +132,7 @@ public sealed class SmtpEmailProviderTests
 
         EmailDeliveryResult result = await sut.SendAsync(request);
 
-        // Fails on SMTP, not on null subject handling
+
         result.ErrorMessage.Should().NotBeNull();
     }
 
@@ -157,7 +155,7 @@ public sealed class SmtpEmailProviderTests
     public async Task SendAsync_WithExactly10MbAttachment_DoesNotFailOnSizeValidation()
     {
         SmtpEmailProvider sut = CreateSut();
-        byte[] exactLimit = new byte[10 * 1024 * 1024]; // Exactly 10MB
+        byte[] exactLimit = new byte[10 * 1024 * 1024];
         EmailDeliveryRequest request = new(
             "recipient@test.com", null, "Subject", "Body",
             Attachment: new ReadOnlyMemory<byte>(exactLimit),
@@ -165,7 +163,7 @@ public sealed class SmtpEmailProviderTests
 
         EmailDeliveryResult result = await sut.SendAsync(request);
 
-        // Should fail on SMTP, not size validation (10MB is at the limit, not over)
+
         result.ErrorMessage.Should().NotContain("exceeds maximum allowed size");
     }
 
@@ -193,7 +191,7 @@ public sealed class SmtpEmailProviderTests
 
         EmailDeliveryResult result = await sut.SendAsync(request);
 
-        // Fails on SMTP, not message building — exercises custom from + attachment path
+
         result.Success.Should().BeFalse();
         result.ErrorMessage.Should().NotContain("exceeds maximum allowed size");
     }
@@ -242,7 +240,7 @@ public sealed class SmtpEmailProviderTests
 
         EmailDeliveryResult result = await sut.SendAsync(request);
 
-        // Default content type is application/octet-stream per the record definition
+
         result.Success.Should().BeFalse();
     }
 

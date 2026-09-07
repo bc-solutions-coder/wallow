@@ -21,10 +21,7 @@ public sealed class MigrationServiceTests : IDisposable
     private readonly IMigrationRunner _inquiriesRunner;
 
     /// <summary>
-    /// The same six runners <see cref="FeatureMigrationRunners"/> is constructed from. Held so that
-    /// "which recorded names are feature modules" is read off the arrangement rather than re-typed
-    /// as a second hardcoded name list. The ordering assertion still reads
-    /// <see cref="_migrationOrder"/>, which only the runtime mock invocations populate.
+    /// Supplies both the feature-runner arrangement and the names used to interpret recorded calls.
     /// </summary>
     private readonly IReadOnlyList<IMigrationRunner> _featureRunners;
 
@@ -59,22 +56,22 @@ public sealed class MigrationServiceTests : IDisposable
     [Fact]
     public async Task ExecuteAsync_CallsStopApplication_AfterAllMigrationsComplete()
     {
-        // Act
+
         await ExecuteWorkerAsync();
 
-        // Assert: exactly once, and against the full nine-runner arrangement this class
-        // builds. MigrationWorkerExitCodeTests covers the same call on both the success
-        // and failure paths, but with a minimal one-core-runner worker.
+
+
+
         _lifetime.Received(1).StopApplication();
     }
 
     [Fact]
     public async Task ExecuteAsync_MigratesIdentityAndAuditContexts_BeforeFeatureModules()
     {
-        // Act
+
         await ExecuteWorkerAsync();
 
-        // Assert: Identity, Audit, and AuthAudit should be migrated before any feature module
+
         int identityIndex = _migrationOrder.IndexOf("Identity");
         int auditIndex = _migrationOrder.IndexOf("Audit");
         int authAuditIndex = _migrationOrder.IndexOf("AuthAudit");
@@ -83,7 +80,7 @@ public sealed class MigrationServiceTests : IDisposable
         auditIndex.Should().BeGreaterThanOrEqualTo(0, "Audit migration should have been called");
         authAuditIndex.Should().BeGreaterThanOrEqualTo(0, "AuthAudit migration should have been called");
 
-        // All feature modules should come after the identity/audit group
+
         int firstFeatureIndex = GetFirstFeatureModuleIndex();
         firstFeatureIndex.Should().BeGreaterThanOrEqualTo(0, "at least one feature module migration should have been called");
 
@@ -95,10 +92,10 @@ public sealed class MigrationServiceTests : IDisposable
     [Fact]
     public async Task ExecuteAsync_MigratesAllNineDbContexts()
     {
-        // Act
+
         await ExecuteWorkerAsync();
 
-        // Assert
+
         _migrationOrder.Should().Contain("Identity");
         _migrationOrder.Should().Contain("Audit");
         _migrationOrder.Should().Contain("AuthAudit");
@@ -114,15 +111,15 @@ public sealed class MigrationServiceTests : IDisposable
     [Fact]
     public async Task ExecuteAsync_WhenMigrationThrows_PropagatesException()
     {
-        // Arrange: Make identity migration throw
+
         InvalidOperationException expectedException = new("Database connection failed");
         _identityRunner.MigrateAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromException(expectedException));
 
-        // Act
+
         Func<Task> act = () => ExecuteWorkerAsync();
 
-        // Assert
+
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("Database connection failed");
     }
@@ -130,15 +127,15 @@ public sealed class MigrationServiceTests : IDisposable
     [Fact]
     public async Task ExecuteAsync_WhenFeatureModuleMigrationThrows_PropagatesException()
     {
-        // Arrange: Make a feature module migration throw
+
         InvalidOperationException expectedException = new("Branding migration failed");
         _brandingRunner.MigrateAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromException(expectedException));
 
-        // Act
+
         Func<Task> act = () => ExecuteWorkerAsync();
 
-        // Assert
+
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("Branding migration failed");
     }
@@ -146,10 +143,10 @@ public sealed class MigrationServiceTests : IDisposable
     [Fact]
     public async Task ExecuteAsync_CallsMigrateOnAllRunners()
     {
-        // Act
+
         await ExecuteWorkerAsync();
 
-        // Assert
+
         await _identityRunner.Received(1).MigrateAsync(Arg.Any<CancellationToken>());
         await _auditRunner.Received(1).MigrateAsync(Arg.Any<CancellationToken>());
         await _authAuditRunner.Received(1).MigrateAsync(Arg.Any<CancellationToken>());

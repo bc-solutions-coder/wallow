@@ -1,12 +1,7 @@
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// The OpenIddict server registration lives inside an options lambda in
-/// IdentityInfrastructureExtensions that cannot be invoked without bootstrapping the whole
-/// module, so the guard on DisableTransportSecurityRequirement is asserted at the source
-/// level instead: the call has to be reached through
-/// <see cref="Wallow.Identity.Infrastructure.Extensions.OpenIddictTransportSecurityPolicy"/>
-/// rather than made unconditionally.
+/// Checks source wiring from the transport-security policy to the OpenIddict switch.
 /// </summary>
 public sealed class OpenIddictTransportSecurityCallSiteTests
 {

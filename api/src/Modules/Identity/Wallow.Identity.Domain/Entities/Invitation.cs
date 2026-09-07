@@ -57,9 +57,8 @@ public sealed class Invitation : AggregateRoot<InvitationId>, ITenantScoped
     }
 
     /// <summary>
-    /// Settles the invitation onto the accepting user. Expiry is checked here rather than left to
-    /// the sweep: between an invitation lapsing and the next sweep run, Pending is not the same
-    /// thing as live, and the window is as long as the job's interval.
+    /// Accepts a pending, unexpired invitation. Checks expiry here because a pending row
+    /// may have expired since the last sweep; rejection marks such a row Expired.
     /// </summary>
     public void Accept(Guid userId, TimeProvider timeProvider)
     {
@@ -81,9 +80,8 @@ public sealed class Invitation : AggregateRoot<InvitationId>, ITenantScoped
     }
 
     /// <summary>
-    /// Pushes the expiry out on the invitation already outstanding for this address. Re-inviting
-    /// refreshes the one live token rather than minting a second: <see cref="Revoke"/> acts on a
-    /// single invitation by id, so a second token is one the admin cannot see to revoke.
+    /// Changes the pending invitation's expiry without replacing its token.
+    /// Re-inviting reuses this row so revocation still addresses the same invitation.
     /// </summary>
     public void Renew(DateTimeOffset expiresAt, Guid actorId, TimeProvider timeProvider)
     {

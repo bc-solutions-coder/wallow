@@ -3,10 +3,7 @@ using Microsoft.Extensions.Logging;
 namespace Wallow.Tests.Common;
 
 /// <summary>
-/// Captures log entries as they are written. The [LoggerMessage] source generator used here
-/// (Microsoft.Gen.Logging) writes into a thread-local state that it clears the moment
-/// <see cref="ILogger.Log{TState}"/> returns, so a recorded-call inspection (e.g. NSubstitute)
-/// sees emptied tags. Formatting must happen inside the call, which is what this logger does.
+/// Formats and captures each log entry during the Log call, before a provider can reuse its state.
 /// </summary>
 public sealed class RecordingLogger<T> : ILogger<T>
 {

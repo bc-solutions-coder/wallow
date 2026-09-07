@@ -1,10 +1,8 @@
 namespace Wallow.Identity.Api.Contracts.Responses;
 
 /// <summary>
-/// Result of a cookie-based sign-in attempt. A 200 covers four outcomes — signed in, MFA
-/// challenge required, MFA enrollment required, and MFA enrollment required within a grace
-/// period — so every member beyond <see cref="Succeeded"/> is present only for the outcome it
-/// describes.
+/// Password sign-in result. A successful response may carry a sign-in ticket, an MFA
+/// challenge requirement, or an enrollment requirement with an optional grace deadline.
 /// </summary>
 public sealed record AccountLoginResponse(
     bool Succeeded,

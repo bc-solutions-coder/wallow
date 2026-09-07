@@ -54,9 +54,8 @@ public sealed class AnnouncementTargetingService(
         Announcement announcement,
         CancellationToken ct = default)
     {
-        // TODO: Resolve actual recipient user IDs by querying Identity module via Wolverine request/response
-        // (e.g. GetUsersByTenantQuery, GetUsersByRoleQuery) based on announcement.Target and announcement.TargetValue.
-        // Tracked placeholder — currently returns empty list; Notifications module handles broadcast delivery instead.
+        // TODO: Resolve recipient IDs through Identity for Target and TargetValue.
+        // This currently returns none, so AnnouncementPublishedNotificationHandler sends no notifications.
         IReadOnlyList<Guid> emptyList = [];
         return Task.FromResult(emptyList);
     }

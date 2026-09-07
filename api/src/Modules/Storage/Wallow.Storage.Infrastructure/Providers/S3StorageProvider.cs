@@ -9,7 +9,7 @@ using Wallow.Storage.Infrastructure.Configuration;
 namespace Wallow.Storage.Infrastructure.Providers;
 
 /// <summary>
-/// S3-compatible storage provider. Works with AWS S3, Garage, MinIO, and Cloudflare R2.
+/// Stores objects through the S3 API in the bucket selected for the tenant region.
 /// </summary>
 public sealed class S3StorageProvider(IAmazonS3 s3Client, IOptions<StorageOptions> options, ITenantContext tenantContext) : IStorageProvider
 {
@@ -82,9 +82,8 @@ public sealed class S3StorageProvider(IAmazonS3 s3Client, IOptions<StorageOption
 
     private static DateTimeOffset ToUtcOffset(DateTime? lastModified)
     {
-        // The SDK surfaces LastModified as a nullable, kind-varying DateTime. A missing
-        // timestamp is reported as "now" so a consumer ageing objects (the orphan sweep)
-        // can never mistake it for an old object.
+        // Treat missing timestamps as current so the orphan sweep does not age unknown objects.
+        // Interpret an unspecified DateTime kind as UTC.
         if (lastModified is not { } value)
         {
             return DateTimeOffset.UtcNow;

@@ -5,15 +5,14 @@ using Wolverine.EntityFrameworkCore;
 namespace Wallow.SeederService;
 
 /// <summary>
-/// No-op IMessageBus and IDbContextOutbox for the seeder service. OrganizationService requires
-/// both, but the seeder never dispatches Wolverine messages and never deletes an organization —
-/// the outbox path is unreachable here, so enrolling and flushing are harmless no-ops.
+/// Seeder message adapter that drops sends and publishes. Outbox save methods persist
+/// the enrolled DbContext; result-bearing invocation and streaming are unsupported.
 /// </summary>
 internal sealed class NullMessageBus : IMessageBus, IDbContextOutbox
 {
     public string? TenantId { get; set; }
 
-    // IDbContextOutbox
+
     public DbContext? ActiveContext { get; private set; }
 
     public void Enroll(DbContext dbContext) => ActiveContext = dbContext;
@@ -26,7 +25,7 @@ internal sealed class NullMessageBus : IMessageBus, IDbContextOutbox
 
     public Task FlushOutgoingMessagesAsync() => Task.CompletedTask;
 
-    // ICommandBus
+
     public Task InvokeAsync(object message, CancellationToken cancellation = default, TimeSpan? timeout = null)
         => Task.CompletedTask;
 
@@ -51,7 +50,7 @@ internal sealed class NullMessageBus : IMessageBus, IDbContextOutbox
     public Task<TResponse> StreamAsync<TRequest, TResponse>(IAsyncEnumerable<TRequest> messages, DeliveryOptions options, CancellationToken cancellation = default, TimeSpan? timeout = null)
         => throw new NotSupportedException("NullMessageBus does not support StreamAsync.");
 
-    // IMessageBus
+
     public Task InvokeForTenantAsync(string tenantId, object message, CancellationToken cancellation = default, TimeSpan? timeout = null)
         => Task.CompletedTask;
 

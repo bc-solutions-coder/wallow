@@ -167,8 +167,7 @@ public class SetupControllerTests
 
         await _controller.CreateAdmin(request, CancellationToken.None);
 
-        // Dropping it here would recreate the dead end this endpoint had: an administrator with
-        // no organization holds no permission anywhere and never closes the setup gate.
+        // Bootstrap needs the organization name to create the initial administrative membership.
         await _messageBus.Received(1).InvokeAsync<Result>(
             Arg.Is<BootstrapAdminCommand>(c => c.OrganizationName == "Contoso"),
             Arg.Any<CancellationToken>());

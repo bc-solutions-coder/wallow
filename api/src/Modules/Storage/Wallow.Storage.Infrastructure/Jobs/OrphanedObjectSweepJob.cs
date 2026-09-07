@@ -6,12 +6,9 @@ using Wallow.Storage.Infrastructure.Persistence;
 namespace Wallow.Storage.Infrastructure.Jobs;
 
 /// <summary>
-/// Deletes backend objects that no <c>StoredFile</c> row references — the residue of an
-/// upload whose backend write succeeded but whose <c>SaveChangesAsync</c> failed. Only
-/// objects under the <c>tenant-</c> key prefix are considered, which keeps foreign keyspaces
-/// (Branding's <c>client-logos/</c>) untouchable, and only objects older than
-/// <see cref="MinimumAge"/> are deleted so the sweep can never race an in-flight upload
-/// (presigned upload URLs are clamped to minutes, not hours).
+/// Deletes unreferenced backend objects under <c>tenant-</c>, leaving other keyspaces
+/// such as Branding logos untouched. <see cref="MinimumAge"/> gives uploads time to
+/// commit their metadata; it is an age threshold, not synchronization with uploads.
 /// </summary>
 public sealed partial class OrphanedObjectSweepJob(
     StorageDbContext dbContext,
@@ -70,8 +67,7 @@ public sealed partial class OrphanedObjectSweepJob(
     {
         List<string> keys = batch.ConvertAll(storageObject => storageObject.Key);
 
-        // The sweep is platform-wide garbage collection: rows from EVERY tenant reference
-        // objects under tenant-*/, so the tenant query filter must not hide any of them.
+        // Check every tenant before deleting an object; the active tenant filter would hide references.
         List<string> referencedKeys = await dbContext.Files
             .IgnoreQueryFilters()
             .Where(file => keys.Contains(file.StorageKey))

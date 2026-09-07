@@ -13,9 +13,7 @@ using Wallow.Shared.Kernel.Identity;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// The seed file decides how a seeded organization admits people. A new organization defaults to
-/// InviteOnly, and <c>UpdateEnrollmentAsync</c> writes all three enrollment fields at once, so the
-/// sync must preserve the default role and access-request address it was not asked to change.
+/// Checks declared enrollment policy updates and preservation of settings omitted from the seed.
 /// </summary>
 public sealed class OrganizationSeedSyncServiceTests : IDisposable
 {
@@ -96,8 +94,7 @@ public sealed class OrganizationSeedSyncServiceTests : IDisposable
     [Fact]
     public async Task SyncAsync_WithNoDeclaredPolicy_LeavesEnrollmentAlone()
     {
-        // An organization an administrator has since locked down must not be reopened by a seed
-        // run that says nothing about how it admits people.
+        // An omitted policy must leave existing enrollment settings unchanged.
         Guid organizationId = ExistingOrganization("Wallow");
         Settings(organizationId, EnrollmentPolicy.InviteOnly);
         _options.Organizations.Add(new SeedOrganizationDefinition { Name = "Wallow" });
@@ -176,9 +173,7 @@ public sealed class OrganizationSeedSyncServiceTests : IDisposable
     [Fact]
     public async Task SyncAsync_ReadsSettingsScopedToTheOrganizationAndLeavesNoScopeBehind()
     {
-        // OrganizationService.GetSettingsAsync reads through the DbContext's tenant query filter,
-        // and the seeder's DbContext carries no tenant: unscoped, the read returns null and the
-        // preservation above silently degrades to overwriting.
+        // Settings access must run under the target organization tenant, then restore the prior context.
         Guid organizationId = ExistingOrganization("Wallow");
         Settings(organizationId, EnrollmentPolicy.InviteOnly);
         Declare("Wallow", EnrollmentPolicy.Open);

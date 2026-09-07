@@ -19,9 +19,7 @@ using MfaVerifyRequest = Wallow.Identity.Api.Contracts.Requests.MfaVerifyRequest
 namespace Wallow.Identity.Tests.Api.Controllers;
 
 /// <summary>
-/// The auth audit events the controller publishes, and what they carry. Signing in happens outside
-/// every organization, so each event's TenantId is null: which organization the person acts in is
-/// settled later, by the token they are issued.
+/// Checks authentication audit event fields, including null TenantId before organization selection.
 /// </summary>
 public class AccountControllerAuditTests
 {

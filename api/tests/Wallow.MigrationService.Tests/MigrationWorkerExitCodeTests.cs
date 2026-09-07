@@ -6,10 +6,7 @@ using Wallow.Tests.Common;
 namespace Wallow.MigrationService.Tests;
 
 /// <summary>
-/// Wallow-2y1t: MigrationWorker.ExecuteAsync had no try/catch at all, so a failed migration was
-/// neither logged Critical by our own code nor reflected in the process exit code — the host
-/// swallowed it and the container exited 0. docker-compose.test.yml gates wallow-seeder on
-/// wallow-migrations' service_completed_successfully, so an unmigrated database cascaded silently.
+/// Checks failed-run status, critical logging and application shutdown after migration failure.
 /// </summary>
 public class MigrationWorkerExitCodeTests
 {
@@ -45,8 +42,7 @@ public class MigrationWorkerExitCodeTests
 
         await RunToCompletionAsync(worker).Should().ThrowAsync<InvalidOperationException>();
 
-        // Before this change the failure path never called StopApplication at all; only the host's
-        // own StopHost default stopped the process.
+
         _lifetime.Received(1).StopApplication();
     }
 

@@ -11,11 +11,8 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.Memberships;
 
 /// <summary>
-/// The membership repository against real Postgres. The reads that run at authorize time
-/// (<c>GetAsync</c>, <c>GetForUserAsync</c>) must resolve across organizations while the ambient
-/// tenant is some other org — or a person who belongs to two organizations can never sign in to
-/// the second one. <c>membership_roles.role_id</c> is a real FK, so every role id here is a
-/// seeded role.
+/// Checks membership reads and deletion against PostgreSQL, including reads across ambient tenants.
+/// Seeded role IDs satisfy the membership-role foreign key.
 /// </summary>
 [Trait("Category", "Integration")]
 public class MembershipRepositoryTests(WallowApiFactory factory) : IdentityIntegrationTestBase(factory)

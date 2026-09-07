@@ -11,20 +11,10 @@ using Wallow.Identity.Infrastructure.Options;
 namespace Wallow.Identity.Infrastructure.Services;
 
 /// <summary>
-/// OIDC back-channel logout, OP side: mints one logout token per participating relying party and
-/// POSTs it (<c>logout_token=</c>, form-encoded) to the client's registered back-channel logout
-/// URI. Tokens are signed with the server's own signing credentials — the same keys the JWKS
-/// endpoint publishes — deliberately outside OpenIddict's id-token pipeline, which OpenIddict 8's
-/// native back-channel support can replace wholesale.
+/// Signs and delivers OIDC logout tokens to registered back-channel recipients.
+/// HTTP deliveries run in parallel with per-attempt timeouts and at most one retry.
+/// Recipient delivery failures are logged; failures while querying recipients can propagate.
 /// </summary>
-/// <remarks>
-/// Delivery is best-effort and bounded: attempts run in parallel, each attempt gets
-/// <see cref="BackchannelLogoutOptions.PerClientTimeout"/>, a retryable failure (timeout,
-/// transport error, 5xx — never a 4xx rejection) gets exactly one
-/// retry after <see cref="BackchannelLogoutOptions.RetryDelay"/>, and the whole fan-out is cut
-/// off at <see cref="BackchannelLogoutOptions.OverallTimeout"/>. Nothing here ever throws to the
-/// caller: a dead relying party must not block the user's own sign-out.
-/// </remarks>
 public sealed partial class BackchannelLogoutNotifier(
     HttpClient httpClient,
     ISsoClientSessionService sessions,
@@ -33,7 +23,9 @@ public sealed partial class BackchannelLogoutNotifier(
     TimeProvider timeProvider,
     ILogger<BackchannelLogoutNotifier> logger) : IBackchannelLogoutNotifier
 {
-    /// <summary>The spec's cap: a logout token is a fresh instruction, not a credential to hold.</summary>
+    /// <summary>
+    /// Two-minute lifetime follows the back-channel logout specification recommendation.
+    /// </summary>
     private static readonly TimeSpan _logoutTokenLifetime = TimeSpan.FromMinutes(2);
 
     private const string LogoutTokenType = "logout+jwt";
@@ -48,8 +40,7 @@ public sealed partial class BackchannelLogoutNotifier(
             return;
         }
 
-        // The first asymmetric credential is the key JWKS publishes; a symmetric credential
-        // would mint a token no relying party could validate.
+        // Use an asymmetric signing credential that relying parties can validate with public keys.
         SigningCredentials? credentials = serverOptions.CurrentValue.SigningCredentials
             .FirstOrDefault(c => c.Key is AsymmetricSecurityKey or X509SecurityKey);
         if (credentials is null)
@@ -120,10 +111,14 @@ public sealed partial class BackchannelLogoutNotifier(
     {
         Delivered,
 
-        /// <summary>Timeout, transport failure, or 5xx — the retry may land.</summary>
+        /// <summary>
+        /// Transport failure, attempt timeout, or server error eligible for retry.
+        /// </summary>
         Retryable,
 
-        /// <summary>A 4xx: the relying party rejected this token; re-sending it cannot succeed.</summary>
+        /// <summary>
+        /// Non-success response below 500; not retried.
+        /// </summary>
         Rejected,
     }
 
@@ -134,7 +129,7 @@ public sealed partial class BackchannelLogoutNotifier(
 
         try
         {
-            // Fresh content per attempt: HttpClient disposes request content after sending.
+            // Each attempt owns a fresh form payload.
             using FormUrlEncodedContent content = new([new KeyValuePair<string, string>("logout_token", token)]);
             using HttpResponseMessage response = await httpClient.PostAsync(uri, content, attempt.Token);
             if (response.IsSuccessStatusCode)
@@ -150,8 +145,7 @@ public sealed partial class BackchannelLogoutNotifier(
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            // The per-attempt timeout fired but the fan-out is still live: report a failed
-            // attempt so the one retry can run, rather than aborting the recipient.
+            // Retry an attempt timeout only while the overall delivery remains active.
             return DeliveryOutcome.Retryable;
         }
     }
@@ -161,8 +155,7 @@ public sealed partial class BackchannelLogoutNotifier(
     {
         DateTime now = timeProvider.GetUtcNow().UtcDateTime;
 
-        // Per the back-channel logout spec: iss/sub/aud/iat/exp/jti, the logout event, and sid.
-        // No nonce — its presence is what lets relying parties reject a replayed id token here.
+        // Omit nonce so the logout token cannot substitute for an ID token.
         SecurityTokenDescriptor descriptor = new()
         {
             TokenType = LogoutTokenType,
@@ -188,11 +181,8 @@ public sealed partial class BackchannelLogoutNotifier(
     }
 
     /// <summary>
-    /// The SSRF gate: back-channel URIs are registered by org admins, so by default the notifier
-    /// refuses to POST at anything that resolves to a loopback, private, link-local, or
-    /// unique-local address. <see cref="BackchannelLogoutOptions.AllowPrivateNetworkHosts"/>
-    /// opts a private-network deployment back in. An unresolvable host is refused too — the
-    /// delivery could only fail, and resolving here is what makes the gate see the address.
+    /// Rejects unresolvable or private recipient addresses unless private hosts are enabled.
+    /// This lookup does not pin the address used by the subsequent HTTP request.
     /// </summary>
     private async Task<bool> IsAllowedTargetAsync(Uri uri, CancellationToken ct)
     {

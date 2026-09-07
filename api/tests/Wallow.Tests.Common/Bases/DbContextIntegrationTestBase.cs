@@ -6,16 +6,9 @@ using Wallow.Tests.Common.Fixtures;
 namespace Wallow.Tests.Common.Bases;
 
 /// <summary>
-/// Base class for DbContext integration tests that share a PostgreSQL container
-/// via collection fixture. Creates a fresh DbContext per test class with tenant isolation.
+/// Creates a context with a fresh tenant ID using a shared PostgreSQL fixture.
+/// Derived tests select the collection fixture and may customize options or context construction.
 /// </summary>
-/// <remarks>
-/// Usage:
-/// 1. Define a collection: [CollectionDefinition("PostgresDatabase")] class DbCollection : ICollectionFixture&lt;PostgresContainerFixture&gt; { }
-/// 2. Inherit: [Collection("PostgresDatabase")] class MyTests : DbContextIntegrationTestBase&lt;MyDbContext&gt; { ... }
-/// 3. Override ConfigureOptions if needed (e.g., for NpgsqlDataSource with EnableDynamicJson).
-/// 4. Override UseMigrateAsync to true for modules with EF migrations and schemas.
-/// </remarks>
 [Trait("Category", "Integration")]
 public abstract class DbContextIntegrationTestBase<TDbContext> : IAsyncLifetime
     where TDbContext : DbContext
@@ -29,9 +22,7 @@ public abstract class DbContextIntegrationTestBase<TDbContext> : IAsyncLifetime
     protected string ConnectionString => _fixture.ConnectionString;
 
     /// <summary>
-    /// When true, uses MigrateAsync() instead of EnsureCreatedAsync().
-    /// Override to true for modules with EF migrations and schemas (the repository suites in
-    /// Announcements and Inquiries do).
+    /// Uses EF migrations when true; otherwise initializes the schema with EnsureCreatedAsync.
     /// </summary>
     protected virtual bool UseMigrateAsync => false;
 
@@ -59,8 +50,7 @@ public abstract class DbContextIntegrationTestBase<TDbContext> : IAsyncLifetime
     }
 
     /// <summary>
-    /// Configures DbContextOptions. Override to customize (e.g., add NpgsqlDataSource with EnableDynamicJson).
-    /// Do NOT add TenantSaveChangesInterceptor here — it is added automatically.
+    /// Configures database options. The base adds TenantSaveChangesInterceptor afterward.
     /// </summary>
     protected virtual DbContextOptionsBuilder<TDbContext> ConfigureOptions(
         DbContextOptionsBuilder<TDbContext> builder, string connectionString)
@@ -69,8 +59,7 @@ public abstract class DbContextIntegrationTestBase<TDbContext> : IAsyncLifetime
     }
 
     /// <summary>
-    /// Creates the DbContext instance. Override if your DbContext has a non-standard constructor.
-    /// Default assumes constructor(DbContextOptions&lt;TDbContext&gt;) with SetTenant called after.
+    /// Constructs the context from typed options. Override for other constructor signatures.
     /// </summary>
     protected virtual TDbContext CreateDbContext(DbContextOptions<TDbContext> options, ITenantContext tenantContext)
     {

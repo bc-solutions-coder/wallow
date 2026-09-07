@@ -119,8 +119,7 @@ public sealed class SessionPruningJobTests : IDisposable
     [Fact]
     public async Task ExecuteAsync_DeletesSsoParticipationRowsOlderThanThirtyDays()
     {
-        // Participation rows are normally deleted at logout; the sweep is the backstop for
-        // sessions abandoned without one (cookie simply expired).
+        // Sweep participation rows left behind when a session ends without logout.
         SsoSessionClient stale = SsoSessionClient.Create("sid-old", "web", Guid.NewGuid(), _timeProvider);
         _timeProvider.Advance(TimeSpan.FromDays(31));
         SsoSessionClient fresh = SsoSessionClient.Create("sid-new", "web", Guid.NewGuid(), _timeProvider);

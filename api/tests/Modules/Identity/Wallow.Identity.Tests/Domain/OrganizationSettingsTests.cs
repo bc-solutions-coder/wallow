@@ -152,8 +152,7 @@ public class OrganizationSettingsTests
 
         settings.UpdateEnrollment(EnrollmentPolicy.Open, address, null, _userId, _timeProvider);
 
-        // Null is what the recipient resolver reads as "ask the people who can approve"; a blank
-        // string is an address it would try to send to.
+        // Normalize blank values to the absence of an address override.
         settings.AccessRequestEmail.Should().BeNull();
     }
 

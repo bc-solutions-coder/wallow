@@ -29,11 +29,8 @@ public sealed partial class OrganizationMfaPolicyService(
             return new OrgMfaPolicyResult(false, false);
         }
 
-        // This runs during sign-in, before an organization has been chosen, so the tenant filter has
-        // nothing to filter by and every active membership counts. A person who belongs to several
-        // organizations must satisfy the strictest of them: one enrollment satisfies them all, and
-        // picking one membership arbitrarily would let an unrelated organization decide whether
-        // another one's policy applies. An inactive membership carries no policy at all.
+        // Check requiring organizations across active memberships before a tenant is selected.
+        // Grace is determined separately from the user's shared deadline.
         OrganizationSettings? requiring = await dbContext.OrganizationSettings
             .IgnoreQueryFilters()
             .Where(s => s.RequireMfa)

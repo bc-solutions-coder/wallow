@@ -88,7 +88,7 @@ public class InquiryTransitionTests
     {
         Inquiry inquiry = CreateNewInquiry();
 
-        // Advance to the 'from' state
+
         if (from == InquiryStatus.Reviewed)
         {
             inquiry.TransitionTo(InquiryStatus.Reviewed, TimeProvider.System);

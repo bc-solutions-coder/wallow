@@ -1,5 +1,5 @@
 <Project>
-  <!-- Global analyzer package references -->
+  <!-- Analyzer packages for non-test projects -->
   <ItemGroup Condition="'$(IsTestProject)' != 'true'">
     <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers">
       <PrivateAssets>all</PrivateAssets>

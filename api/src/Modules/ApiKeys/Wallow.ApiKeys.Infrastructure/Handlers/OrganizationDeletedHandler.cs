@@ -7,13 +7,9 @@ using Wallow.Shared.Contracts.Identity.Events;
 namespace Wallow.ApiKeys.Infrastructure.Handlers;
 
 /// <summary>
-/// When an organization is deleted, every API key in its tenant dies with it: the rows are
-/// marked revoked in PostgreSQL and the validation cache entries are dropped from Valkey, so a
-/// key in flight stops validating the moment the entry goes rather than when its TTL runs out.
-/// Every cache name is derived from the PostgreSQL row — the key hash, the domain id, the
-/// owning service account — so nothing depends on what the cache happens to still hold.
-/// Idempotent — a redelivered event finds the keys revoked and re-deletes cache entries that
-/// are already gone.
+/// Revokes the deleted organization's keys and removes their Valkey cache entries.
+/// Cache names come from database rows, so cleanup works after cache expiry.
+/// Redelivery skips already-revoked rows and repeats cache deletion safely.
 /// </summary>
 public sealed partial class OrganizationDeletedHandler(
     IApiKeyRepository apiKeys,
@@ -24,9 +20,7 @@ public sealed partial class OrganizationDeletedHandler(
     {
         ArgumentNullException.ThrowIfNull(message);
 
-        // The envelope restores the PUBLISHER'S tenant — a global admin deleting across
-        // organizations publishes under their own — so the tenant whose keys die is stated
-        // explicitly.
+        // The event's organization can differ from the publisher's ambient tenant.
         apiKeys.UseTenant(message.OrganizationId);
         List<ApiKey> keys = await apiKeys.ListByTenantAsync(message.OrganizationId, ct);
 

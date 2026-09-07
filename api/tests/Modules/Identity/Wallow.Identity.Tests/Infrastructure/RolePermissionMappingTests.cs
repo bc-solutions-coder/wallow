@@ -34,8 +34,7 @@ public class RolePermissionMappingTests
 
         List<string> result = RolePermissionMapping.GetPermissions(roles).ToList();
 
-        // The per-organization roles exist to withhold exactly this. A default grant here reinstates
-        // the escalation whichever way the membership model is written.
+        // Ordinary membership must not grant organization administration.
         result.Should().NotContain(PermissionType.OrganizationsUpdate);
         result.Should().NotContain(PermissionType.OrganizationsManageMembers);
     }

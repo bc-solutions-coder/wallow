@@ -5,9 +5,8 @@ namespace Wallow.Identity.Application.Interfaces;
 public interface IInvitationService
 {
     /// <summary>
-    /// Invites an email address into the CALLER's organization. There is deliberately no tenant
-    /// parameter: a holder of <c>OrganizationsManageMembers</c> holds it in one organization, and a
-    /// tenant argument would be either ignored or an invitation into somebody else's org.
+    /// Creates or renews an invitation in the caller's resolved tenant.
+    /// The caller must authorize membership management in that organization.
     /// </summary>
     Task<Invitation> CreateInvitationAsync(string email, Guid createdByUserId, CancellationToken ct = default);
     Task RevokeInvitationAsync(Guid invitationId, Guid actorId, CancellationToken ct = default);

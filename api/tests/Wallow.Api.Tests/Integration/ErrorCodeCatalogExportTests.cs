@@ -11,9 +11,7 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Api.Tests.Integration;
 
 /// <summary>
-/// The emitted v1 document's <c>ErrorCode</c> enum is the aggregated catalog, nothing more and
-/// nothing less. The committed snapshot in <c>packages/sdk/openapi/v1.json</c> is diffed against
-/// the same document in CI, so this is what ties every registered code to the SDK's union type.
+/// Checks that the generated v1 ErrorCode enum matches the registered catalog.
 /// </summary>
 [Collection(nameof(ApiIntegrationTestCollection))]
 [Trait("Category", "Integration")]

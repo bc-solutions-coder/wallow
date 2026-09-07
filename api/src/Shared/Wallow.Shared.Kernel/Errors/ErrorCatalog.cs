@@ -3,14 +3,11 @@ using System.Reflection;
 namespace Wallow.Shared.Kernel.Errors;
 
 /// <summary>
-/// The aggregate of every registered error catalog: the shared kernel's entries plus one static
-/// catalog per registered module, read by reflection from their public static
-/// <see cref="ErrorCatalogEntry"/> members.
+/// Aggregates shared and registered catalogs by reflecting their public static
+/// <see cref="ErrorCatalogEntry"/> fields and properties.
 /// </summary>
 /// <remarks>
-/// A catalog is a static class whose public static fields or properties are the entries. The
-/// aggregate is what the OpenAPI document exports as the <c>ErrorCode</c> enum, so the set of
-/// codes a client can see is exactly the set of codes the running host can raise.
+/// The OpenAPI document exports these entries as the <c>ErrorCode</c> enum.
 /// </remarks>
 public sealed class ErrorCatalog
 {
@@ -24,7 +21,7 @@ public sealed class ErrorCatalog
 
     /// <summary>
     /// Builds the aggregate of <see cref="SharedErrors"/> and the given catalog types. A type
-    /// listed twice counts once; two types declaring the same code is a configuration error.
+    /// listed twice counts once; duplicate codes are a configuration error.
     /// </summary>
     /// <exception cref="InvalidOperationException">Two catalogs declare the same code.</exception>
     public static ErrorCatalog Aggregate(IEnumerable<Type> catalogTypes)

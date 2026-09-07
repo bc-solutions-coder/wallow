@@ -4,8 +4,7 @@ using Microsoft.EntityFrameworkCore.Design;
 namespace Wallow.Announcements.Infrastructure.Persistence;
 
 /// <summary>
-/// Design-time factory for AnnouncementsDbContext to enable EF Core migrations.
-/// Only used at design-time by dotnet ef commands.
+/// Creates the context for <c>dotnet ef</c> migration commands.
 /// </summary>
 public class AnnouncementsDbContextFactory : IDesignTimeDbContextFactory<AnnouncementsDbContext>
 {

@@ -16,32 +16,26 @@ public sealed record PreRegisteredClientDefinition
     public Collection<string> PostLogoutRedirectUris { get; init; } = [];
 
     /// <summary>
-    /// OIDC front-channel logout endpoint for this client, loaded in a hidden iframe by the
-    /// end-session page so the RP can drop its own session when the SSO session ends. Optional:
-    /// a client without one simply is not notified.
+    /// Optional front-channel logout URL loaded by the end-session page. Omission disables this channel.
     /// </summary>
     public string? FrontchannelLogoutUri { get; init; }
 
     /// <summary>
-    /// OIDC back-channel logout endpoint for this client: where the server POSTs a signed logout
-    /// token when the SSO session ends. Optional: a client without one simply is not notified.
-    /// Must be absolute, fragment-free, and https — plain http only for confidential clients.
+    /// Optional URL for signed back-channel logout tokens. Must be absolute and fragment-free;
+    /// HTTP is allowed only for confidential clients.
     /// </summary>
     public string? BackchannelLogoutUri { get; init; }
 
     /// <summary>
-    /// The client's OIDC declaration that its logout tokens must carry <c>sid</c>, bound from the
-    /// "backchannelLogoutSessionRequired" key. Wallow always includes <c>sid</c>, so this is
-    /// stored registration metadata, not a delivery switch.
+    /// Stored OIDC session-required metadata. Wallow includes sid in every logout token regardless of this flag.
     /// </summary>
     public bool BackchannelLogoutSessionRequired { get; init; }
 
     public Collection<string> Scopes { get; init; } = [];
 
     /// <summary>
-    /// Refresh-token lifetime in seconds, bound from the "refreshTokenLifetime" key. Optional:
-    /// an unset value pins the first-party or third-party default at sync time. Meaningless on
-    /// a service account, which never holds the refresh grant.
+    /// Refresh-token lifetime in seconds. Client sync pins a first-party or third-party default
+    /// when omitted; service accounts ignore this setting.
     /// </summary>
     public int? RefreshTokenLifetime { get; init; }
 
@@ -52,25 +46,19 @@ public sealed record PreRegisteredClientDefinition
     public Collection<string> SeedMembers { get; init; } = [];
 
     /// <summary>
-    /// Role name granted to each seed member BY this client's organization, keyed by email.
-    /// A seed member absent from the map is enrolled with <c>user</c>: roles are per
-    /// (user, organization), so an unnamed one has to mean the baseline, never admin.
+    /// Role names for newly added seed members, keyed by email. Missing entries use user;
+    /// existing memberships are left unchanged.
     /// </summary>
     public Dictionary<string, string> SeedMemberRoles { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
-    // Explicit public-client declaration, bound from the "public" key. A client registered
-    // without a secret MUST declare this true; the absence of a secret never implies public.
+    // Clients without a secret must explicitly declare themselves public.
     public bool? Public { get; init; }
 
     public bool IsPublic => Public == true;
 
     /// <summary>
-    /// Declares one of the platform's own clients, bound from the "firstParty" key. First-party
-    /// status is a seed-only property: it is never inferred from the client id, and it is what
-    /// makes the seeder register the client with OpenIddict's implicit consent type. A
-    /// first-party client is bound to no organization, so <see cref="TenantId"/>,
-    /// <see cref="TenantName"/>, <see cref="SeedMembers"/> and <see cref="SeedMemberRoles"/>
-    /// are rejected on one.
+    /// Marks a platform client with implicit consent. First-party clients cannot specify
+    /// <see cref="TenantId"/>, <see cref="TenantName"/>, <see cref="SeedMembers"/>, or <see cref="SeedMemberRoles"/>.
     /// </summary>
     public bool FirstParty { get; init; }
 
@@ -84,8 +72,7 @@ public sealed class PreRegisteredClientOptions
 
     public Collection<PreRegisteredClientDefinition> Clients { get; set; } = [];
 
-    // The client <-> organization invariant as (predicate, message) rules: each names the
-    // offending clients between its two message halves so one report lists every violation.
+
     private static readonly (Func<PreRegisteredClientDefinition, bool> Violates, string Before, string After)[] _organizationRules =
     [
         (c => c.FirstParty && c.IsBoundToOrganization,
@@ -99,10 +86,7 @@ public sealed class PreRegisteredClientOptions
             " declare no organization; a client that is not \"firstParty\": true must name exactly one (\"tenantId\" or \"tenantName\")"),
     ];
 
-    // Fails fast, before any client is written, on the two seed shapes that would otherwise
-    // register something the platform does not mean: a secret-less client with no explicit
-    // public declaration, and a client on the wrong side of the client <-> organization
-    // invariant (first-party => no organization; every other client => exactly one).
+    // Validate all client definitions before sync creates, updates, or deletes registrations.
     public void Validate()
     {
         List<string> silentlyPublic = Clients

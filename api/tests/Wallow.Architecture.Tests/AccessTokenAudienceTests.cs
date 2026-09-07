@@ -1,29 +1,12 @@
 namespace Wallow.Architecture.Tests;
 
 /// <summary>
-/// Audience restriction on access tokens (bead Wallow-pu6a.6.5, guardrail R24 of the SDK review;
-/// RFC 9700 §2.3 — "access tokens SHOULD be audience-restricted").
-///
-/// <para>Repo-wide there is currently no audience anywhere: no <c>SetResources</c> on an issued
-/// principal, no <c>AddAudiences</c> on the validation handler, no audience in configuration. An
-/// access token this issuer mints is therefore accepted by anything that trusts the issuer, so a
-/// token leaked from one resource is a valid credential at every other — the platform-wide
-/// authority R24 exists to remove.</para>
-///
-/// <para>Both halves must land together, and each is worthless alone: issuance must stamp the
-/// audience (asserted behaviourally in
-/// <c>Wallow.Identity.Tests.Api.Controllers.TokenControllerAudienceTests</c>) and validation must
-/// require it (asserted here). The validation options are configured inside the OpenIddict
-/// composition root, which needs EF, Redis, and signing certificates to build, so this file
-/// inspects the registration source — the same trade-off, for the same reason, as
-/// <see cref="DenyByDefaultAuthorizationTests"/>.</para>
+/// Checks audience-validation registration text; token issuance is covered by TokenControllerAudienceTests.
 /// </summary>
 public class AccessTokenAudienceTests
 {
     /// <summary>
-    /// The audience both sides must agree on. Kept as a literal here deliberately: the point of
-    /// the test is that issuance and validation name the same string, and a shared constant would
-    /// make the two agree trivially even if the value never reached a token.
+    /// Expected API audience, independent of the production registration source.
     /// </summary>
     private const string ApiAudience = "wallow-api";
 

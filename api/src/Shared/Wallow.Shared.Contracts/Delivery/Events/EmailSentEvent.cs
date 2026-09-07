@@ -1,8 +1,5 @@
 namespace Wallow.Shared.Contracts.Delivery.Events;
 
-/// <summary>
-/// Published when an email is successfully sent.
-/// </summary>
 public sealed record EmailSentEvent : IntegrationEvent
 {
     public required Guid EmailId { get; init; }

@@ -3,7 +3,7 @@ using Wolverine;
 
 namespace Wallow.Shared.Infrastructure.Tests.Messaging;
 
-#pragma warning disable CA2000 // WolverineOptions does not expose a synchronous Dispose; safe to ignore in tests
+#pragma warning disable CA2000 // These tests configure options without starting a Wolverine runtime.
 public class WolverineErrorHandlingExtensionsTests
 {
     [Fact]

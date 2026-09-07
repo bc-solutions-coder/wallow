@@ -7,10 +7,6 @@ using Wolverine;
 
 namespace Wallow.Notifications.Tests.EventHandlers;
 
-/// <summary>
-/// The access-request email: one send per recipient, none at all when Identity resolved nobody
-/// to tell, and a review URL composed here from configuration rather than carried on the event.
-/// </summary>
 public class AccessRequestedNotificationHandlerTests
 {
     private readonly IMessageBus _bus = Substitute.For<IMessageBus>();

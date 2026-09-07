@@ -19,12 +19,8 @@ using WallowClaims = Wallow.Shared.Kernel.Extensions.ClaimsPrincipalExtensions;
 namespace Wallow.Identity.Tests.Api.Controllers;
 
 /// <summary>
-/// Unit tests for <see cref="TokenController"/>'s authorization_code / refresh_token token
-/// exchange. Regression coverage for Wallow-ho2k: the controller must set the granted scopes
-/// on the identity BEFORE computing claim destinations so profile/email/roles claims reach the
-/// id_token, and must gate each claim on the correct scope (name/given_name/family_name on
-/// 'profile', email on 'email', role on 'roles') so a client granted only 'profile' does not
-/// leak email into the id_token.
+/// Checks claim destinations during <see cref="TokenController"/> authorization-code exchange.
+/// Identity-token profile, email, and role claims require their corresponding scopes.
 /// </summary>
 public sealed class TokenControllerTests : IDisposable
 {
@@ -84,19 +80,19 @@ public sealed class TokenControllerTests : IDisposable
 
         ClaimsPrincipal principal = ResultPrincipal(result);
 
-        // Standard identity claims must reach BOTH the id_token and the access_token.
+
         DestinationsFor(principal, Claims.Email).Should().Contain(Destinations.IdentityToken);
         DestinationsFor(principal, Claims.Name).Should().Contain(Destinations.IdentityToken);
         DestinationsFor(principal, Claims.GivenName).Should().Contain(Destinations.IdentityToken);
         DestinationsFor(principal, Claims.FamilyName).Should().Contain(Destinations.IdentityToken);
         DestinationsFor(principal, Claims.Role).Should().Contain(Destinations.IdentityToken);
 
-        // Unconditional claims are always in both tokens.
+
         DestinationsFor(principal, Claims.Subject).Should().Contain(Destinations.IdentityToken);
         DestinationsFor(principal, "org_id").Should().Contain(Destinations.IdentityToken);
         DestinationsFor(principal, "org_name").Should().Contain(Destinations.IdentityToken);
 
-        // Access token still carries them too.
+
         DestinationsFor(principal, Claims.Email).Should().Contain(Destinations.AccessToken);
         DestinationsFor(principal, Claims.Role).Should().Contain(Destinations.AccessToken);
     }
@@ -110,12 +106,12 @@ public sealed class TokenControllerTests : IDisposable
 
         ClaimsPrincipal principal = ResultPrincipal(result);
 
-        // 'profile' releases name/given_name/family_name to the id_token...
+
         DestinationsFor(principal, Claims.Name).Should().Contain(Destinations.IdentityToken);
         DestinationsFor(principal, Claims.GivenName).Should().Contain(Destinations.IdentityToken);
         DestinationsFor(principal, Claims.FamilyName).Should().Contain(Destinations.IdentityToken);
 
-        // ...but NOT email — email requires the 'email' scope (per-claim gating).
+
         DestinationsFor(principal, Claims.Email).Should().NotContain(Destinations.IdentityToken);
     }
 
@@ -128,20 +124,17 @@ public sealed class TokenControllerTests : IDisposable
 
         ClaimsPrincipal principal = ResultPrincipal(result);
 
-        // email is granted here, so it must reach the id_token...
+
         DestinationsFor(principal, Claims.Email).Should().Contain(Destinations.IdentityToken);
 
-        // ...but role is NOT ('roles' scope absent).
+
         DestinationsFor(principal, Claims.Role).Should().NotContain(Destinations.IdentityToken);
     }
 
     [Fact]
     public async Task Exchange_AuthorizationCode_CarriesSidIntoIdentityTokenOnly()
     {
-        // The id_token is the ONE place a relying party learns the OP session id it must
-        // match front-/back-channel logout notifications against. Dropping sid at the
-        // exchange silently breaks single logout for every RP: the logout token still
-        // names the session, but no RP ever indexed it.
+        // Preserve the SID so the relying party can match session logout notifications.
         SetupAuthorizationCodeExchange("openid", "profile");
 
         IActionResult result = await _controller.Exchange();
@@ -152,7 +145,7 @@ public sealed class TokenControllerTests : IDisposable
         DestinationsFor(principal, WallowClaims.SessionIdClaimType)
             .Should().Contain(Destinations.IdentityToken);
 
-        // A resource server has no business tying a bearer token to a browser session.
+        // This API keeps the SID out of access tokens.
         DestinationsFor(principal, WallowClaims.SessionIdClaimType)
             .Should().NotContain(Destinations.AccessToken);
     }

@@ -1,8 +1,8 @@
 namespace Wallow.Shared.Kernel.CustomFields;
 
 /// <summary>
-/// Marker interface for entities that support tenant-configurable custom fields.
-/// Custom fields are stored as JSONB and validated against tenant's field definitions.
+/// Tenant-configurable custom field values. Implementations must arrange persistence
+/// and validation against the tenant's field definitions.
 /// </summary>
 public interface IHasCustomFields
 {
@@ -12,8 +12,5 @@ public interface IHasCustomFields
     /// </summary>
     Dictionary<string, object>? CustomFields { get; }
 
-    /// <summary>
-    /// Sets the custom fields dictionary.
-    /// </summary>
     void SetCustomFields(Dictionary<string, object>? customFields);
 }

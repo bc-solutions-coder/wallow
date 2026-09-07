@@ -11,12 +11,8 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.Users;
 
 /// <summary>
-/// Deactivating a user through the admin API ends their access now, not at token expiry: every
-/// token they hold is revoked, so a refresh answers <c>invalid_grant</c> and the old access
-/// token is refused on its next bearer request. The lockout alone only blocks the next
-/// interactive sign-in. The shared test host registers a no-op fake for
-/// <see cref="IUserManagementService"/>, so the deactivation call runs on a derived host that
-/// restores the real service — same database, deployed controller surface.
+/// Checks refresh and bearer rejection after deactivation through the admin endpoint.
+/// A derived host replaces the shared fake <see cref="IUserManagementService"/> with the real service.
 /// </summary>
 public sealed class DeactivationRevocationTests(WallowApiFactory factory)
     : IdentityIntegrationTestBase(factory)
@@ -48,8 +44,7 @@ public sealed class DeactivationRevocationTests(WallowApiFactory factory)
         TokenOutcome tokens = await harness.AcquireTokensAsync(clientId, ClientSecret, Scope);
         tokens.StatusCode.Should().Be(HttpStatusCode.OK, tokens.Body);
 
-        // Deactivate through the deployed admin endpoint, on a host where the real service backs
-        // the interface, acting as an org admin of the target's organization.
+        // Use the real service with a synthetic administrator of the target organization.
         using WebApplicationFactory<Program> host = Factory.WithWebHostBuilder(builder =>
             builder.ConfigureTestServices(services =>
             {
@@ -66,7 +61,7 @@ public sealed class DeactivationRevocationTests(WallowApiFactory factory)
         refreshed.StatusCode.Should().Be(HttpStatusCode.BadRequest, refreshed.Body);
         refreshed.Error.Should().Be("invalid_grant");
 
-        // Over https, because the real validation handler refuses plain-http requests outright.
+        // Match the HTTPS token issuer and disable synthetic authentication below.
         HttpClient bearer = Factory.CreateClient(
             new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
         bearer.DefaultRequestHeaders.Add("Authorization", $"Bearer {tokens.RequireAccessToken()}");

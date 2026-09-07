@@ -8,10 +8,7 @@ using WireMock.Server;
 namespace Wallow.Identity.IntegrationTests.Logout;
 
 /// <summary>
-/// The SSRF gate under the shipped defaults: back-channel URIs are registered by org admins, so
-/// with <c>AllowPrivateNetworkHosts</c> off (the default this shared factory runs with) a logout
-/// must refuse to POST at a loopback target — a registration pointing at an internal service
-/// would otherwise turn every logout into a server-side request against it.
+/// Checks that default back-channel policy refuses loopback targets without a server error.
 /// </summary>
 public sealed class BackchannelLogoutSsrfTests(WallowApiFactory factory)
     : IdentityIntegrationTestBase(factory)
@@ -61,8 +58,7 @@ public sealed class BackchannelLogoutSsrfTests(WallowApiFactory factory)
         using HttpResponseMessage logout = await harness.Client.GetAsync(
             new Uri("/connect/logout", UriKind.Relative));
 
-        // The logout itself succeeds — the gate is about the target, not the user's sign-out —
-        // and the loopback "internal service" never sees a request.
+        // Refusing the target must avoid a server error and send no request to the loopback service.
         ((int)logout.StatusCode).Should().BeLessThan(500, await logout.Content.ReadAsStringAsync());
         internalService.LogEntries.Should().BeEmpty();
     }

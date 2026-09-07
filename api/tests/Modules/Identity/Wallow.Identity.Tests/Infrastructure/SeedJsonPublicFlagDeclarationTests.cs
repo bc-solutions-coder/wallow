@@ -3,9 +3,7 @@ using System.Text.Json;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// Every client entry shipped in seed.json must declare its public/confidential nature
-/// explicitly, so a fork reading the file can never mistake "no secret written here"
-/// (secrets are injected by env in production) for "this client is intentionally public".
+/// Requires explicit public flags in seed.json so missing secrets are not mistaken for public clients.
 /// </summary>
 public sealed class SeedJsonPublicFlagDeclarationTests
 {

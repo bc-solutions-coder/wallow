@@ -9,13 +9,9 @@
   <ItemGroup>
     <ProjectReference Include="..\Wallow.ServiceDefaults\Wallow.ServiceDefaults.csproj" />
     <ProjectReference Include="..\Shared\Wallow.Shared.Infrastructure.Core\Wallow.Shared.Infrastructure.Core.csproj" />
-    <!-- Wallow.Shared.Infrastructure is a DIFFERENT project from Wallow.Shared.Infrastructure.Core
-         and is where IWallowModule lives. This host names the interface directly. -->
+    <!-- IWallowModule is declared in Shared.Infrastructure. -->
     <ProjectReference Include="..\Shared\Wallow.Shared.Infrastructure\Wallow.Shared.Infrastructure.csproj" />
-    <!-- One reference instead of seven. This host never names a module type: it reads the registry
-         and drives everything else off IWallowModule.DbContextTypes and SchemaName by reflection.
-         The seven module Infrastructure assemblies still arrive transitively through the registry,
-         so their DbContext types remain loadable at runtime. -->
+    <!-- The registry supplies module assemblies; migration discovery uses IWallowModule.DbContextTypes and SchemaName. -->
     <ProjectReference Include="..\Wallow.Modules.Registry\Wallow.Modules.Registry.csproj" />
   </ItemGroup>
 

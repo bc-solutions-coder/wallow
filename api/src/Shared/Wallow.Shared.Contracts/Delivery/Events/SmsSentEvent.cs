@@ -1,8 +1,5 @@
 namespace Wallow.Shared.Contracts.Delivery.Events;
 
-/// <summary>
-/// Published when an SMS is successfully sent.
-/// </summary>
 public sealed record SmsSentEvent : IntegrationEvent
 {
     public required Guid SmsId { get; init; }

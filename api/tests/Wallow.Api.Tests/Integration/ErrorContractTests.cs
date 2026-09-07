@@ -14,13 +14,7 @@ using Wallow.Tests.Common.Helpers;
 namespace Wallow.Api.Tests.Integration;
 
 /// <summary>
-/// The failure sweep: one probe per way a request can fail, each asserting the unified problem
-/// contract on the wire. Every body is <c>application/problem+json</c> with <c>type</c>
-/// <c>about:blank</c>, a reason-phrase <c>title</c>, <c>status</c>, a catalogued <c>code</c>,
-/// <c>traceId</c>, and a <c>detail</c> that is user-safe on 4xx and the one fixed sentence on 5xx;
-/// <c>errors</c> appears only on validation problems; <c>instance</c>, <c>api</c> and
-/// <c>version</c> never appear. The API sends X-Content-Type-Options: nosniff, so an error with
-/// no body would make a browser navigation download a zero-byte file — the body is load-bearing.
+/// Checks the shared HTTP problem contract across selected routing, authentication, validation and server failures.
 /// </summary>
 [Collection(nameof(ApiIntegrationTestCollection))]
 [Trait("Category", "Integration")]
@@ -55,7 +49,7 @@ public sealed class ErrorContractTests : IDisposable
     [Fact]
     public async Task Unmatched_Path_Returns_404_Problem_Not_A_Challenge()
     {
-        // Browsers send Accept: text/html,...,*/* on navigations; the writer ignores Accept anyway.
+        // Exercise a browser-style Accept header.
         using HttpRequestMessage request = new(HttpMethod.Get, "/api/v1/identity/setup");
         request.Headers.TryAddWithoutValidation("Accept", BrowserAccept);
 
@@ -68,8 +62,7 @@ public sealed class ErrorContractTests : IDisposable
     [Fact]
     public async Task Wrong_Method_Returns_405_Problem()
     {
-        // Authenticated: the framework's synthesized 405 endpoint carries no AllowAnonymous, so
-        // an anonymous wrong-method request is challenged to 401 before the 405 is reached.
+        // Authenticate so authorization does not mask the method-not-allowed response.
         using HttpRequestMessage request = new(HttpMethod.Delete, "/v1/identity/setup/status");
         AsAdmin(request);
 
@@ -192,7 +185,7 @@ public sealed class ErrorContractTests : IDisposable
         client.DefaultRequestHeaders.Add("Authorization", "Bearer test-token");
         client.DefaultRequestHeaders.Add("X-Test-User-Id", Guid.NewGuid().ToString());
 
-        // An empty body fails model validation, so the window is spent without creating anything.
+        // Consume a permit with an invalid body instead of creating an organization.
         using HttpResponseMessage allowed = await client.PostAsJsonAsync("/v1/identity/organizations", new { });
         allowed.StatusCode.Should().NotBe(HttpStatusCode.TooManyRequests);
         HttpResponseMessage response = await client.PostAsJsonAsync("/v1/identity/organizations", new { });
@@ -240,13 +233,12 @@ public sealed class ErrorContractTests : IDisposable
         request.Headers.TryAddWithoutValidation("X-Test-Roles", "admin");
     }
 
-    /// <summary>The shared contract assertion (<see cref="ProblemAssertions"/>) with this sweep's catalog.</summary>
     private Task<JsonElement> AssertProblemAsync(
-        HttpResponseMessage response,
-        int expectedStatus,
-        string expectedCode,
-        bool expectErrors = false) =>
-        response.AssertProblemAsync(_catalog, expectedStatus, expectedCode, expectErrors);
+    HttpResponseMessage response,
+    int expectedStatus,
+    string expectedCode,
+    bool expectErrors = false) =>
+    response.AssertProblemAsync(_catalog, expectedStatus, expectedCode, expectErrors);
 
     private sealed class SetupRequiredProvider : ISetupStatusProvider
     {

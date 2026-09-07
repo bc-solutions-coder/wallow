@@ -9,10 +9,8 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.OAuth2;
 
 /// <summary>
-/// Pins the #150 invalid_client requirements against the real token endpoint: every failed
-/// client authentication lands a userless <c>ClientAuthenticationFailed</c> audit row, a client
-/// that fails often enough is temporarily rejected even when it finally presents the correct
-/// secret, and the lockout is per client — a neighbour with one slip is unaffected.
+/// Checks failed-client authentication audits and per-client lockout at the token endpoint.
+/// The locked client is refused with its correct secret while another client remains usable.
 /// </summary>
 [Trait("Category", "Integration")]
 public class InvalidClientLockoutTests(WallowApiFactory factory) : OrganizationClientsTestBase(factory)
@@ -39,8 +37,7 @@ public class InvalidClientLockoutTests(WallowApiFactory factory) : OrganizationC
         (await AuditRowCountAsync("ClientAuthenticationFailed", lockedId)).Should().Be(
             _lockoutOptions.FailureThreshold, "every failed attempt is audited, not just the first");
 
-        // At the threshold the client is locked: the CORRECT secret is refused too, with the
-        // same invalid_client answer a wrong secret gets — the lockout discloses nothing.
+        // Lockout must return invalid_client even for the correct secret.
         using HttpResponseMessage lockedOut = await ClientCredentialsAsync(lockedId, lockedSecret);
         lockedOut.StatusCode.Should().Be(HttpStatusCode.Unauthorized,
             "a locked-out client must be rejected even with the correct secret");
@@ -49,8 +46,7 @@ public class InvalidClientLockoutTests(WallowApiFactory factory) : OrganizationC
             _lockoutOptions.FailureThreshold,
             "the lockout's own refusal is not a failed authentication and must be neither audited nor counted");
 
-        // One bad attempt on the neighbour is audited but nowhere near the threshold: its
-        // correct secret keeps working — the counter partitions per client_id.
+        // One failure on another client must not inherit this client lockout.
         using HttpResponseMessage neighbourRefused = await ClientCredentialsAsync(neighbourId, "wrong-secret");
         neighbourRefused.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         await AuditRowAsync("ClientAuthenticationFailed", neighbourId);
@@ -61,8 +57,7 @@ public class InvalidClientLockoutTests(WallowApiFactory factory) : OrganizationC
     }
 
     /// <summary>
-    /// A straight count, no waiting: the audit handler runs inside the token request, so every
-    /// row from an already-answered attempt is committed before this queries.
+    /// Counts audit rows immediately after the completed requests.
     /// </summary>
     private async Task<int> AuditRowCountAsync(string eventType, string clientId)
     {

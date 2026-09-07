@@ -16,7 +16,7 @@ public sealed class NotificationPreferenceChecker(NotificationsDbContext dbConte
     {
         Guid userGuid = userId.Value;
 
-        // Check global kill-switch: wildcard "*" for this channel
+        // A disabled "*" preference overrides every notification type for this channel.
         bool? globalEnabled = await dbContext.ChannelPreferences
             .Where(p => p.UserId == userGuid
                         && p.ChannelType == channelType
@@ -29,7 +29,7 @@ public sealed class NotificationPreferenceChecker(NotificationsDbContext dbConte
             return false;
         }
 
-        // Check specific notification type preference
+
         bool? specificEnabled = await dbContext.ChannelPreferences
             .Where(p => p.UserId == userGuid
                         && p.ChannelType == channelType

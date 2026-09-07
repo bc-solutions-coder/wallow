@@ -1,9 +1,8 @@
 namespace Wallow.Api.Middleware;
 
 /// <summary>
-/// Rewrites unversioned requests to include a /v1 prefix when no version segment is present,
-/// ensuring backward compatibility for clients that don't specify an API version.
-/// PathBase is expected to have already stripped the /api prefix.
+/// Prefixes unversioned paths with /v1 except root and configured infrastructure prefixes.
+/// Runs after PathBase extraction.
 /// </summary>
 internal sealed class ApiVersionRewriteMiddleware(RequestDelegate next)
 {
@@ -39,7 +38,7 @@ internal sealed class ApiVersionRewriteMiddleware(RequestDelegate next)
 
     private static bool HasVersionSegment(string path)
     {
-        // Check for /v{digit} pattern at start (e.g., /v1/..., /v2/...)
+        // A leading v/V followed by a digit is treated as a version prefix.
         return path.Length > 2
             && (path[1] == 'v' || path[1] == 'V')
             && char.IsDigit(path[2]);

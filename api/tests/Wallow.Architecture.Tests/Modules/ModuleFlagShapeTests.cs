@@ -13,34 +13,14 @@ using Wallow.Shared.Infrastructure.Modules;
 namespace Wallow.Architecture.Tests.Modules;
 
 /// <summary>
-/// Pins what a <c>FeatureManagement:Modules.*</c> value is allowed to look like and what each shape
-/// resolves to, now that <c>AddWallowModules</c> reads those flags straight off
-/// <see cref="IConfiguration"/> instead of asking <see cref="IFeatureManager"/>.
+/// Compares scalar module flags with FeatureManager and checks rejection of malformed optional-module flags.
 /// </summary>
-/// <remarks>
-/// <para>
-/// The equivalence facts are the load-bearing ones. They resolve the enabled set twice for the same
-/// configuration — once the way the host does it now, once through a live
-/// <see cref="IFeatureManager"/> built from the very package the host used to ask — and require the
-/// two answers to be identical. That is a real oracle rather than a restatement of the new code:
-/// <c>Microsoft.FeatureManagement</c> is still referenced, so the old algorithm can still be run
-/// side by side with the new one and would disagree the moment the new one drifted.
-/// </para>
-/// <para>
-/// The malformed-shape facts cover the one place the two deliberately part company. A value that is
-/// an object (<c>EnabledFor</c>/<c>RequirementType</c> — the shape a feature filter needs) or a
-/// non-boolean scalar reads as a plain <see langword="false"/> off <see cref="IConfiguration"/>, and
-/// a module that reads as disabled loses its DI registrations, its Wolverine handlers and its whole
-/// HTTP surface. Silently. So the host refuses to start instead, naming the key.
-/// </para>
-/// </remarks>
 public sealed class ModuleFlagShapeTests
 {
     private const string StorageFlagKey = "FeatureManagement:Modules.Storage";
 
     /// <summary>
-    /// Gets every shipped environment overlay, merged over the base <c>appsettings.json</c> exactly
-    /// as the host merges it. These are the flag shapes that actually ship.
+    /// Checked-in settings overlays included in the comparison.
     /// </summary>
     public static TheoryData<string> ShippedOverlays =>
         new()
@@ -53,9 +33,7 @@ public sealed class ModuleFlagShapeTests
         };
 
     /// <summary>
-    /// Gets the flag-value spellings a provider can hand over for a scalar boolean: JSON's own
-    /// <c>true</c>/<c>false</c> literals arrive title-cased, an environment variable or a command
-    /// line arrives however it was typed.
+    /// Scalar boolean spellings exercised by the test.
     /// </summary>
     public static TheoryData<string, string, bool> ScalarSpellings =>
         new()
@@ -70,8 +48,7 @@ public sealed class ModuleFlagShapeTests
         };
 
     /// <summary>
-    /// Gets the values that are present but are not a scalar boolean: the object shape a
-    /// <c>Microsoft.FeatureManagement</c> filter needs, and scalars that do not parse.
+    /// Nonboolean scalars and structured flag values rejected by the host.
     /// </summary>
     public static TheoryData<string, string> MalformedFlagValues =>
         new()
@@ -127,8 +104,7 @@ public sealed class ModuleFlagShapeTests
     [Fact]
     public void AbsentFlag_LeavesTheOptionalModuleOff_AndItsDbContextUnregistered()
     {
-        // Nothing under FeatureManagement at all: every optional module's key is absent, which is
-        // the one path the older toggle facts never asserted on by name.
+        // Leave optional-module flags absent.
         ServiceCollection services = new();
         IConfiguration configuration = BuildConfiguration([]);
 
@@ -147,9 +123,7 @@ public sealed class ModuleFlagShapeTests
     [Fact]
     public void EnvironmentVariableProvider_ReachesTheSameKey_AsTheJsonShape()
     {
-        // The documented deployment override is FeatureManagement__Modules.Storage=false, which the
-        // environment-variable provider normalises to the same colon-separated key the JSON files
-        // produce — and hands over as a lowercase string, never a boolean.
+        // Exercise double-underscore environment-key normalization.
         const string environmentVariable = "FeatureManagement__Modules.Storage";
         string? original = Environment.GetEnvironmentVariable(environmentVariable);
 
@@ -206,9 +180,7 @@ public sealed class ModuleFlagShapeTests
     [Fact]
     public void FilterShapedFlagValue_FailsTheHost_RatherThanBeingReadAsDisabled()
     {
-        // The exact shape a percentage rollout needs. IFeatureManager would evaluate the filter;
-        // reading the same node off IConfiguration yields null, i.e. "off" — so this is the one
-        // shape where a silent read would actively contradict what the config author asked for.
+        // Module startup switches reject percentage-filter configuration.
         ServiceCollection services = new();
         IConfiguration configuration = BuildConfiguration(new Dictionary<string, string?>
         {
@@ -227,8 +199,7 @@ public sealed class ModuleFlagShapeTests
     [Fact]
     public void CoreModuleFlag_IsNeverRead_WhateverShapeItHas()
     {
-        // Identity is core, so its flag is inert. That short-circuit has to run BEFORE the shape
-        // guard, or a stray core-module key would fail a host that does not even consult it.
+        // Core modules bypass optional flag validation.
         ServiceCollection services = new();
         IConfiguration configuration = BuildConfiguration(new Dictionary<string, string?>
         {
@@ -244,8 +215,7 @@ public sealed class ModuleFlagShapeTests
     }
 
     /// <summary>
-    /// Resolves the enabled set the way <c>ResolveEnabledModules</c> used to: off a live
-    /// <see cref="IFeatureManager"/>, built from the same package the host still references.
+    /// Resolves module names through FeatureManager, with core modules always included.
     /// </summary>
     private static IReadOnlyList<string> ResolveViaFeatureManager(IConfiguration configuration)
     {
@@ -266,9 +236,6 @@ public sealed class ModuleFlagShapeTests
         ];
     }
 
-    /// <summary>
-    /// Resolves the enabled set the way the host does: whatever <c>AddWallowModules</c> returns.
-    /// </summary>
     private static IReadOnlyList<string> ResolveViaHost(IConfiguration configuration)
     {
         ServiceCollection services = new();
@@ -280,7 +247,7 @@ public sealed class ModuleFlagShapeTests
         ServiceCollection services,
         IConfiguration configuration)
     {
-        // Modules resolve IConnectionMultiplexer at registration time for Redis-backed services.
+        // Supply Redis for module service registration.
         IConnectionMultiplexer mockRedis = Substitute.For<IConnectionMultiplexer>();
         services.AddSingleton(mockRedis);
 
@@ -303,9 +270,7 @@ public sealed class ModuleFlagShapeTests
     }
 
     /// <summary>
-    /// Loads the real, checked-in appsettings files through the same
-    /// <see cref="ConfigurationBuilder"/> pipeline the host uses, so the flag shapes under test are
-    /// the shapes that actually ship rather than a hand-written copy of them.
+    /// Loads base settings and the selected overlay, then applies test connection settings.
     /// </summary>
     private static IConfiguration BuildShippedConfiguration(string overlay)
     {

@@ -10,9 +10,8 @@ using WireMock.Server;
 namespace Wallow.Identity.IntegrationTests.Logout;
 
 /// <summary>
-/// Shared plumbing for back-channel logout delivery tests: seeds a user, organization, and
-/// relying-party client whose back-channel URI points at the factory's WireMock server, walks
-/// the authorization-code flow to a signed-in session with tokens, and triggers logout.
+/// Helpers for seeding a relying party, obtaining tokens through authorization code,
+/// and requesting logout against the WireMock delivery fixture.
 /// </summary>
 public abstract class BackchannelLogoutDeliveryTestBase(BackchannelLogoutTestFactory factory)
     : WallowIntegrationTestBase(factory)

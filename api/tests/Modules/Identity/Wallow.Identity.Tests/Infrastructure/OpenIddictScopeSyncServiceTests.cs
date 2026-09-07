@@ -1,4 +1,4 @@
-#pragma warning disable CA2012 // Use ValueTasks correctly - NSubstitute requires ValueTask in Returns()
+#pragma warning disable CA2012 // Configure and verify ValueTask-returning substitutes.
 
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
@@ -11,9 +11,7 @@ using Wallow.Identity.Infrastructure.Services;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// The consent screen reads a scope's wording from OpenIddict's scope table and nowhere else, so
-/// this mirrors the API-scope catalog into it. The protocol scopes are not catalog rows, so their
-/// wording is the service's own.
+/// Checks synchronization of catalog scopes and built-in protocol wording into OpenIddict.
 /// </summary>
 public sealed class OpenIddictScopeSyncServiceTests : IDisposable
 {
@@ -104,8 +102,7 @@ public sealed class OpenIddictScopeSyncServiceTests : IDisposable
     }
 
     /// <summary>
-    /// The stored scope is opaque to the manager's callers, so the fixture is any object at all;
-    /// what it holds is whatever <c>PopulateAsync</c> is set up to write onto the descriptor.
+    /// Uses an opaque stored object and configures PopulateAsync to return its descriptor values.
     /// </summary>
     private object GivenDescriptor(string name, string displayName, string description)
     {

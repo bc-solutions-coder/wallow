@@ -33,7 +33,7 @@ public class CurrentUserServiceTests
     {
         IHttpContextAccessor accessor = Substitute.For<IHttpContextAccessor>();
         DefaultHttpContext context = new DefaultHttpContext();
-        // User is not authenticated by default
+
         accessor.HttpContext.Returns(context);
 
         CurrentUserService service = new(accessor);

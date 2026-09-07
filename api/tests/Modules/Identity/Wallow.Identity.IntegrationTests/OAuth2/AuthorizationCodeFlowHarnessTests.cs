@@ -4,9 +4,7 @@ using Wallow.Tests.Common.Factories;
 namespace Wallow.Identity.IntegrationTests.OAuth2;
 
 /// <summary>
-/// Proves the harness drives a real authorization-code flow: cookie sign-in, PKCE authorize, code
-/// exchange and refresh, plus the membership refusal, so the specs built on it fail for their own
-/// reasons rather than because the flow never ran.
+/// Exercises the harness through code exchange, refresh, and membership refusal.
 /// </summary>
 public sealed class AuthorizationCodeFlowHarnessTests(WallowApiFactory factory)
     : IdentityIntegrationTestBase(factory)

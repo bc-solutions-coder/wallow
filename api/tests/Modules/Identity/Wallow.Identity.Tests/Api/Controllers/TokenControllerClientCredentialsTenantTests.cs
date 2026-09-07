@@ -18,22 +18,18 @@ using static OpenIddict.Abstractions.OpenIddictConstants;
 namespace Wallow.Identity.Tests.Api.Controllers;
 
 /// <summary>
-/// Where a client-credentials token gets its tenant. Only the OpenIddict application record may
-/// name it: a client id is chosen by whoever registered the service account, so deriving a tenant
-/// from it hands an authorization input to the caller. A record that names no tenant yields no
-/// tenant claim, and permission expansion then grants that principal nothing.
+/// Checks that client-credentials organization claims come from application properties,
+/// not from a tenant-looking client ID.
 /// </summary>
 public sealed class TokenControllerClientCredentialsTenantTests : IDisposable
 {
     /// <summary>
-    /// The OpenIddict application property the tenant must come from, taken from the class that
-    /// also writes it: a second spelling here would assert a key nothing ever sets.
+    /// Application property used to store the tenant ID.
     /// </summary>
     private const string TenantPropertyName = ClientApplicationProperties.TenantId;
 
     /// <summary>
-    /// The one spelling <c>ClaimsPrincipalExtensions.GetTenantId</c> reads, and therefore the one
-    /// spelling that resolves a tenant for permission expansion.
+    /// Organization claim consumed by tenant resolution.
     /// </summary>
     private const string TenantClaimType = "org_id";
 

@@ -10,34 +10,8 @@ using Wallow.ServiceDefaults;
 namespace Wallow.Architecture.Tests;
 
 /// <summary>
-/// Guards the trace sampler configuration (bead Wallow-mbe0). Before this bead
-/// <c>ConfigureOpenTelemetry</c> set no sampler at all, so the OpenTelemetry SDK fell back to
-/// <c>ParentBased{AlwaysOnSampler}</c> and exported 100% of traces — tolerable locally, but it
-/// floods the collector and inflates cost/storage in production.
-///
-/// The contract these tests pin down:
-/// <list type="bullet">
-/// <item><c>AddServiceDefaults</c> installs <c>ParentBased(TraceIdRatioBased(ratio))</c>.
-/// Parent-based is required so a trace already sampled upstream stays sampled through our
-/// services.</item>
-/// <item>The ratio is bound from the configuration key
-/// <c>OpenTelemetry:TraceSamplingRatio</c> (the existing <c>OpenTelemetry</c> section in
-/// <c>api/src/Wallow.Api/appsettings.json</c>, so a container overrides it with
-/// <c>OpenTelemetry__TraceSamplingRatio</c>), defaulting to <c>1.0</c> so local development keeps
-/// full-fidelity traces.</item>
-/// <item>An out-of-range or non-numeric value must NOT brick host startup — a fork typo in an env
-/// var has to degrade to a usable ratio, not an unhandled
-/// <c>ArgumentOutOfRangeException</c> out of <c>TraceIdRatioBasedSampler</c>.</item>
-/// </list>
-///
-/// The sampler is read back off the built <c>TracerProviderSdk</c> through its internal
-/// <c>Sampler</c> property and asserted via the public <c>Sampler.Description</c>, which OpenTelemetry
-/// formats as <c>ParentBased{TraceIdRatioBasedSampler{0.100000}}</c>. That is the only seam the SDK
-/// offers for observing a configured sampler, and it is stable across the 1.x line.
-///
-/// The compose/appsettings/docs assertions use the same static source-inspection pattern as
-/// <see cref="CiAuthImageBuildTests" /> because a deployed sampling rate cannot be observed from a
-/// unit test.
+/// Checks the configured parent-based ratio sampler and selected deployment settings/documentation.
+/// Sampler inspection uses the built provider; deployment checks inspect files.
 /// </summary>
 public class TraceSamplerConfigurationTests
 {
@@ -65,7 +39,7 @@ public class TraceSamplerConfigurationTests
         "operations",
         "observability.md");
 
-    // ---- sampler wiring ------------------------------------------------------------------
+
 
     [Fact]
     public void AddServiceDefaults_ShouldConfigureParentBasedRatioSampler_DefaultingToFullSampling()
@@ -137,7 +111,7 @@ public class TraceSamplerConfigurationTests
             RatioConfigKey);
     }
 
-    // ---- deployed configuration --------------------------------------------------------
+
 
     [Fact]
     public void ProductionCompose_ShouldConfigure_TraceSamplingRatioBelowFullSampling()
@@ -192,7 +166,7 @@ public class TraceSamplerConfigurationTests
             RatioEnvKey);
     }
 
-    // ---- documentation ------------------------------------------------------------------
+
 
     [Theory]
     [InlineData("none is configured")]
@@ -223,12 +197,10 @@ public class TraceSamplerConfigurationTests
             "configuration key operators use to tune it");
     }
 
-    // ---- helpers ------------------------------------------------------------------------
+
 
     /// <summary>
-    /// Builds a host through <c>AddServiceDefaults</c> with the given
-    /// <c>OpenTelemetry:TraceSamplingRatio</c> value and returns the sampler the resulting
-    /// <c>TracerProvider</c> was constructed with.
+    /// Builds service defaults and reads the configured sampler through reflection.
     /// </summary>
     private static Sampler BuildSampler(string? configuredRatio)
     {

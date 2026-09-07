@@ -1,23 +1,18 @@
 namespace Wallow.Identity.Application.Helpers;
 
 /// <summary>
-/// Property keys Wallow stores on an OpenIddict authorization record — the entry every token a
-/// sign-in issues chains back to. Both the Api and Infrastructure layers address a property
-/// through the key here, which is what keeps their descriptor helpers one key per property.
+/// Shared property keys for OpenIddict authorization records.
 /// </summary>
 public static class AuthorizationProperties
 {
     /// <summary>
-    /// Names the organization the sign-in ran in. A bound client's organization is on the client
-    /// record already; a first-party client is bound to none, so this is the only place a
-    /// hint-scoped token's organization is written down where revocation can find it.
+    /// Organization used for sign-in, retained for revocation even when the client is unbound.
     /// </summary>
     public const string OrganizationId = "org_id";
 
     /// <summary>
-    /// Names the SSO session the sign-in ran under — the same <c>sid</c> the id_token carries.
-    /// Written on the per-login ad-hoc authorization every token chains to, so end-session can
-    /// find and revoke exactly one browser session's tokens without touching the user's others.
+    /// OIDC session ID on a per-login authorization, used to revoke one browser session
+    /// without revoking the user's other sessions.
     /// </summary>
     public const string SessionId = "sid";
 }

@@ -9,26 +9,17 @@ public static class CustomFieldRegistry
     {
     };
 
-    /// <summary>
-    /// Gets all entity types that support custom fields.
-    /// </summary>
     public static IReadOnlyList<EntityTypeInfo> GetSupportedEntityTypes()
         => _entityTypes.Values.ToList();
 
-    /// <summary>
-    /// Checks if an entity type supports custom fields.
-    /// </summary>
     public static bool IsSupported(string entityType)
         => _entityTypes.ContainsKey(entityType);
 
-    /// <summary>
-    /// Gets info for a specific entity type.
-    /// </summary>
     public static EntityTypeInfo? GetEntityType(string entityType)
         => _entityTypes.GetValueOrDefault(entityType);
 
     /// <summary>
-    /// Registers a new entity type (call from module initialization).
+    /// Registers or replaces an entity type during module initialization.
     /// </summary>
     public static void Register(string entityType, string module, string description)
         => _entityTypes[entityType] = new(entityType, module, description);

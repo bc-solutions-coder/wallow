@@ -10,9 +10,7 @@ using Wallow.Shared.Kernel.Identity.Authorization;
 namespace Wallow.Identity.Api.Controllers;
 
 /// <summary>
-/// The caller's consent ledger: the applications they have durably authorized, and the
-/// withdrawal that disconnects one — revoking the authorization and every token chained to it.
-/// Caller-scoped like the rest of <c>/me</c>, so it needs no organization context.
+/// Lists and withdraws the caller permanent consents without requiring organization context.
 /// </summary>
 [ApiController]
 [ApiVersion(1)]
@@ -25,13 +23,8 @@ public sealed class MeAuthorizationsController(
     IConnectedApplicationService connectedApplications) : ControllerBase
 {
     /// <summary>
-    /// The applications the caller has consented to.
+    /// Lists valid permanent consent records for the caller.
     /// </summary>
-    /// <remarks>
-    /// One entry per durable consent record, naming the client and the scopes the caller agreed
-    /// to. First-party sign-ins never appear here — their authorizations are session bookkeeping,
-    /// not consent.
-    /// </remarks>
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<ConnectedApplicationDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<ConnectedApplicationDto>>> ListConnectedApplications(
@@ -42,13 +35,9 @@ public sealed class MeAuthorizationsController(
     }
 
     /// <summary>
-    /// Withdraws one consent, revoking the authorization and every token issued under it.
+    /// Withdraws the caller consent and revokes associated user/client access.
+    /// Returns 404 when the consent cannot be found for the caller.
     /// </summary>
-    /// <remarks>
-    /// Refresh tokens chained to the authorization fail with <c>invalid_grant</c>, and issued
-    /// access tokens are refused on their next request. Answers 404 for an authorization that
-    /// does not exist or is not the caller's own.
-    /// </remarks>
     [HttpDelete("{authorizationId}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

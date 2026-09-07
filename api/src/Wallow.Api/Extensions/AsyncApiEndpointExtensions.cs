@@ -7,17 +7,8 @@ namespace Wallow.Api.Extensions;
 internal static class AsyncApiEndpointExtensions
 {
     /// <summary>
-    /// Publishes the AsyncAPI document for the handlers in <paramref name="handlerAssemblies"/>.
+    /// Publishes development-only AsyncAPI documents from the supplied handler assemblies.
     /// </summary>
-    /// <remarks>
-    /// This used to run its own <c>AppDomain.CurrentDomain.GetAssemblies()</c> scan, identical in
-    /// shape to the one Wolverine's discovery used. The two did not merely see the same assemblies
-    /// in a different order — they saw different assemblies. At Wolverine-config time (inside
-    /// <c>builder.Host.UseWolverine</c>) no <c>.Api</c> assembly is loaded yet, because MVC's
-    /// application-part discovery has not run; this method runs after <c>builder.Build()</c>, when
-    /// they are. Taking the registry's assembly list makes the document describe the handlers the
-    /// host actually runs.
-    /// </remarks>
     public static WebApplication MapAsyncApiEndpoints(
         this WebApplication app,
         IEnumerable<Assembly> handlerAssemblies)
@@ -27,8 +18,7 @@ internal static class AsyncApiEndpointExtensions
             return app;
         }
 
-        // Integration event types live in Wallow.Shared.Contracts, which hosts no handlers and so is
-        // no module's handler assembly. Without it EventFlowDiscovery finds no events to document.
+        // Shared.Contracts supplies integration-event types even though it contains no handlers.
         Assembly[] assemblies = [.. handlerAssemblies.Append(typeof(IIntegrationEvent).Assembly).Distinct()];
 
         EventFlowDiscovery discovery = new();

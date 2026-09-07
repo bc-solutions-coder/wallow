@@ -14,6 +14,5 @@ public sealed record CustomFieldOption
     /// <summary>Display order (lower = first)</summary>
     public int Order { get; init; }
 
-    /// <summary>Whether this option is currently active</summary>
     public bool IsActive { get; init; } = true;
 }

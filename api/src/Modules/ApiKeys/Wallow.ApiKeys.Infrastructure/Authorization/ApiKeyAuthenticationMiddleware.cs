@@ -12,8 +12,8 @@ using Wallow.Shared.Kernel.MultiTenancy;
 namespace Wallow.ApiKeys.Infrastructure.Authorization;
 
 /// <summary>
-/// Middleware that authenticates requests using API keys (X-Api-Key header).
-/// Falls through to JWT authentication if no API key is present.
+/// Authenticates <c>X-Api-Key</c> requests. Missing or blank keys leave authentication
+/// to the remaining pipeline; invalid keys stop with a 401 response.
 /// </summary>
 public sealed partial class ApiKeyAuthenticationMiddleware(RequestDelegate next, ILogger<ApiKeyAuthenticationMiddleware> logger)
 {
@@ -25,10 +25,8 @@ public sealed partial class ApiKeyAuthenticationMiddleware(RequestDelegate next,
         IApiKeyService apiKeyService,
         TenantContext tenantContext)
     {
-        // Check for API key header
         if (!context.Request.Headers.TryGetValue(ApiKeyHeader, out StringValues apiKeyHeader))
         {
-            // No API key, continue to next middleware (JWT auth)
             await next(context);
             return;
         }
@@ -40,7 +38,6 @@ public sealed partial class ApiKeyAuthenticationMiddleware(RequestDelegate next,
             return;
         }
 
-        // Validate the API key
         ApiKeyValidationResult result = await apiKeyService.ValidateApiKeyAsync(apiKey, context.RequestAborted);
 
         if (!result.IsValid)
@@ -52,7 +49,6 @@ public sealed partial class ApiKeyAuthenticationMiddleware(RequestDelegate next,
 
         LogApiKeyAuthenticated(result.KeyId, result.UserId, result.TenantId);
 
-        // Create claims principal from API key
         List<Claim> claims =
         [
             new(ClaimTypes.NameIdentifier, result.UserId!.Value.ToString()),
@@ -62,7 +58,7 @@ public sealed partial class ApiKeyAuthenticationMiddleware(RequestDelegate next,
             new("org_id", result.TenantId!.Value.ToString())
         ];
 
-        // Add scope claims (or all permissions if no scopes specified)
+        // Empty scopes grant no scope claims.
         if (result.Scopes != null && result.Scopes.Count > 0)
         {
             foreach (string scope in result.Scopes)
@@ -74,7 +70,6 @@ public sealed partial class ApiKeyAuthenticationMiddleware(RequestDelegate next,
         ClaimsIdentity identity = new(claims, "ApiKey");
         context.User = new ClaimsPrincipal(identity);
 
-        // Set tenant context (same pattern as TenantResolutionMiddleware)
         tenantContext.SetTenant(TenantId.Create(result.TenantId!.Value), $"api-key-{result.KeyId}");
 
         await next(context);

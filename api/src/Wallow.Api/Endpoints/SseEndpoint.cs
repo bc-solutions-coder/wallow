@@ -18,7 +18,7 @@ public static partial class SseEndpoint
         ILogger<SseConnectionManager> logger,
         CancellationToken cancellationToken)
     {
-        // Link to application stopping so SSE connections close promptly on shutdown
+
         using CancellationTokenSource shutdownCts = CancellationTokenSource.CreateLinkedTokenSource(
             cancellationToken, lifetime.ApplicationStopping);
         cancellationToken = shutdownCts.Token;
@@ -49,13 +49,11 @@ public static partial class SseEndpoint
         string connectionId = Guid.NewGuid().ToString();
         string moduleList = string.Join(",", modules);
         LogSseConnectionRegistered(logger, userId, tenantId, connectionId, moduleList);
-        // Which client issued the token decides whether suspending that client hangs this stream up.
+        // Retain client identity so client revocation can close this stream.
         connectionManager.AddConnection(
             connectionId, userId, tenantId, modules, permissions, roles, httpContext.User.GetClientId());
 
-        // The connection's own token ends this stream when the person's access to the tenant is
-        // revoked. Without it the loop below runs to the client's own disconnect, still holding
-        // the roles and permissions read off the token at connect time.
+        // Revocation cancels the stream instead of retaining permissions captured at connection time.
         CancellationToken revocationToken = connectionManager.GetCancellationToken(connectionId);
         using CancellationTokenSource linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
             cancellationToken, revocationToken);
@@ -101,7 +99,7 @@ public static partial class SseEndpoint
         }
         catch (OperationCanceledException)
         {
-            // Client disconnected
+            // Disconnect, host shutdown, and access revocation all cancel the stream.
         }
         finally
         {

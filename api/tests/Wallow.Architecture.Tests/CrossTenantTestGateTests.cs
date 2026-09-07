@@ -1,39 +1,19 @@
-#pragma warning disable CA1024 // MemberData source methods cannot be properties
+#pragma warning disable CA1024 // Keep callable MemberData factories.
 
 namespace Wallow.Architecture.Tests;
 
 /// <summary>
-/// The cross-tenant test gate (bead Wallow-pu6a.6.5, guardrail R22 of the SDK review, quoting
-/// OWASP API1:2023 — "Do not deploy changes that make the tests fail"). Called out in the review
-/// as the highest-leverage control for a fork-first platform, because forks inherit the tests
-/// along with the code.
-///
-/// <para>Cross-tenant coverage already exists and already runs inside the general test sweep. A
-/// gate is a different thing: a named, separately-failing CI job whose only job is tenant
-/// isolation, so that a broken tenant filter is legible as a broken tenant filter instead of one
-/// red line among hundreds — and so that a fork can see, without reading the suite, that the
-/// control is present. That requires two things this file pins.</para>
-///
-/// <list type="number">
-/// <item><c>ci.yml</c> declares the gate job and runs it by trait filter, on the pull_request
-/// trigger, without <c>continue-on-error</c>.</item>
-/// <item>Every existing cross-tenant test class carries the trait, so the gate is not a job that
-/// passes by selecting nothing. Two of the four span the Integration category and need live
-/// Postgres — the gate must provide it rather than filter them out.</item>
-/// </list>
-///
-/// <para>Static workflow inspection, as in <see cref="CiAuthImageBuildTests"/>: the real signal is
-/// a CI run, which no test in this suite can produce.</para>
+/// Checks CI gate text and the CrossTenant trait on the explicitly listed isolation suites.
 /// </summary>
 public class CrossTenantTestGateTests
 {
-    /// <summary>The xunit trait the gate selects on.</summary>
+    /// <summary>
+    /// Trait declaration expected in the listed test files.
+    /// </summary>
     private const string TraitDeclaration = "[Trait(\"Category\", \"CrossTenant\")]";
 
-    /// <summary>The dotnet test filter expression the gate must run.</summary>
     private const string GateFilter = "Category=CrossTenant";
 
-    /// <summary>The gate's job id in ci.yml.</summary>
     private const string GateJobId = "cross-tenant-tests";
 
     private static readonly string _repoRoot = FindRepoRoot();
@@ -45,8 +25,7 @@ public class CrossTenantTestGateTests
         "ci.yml");
 
     /// <summary>
-    /// The test classes that assert tenant isolation today. Every one must be inside the gate;
-    /// a gate that selects a subset of the isolation suite is a gate with a hole in it.
+    /// Isolation test files included in the trait check.
     /// </summary>
     private static readonly string[] _crossTenantTestFiles =
     [
@@ -56,7 +35,7 @@ public class CrossTenantTestGateTests
         "api/tests/Wallow.Shared.Infrastructure.Tests/Persistence/TenantAwareDbContextTests.cs",
     ];
 
-    // ---- the gate in CI -------------------------------------------------------------------
+
 
     [Fact]
     public void CiWorkflow_ShouldRun_OnPullRequests()
@@ -106,7 +85,7 @@ public class CrossTenantTestGateTests
             "fail'. A gate that reports without blocking is not that control");
     }
 
-    // ---- the suite the gate selects -------------------------------------------------------
+
 
     [Theory]
     [MemberData(nameof(CrossTenantTestFiles))]
@@ -135,11 +114,10 @@ public class CrossTenantTestGateTests
         }
     }
 
-    // ---- helpers --------------------------------------------------------------------------
+
 
     /// <summary>
-    /// Returns the lines of one top-level job in ci.yml. Jobs are keyed at two-space indent, so
-    /// the block runs from the job id to the next line at that indent.
+    /// Extracts a job block using the workflow two-space job indentation.
     /// </summary>
     private static string ReadJobBlock(string jobId)
     {

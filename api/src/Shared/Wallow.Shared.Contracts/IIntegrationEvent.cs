@@ -1,14 +1,8 @@
 namespace Wallow.Shared.Contracts;
 
 /// <summary>
-/// Marker interface for integration events.
-/// Integration events are published to the message broker for cross-module communication.
-/// Unlike domain events (internal to a module), integration events are the public contract.
-///
-/// Design notes:
-/// - Use plain Guid for IDs, not strongly-typed IDs (simpler serialization)
-/// - Use primitive types and simple DTOs only (no domain entities)
-/// - Events describe what happened (past tense), not what should happen
+/// Public cross-module event contract. Use primitive IDs and simple DTOs.
+/// Authoring rules: docs/architecture/messaging.md, Integration Events.
 /// </summary>
 public interface IIntegrationEvent
 {
@@ -17,7 +11,7 @@ public interface IIntegrationEvent
 }
 
 /// <summary>
-/// Base record for integration events with default implementations.
+/// Supplies a new event ID and UTC occurrence time.
 /// </summary>
 public abstract record IntegrationEvent : IIntegrationEvent
 {

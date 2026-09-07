@@ -7,11 +7,6 @@ using Wolverine;
 
 namespace Wallow.Notifications.Tests.EventHandlers;
 
-/// <summary>
-/// The email an organization's admins get when the platform suspends their organization: one send
-/// per recipient carrying the operator's reason, and nothing at all when Identity resolved nobody
-/// to tell. Lifting the suspension sends no email — the suspension notice is the only one.
-/// </summary>
 public class OrganizationPlatformSuspendedNotificationHandlerTests
 {
     private readonly IMessageBus _bus = Substitute.For<IMessageBus>();

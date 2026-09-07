@@ -10,20 +10,7 @@ using Wallow.Identity.Infrastructure.Services;
 namespace Wallow.SeederService.Tests;
 
 /// <summary>
-/// Wallow-smvc: commit fa80e5ff added <see cref="ILastOwnerGuard"/> as a constructor parameter of
-/// <c>OrganizationService</c> and registered it in the Identity module's own
-/// <c>IdentityInfrastructureExtensions</c>, but the seeder hand-picks its own DI subset
-/// (<see cref="SeederServiceCollectionExtensions.AddSeederIdentityServices"/>) instead of calling
-/// that extension, and was never updated to register it too. The result: every step of
-/// <see cref="SeederWorker.ExecuteAsync"/> up to and including "Sync Organizations" threw at DI
-/// construction time, and everything after it (including seeding every OpenIddict client) silently
-/// never ran.
-///
-/// These tests build the SAME container Program.cs builds — through the shared, production
-/// extension method, not a duplicated registration list — and resolve each service
-/// <see cref="SeederWorker"/> asks its scope for, in the same order it asks for them. A test that
-/// only asserted "ILastOwnerGuard is registered" would not have caught this class of bug as
-/// reliably: it is the actual construction of the dependent services that fails.
+/// Resolves the worker service set through the production seeder registration method to catch missing dependencies such as <see cref="ILastOwnerGuard"/>.
 /// </summary>
 public class SeederIdentityServiceRegistrationTests
 {
@@ -37,9 +24,7 @@ public class SeederIdentityServiceRegistrationTests
 
         Action resolve = () => scope.ServiceProvider.GetRequiredService<OrganizationSeedSyncService>();
 
-        // This is the step SeederWorker.SyncOrganizationsAsync runs. It resolves IOrganizationService
-        // (-> OrganizationService), whose constructor is where the missing ILastOwnerGuard
-        // registration actually surfaces.
+        // Resolve the sync service to exercise its transitive organization-service dependencies.
         resolve.Should().NotThrow(
             "SeederWorker.SyncOrganizationsAsync must be able to construct OrganizationSeedSyncService " +
             "and, transitively, OrganizationService, from the seeder's own container");

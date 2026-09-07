@@ -1,15 +1,12 @@
 namespace Wallow.Identity.Domain.Enums;
 
 /// <summary>
-/// How an organization admits someone who is not already a member. Invitation acceptance is not
-/// governed by this — being invited by a member holding <c>OrganizationsManageMembers</c> is itself
-/// the authorization.
+/// Controls self-service enrollment. Invitation acceptance bypasses this policy.
 /// </summary>
 public enum EnrollmentPolicy
 {
     /// <summary>
-    /// Nobody joins without an invitation. The default for a new organization, because a policy
-    /// nobody has chosen yet must be the one that grants nothing.
+    /// Self-service enrollment is disabled. This is the default for a new organization.
     /// </summary>
     InviteOnly,
 

@@ -4,12 +4,7 @@ using Microsoft.AspNetCore.SignalR;
 namespace Wallow.Api.Services;
 
 /// <summary>
-/// The open hub connections, keyed by connection id.
-///
-/// SignalR offers no way to end a connection from outside the hub: <c>IHubContext</c> can address
-/// groups and clients but not close them, and only <see cref="HubCallerContext.Abort"/> hangs up.
-/// The hub therefore lends its caller context here for the lifetime of the connection, which is
-/// what lets a revocation reach a socket opened before it.
+/// Tracks local hub caller contexts so revocation can abort existing connections.
 /// </summary>
 public class RealtimeConnectionRegistry
 {
@@ -27,16 +22,16 @@ public class RealtimeConnectionRegistry
     }
 
     /// <summary>
-    /// Hangs up every connection this person holds in this tenant. Aborting rather than removing
-    /// them from their groups is deliberate: <c>JoinGroup</c> would let an aborted-in-name-only
-    /// client walk straight back into the tenant group it was just taken out of.
+    /// Aborts registered connections for this user and tenant; removing groups alone would allow rejoining.
     /// </summary>
     public virtual void AbortConnectionsForUser(string userId, Guid tenantId)
     {
         AbortConnectionsWhere(connection => connection.UserId == userId && connection.TenantId == tenantId);
     }
 
-    /// <summary>Hangs up every connection opened with a token the named client was issued, whoever holds it.</summary>
+    /// <summary>
+    /// Aborts registered local connections associated with this client.
+    /// </summary>
     public virtual void AbortConnectionsForClient(string clientId)
     {
         AbortConnectionsWhere(connection => connection.ClientId == clientId);

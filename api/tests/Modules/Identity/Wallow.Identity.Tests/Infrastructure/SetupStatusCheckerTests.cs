@@ -8,10 +8,7 @@ using Wallow.Identity.Infrastructure.Services;
 namespace Wallow.Identity.Tests.Infrastructure;
 
 /// <summary>
-/// The gate on the <c>[AllowAnonymous]</c> setup endpoints. "An administrator exists" is an
-/// Active membership holding an AdminAccess-granting role — a role row on its own leaves setup
-/// open, and a membership holding only a baseline role does too, because anyone reaching
-/// POST /identity/setup/admin while this reports true creates an administrator unauthenticated.
+/// Checks that setup stays open until an active membership holds a role granting AdminAccess.
 /// </summary>
 public sealed class SetupStatusCheckerTests : IDisposable
 {

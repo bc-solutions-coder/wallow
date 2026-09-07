@@ -5,9 +5,7 @@ using Wallow.Identity.Application.Helpers;
 namespace Wallow.Identity.Infrastructure.Extensions;
 
 /// <summary>
-/// Reads and writes the tenant on a client record. The Api layer carries a twin of this class for
-/// its own callers, because it may not depend on this project; both address the property through
-/// <see cref="ClientApplicationProperties.TenantId"/>, which is what keeps them one key.
+/// Reads and writes client metadata using keys shared with the API-layer extensions.
 /// </summary>
 public static class OpenIddictApplicationExtensions
 {
@@ -104,10 +102,7 @@ public static class OpenIddictApplicationExtensions
     }
 
     /// <summary>
-    /// Writes the client's refresh-token lifetime as the OpenIddict per-application setting the
-    /// server itself resolves at token creation — no Wallow handler reads it back on the token
-    /// path. The setting value is an invariant-culture <see cref="TimeSpan"/> string; seconds are
-    /// the unit the API speaks.
+    /// Converts seconds to the invariant TimeSpan setting OpenIddict reads when issuing refresh tokens.
     /// </summary>
     public static void SetRefreshTokenLifetime(this OpenIddictApplicationDescriptor descriptor, int seconds)
     {
@@ -116,8 +111,7 @@ public static class OpenIddictApplicationExtensions
     }
 
     /// <summary>
-    /// The client's refresh-token lifetime in whole seconds, or <see langword="null"/> when the
-    /// client carries none and the global configuration decides.
+    /// Returns the stored refresh-token lifetime in whole seconds, or null if absent or unparseable.
     /// </summary>
     public static int? GetRefreshTokenLifetimeSeconds(this OpenIddictApplicationDescriptor descriptor)
     {

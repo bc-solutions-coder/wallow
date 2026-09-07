@@ -81,7 +81,6 @@ public sealed class AsyncApiDocumentGenerator(EventFlowInfo[] flows)
 
         foreach (EventFlowInfo flow in flows)
         {
-            // Send operation from the producing module
             operations[$"{flow.SourceModule}.publish.{flow.EventTypeName}"] = new JsonObject
             {
                 ["action"] = "send",
@@ -92,7 +91,6 @@ public sealed class AsyncApiDocumentGenerator(EventFlowInfo[] flows)
                 ["summary"] = $"{flow.SourceModule} publishes {flow.EventTypeName}"
             };
 
-            // Receive operation per consumer
             foreach (ConsumerInfo consumer in flow.Consumers)
             {
                 string opId = consumer.IsSaga

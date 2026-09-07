@@ -23,7 +23,7 @@ public sealed class TwilioSmsProviderTests : IDisposable
     private MockHttpMessageHandler? _handler;
     private HttpClient? _httpClient;
 
-#pragma warning disable CA2000 // LoggerFactory disposal not needed in tests
+#pragma warning disable CA2000 // Test logger factory is not disposed.
     private static ILogger<TwilioSmsProvider> CreateLogger()
     {
         return LoggerFactory.Create(b => b.AddSimpleConsole().SetMinimumLevel(LogLevel.Trace))
@@ -190,7 +190,7 @@ public sealed class TwilioSmsProviderTests : IDisposable
         SmsDeliveryResult result = await sut.SendAsync("+15559876543", "test");
 
         result.Success.Should().BeFalse();
-        // Falls back to ReasonPhrase since message is null
+        // This checks failure only; a present null message does not use ReasonPhrase.
     }
 
     [Fact]

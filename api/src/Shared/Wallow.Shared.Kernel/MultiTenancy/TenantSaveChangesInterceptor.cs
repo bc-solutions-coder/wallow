@@ -63,7 +63,6 @@ public class TenantSaveChangesInterceptor(ITenantContext? tenantContext = null) 
 
     private TenantId ResolveTenantId(DbContext context)
     {
-        // ITenantAwareContext is implemented by TenantAwareDbContext which exposes CurrentTenantId
         if (context is ITenantAwareContext tenantAware && tenantAware.CurrentTenantId != default)
         {
             return tenantAware.CurrentTenantId;
