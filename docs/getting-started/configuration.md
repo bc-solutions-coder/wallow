@@ -27,6 +27,8 @@ That file is the single source of fork identity. `packages/styles` (`@bc-solutio
 |-----|------|-------------|
 | `appName` | `string` | Product name shown in page titles, headings, and the landing page |
 | `appIcon` | `string` | Brand asset reference. A bare filename (`"piggy-icon.svg"`) is resolved to a root-relative URL so it loads from any route depth |
+| `favicon` | `string?` | Optional 32×32 PNG favicon, served from `packages/styles/assets`. Provides a fallback for browsers without SVG favicon support. |
+| `appleTouchIcon` | `string?` | Optional 180×180 PNG icon for Safari favorites and saved sites, served from the same assets directory. |
 | `tagline` | `string` | Sub-heading shown under the app name |
 | `repositoryUrl` | `string` | Optional. The "GitHub"/fork-attribution link target. Falls back to the upstream Wallow repository |
 | `docsUrl` | `string` | Optional. The "Docs" link target. Falls back to the upstream documentation site |
@@ -59,6 +61,8 @@ The `sidebar*`, `success*` and `warning*` tokens were added after the original s
 {
   "appName": "YourProduct",
   "appIcon": "your-icon.svg",
+  "favicon": "your-favicon.png",
+  "appleTouchIcon": "your-touch-icon.png",
   "tagline": "Your tagline here",
   "landingPage": {
     "enabled": true

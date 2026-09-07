@@ -1,6 +1,8 @@
 {
   "appName": "Wallow",
   "appIcon": "piggy-icon.svg",
+  "favicon": "favicon.png",
+  "appleTouchIcon": "apple-touch-icon.png",
   "tagline": "Wallow in it",
   "repositoryUrl": "https://github.com/bc-solutions-coder/wallow",
   "docsUrl": "https://bc-solutions-coder.github.io/wallow/",

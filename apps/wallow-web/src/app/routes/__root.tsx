@@ -3,7 +3,7 @@ import { authUrlScript } from "@bc-solutions-coder/env/auth-origin";
 import type { QueryClient } from "@bc-solutions-coder/query";
 import type { WallowSdk } from "@bc-solutions-coder/sdk";
 import {
-  appIconUrl,
+  appIconLinks,
   type ForkLinks,
   forkLinksScript,
   forkResolvedBranding,
@@ -292,7 +292,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: branding.name },
     ],
-    links: [{ rel: "icon", href: appIconUrl }],
+    links: appIconLinks(),
   }),
   shellComponent: RootDocument,
   component: Outlet,

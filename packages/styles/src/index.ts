@@ -41,3 +41,5 @@ export {
   toCssVarName,
   toCssVars,
 } from "./branding";
+
+export { appIconLinks } from "./icon-links";

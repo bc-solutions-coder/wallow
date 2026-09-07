@@ -173,6 +173,10 @@ describe("the document head", () => {
     // would be impersonation surface.
     const head = await headFor(authorizeContext());
 
-    expect(head?.links).toEqual([{ rel: "icon", href: appIconUrl }]);
+    expect(head?.links).toEqual([
+      { rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon.png" },
+      { rel: "icon", href: appIconUrl },
+      { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
+    ]);
   });
 });

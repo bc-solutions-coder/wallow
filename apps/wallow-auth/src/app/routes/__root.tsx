@@ -1,5 +1,6 @@
 import type { WallowSdk } from "@bc-solutions-coder/sdk";
 import {
+  appIconLinks,
   type ForkLinks,
   forkLinksScript,
   renderThemeStyle,
@@ -29,7 +30,8 @@ import {
   resolveTransactionBranding,
   type TransactionBranding,
 } from "@shared/lib/authorize-context";
-import { appIconUrl, forkResolvedBranding } from "@shared/lib/branding";
+import { BASE_PATH } from "@shared/lib/base-path";
+import { forkResolvedBranding } from "@shared/lib/branding";
 import { failureMessages } from "@shared/lib/failure-messages";
 import { forkLinks } from "@shared/lib/fork-links";
 import { requestWebAppUrl } from "@shared/lib/web-app-url.request";
@@ -267,7 +269,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
         // client-supplied icon in it would be impersonation surface.
         { title: client === null ? branding.name : `Sign in · ${client.branding.name}` },
       ],
-      links: [{ rel: "icon", href: appIconUrl }],
+      links: appIconLinks({ basePath: BASE_PATH }),
     };
   },
   shellComponent: RootDocument,

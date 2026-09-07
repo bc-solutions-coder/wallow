@@ -53,6 +53,10 @@ export interface ForkBranding {
    * Fork icon reference resolved under the consuming app base path.
    */
   readonly appIcon: string;
+  /** Optional 32px PNG favicon for browsers without SVG icon support. */
+  readonly favicon?: string;
+  /** Optional 180px PNG icon for Safari favorites and saved sites. */
+  readonly appleTouchIcon?: string;
   /**
    * Fork subtitle; an empty string resolves to no tagline.
    */
