@@ -8,6 +8,14 @@ import action_policy
 
 
 class ActionPolicyTests(unittest.TestCase):
+    def test_supported_queue_values_require_noncancelling_max_queue(self):
+        for concurrency in ({'group': 'publication', 'queue': 'max'}, {'group': 'publication', 'queue': 'max', 'cancel-in-progress': False}, {'group': 'publication', 'queue': 'single', 'cancel-in-progress': True}):
+            action_policy.validate_document({'concurrency': concurrency})
+        for concurrency in ({'group': 'publication', 'queue': 'invalid'}, {'group': 'publication', 'queue': 'max', 'cancel-in-progress': True}, {'group': 'publication', 'queue': 'max', 'cancel-in-progress': '${{ inputs.cancel }}'}):
+            for document in ({'concurrency': concurrency}, {'jobs': {'publish': {'concurrency': concurrency}}}):
+                with self.subTest(document=document), self.assertRaises(ValueError):
+                    action_policy.validate_document(document)
+
     def test_nested_workflow_and_composite_actions_accept_immutable_refs(self):
         action_policy.validate_document({'jobs': {'build': {'uses': 'owner/repo/.github/workflows/build.yml@' + 'a' * 40}, 'test': {'steps': [{'uses': './.github/actions/setup'}, {'uses': 'actions/checkout@' + 'b' * 40}, {'uses': 'docker://alpine@sha256:' + 'c' * 64}]}}})
         action_policy.validate_document({'runs': {'using': 'composite', 'steps': [{'uses': 'owner/repo/action@' + 'd' * 40}]}})
