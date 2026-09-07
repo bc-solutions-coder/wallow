@@ -19,7 +19,7 @@ Wayfinder decisions and #240 already approve design and public testing seams.
    propagation. Exercise external browser consumers and login/context transitions.
 6. Completed — #250: acknowledged rotation, revocation and deletion with persisted deadlines. Test
    the public gateway boundary with a controllable clock and restart.
-7. #251: correlated browser/Node/API failure and Grafana investigation views. Query actual
+7. Completed — #251: correlated browser/Node/API failure and Grafana investigation views. Query actual
    logs, spans and metrics, including forged identity and sensitive-marker attempts.
 8. #252: operator-only Pangolin access. Separate local proxy proof from actual deployment.
 9. #253: disposable overload, outages, persistence and capacity exercises; record dropped

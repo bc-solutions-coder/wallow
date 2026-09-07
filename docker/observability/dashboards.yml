@@ -1,0 +1,10 @@
+apiVersion: 1
+providers:
+  - name: Wallow observability
+    orgId: 1
+    folder: Applications
+    type: file
+    disableDeletion: true
+    editable: false
+    options:
+      path: /etc/grafana/dashboards

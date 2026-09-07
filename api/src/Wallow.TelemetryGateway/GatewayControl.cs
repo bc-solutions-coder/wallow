@@ -159,6 +159,7 @@ public static class GatewayControl
             await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             return Results.Content(acknowledgement, "application/json");
         });
+        PrivateSourceMaps.Map(app, databasePath);
         return app;
     }
 }

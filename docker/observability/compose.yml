@@ -105,6 +105,8 @@ services:
     mem_limit: 512m
     env_file: [./grafana.local]
     volumes:
+      - ./dashboards.yml:/etc/grafana/provisioning/dashboards/observability.yml:ro
+      - ./dashboards:/etc/grafana/dashboards:ro
       - ./datasources.yml:/etc/grafana/provisioning/datasources/observability.yml:ro
       - type: bind
         source: ${OBSERVABILITY_DATA_DIR:-/srv/observability}/grafana

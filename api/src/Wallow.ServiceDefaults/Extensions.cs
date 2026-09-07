@@ -78,7 +78,9 @@ public static class Extensions
             {
                 tracing
                     .SetSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(samplingRatio)))
-                    .AddAspNetCoreInstrumentation()
+                    .AddAspNetCoreInstrumentation(options => options.Filter = context =>
+                        !Uri.TryCreate(builder.Configuration["Telemetry:Export:Endpoint"], UriKind.Absolute, out Uri? collector)
+                        || !collector.IsLoopback || context.Connection.LocalPort != collector.Port)
                     .AddHttpClientInstrumentation()
                     .AddSource(namespacePrefix, moduleNamespaces);
             })
@@ -91,6 +93,20 @@ public static class Extensions
                     .AddRuntimeInstrumentation()
                     .AddMeter(namespacePrefix, moduleNamespaces, WolverineMeterPattern);
             });
+
+        string? independentEndpoint = builder.Configuration["Telemetry:Export:Endpoint"];
+        if (!string.IsNullOrWhiteSpace(independentEndpoint))
+        {
+            builder.Services.AddSingleton(_ => new IndependentTelemetry(
+                new Uri(independentEndpoint),
+                builder.Configuration["Telemetry:Export:Credential"] ?? "",
+                builder.Configuration["Telemetry:Export:Environment"] ?? "production",
+                builder.Configuration["Telemetry:Export:Release"] ?? "unknown"));
+            builder.Services.AddHostedService(services => services.GetRequiredService<IndependentTelemetry>());
+            builder.Services.AddOpenTelemetry().WithTracing(tracing => tracing
+                .SetSampler(new AlwaysOnSampler())
+                .AddProcessor(services => new SimpleActivityExportProcessor(new IndependentTraceExporter(services.GetRequiredService<IndependentTelemetry>()))));
+        }
 
         string? otlpEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
         if (!string.IsNullOrWhiteSpace(otlpEndpoint))

@@ -28,7 +28,9 @@
     "apps/minimal-app": {
       "entry": ["src/routes/**/*.{ts,tsx}"]
     },
-    "packages/telemetry": { "entry": ["scripts/browser-consumer.mjs"] },
+    "packages/telemetry": {
+      "entry": ["scripts/browser-consumer.mjs", "scripts/sustained-consumer.mjs"]
+    },
     "packages/sdk": {
       "entry": ["scripts/generate.ts"]
     }

@@ -144,7 +144,13 @@ try
                 " {@m}\n{@x}"));
 
 
-        if (context.Configuration.GetValue<bool>("OpenTelemetry:EnableLogging", false))
+        IndependentTelemetry? independent = services.GetService<IndependentTelemetry>();
+        if (independent is not null)
+        {
+            configuration.WriteTo.Sink(new IndependentTelemetrySink(independent));
+        }
+
+        else if (context.Configuration.GetValue<bool>("OpenTelemetry:EnableLogging", false))
         {
             string otlpEndpoint = context.Configuration["OpenTelemetry:OtlpEndpoint"]!;
             string serviceName = context.Configuration["OpenTelemetry:ServiceName"]

@@ -36,32 +36,46 @@ internal partial class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> lo
             return true;
         }
 
-        LogUnhandledException(exception, traceId, path);
-
         if (exception is ValidationException validation)
         {
+            LogHandledFailure(traceId, path);
             IDictionary<string, string[]> errors = new ValidationResult(validation.Errors).ToDictionary();
             return await problemDetailsService.TryWriteValidationProblemAsync(httpContext, errors, exception);
         }
 
-        (int statusCode, string code, string? detail) = exception switch
+        (int statusCode, string code, string? detail) = Describe(exception);
+
+        if (statusCode >= StatusCodes.Status500InternalServerError)
         {
-            DomainException domain => (domain.Kind.ToHttpStatusCode(), domain.Code, domain.Message),
-            BadHttpRequestException bad when bad.StatusCode < StatusCodes.Status500InternalServerError =>
-                (bad.StatusCode, SharedErrors.ClientError.Code, SharedErrors.ClientError.DefaultMessage),
-            UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, SharedErrors.Unauthenticated.Code, null),
-            ArgumentException => (StatusCodes.Status400BadRequest, SharedErrors.ClientError.Code, SharedErrors.ClientError.DefaultMessage),
-            _ => (StatusCodes.Status500InternalServerError, SharedErrors.ServerError.Code, null),
-        };
+            LogUnhandledException(exception, traceId, path);
+        }
+        else
+        {
+            LogHandledFailure(traceId, path);
+        }
 
         return await problemDetailsService.TryWriteProblemAsync(httpContext, statusCode, code, detail, exception);
     }
+    internal static int GetStatusCode(Exception exception) => exception is ValidationException ? 400 : Describe(exception).StatusCode;
+
+    private static (int StatusCode, string Code, string? Detail) Describe(Exception exception) => exception switch
+    {
+        DomainException domain => (domain.Kind.ToHttpStatusCode(), domain.Code, domain.Message),
+        BadHttpRequestException bad when bad.StatusCode < StatusCodes.Status500InternalServerError =>
+            (bad.StatusCode, SharedErrors.ClientError.Code, SharedErrors.ClientError.DefaultMessage),
+        UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, SharedErrors.Unauthenticated.Code, null),
+        ArgumentException => (StatusCodes.Status400BadRequest, SharedErrors.ClientError.Code, SharedErrors.ClientError.DefaultMessage),
+        _ => (StatusCodes.Status500InternalServerError, SharedErrors.ServerError.Code, null),
+    };
 }
 
 internal partial class GlobalExceptionHandler
 {
     [LoggerMessage(Level = LogLevel.Error, Message = "Unhandled exception occurred. TraceId: {TraceId}, Path: {Path}")]
     private partial void LogUnhandledException(Exception ex, string traceId, string path);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Handled application failure. TraceId: {TraceId}, Path: {Path}")]
+    private partial void LogHandledFailure(string traceId, string path);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Request cancelled by client. TraceId: {TraceId}, Path: {Path}")]
     private partial void LogRequestCancelled(string traceId, string path);
