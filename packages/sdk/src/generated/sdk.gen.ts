@@ -1063,6 +1063,55 @@ export const organizationClientsPlacePlatformSuspension = <ThrowOnError extends 
 });
 
 /**
+ * Enable observability for an existing organization client.
+ *
+ * Requires OrganizationClientsManage. Reveals a separate server ingestion credential once.
+ *             Provisioning runs asynchronously; a temporary gateway outage does not fail this operation.
+ */
+export const organizationClientsEnableObservability = <ThrowOnError extends boolean = true>(options: Options<OrganizationClientsEnableObservabilityData, ThrowOnError>): RequestResult<OrganizationClientsEnableObservabilityResponses, OrganizationClientsEnableObservabilityErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationClientsEnableObservabilityResponses, OrganizationClientsEnableObservabilityErrors, ThrowOnError, 'data'>({
+  responseStyle: 'data',
+  security: [{ scheme: 'bearer', type: 'http' }],
+  url: '/v1/identity/organizations/{orgId}/clients/{clientId}/observability',
+  ...options
+});
+
+/**
+ * Rotate an observability credential with a 24-hour overlap after acknowledgement.
+ *
+ * Requires OrganizationClientsManage. Reveals the replacement secret once.
+ */
+export const organizationClientsRotateObservability = <ThrowOnError extends boolean = true>(options: Options<OrganizationClientsRotateObservabilityData, ThrowOnError>): RequestResult<OrganizationClientsRotateObservabilityResponses, OrganizationClientsRotateObservabilityErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationClientsRotateObservabilityResponses, OrganizationClientsRotateObservabilityErrors, ThrowOnError, 'data'>({
+  responseStyle: 'data',
+  security: [{ scheme: 'bearer', type: 'http' }],
+  url: '/v1/identity/organizations/{orgId}/clients/{clientId}/observability/rotate',
+  ...options
+});
+
+/**
+ * Revoke all observability credentials for an organization client.
+ *
+ * Requires OrganizationClientsManage. Returns pending revocation until gateway acknowledgement.
+ */
+export const organizationClientsRevokeObservability = <ThrowOnError extends boolean = true>(options: Options<OrganizationClientsRevokeObservabilityData, ThrowOnError>): RequestResult<OrganizationClientsRevokeObservabilityResponses, OrganizationClientsRevokeObservabilityErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationClientsRevokeObservabilityResponses, OrganizationClientsRevokeObservabilityErrors, ThrowOnError, 'data'>({
+  responseStyle: 'data',
+  security: [{ scheme: 'bearer', type: 'http' }],
+  url: '/v1/identity/organizations/{orgId}/clients/{clientId}/observability/revoke',
+  ...options
+});
+
+/**
+ * Disable new telemetry collection while preserving stored history.
+ *
+ * Requires OrganizationClientsManage. Revokes ingestion when the gateway acknowledges the change.
+ */
+export const organizationClientsDisableObservability = <ThrowOnError extends boolean = true>(options: Options<OrganizationClientsDisableObservabilityData, ThrowOnError>): RequestResult<OrganizationClientsDisableObservabilityResponses, OrganizationClientsDisableObservabilityErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationClientsDisableObservabilityResponses, OrganizationClientsDisableObservabilityErrors, ThrowOnError, 'data'>({
+  responseStyle: 'data',
+  security: [{ scheme: 'bearer', type: 'http' }],
+  url: '/v1/identity/organizations/{orgId}/clients/{clientId}/observability/disable',
+  ...options
+});
+
+/**
  * Find the resolved tenant organization.
  *
  * Requires OrganizationsRead. Searches organization names and pages results in name order before retaining only
@@ -2364,53 +2413,4 @@ export const storageSettingsUpsertUserSetting = <ThrowOnError extends boolean = 
     'Content-Type': 'application/json',
     ...options.headers
   }
-});
-
-/**
- * Enable observability for an existing organization client.
- *
- * Requires OrganizationClientsManage. Reveals a separate server ingestion credential once.
- *             Provisioning runs asynchronously; a temporary gateway outage does not fail this operation.
- */
-export const organizationClientsEnableObservability = <ThrowOnError extends boolean = true>(options: Options<OrganizationClientsEnableObservabilityData, ThrowOnError>): RequestResult<OrganizationClientsEnableObservabilityResponses, OrganizationClientsEnableObservabilityErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationClientsEnableObservabilityResponses, OrganizationClientsEnableObservabilityErrors, ThrowOnError, 'data'>({
-  responseStyle: 'data',
-  security: [{ scheme: 'bearer', type: 'http' }],
-  url: '/v1/identity/organizations/{orgId}/clients/{clientId}/observability',
-  ...options
-});
-
-/**
- * Rotate an observability credential with a 24-hour overlap after acknowledgement.
- *
- * Requires OrganizationClientsManage. Reveals the replacement secret once.
- */
-export const organizationClientsRotateObservability = <ThrowOnError extends boolean = true>(options: Options<OrganizationClientsRotateObservabilityData, ThrowOnError>): RequestResult<OrganizationClientsRotateObservabilityResponses, OrganizationClientsRotateObservabilityErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationClientsRotateObservabilityResponses, OrganizationClientsRotateObservabilityErrors, ThrowOnError, 'data'>({
-  responseStyle: 'data',
-  security: [{ scheme: 'bearer', type: 'http' }],
-  url: '/v1/identity/organizations/{orgId}/clients/{clientId}/observability/rotate',
-  ...options
-});
-
-/**
- * Revoke all observability credentials for an organization client.
- *
- * Requires OrganizationClientsManage. Returns pending revocation until gateway acknowledgement.
- */
-export const organizationClientsRevokeObservability = <ThrowOnError extends boolean = true>(options: Options<OrganizationClientsRevokeObservabilityData, ThrowOnError>): RequestResult<OrganizationClientsRevokeObservabilityResponses, OrganizationClientsRevokeObservabilityErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationClientsRevokeObservabilityResponses, OrganizationClientsRevokeObservabilityErrors, ThrowOnError, 'data'>({
-  responseStyle: 'data',
-  security: [{ scheme: 'bearer', type: 'http' }],
-  url: '/v1/identity/organizations/{orgId}/clients/{clientId}/observability/revoke',
-  ...options
-});
-
-/**
- * Disable new telemetry collection while preserving stored history.
- *
- * Requires OrganizationClientsManage. Revokes ingestion when the gateway acknowledges the change.
- */
-export const organizationClientsDisableObservability = <ThrowOnError extends boolean = true>(options: Options<OrganizationClientsDisableObservabilityData, ThrowOnError>): RequestResult<OrganizationClientsDisableObservabilityResponses, OrganizationClientsDisableObservabilityErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationClientsDisableObservabilityResponses, OrganizationClientsDisableObservabilityErrors, ThrowOnError, 'data'>({
-  responseStyle: 'data',
-  security: [{ scheme: 'bearer', type: 'http' }],
-  url: '/v1/identity/organizations/{orgId}/clients/{clientId}/observability/disable',
-  ...options
 });

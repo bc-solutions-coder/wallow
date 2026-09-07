@@ -441,7 +441,7 @@ export type EnrollmentPolicy = number;
 /**
  * Machine-readable code identifying why a request failed. Each code has exactly one owning catalog and a fixed HTTP status.
  */
-export type ErrorCode = 'ApiKeys.ApiKeyAlreadyRevoked' | 'ApiKeys.ApiKeyDisplayNameRequired' | 'ApiKeys.CreateFailed' | 'ApiKeys.HashedKeyRequired' | 'ApiKeys.Invalid' | 'ApiKeys.LimitReached' | 'ApiKeys.NotFound' | 'ApiKeys.OrganizationRequired' | 'ApiKeys.ScopeExceedsPermissions' | 'ApiKeys.ServiceAccountIdRequired' | 'Auth.ClientIdInvalid' | 'Auth.EmailClaimMissing' | 'Auth.EmailNotConfirmed' | 'Auth.EmailTaken' | 'Auth.EmailUnchanged' | 'Auth.Forbidden' | 'Auth.InvalidCredentials' | 'Auth.LockedOut' | 'Auth.OtpInvalid' | 'Auth.PasswordsDoNotMatch' | 'Auth.ProviderRequired' | 'Auth.ProviderUnsupported' | 'Auth.TicketAlreadyUsed' | 'Auth.TicketInvalid' | 'Auth.TokenExpired' | 'Auth.TokenInvalid' | 'Auth.Unauthenticated' | 'Branding.ClientBrandingClientIdRequired' | 'Branding.ClientBrandingDisplayNameRequired' | 'Bucket.AlreadyExists' | 'Bucket.NotEmpty' | 'Bucket.NotFound' | 'DeviceRegistration.Conflict' | 'DeviceRegistration.NotFound' | 'Email.InvalidEmailAddress' | 'File.ContentTypeNotAllowed' | 'File.ExceedsUploadLimit' | 'File.ExtensionNotAllowed' | 'File.FailedSecurityScan' | 'File.NotAvailable' | 'File.NotFound' | 'File.NotUploaded' | 'File.SignatureInvalid' | 'File.TooLarge' | 'Http.ClientError' | 'Http.MethodNotAllowed' | 'Http.NotFound' | 'Identity.AlreadyAMember' | 'Identity.ClientAlreadySuspended' | 'Identity.ClientAlreadySuspendedByPlatform' | 'Identity.ClientIdRequired' | 'Identity.ClientIdTaken' | 'Identity.ClientNameRequired' | 'Identity.ClientNameUnusable' | 'Identity.ClientNotSuspended' | 'Identity.ClientNotSuspendedByPlatform' | 'Identity.ClientOrganizationRequired' | 'Identity.DenialCooldown' | 'Identity.EmailRequired' | 'Identity.ExpiryMustBeFuture' | 'Identity.FirstNameRequired' | 'Identity.InvitationEmailMismatch' | 'Identity.InvitationEmailNotVerified' | 'Identity.InvitationEmailRequired' | 'Identity.InvitationExpired' | 'Identity.InvitationNotFound' | 'Identity.InvitationNotPending' | 'Identity.LastNameRequired' | 'Identity.LastOwner' | 'Identity.MemberNotFound' | 'Identity.MembershipNotActive' | 'Identity.MembershipNotDenied' | 'Identity.MembershipNotPending' | 'Identity.MembershipNotReinstatable' | 'Identity.MembershipNotSuspended' | 'Identity.MfaGraceDeadlineMustBeFuture' | 'Identity.NoPendingEmailChange' | 'Identity.OrganizationAlreadyActive' | 'Identity.OrganizationAlreadyInactive' | 'Identity.OrganizationAlreadySuspendedByPlatform' | 'Identity.OrganizationNameMismatch' | 'Identity.OrganizationNameRequired' | 'Identity.OrganizationNotFound' | 'Identity.OrganizationNotSuspendedByPlatform' | 'Identity.OrganizationSlugRequired' | 'Identity.OrganizationSuspendedByPlatform' | 'Identity.PlatformOnlyScope' | 'Identity.PlatformSuspensionReasonRequired' | 'Identity.ReservedRoleName' | 'Identity.RoleNotFound' | 'Identity.ScopeCategoryRequired' | 'Identity.ScopeCodeRequired' | 'Identity.ScopeDisplayNameRequired' | 'Identity.UnknownScope' | 'Identity.UserIdRequired' | 'Identity.UserNotFound' | 'Inquiries.InvalidStatusTransition' | 'Inquiry.NotFound' | 'Mfa.CodeInvalid' | 'Mfa.EnrollmentTokenInvalid' | 'Mfa.LockedOut' | 'Mfa.NotEnabled' | 'Mfa.PasswordInvalid' | 'Mfa.SessionMissing' | 'Mfa.UpdateFailed' | 'Notification.AccessDenied' | 'Notification.NotFound' | 'RateLimit.Exceeded' | 'Server.Error' | 'Settings.SystemKeyBlocked' | 'Settings.UnknownKey' | 'Setup.Required' | 'Sms.InvalidPhoneNumber' | 'Storage.QuotaExceeded' | 'Tenant.Required' | 'TenantPushConfiguration.NotFound' | 'Validation.Failed' | 'WebPush.InvalidConfiguration' | 'WebPush.InvalidSubscription' | 'WebPush.Unavailable' | 'Identity.TelemetryAlreadyEnabled' | 'Identity.TelemetryChangePending' | 'Identity.TelemetryClientNotFound';
+export type ErrorCode = 'ApiKeys.ApiKeyAlreadyRevoked' | 'ApiKeys.ApiKeyDisplayNameRequired' | 'ApiKeys.CreateFailed' | 'ApiKeys.HashedKeyRequired' | 'ApiKeys.Invalid' | 'ApiKeys.LimitReached' | 'ApiKeys.NotFound' | 'ApiKeys.OrganizationRequired' | 'ApiKeys.ScopeExceedsPermissions' | 'ApiKeys.ServiceAccountIdRequired' | 'Auth.ClientIdInvalid' | 'Auth.EmailClaimMissing' | 'Auth.EmailNotConfirmed' | 'Auth.EmailTaken' | 'Auth.EmailUnchanged' | 'Auth.Forbidden' | 'Auth.InvalidCredentials' | 'Auth.LockedOut' | 'Auth.OtpInvalid' | 'Auth.PasswordsDoNotMatch' | 'Auth.ProviderRequired' | 'Auth.ProviderUnsupported' | 'Auth.TicketAlreadyUsed' | 'Auth.TicketInvalid' | 'Auth.TokenExpired' | 'Auth.TokenInvalid' | 'Auth.Unauthenticated' | 'Branding.ClientBrandingClientIdRequired' | 'Branding.ClientBrandingDisplayNameRequired' | 'Bucket.AlreadyExists' | 'Bucket.NotEmpty' | 'Bucket.NotFound' | 'DeviceRegistration.Conflict' | 'DeviceRegistration.NotFound' | 'Email.InvalidEmailAddress' | 'File.ContentTypeNotAllowed' | 'File.ExceedsUploadLimit' | 'File.ExtensionNotAllowed' | 'File.FailedSecurityScan' | 'File.NotAvailable' | 'File.NotFound' | 'File.NotUploaded' | 'File.SignatureInvalid' | 'File.TooLarge' | 'Http.ClientError' | 'Http.MethodNotAllowed' | 'Http.NotFound' | 'Identity.AlreadyAMember' | 'Identity.ClientAlreadySuspended' | 'Identity.ClientAlreadySuspendedByPlatform' | 'Identity.ClientIdRequired' | 'Identity.ClientIdTaken' | 'Identity.ClientNameRequired' | 'Identity.ClientNameUnusable' | 'Identity.ClientNotSuspended' | 'Identity.ClientNotSuspendedByPlatform' | 'Identity.ClientOrganizationRequired' | 'Identity.DenialCooldown' | 'Identity.EmailRequired' | 'Identity.ExpiryMustBeFuture' | 'Identity.FirstNameRequired' | 'Identity.InvitationEmailMismatch' | 'Identity.InvitationEmailNotVerified' | 'Identity.InvitationEmailRequired' | 'Identity.InvitationExpired' | 'Identity.InvitationNotFound' | 'Identity.InvitationNotPending' | 'Identity.LastNameRequired' | 'Identity.LastOwner' | 'Identity.MemberNotFound' | 'Identity.MembershipNotActive' | 'Identity.MembershipNotDenied' | 'Identity.MembershipNotPending' | 'Identity.MembershipNotReinstatable' | 'Identity.MembershipNotSuspended' | 'Identity.MfaGraceDeadlineMustBeFuture' | 'Identity.NoPendingEmailChange' | 'Identity.OrganizationAlreadyActive' | 'Identity.OrganizationAlreadyInactive' | 'Identity.OrganizationAlreadySuspendedByPlatform' | 'Identity.OrganizationNameMismatch' | 'Identity.OrganizationNameRequired' | 'Identity.OrganizationNotFound' | 'Identity.OrganizationNotSuspendedByPlatform' | 'Identity.OrganizationSlugRequired' | 'Identity.OrganizationSuspendedByPlatform' | 'Identity.PlatformOnlyScope' | 'Identity.PlatformSuspensionReasonRequired' | 'Identity.ReservedRoleName' | 'Identity.RoleNotFound' | 'Identity.ScopeCategoryRequired' | 'Identity.ScopeCodeRequired' | 'Identity.ScopeDisplayNameRequired' | 'Identity.TelemetryAlreadyEnabled' | 'Identity.TelemetryChangePending' | 'Identity.TelemetryClientNotFound' | 'Identity.UnknownScope' | 'Identity.UserIdRequired' | 'Identity.UserNotFound' | 'Inquiries.InvalidStatusTransition' | 'Inquiry.NotFound' | 'Mfa.CodeInvalid' | 'Mfa.EnrollmentTokenInvalid' | 'Mfa.LockedOut' | 'Mfa.NotEnabled' | 'Mfa.PasswordInvalid' | 'Mfa.SessionMissing' | 'Mfa.UpdateFailed' | 'Notification.AccessDenied' | 'Notification.NotFound' | 'RateLimit.Exceeded' | 'Server.Error' | 'Settings.SystemKeyBlocked' | 'Settings.UnknownKey' | 'Setup.Required' | 'Sms.InvalidPhoneNumber' | 'Storage.QuotaExceeded' | 'Tenant.Required' | 'TenantPushConfiguration.NotFound' | 'Validation.Failed' | 'WebPush.InvalidConfiguration' | 'WebPush.InvalidSubscription' | 'WebPush.Unavailable';
 
 /**
  * Data used directly or within nested payloads by the following API operations.
@@ -1150,6 +1150,43 @@ export type SubmitInquiryRequest = {
 };
 
 /**
+ * One-time server configuration. Read APIs never return Credential.
+ */
+export type TelemetryConfigurationDto = {
+  endpoint: string;
+  credential: string;
+  environment: string;
+  release: string;
+};
+
+/**
+ * Data used directly or within nested payloads by the following API operations.
+ *
+ * Response 200 from POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability: Enable observability for an existing organization client.
+ * Response 200 from POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/rotate: Rotate an observability credential with a 24-hour overlap after acknowledgement.
+ */
+export type TelemetryEnableResult = {
+  status: TelemetryStatusDto;
+  configuration: TelemetryConfigurationDto;
+};
+
+/**
+ * Data used directly or within nested payloads by the following API operations.
+ *
+ * Response 200 from GET /v1/identity/organizations/{orgId}/clients: List organization clients.
+ * Response 201 from POST /v1/identity/organizations/{orgId}/clients: Register an organization client.
+ * Response 200 from POST /v1/identity/organizations/{orgId}/clients/{clientId}/rotate-secret: Rotate an organization client secret.
+ * Also used by 10 other endpoint/status combinations.
+ */
+export type TelemetryStatusDto = {
+  status: string;
+  revision: number | string;
+  acknowledgedRevision: number | string;
+  failure: null | string;
+  previousCredentialExpiresAt?: null | string;
+};
+
+/**
  * Data used directly or within nested payloads by the following API operations.
  *
  * Response 200 from GET /v1/admin/push/config: Get a tenant push configuration.
@@ -1343,43 +1380,6 @@ export type WebPushSubscription = {
 export type WebPushSubscriptionKeys = {
   p256dh: string;
   auth: string;
-};
-
-/**
- * One-time server configuration. Read APIs never return Credential.
- */
-export type TelemetryConfigurationDto = {
-  endpoint: string;
-  credential: string;
-  environment: string;
-  release: string;
-};
-
-/**
- * Data used directly or within nested payloads by the following API operations.
- *
- * Response 200 from POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability: Enable observability for an existing organization client.
- * Response 200 from POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/rotate: Rotate an observability credential with a 24-hour overlap after acknowledgement.
- */
-export type TelemetryEnableResult = {
-  status: TelemetryStatusDto;
-  configuration: TelemetryConfigurationDto;
-};
-
-/**
- * Data used directly or within nested payloads by the following API operations.
- *
- * Response 200 from GET /v1/identity/organizations/{orgId}/clients: List organization clients.
- * Response 201 from POST /v1/identity/organizations/{orgId}/clients: Register an organization client.
- * Response 200 from POST /v1/identity/organizations/{orgId}/clients/{clientId}/rotate-secret: Rotate an organization client secret.
- * Also used by 10 other endpoint/status combinations.
- */
-export type TelemetryStatusDto = {
-  status: string;
-  revision: number | string;
-  acknowledgedRevision: number | string;
-  failure: null | string;
-  previousCredentialExpiresAt?: null | string;
 };
 
 /**
@@ -6478,6 +6478,318 @@ export type OrganizationClientsPlacePlatformSuspensionResponses = {
  * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/platform-suspension.
  */
 export type OrganizationClientsPlacePlatformSuspensionResponse = OrganizationClientsPlacePlatformSuspensionResponses[keyof OrganizationClientsPlacePlatformSuspensionResponses];
+
+/**
+ * Request arguments for this endpoint, including its URL and supported body, path, query, and header fields.
+ *
+ * Enable observability for an existing organization client.
+ * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability.
+ */
+export type OrganizationClientsEnableObservabilityData = {
+  body?: never;
+  path: {
+    orgId: string;
+    clientId: string;
+  };
+  query?: never;
+  url: '/v1/identity/organizations/{orgId}/clients/{clientId}/observability';
+};
+
+/**
+ * Error response bodies indexed by HTTP status code for this endpoint.
+ *
+ * Enable observability for an existing organization client.
+ * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability.
+ */
+export type OrganizationClientsEnableObservabilityErrors = {
+  /**
+   * Bad Request
+   */
+  400: HttpValidationProblemDetails;
+  /**
+   * Unauthorized
+   */
+  401: ProblemDetails;
+  /**
+   * Forbidden
+   */
+  403: ProblemDetails;
+  /**
+   * Not Found
+   */
+  404: ProblemDetails;
+  /**
+   * Too Many Requests
+   */
+  429: ProblemDetails;
+  /**
+   * Internal Server Error
+   */
+  500: ProblemDetails;
+};
+
+/**
+ * Union of the documented error response bodies for this endpoint. This describes API payloads, not client-side transport exceptions.
+ *
+ * Enable observability for an existing organization client.
+ * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability.
+ */
+export type OrganizationClientsEnableObservabilityError = OrganizationClientsEnableObservabilityErrors[keyof OrganizationClientsEnableObservabilityErrors];
+
+/**
+ * Successful response bodies indexed by HTTP status code for this endpoint.
+ *
+ * Enable observability for an existing organization client.
+ * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability.
+ */
+export type OrganizationClientsEnableObservabilityResponses = {
+  /**
+   * OK
+   */
+  200: TelemetryEnableResult;
+};
+
+/**
+ * Union of successful response bodies returned by this endpoint.
+ *
+ * Enable observability for an existing organization client.
+ * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability.
+ */
+export type OrganizationClientsEnableObservabilityResponse = OrganizationClientsEnableObservabilityResponses[keyof OrganizationClientsEnableObservabilityResponses];
+
+/**
+ * Request arguments for this endpoint, including its URL and supported body, path, query, and header fields.
+ *
+ * Rotate an observability credential with a 24-hour overlap after acknowledgement.
+ * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/rotate.
+ */
+export type OrganizationClientsRotateObservabilityData = {
+  body?: never;
+  path: {
+    orgId: string;
+    clientId: string;
+  };
+  query?: never;
+  url: '/v1/identity/organizations/{orgId}/clients/{clientId}/observability/rotate';
+};
+
+/**
+ * Error response bodies indexed by HTTP status code for this endpoint.
+ *
+ * Rotate an observability credential with a 24-hour overlap after acknowledgement.
+ * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/rotate.
+ */
+export type OrganizationClientsRotateObservabilityErrors = {
+  /**
+   * Bad Request
+   */
+  400: HttpValidationProblemDetails;
+  /**
+   * Unauthorized
+   */
+  401: ProblemDetails;
+  /**
+   * Forbidden
+   */
+  403: ProblemDetails;
+  /**
+   * Not Found
+   */
+  404: ProblemDetails;
+  /**
+   * Too Many Requests
+   */
+  429: ProblemDetails;
+  /**
+   * Internal Server Error
+   */
+  500: ProblemDetails;
+};
+
+/**
+ * Union of the documented error response bodies for this endpoint. This describes API payloads, not client-side transport exceptions.
+ *
+ * Rotate an observability credential with a 24-hour overlap after acknowledgement.
+ * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/rotate.
+ */
+export type OrganizationClientsRotateObservabilityError = OrganizationClientsRotateObservabilityErrors[keyof OrganizationClientsRotateObservabilityErrors];
+
+/**
+ * Successful response bodies indexed by HTTP status code for this endpoint.
+ *
+ * Rotate an observability credential with a 24-hour overlap after acknowledgement.
+ * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/rotate.
+ */
+export type OrganizationClientsRotateObservabilityResponses = {
+  /**
+   * OK
+   */
+  200: TelemetryEnableResult;
+};
+
+/**
+ * Union of successful response bodies returned by this endpoint.
+ *
+ * Rotate an observability credential with a 24-hour overlap after acknowledgement.
+ * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/rotate.
+ */
+export type OrganizationClientsRotateObservabilityResponse = OrganizationClientsRotateObservabilityResponses[keyof OrganizationClientsRotateObservabilityResponses];
+
+/**
+ * Request arguments for this endpoint, including its URL and supported body, path, query, and header fields.
+ *
+ * Revoke all observability credentials for an organization client.
+ * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/revoke.
+ */
+export type OrganizationClientsRevokeObservabilityData = {
+  body?: never;
+  path: {
+    orgId: string;
+    clientId: string;
+  };
+  query?: never;
+  url: '/v1/identity/organizations/{orgId}/clients/{clientId}/observability/revoke';
+};
+
+/**
+ * Error response bodies indexed by HTTP status code for this endpoint.
+ *
+ * Revoke all observability credentials for an organization client.
+ * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/revoke.
+ */
+export type OrganizationClientsRevokeObservabilityErrors = {
+  /**
+   * Bad Request
+   */
+  400: HttpValidationProblemDetails;
+  /**
+   * Unauthorized
+   */
+  401: ProblemDetails;
+  /**
+   * Forbidden
+   */
+  403: ProblemDetails;
+  /**
+   * Not Found
+   */
+  404: ProblemDetails;
+  /**
+   * Too Many Requests
+   */
+  429: ProblemDetails;
+  /**
+   * Internal Server Error
+   */
+  500: ProblemDetails;
+};
+
+/**
+ * Union of the documented error response bodies for this endpoint. This describes API payloads, not client-side transport exceptions.
+ *
+ * Revoke all observability credentials for an organization client.
+ * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/revoke.
+ */
+export type OrganizationClientsRevokeObservabilityError = OrganizationClientsRevokeObservabilityErrors[keyof OrganizationClientsRevokeObservabilityErrors];
+
+/**
+ * Successful response bodies indexed by HTTP status code for this endpoint.
+ *
+ * Revoke all observability credentials for an organization client.
+ * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/revoke.
+ */
+export type OrganizationClientsRevokeObservabilityResponses = {
+  /**
+   * OK
+   */
+  200: TelemetryStatusDto;
+};
+
+/**
+ * Union of successful response bodies returned by this endpoint.
+ *
+ * Revoke all observability credentials for an organization client.
+ * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/revoke.
+ */
+export type OrganizationClientsRevokeObservabilityResponse = OrganizationClientsRevokeObservabilityResponses[keyof OrganizationClientsRevokeObservabilityResponses];
+
+/**
+ * Request arguments for this endpoint, including its URL and supported body, path, query, and header fields.
+ *
+ * Disable new telemetry collection while preserving stored history.
+ * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/disable.
+ */
+export type OrganizationClientsDisableObservabilityData = {
+  body?: never;
+  path: {
+    orgId: string;
+    clientId: string;
+  };
+  query?: never;
+  url: '/v1/identity/organizations/{orgId}/clients/{clientId}/observability/disable';
+};
+
+/**
+ * Error response bodies indexed by HTTP status code for this endpoint.
+ *
+ * Disable new telemetry collection while preserving stored history.
+ * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/disable.
+ */
+export type OrganizationClientsDisableObservabilityErrors = {
+  /**
+   * Bad Request
+   */
+  400: HttpValidationProblemDetails;
+  /**
+   * Unauthorized
+   */
+  401: ProblemDetails;
+  /**
+   * Forbidden
+   */
+  403: ProblemDetails;
+  /**
+   * Not Found
+   */
+  404: ProblemDetails;
+  /**
+   * Too Many Requests
+   */
+  429: ProblemDetails;
+  /**
+   * Internal Server Error
+   */
+  500: ProblemDetails;
+};
+
+/**
+ * Union of the documented error response bodies for this endpoint. This describes API payloads, not client-side transport exceptions.
+ *
+ * Disable new telemetry collection while preserving stored history.
+ * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/disable.
+ */
+export type OrganizationClientsDisableObservabilityError = OrganizationClientsDisableObservabilityErrors[keyof OrganizationClientsDisableObservabilityErrors];
+
+/**
+ * Successful response bodies indexed by HTTP status code for this endpoint.
+ *
+ * Disable new telemetry collection while preserving stored history.
+ * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/disable.
+ */
+export type OrganizationClientsDisableObservabilityResponses = {
+  /**
+   * OK
+   */
+  200: TelemetryStatusDto;
+};
+
+/**
+ * Union of successful response bodies returned by this endpoint.
+ *
+ * Disable new telemetry collection while preserving stored history.
+ * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/disable.
+ */
+export type OrganizationClientsDisableObservabilityResponse = OrganizationClientsDisableObservabilityResponses[keyof OrganizationClientsDisableObservabilityResponses];
 
 /**
  * Request arguments for this endpoint, including its URL and supported body, path, query, and header fields.
@@ -12718,315 +13030,3 @@ export type StorageSettingsUpsertUserSettingResponses = {
    */
   204: unknown;
 };
-
-/**
- * Request arguments for this endpoint, including its URL and supported body, path, query, and header fields.
- *
- * Enable observability for an existing organization client.
- * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability.
- */
-export type OrganizationClientsEnableObservabilityData = {
-  body?: never;
-  path: {
-    orgId: string;
-    clientId: string;
-  };
-  query?: never;
-  url: '/v1/identity/organizations/{orgId}/clients/{clientId}/observability';
-};
-
-/**
- * Error response bodies indexed by HTTP status code for this endpoint.
- *
- * Enable observability for an existing organization client.
- * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability.
- */
-export type OrganizationClientsEnableObservabilityErrors = {
-  /**
-   * Bad Request
-   */
-  400: HttpValidationProblemDetails;
-  /**
-   * Unauthorized
-   */
-  401: ProblemDetails;
-  /**
-   * Forbidden
-   */
-  403: ProblemDetails;
-  /**
-   * Not Found
-   */
-  404: ProblemDetails;
-  /**
-   * Too Many Requests
-   */
-  429: ProblemDetails;
-  /**
-   * Internal Server Error
-   */
-  500: ProblemDetails;
-};
-
-/**
- * Union of the documented error response bodies for this endpoint. This describes API payloads, not client-side transport exceptions.
- *
- * Enable observability for an existing organization client.
- * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability.
- */
-export type OrganizationClientsEnableObservabilityError = OrganizationClientsEnableObservabilityErrors[keyof OrganizationClientsEnableObservabilityErrors];
-
-/**
- * Successful response bodies indexed by HTTP status code for this endpoint.
- *
- * Enable observability for an existing organization client.
- * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability.
- */
-export type OrganizationClientsEnableObservabilityResponses = {
-  /**
-   * OK
-   */
-  200: TelemetryEnableResult;
-};
-
-/**
- * Union of successful response bodies returned by this endpoint.
- *
- * Enable observability for an existing organization client.
- * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability.
- */
-export type OrganizationClientsEnableObservabilityResponse = OrganizationClientsEnableObservabilityResponses[keyof OrganizationClientsEnableObservabilityResponses];
-
-/**
- * Request arguments for this endpoint, including its URL and supported body, path, query, and header fields.
- *
- * Rotate an observability credential with a 24-hour overlap after acknowledgement.
- * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/rotate.
- */
-export type OrganizationClientsRotateObservabilityData = {
-  body?: never;
-  path: {
-    orgId: string;
-    clientId: string;
-  };
-  query?: never;
-  url: '/v1/identity/organizations/{orgId}/clients/{clientId}/observability/rotate';
-};
-
-/**
- * Error response bodies indexed by HTTP status code for this endpoint.
- *
- * Rotate an observability credential with a 24-hour overlap after acknowledgement.
- * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/rotate.
- */
-export type OrganizationClientsRotateObservabilityErrors = {
-  /**
-   * Bad Request
-   */
-  400: HttpValidationProblemDetails;
-  /**
-   * Unauthorized
-   */
-  401: ProblemDetails;
-  /**
-   * Forbidden
-   */
-  403: ProblemDetails;
-  /**
-   * Not Found
-   */
-  404: ProblemDetails;
-  /**
-   * Too Many Requests
-   */
-  429: ProblemDetails;
-  /**
-   * Internal Server Error
-   */
-  500: ProblemDetails;
-};
-
-/**
- * Union of the documented error response bodies for this endpoint. This describes API payloads, not client-side transport exceptions.
- *
- * Rotate an observability credential with a 24-hour overlap after acknowledgement.
- * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/rotate.
- */
-export type OrganizationClientsRotateObservabilityError = OrganizationClientsRotateObservabilityErrors[keyof OrganizationClientsRotateObservabilityErrors];
-
-/**
- * Successful response bodies indexed by HTTP status code for this endpoint.
- *
- * Rotate an observability credential with a 24-hour overlap after acknowledgement.
- * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/rotate.
- */
-export type OrganizationClientsRotateObservabilityResponses = {
-  /**
-   * OK
-   */
-  200: TelemetryEnableResult;
-};
-
-/**
- * Union of successful response bodies returned by this endpoint.
- *
- * Rotate an observability credential with a 24-hour overlap after acknowledgement.
- * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/rotate.
- */
-export type OrganizationClientsRotateObservabilityResponse = OrganizationClientsRotateObservabilityResponses[keyof OrganizationClientsRotateObservabilityResponses];
-
-/**
- * Request arguments for this endpoint, including its URL and supported body, path, query, and header fields.
- *
- * Revoke all observability credentials for an organization client.
- * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/revoke.
- */
-export type OrganizationClientsRevokeObservabilityData = {
-  body?: never;
-  path: {
-    orgId: string;
-    clientId: string;
-  };
-  query?: never;
-  url: '/v1/identity/organizations/{orgId}/clients/{clientId}/observability/revoke';
-};
-
-/**
- * Error response bodies indexed by HTTP status code for this endpoint.
- *
- * Revoke all observability credentials for an organization client.
- * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/revoke.
- */
-export type OrganizationClientsRevokeObservabilityErrors = {
-  /**
-   * Bad Request
-   */
-  400: HttpValidationProblemDetails;
-  /**
-   * Unauthorized
-   */
-  401: ProblemDetails;
-  /**
-   * Forbidden
-   */
-  403: ProblemDetails;
-  /**
-   * Not Found
-   */
-  404: ProblemDetails;
-  /**
-   * Too Many Requests
-   */
-  429: ProblemDetails;
-  /**
-   * Internal Server Error
-   */
-  500: ProblemDetails;
-};
-
-/**
- * Union of the documented error response bodies for this endpoint. This describes API payloads, not client-side transport exceptions.
- *
- * Revoke all observability credentials for an organization client.
- * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/revoke.
- */
-export type OrganizationClientsRevokeObservabilityError = OrganizationClientsRevokeObservabilityErrors[keyof OrganizationClientsRevokeObservabilityErrors];
-
-/**
- * Successful response bodies indexed by HTTP status code for this endpoint.
- *
- * Revoke all observability credentials for an organization client.
- * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/revoke.
- */
-export type OrganizationClientsRevokeObservabilityResponses = {
-  /**
-   * OK
-   */
-  200: TelemetryStatusDto;
-};
-
-/**
- * Union of successful response bodies returned by this endpoint.
- *
- * Revoke all observability credentials for an organization client.
- * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/revoke.
- */
-export type OrganizationClientsRevokeObservabilityResponse = OrganizationClientsRevokeObservabilityResponses[keyof OrganizationClientsRevokeObservabilityResponses];
-
-/**
- * Request arguments for this endpoint, including its URL and supported body, path, query, and header fields.
- *
- * Disable new telemetry collection while preserving stored history.
- * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/disable.
- */
-export type OrganizationClientsDisableObservabilityData = {
-  body?: never;
-  path: {
-    orgId: string;
-    clientId: string;
-  };
-  query?: never;
-  url: '/v1/identity/organizations/{orgId}/clients/{clientId}/observability/disable';
-};
-
-/**
- * Error response bodies indexed by HTTP status code for this endpoint.
- *
- * Disable new telemetry collection while preserving stored history.
- * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/disable.
- */
-export type OrganizationClientsDisableObservabilityErrors = {
-  /**
-   * Bad Request
-   */
-  400: HttpValidationProblemDetails;
-  /**
-   * Unauthorized
-   */
-  401: ProblemDetails;
-  /**
-   * Forbidden
-   */
-  403: ProblemDetails;
-  /**
-   * Not Found
-   */
-  404: ProblemDetails;
-  /**
-   * Too Many Requests
-   */
-  429: ProblemDetails;
-  /**
-   * Internal Server Error
-   */
-  500: ProblemDetails;
-};
-
-/**
- * Union of the documented error response bodies for this endpoint. This describes API payloads, not client-side transport exceptions.
- *
- * Disable new telemetry collection while preserving stored history.
- * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/disable.
- */
-export type OrganizationClientsDisableObservabilityError = OrganizationClientsDisableObservabilityErrors[keyof OrganizationClientsDisableObservabilityErrors];
-
-/**
- * Successful response bodies indexed by HTTP status code for this endpoint.
- *
- * Disable new telemetry collection while preserving stored history.
- * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/disable.
- */
-export type OrganizationClientsDisableObservabilityResponses = {
-  /**
-   * OK
-   */
-  200: TelemetryStatusDto;
-};
-
-/**
- * Union of successful response bodies returned by this endpoint.
- *
- * Disable new telemetry collection while preserving stored history.
- * Endpoint: POST /v1/identity/organizations/{orgId}/clients/{clientId}/observability/disable.
- */
-export type OrganizationClientsDisableObservabilityResponse = OrganizationClientsDisableObservabilityResponses[keyof OrganizationClientsDisableObservabilityResponses];

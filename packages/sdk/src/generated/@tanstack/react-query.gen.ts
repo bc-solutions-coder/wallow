@@ -1634,6 +1634,79 @@ export const organizationClientsPlacePlatformSuspensionMutation = (options?: Par
 };
 
 /**
+ * Enable observability for an existing organization client.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires OrganizationClientsManage. Reveals a separate server ingestion credential once.
+ *             Provisioning runs asynchronously; a temporary gateway outage does not fail this operation.
+ */
+export const organizationClientsEnableObservabilityMutation = (options?: Partial<Options<OrganizationClientsEnableObservabilityData>>): UseMutationOptions<OrganizationClientsEnableObservabilityResponse, OrganizationClientsEnableObservabilityError, Options<OrganizationClientsEnableObservabilityData>> => {
+  const mutationOptions: UseMutationOptions<OrganizationClientsEnableObservabilityResponse, OrganizationClientsEnableObservabilityError, Options<OrganizationClientsEnableObservabilityData>> = {
+    mutationFn: async (fnOptions) => await organizationClientsEnableObservability({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
+};
+
+/**
+ * Rotate an observability credential with a 24-hour overlap after acknowledgement.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires OrganizationClientsManage. Reveals the replacement secret once.
+ */
+export const organizationClientsRotateObservabilityMutation = (options?: Partial<Options<OrganizationClientsRotateObservabilityData>>): UseMutationOptions<OrganizationClientsRotateObservabilityResponse, OrganizationClientsRotateObservabilityError, Options<OrganizationClientsRotateObservabilityData>> => {
+  const mutationOptions: UseMutationOptions<OrganizationClientsRotateObservabilityResponse, OrganizationClientsRotateObservabilityError, Options<OrganizationClientsRotateObservabilityData>> = {
+    mutationFn: async (fnOptions) => await organizationClientsRotateObservability({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
+};
+
+/**
+ * Revoke all observability credentials for an organization client.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires OrganizationClientsManage. Returns pending revocation until gateway acknowledgement.
+ */
+export const organizationClientsRevokeObservabilityMutation = (options?: Partial<Options<OrganizationClientsRevokeObservabilityData>>): UseMutationOptions<OrganizationClientsRevokeObservabilityResponse, OrganizationClientsRevokeObservabilityError, Options<OrganizationClientsRevokeObservabilityData>> => {
+  const mutationOptions: UseMutationOptions<OrganizationClientsRevokeObservabilityResponse, OrganizationClientsRevokeObservabilityError, Options<OrganizationClientsRevokeObservabilityData>> = {
+    mutationFn: async (fnOptions) => await organizationClientsRevokeObservability({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
+};
+
+/**
+ * Disable new telemetry collection while preserving stored history.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires OrganizationClientsManage. Revokes ingestion when the gateway acknowledges the change.
+ */
+export const organizationClientsDisableObservabilityMutation = (options?: Partial<Options<OrganizationClientsDisableObservabilityData>>): UseMutationOptions<OrganizationClientsDisableObservabilityResponse, OrganizationClientsDisableObservabilityError, Options<OrganizationClientsDisableObservabilityData>> => {
+  const mutationOptions: UseMutationOptions<OrganizationClientsDisableObservabilityResponse, OrganizationClientsDisableObservabilityError, Options<OrganizationClientsDisableObservabilityData>> = {
+    mutationFn: async (fnOptions) => await organizationClientsDisableObservability({
+      ...options,
+      ...fnOptions,
+      throwOnError: true
+    })
+  };
+  return mutationOptions;
+};
+
+/**
  * Find the resolved tenant organization.
  *
  * Builds the cache key for this query without sending a request.
@@ -3755,79 +3828,6 @@ export const storageSettingsGetUserSettingsOptions = (options?: Options<StorageS
 export const storageSettingsUpsertUserSettingMutation = (options?: Partial<Options<StorageSettingsUpsertUserSettingData>>): UseMutationOptions<unknown, StorageSettingsUpsertUserSettingError, Options<StorageSettingsUpsertUserSettingData>> => {
   const mutationOptions: UseMutationOptions<unknown, StorageSettingsUpsertUserSettingError, Options<StorageSettingsUpsertUserSettingData>> = {
     mutationFn: async (fnOptions) => await storageSettingsUpsertUserSetting({
-      ...options,
-      ...fnOptions,
-      throwOnError: true
-    })
-  };
-  return mutationOptions;
-};
-
-/**
- * Enable observability for an existing organization client.
- *
- * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
- *
- * Requires OrganizationClientsManage. Reveals a separate server ingestion credential once.
- *             Provisioning runs asynchronously; a temporary gateway outage does not fail this operation.
- */
-export const organizationClientsEnableObservabilityMutation = (options?: Partial<Options<OrganizationClientsEnableObservabilityData>>): UseMutationOptions<OrganizationClientsEnableObservabilityResponse, OrganizationClientsEnableObservabilityError, Options<OrganizationClientsEnableObservabilityData>> => {
-  const mutationOptions: UseMutationOptions<OrganizationClientsEnableObservabilityResponse, OrganizationClientsEnableObservabilityError, Options<OrganizationClientsEnableObservabilityData>> = {
-    mutationFn: async (fnOptions) => await organizationClientsEnableObservability({
-      ...options,
-      ...fnOptions,
-      throwOnError: true
-    })
-  };
-  return mutationOptions;
-};
-
-/**
- * Rotate an observability credential with a 24-hour overlap after acknowledgement.
- *
- * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
- *
- * Requires OrganizationClientsManage. Reveals the replacement secret once.
- */
-export const organizationClientsRotateObservabilityMutation = (options?: Partial<Options<OrganizationClientsRotateObservabilityData>>): UseMutationOptions<OrganizationClientsRotateObservabilityResponse, OrganizationClientsRotateObservabilityError, Options<OrganizationClientsRotateObservabilityData>> => {
-  const mutationOptions: UseMutationOptions<OrganizationClientsRotateObservabilityResponse, OrganizationClientsRotateObservabilityError, Options<OrganizationClientsRotateObservabilityData>> = {
-    mutationFn: async (fnOptions) => await organizationClientsRotateObservability({
-      ...options,
-      ...fnOptions,
-      throwOnError: true
-    })
-  };
-  return mutationOptions;
-};
-
-/**
- * Revoke all observability credentials for an organization client.
- *
- * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
- *
- * Requires OrganizationClientsManage. Returns pending revocation until gateway acknowledgement.
- */
-export const organizationClientsRevokeObservabilityMutation = (options?: Partial<Options<OrganizationClientsRevokeObservabilityData>>): UseMutationOptions<OrganizationClientsRevokeObservabilityResponse, OrganizationClientsRevokeObservabilityError, Options<OrganizationClientsRevokeObservabilityData>> => {
-  const mutationOptions: UseMutationOptions<OrganizationClientsRevokeObservabilityResponse, OrganizationClientsRevokeObservabilityError, Options<OrganizationClientsRevokeObservabilityData>> = {
-    mutationFn: async (fnOptions) => await organizationClientsRevokeObservability({
-      ...options,
-      ...fnOptions,
-      throwOnError: true
-    })
-  };
-  return mutationOptions;
-};
-
-/**
- * Disable new telemetry collection while preserving stored history.
- *
- * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
- *
- * Requires OrganizationClientsManage. Revokes ingestion when the gateway acknowledges the change.
- */
-export const organizationClientsDisableObservabilityMutation = (options?: Partial<Options<OrganizationClientsDisableObservabilityData>>): UseMutationOptions<OrganizationClientsDisableObservabilityResponse, OrganizationClientsDisableObservabilityError, Options<OrganizationClientsDisableObservabilityData>> => {
-  const mutationOptions: UseMutationOptions<OrganizationClientsDisableObservabilityResponse, OrganizationClientsDisableObservabilityError, Options<OrganizationClientsDisableObservabilityData>> = {
-    mutationFn: async (fnOptions) => await organizationClientsDisableObservability({
       ...options,
       ...fnOptions,
       throwOnError: true
