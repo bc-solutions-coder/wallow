@@ -16,7 +16,7 @@ class PackageTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.path = Path(self.temp.name) / 'sdk.tgz'
-        self.manifest = {'name': '@example/sdk', 'version': '2.0.0', 'publishConfig': {'registry': 'https://npm.pkg.github.com'}, 'dependencies': {'@example/errors': '^1.0.0'}, 'scripts': {'prepublishOnly': 'exit 99'}}
+        self.manifest = {'name': '@example/sdk', 'version': '2.0.0', 'repository': {'type': 'git', 'url': 'https://github.com/example/repo.git'}, 'publishConfig': {'registry': 'https://npm.pkg.github.com'}, 'dependencies': {'@example/errors': '^1.0.0'}, 'scripts': {'prepublishOnly': 'exit 99'}}
 
     def pack(self, changes=None, extra=None, link=False):
         with tarfile.open(self.path, 'w:gz') as bundle:
@@ -32,7 +32,7 @@ class PackageTests(unittest.TestCase):
                 bundle.addfile(member, io.BytesIO(b''))
 
     def inspect(self):
-        return inspect_package(self.path, '@example/sdk', '2.0.0', 'https://npm.pkg.github.com')
+        return inspect_package(self.path, '@example/sdk', '2.0.0', 'https://npm.pkg.github.com', 'example/repo')
 
     def test_inspects_exact_tarball_without_running_lifecycle_scripts(self):
         self.pack()
@@ -42,7 +42,7 @@ class PackageTests(unittest.TestCase):
         self.assertEqual(package.integrity, 'sha512-' + base64.b64encode(hashlib.sha512(self.path.read_bytes()).digest()).decode())
 
     def test_rejects_wrong_name_version_privacy_and_registry(self):
-        for change in [{'name': '@foreign/sdk'}, {'version': '2.1.0'}, {'private': True}, {'publishConfig': {'registry': 'https://registry.npmjs.org'}}]:
+        for change in [{'name': '@foreign/sdk'}, {'version': '2.1.0'}, {'private': True}, {'publishConfig': {'registry': 'https://registry.npmjs.org'}}, {'repository': {'type': 'git', 'url': 'https://github.com/foreign/upstream.git'}}]:
             self.pack(change)
             with self.subTest(change=change), self.assertRaises(PublicationError):
                 self.inspect()

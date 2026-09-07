@@ -37,7 +37,7 @@ def bounded_tar(path, limit=250 * 1024 * 1024):
             yield bundle
 
 
-def inspect_package(path, name, version, registry):
+def inspect_package(path, name, version, registry, repository):
     number = r'(?:0|[1-9][0-9]*)'
     prerelease = r'(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)'
     semver = rf'{number}\.{number}\.{number}(?:-{prerelease}(?:\.{prerelease})*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?'
@@ -45,6 +45,8 @@ def inspect_package(path, name, version, registry):
         raise PublicationError('An authorized package name and version are required')
     if registry != 'https://npm.pkg.github.com':
         raise PublicationError('Unexpected package publication registry')
+    if not matches(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', repository) or name.split('/')[0] != '@' + repository.split('/')[0].lower():
+        raise PublicationError('Package scope must belong to the target repository owner')
     path = Path(path)
     if path.is_symlink() or not path.is_file() or path.stat().st_size > 100 * 1024 * 1024:
         raise PublicationError('Package must be a bounded regular tarball')
@@ -71,6 +73,11 @@ def inspect_package(path, name, version, registry):
     config = manifest.get('publishConfig')
     if not isinstance(config, dict) or config.get('registry') != registry:
         raise PublicationError('Packed package registry differs from the approved target')
+    if set(config) - {'registry', 'access', 'exports'} or config.get('access', 'restricted') != 'restricted':
+        raise PublicationError('Packed publish configuration may not override controlled publishing options')
+    source_repository = manifest.get('repository')
+    if not isinstance(source_repository, dict) or source_repository.get('type') != 'git' or source_repository.get('url') != f'https://github.com/{repository}.git':
+        raise PublicationError('Packed package must link to the target GitHub repository')
     dependencies = {}
     for field in ('dependencies', 'optionalDependencies', 'peerDependencies'):
         values = manifest.get(field, {})
