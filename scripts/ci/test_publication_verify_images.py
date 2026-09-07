@@ -28,9 +28,9 @@ class Transport:
 class VerifyImagesTests(unittest.TestCase):
     def setUp(self):
         self.producer = Producer('example/repo', 1, 'a' * 40, 20, 2, 10, 'example/repo/.github/workflows/ci.yml@refs/heads/main')
-        self.catalog = {'schema': 1, 'images': [{'bundle': bundle, 'tags': {f'linux/{arch}': f'{bundle}:{arch}' for arch in ('amd64', 'arm64')}} for bundle in ('app', 'infra', 'docs')]}
+        self.catalog = {'schema': 1, 'validation_only_images': [{'bundle': 'app', 'platform': 'linux/amd64', 'tag': 'wallow-bff-example:test'}], 'images': [{'bundle': bundle, 'tags': {f'linux/{arch}': f'{bundle}:{arch}' for arch in ('amd64', 'arm64')}} for bundle in ('app', 'infra', 'docs')]}
 
-    def plan(self, route='full', altered_seal=False, wrong_tag=False):
+    def plan(self, route='full', altered_seal=False, wrong_tag=False, companion_tag='wallow-bff-example:test', companion_arm64=False):
         artifacts, archives = [], {}
         bundles = ('app', 'infra', 'docs') if route == 'full' else ('docs',)
         for ident, bundle in enumerate(bundles, 1):
@@ -45,6 +45,8 @@ class VerifyImagesTests(unittest.TestCase):
                 entries[config_path], entries[layer_path] = config, layer
                 tag = 'unexpected:tag' if wrong_tag and ident == 1 and arch == 'amd64' else f'{bundle}:{arch}'
                 manifest.append({'Config': config_path, 'RepoTags': [tag], 'Layers': [layer_path]})
+            if bundle == 'app':
+                manifest.append(dict(manifest[1 if companion_arm64 else 0], RepoTags=[companion_tag]))
             entries['manifest.json'] = json.dumps(manifest).encode()
             with tarfile.open(fileobj=content, mode='w:gz') as archive:
                 for name, body in entries.items():
@@ -77,12 +79,13 @@ class VerifyImagesTests(unittest.TestCase):
             self.assertEqual(list(result), expected)
             self.assertEqual([ident for ident, _ in client.downloads], list(range(1, len(expected) + 1)))
             for bundle in expected:
+                self.assertNotIn('wallow-bff-example:test', result[bundle]['images'])
                 self.assertEqual(set(result[bundle]['images']), {f'{bundle}:amd64', f'{bundle}:arm64'})
                 self.assertEqual(result[bundle]['images'][f'{bundle}:arm64']['platform'], 'linux/arm64')
             self.assert_cleaned(client)
 
     def test_rejects_altered_seal_wrong_tag_or_download_and_cleans(self):
-        for options in [{'altered_seal': True}, {'wrong_tag': True}, {}]:
+        for options in [{'altered_seal': True}, {'wrong_tag': True}, {'companion_tag': 'unexpected:test'}, {'companion_arm64': True}, {}]:
             plan, client = self.plan(**options)
             if not options:
                 client.archives[1] += b'tampered'

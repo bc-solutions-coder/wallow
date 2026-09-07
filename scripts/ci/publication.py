@@ -131,7 +131,7 @@ def matches(pattern, value):
 
 
 def validate_catalog(catalog, release_config, manifests):
-    fields(catalog, ('schema', 'default_branch', 'producer_workflow', 'package_registry', 'package_scope', 'components', 'images', 'docs'))
+    fields(catalog, ('schema', 'default_branch', 'producer_workflow', 'package_registry', 'package_scope', 'components', 'images', 'validation_only_images', 'docs'))
     if type(catalog['schema']) is not int or catalog['schema'] != 1:
         raise PublicationError('Unsupported publication catalog schema')
     if catalog['default_branch'] != 'main' or catalog['producer_workflow'] != '.github/workflows/ci.yml':
@@ -206,6 +206,16 @@ def validate_catalog(catalog, release_config, manifests):
             raise PublicationError('Invalid image build arguments')
         image_ids.add(image['id'])
         suffixes.add(image['repository_suffix'])
+    companions = catalog['validation_only_images']
+    if not isinstance(companions, list):
+        raise PublicationError('Validation-only images must be an explicit list')
+    for image in companions:
+        fields(image, ('bundle', 'platform', 'tag'))
+        if image['bundle'] not in ('app', 'infra', 'docs') or image['platform'] not in ('linux/amd64', 'linux/arm64'):
+            raise PublicationError('Invalid validation-only image bundle or platform')
+        if not matches(r'[a-z0-9][a-z0-9_.-]*:[a-zA-Z0-9_.-]+', image['tag']) or image['tag'] in tags:
+            raise PublicationError('Invalid or duplicate validation-only local image tag')
+        tags.add(image['tag'])
     if catalog['docs'] != {'bundle': 'docs', 'payload': 'site.tar.gz', 'variant': 'docfx'}:
         raise PublicationError('Unexpected validated documentation identity')
     return catalog
