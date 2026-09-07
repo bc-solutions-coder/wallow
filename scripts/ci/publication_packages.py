@@ -1,16 +1,15 @@
 """Inspect already-packed candidates without installing or executing package code."""
 
 import base64
-from contextlib import contextmanager
 from dataclasses import dataclass
 import gzip
 import hashlib
 import json
 from pathlib import Path
 import tarfile
-import tempfile
 
 from publication import PublicationError, matches
+from publication_archives import bounded_tar
 
 
 @dataclass(frozen=True)
@@ -20,21 +19,6 @@ class Package:
     sha256: str
     integrity: str
     dependencies: dict
-
-
-@contextmanager
-def bounded_tar(path, limit=250 * 1024 * 1024):
-    # Include extension headers in the limit before tarfile parses their contents.
-    with tempfile.TemporaryFile() as raw, gzip.open(path, 'rb') as compressed:
-        size = 0
-        while chunk := compressed.read(1024 * 1024):
-            size += len(chunk)
-            if size > limit:
-                raise PublicationError('Package archive exceeds its decompressed limit')
-            raw.write(chunk)
-        raw.seek(0)
-        with tarfile.open(fileobj=raw, mode='r:') as bundle:
-            yield bundle
 
 
 def inspect_package(path, name, version, registry, repository):
@@ -52,7 +36,7 @@ def inspect_package(path, name, version, registry, repository):
         raise PublicationError('Package must be a bounded regular tarball')
     seen, total, manifest = set(), 0, None
     try:
-        with bounded_tar(path) as bundle:
+        with bounded_tar(path, 250 * 1024 * 1024) as bundle:
             for member in bundle:
                 parts = member.name.split('/')
                 if member.name in seen or parts[0] != 'package' or any(part in ('', '.', '..') for part in parts) or '\\' in member.name or member.issparse() or not (member.isfile() or member.isdir()):

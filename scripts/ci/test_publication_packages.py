@@ -8,7 +8,8 @@ import tempfile
 import unittest
 
 from publication import PublicationError
-from publication_packages import Package, bounded_tar, dependency_order, inspect_package
+from publication_archives import bounded_tar
+from publication_packages import Package, dependency_order, inspect_package
 
 
 class PackageTests(unittest.TestCase):
