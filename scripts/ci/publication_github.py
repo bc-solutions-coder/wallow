@@ -7,7 +7,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from publication import PublicationError, authorize_main_producer, matches, positive_integer
+from publication import PublicationError, authorize_controller, authorize_main_producer, matches, positive_integer
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -66,6 +66,22 @@ class GitHub:
                 break
         raise PublicationError('GitHub collection could not be read completely')
 
+    def main_comparison(self, sha):
+        if not matches(r'[0-9a-f]{40}', sha):
+            raise PublicationError('Invalid revision to compare with main')
+        main = self.get('/git/ref/heads/main')
+        if not isinstance(main, dict) or main.get('ref') != 'refs/heads/main' or not isinstance(main.get('object'), dict) or main['object'].get('type') != 'commit' or not matches(r'[0-9a-f]{40}', main['object'].get('sha')):
+            raise PublicationError('Could not resolve the current main revision')
+        return self.get(f"/compare/{sha}...{main['object']['sha']}")
+
+    def controller(self, context):
+        if not isinstance(context, dict):
+            raise PublicationError('Missing controller context')
+        repository = self.get('')
+        if not isinstance(repository, dict) or repository.get('full_name') != self.repository:
+            raise PublicationError('Unexpected controller repository')
+        return authorize_controller(context, repository, self.main_comparison(context.get('workflow_sha')))
+
     def producer(self, run_id, attempt):
         """Resolve one explicit attempt; never substitute a newer successful run."""
         if not positive_integer(run_id) or not positive_integer(attempt):
@@ -76,10 +92,7 @@ class GitHub:
         jobs = self.list(f'/actions/runs/{run_id}/attempts/{attempt}/jobs', 'jobs')
         if not isinstance(run, dict) or not matches(r'[0-9a-f]{40}', run.get('head_sha')):
             raise PublicationError('Missing producer source revision')
-        main = self.get('/git/ref/heads/main')
-        if not isinstance(main, dict) or main.get('ref') != 'refs/heads/main' or not isinstance(main.get('object'), dict) or main['object'].get('type') != 'commit' or not matches(r'[0-9a-f]{40}', main['object'].get('sha')):
-            raise PublicationError('Could not resolve the current main revision')
-        comparison = self.get(f"/compare/{run['head_sha']}...{main['object']['sha']}")
+        comparison = self.main_comparison(run['head_sha'])
         gates = [job for job in jobs if isinstance(job, dict) and job.get('name') == 'CI / required']
         if len(gates) != 1:
             raise PublicationError('Missing or ambiguous producer aggregate')
