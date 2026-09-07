@@ -49,6 +49,7 @@ const { node, browser } = createVitestProjects({
     // browser graph holds exactly ONE react-query copy (and therefore one
     // `QueryClientProvider` context — two would surface as "No QueryClient set"
     // from a provider the hook does not recognise).
+    "@bc-solutions-coder/ui",
     "@bc-solutions-coder/query",
     "@bc-solutions-coder/auth",
     "@tanstack/react-router",
