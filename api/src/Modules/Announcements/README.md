@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Announcements module manages in-app announcements and a public changelog. Announcements are tenant-scoped, support audience targeting (by tenant, plan, or role), and can be dismissed by individual users. The changelog tracks versioned release notes and is publicly accessible without authentication.
+The Announcements module manages in-app announcements. Announcements are tenant-scoped, support audience targeting (by tenant, plan, or role), and can be dismissed by individual users.
 
 The module follows Clean Architecture with CQRS patterns, using Wolverine for command/query handling and integration event publishing.
 
@@ -13,7 +13,6 @@ The module follows Clean Architecture with CQRS patterns, using Wolverine for co
 - **User Dismissals**: Users can dismiss individual announcements; dismissed announcements are filtered from active queries
 - **Pinning and Expiration**: Announcements can be pinned (sorted first) and auto-expire after a date
 - **Call-to-Action**: Optional action URL/label and image for rich announcements
-- **Changelog Management**: Versioned release entries with categorized change items
 - **HTML Sanitization**: Title and content are sanitized on input via `IHtmlSanitizationService`
 - **Multi-tenancy**: Announcements are tenant-scoped via EF Core query filters
 
@@ -46,14 +45,6 @@ Scheduled --> Published
 
 Tracks which users have dismissed which announcements. Keyed by announcement ID and user ID.
 
-### ChangelogEntry (Aggregate Root)
-
-A versioned release note. Not tenant-scoped (global). Contains a collection of `ChangelogItem` entities.
-
-### ChangelogItem (Entity)
-
-An individual change within a changelog entry, categorized by `ChangeType`.
-
 ## Enums
 
 | Enum | Values |
@@ -61,7 +52,6 @@ An individual change within a changelog entry, categorized by `ChangeType`.
 | `AnnouncementStatus` | Draft, Scheduled, Published, Expired, Archived |
 | `AnnouncementType` | Feature, Update, Maintenance, Alert, Tip |
 | `AnnouncementTarget` | All, Tenant, Plan, Role |
-| `ChangeType` | Feature, Improvement, Fix, Breaking, Security, Deprecated |
 
 ## Commands
 
@@ -72,8 +62,6 @@ An individual change within a changelog entry, categorized by `ChangeType`.
 | `PublishAnnouncementCommand` | Publish an announcement and emit integration event |
 | `ArchiveAnnouncementCommand` | Archive an announcement |
 | `DismissAnnouncementCommand` | Dismiss an announcement for a specific user |
-| `CreateChangelogEntryCommand` | Create a new changelog entry |
-| `PublishChangelogEntryCommand` | Publish a changelog entry |
 
 ## Queries
 
@@ -81,9 +69,6 @@ An individual change within a changelog entry, categorized by `ChangeType`.
 |-------|---------|
 | `GetAllAnnouncementsQuery` | All announcements (admin) |
 | `GetActiveAnnouncementsQuery` | Published, non-expired, targeted, non-dismissed announcements for a user |
-| `GetChangelogQuery` | Published changelog entries (paginated by limit) |
-| `GetChangelogByVersionQuery` | Single changelog entry by version string |
-| `GetLatestChangelogQuery` | Most recent published changelog entry |
 
 ## Integration Events
 
@@ -117,21 +102,6 @@ Published via Wolverine in-memory messaging. Defined in `Wallow.Shared.Contracts
 |--------|----------|-------------|
 | `GET` | `/v1/announcements` | Get active announcements for current user |
 | `POST` | `/v1/announcements/{id}/dismiss` | Dismiss an announcement |
-
-### Admin Changelog (`/v1/admin/changelog`) — requires `ChangelogManage` permission
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/v1/admin/changelog` | Create changelog entry |
-| `POST` | `/v1/admin/changelog/{id}/publish` | Publish changelog entry |
-
-### Public Changelog (`/v1/changelog`) — anonymous access
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/v1/changelog` | List published changelog entries |
-| `GET` | `/v1/changelog/{version}` | Get changelog entry by version |
-| `GET` | `/v1/changelog/latest` | Get latest changelog entry |
 
 ## Configuration
 

@@ -33,12 +33,12 @@ public sealed class ApiScopeSeederGapTests : IDisposable
     }
 
     [Fact]
-    public async Task SeedAsync_WhenEmpty_SeedsExactlyElevenScopes()
+    public async Task SeedAsync_WhenEmpty_SeedsExactlyTwentyThreeScopes()
     {
         await _seeder.SeedAsync(_dbContext);
 
         int count = await _dbContext.ApiScopes.IgnoreQueryFilters().CountAsync();
-        count.Should().Be(24);
+        count.Should().Be(23);
     }
 
     [Fact]
@@ -55,7 +55,7 @@ public sealed class ApiScopeSeederGapTests : IDisposable
         await _seeder.SeedAsync(_dbContext);
 
         int totalCount = await _dbContext.ApiScopes.IgnoreQueryFilters().CountAsync();
-        totalCount.Should().Be(24);
+        totalCount.Should().Be(23);
 
 
         int usersReadCount = await _dbContext.ApiScopes
@@ -79,7 +79,7 @@ public sealed class ApiScopeSeederGapTests : IDisposable
         await _seeder.SeedAsync(_dbContext);
 
         int totalCount = await _dbContext.ApiScopes.IgnoreQueryFilters().CountAsync();
-        totalCount.Should().Be(24);
+        totalCount.Should().Be(23);
     }
 
     [Fact]
@@ -109,7 +109,6 @@ public sealed class ApiScopeSeederGapTests : IDisposable
             "storage.write",
             "announcements.read",
             "announcements.manage",
-            "changelog.manage",
             "notifications.read",
             "notifications.write",
             "configuration.read",
@@ -177,7 +176,7 @@ public sealed class ApiScopeSeederGapTests : IDisposable
         await _seeder.SeedAsync(_dbContext, cts.Token);
 
         int count = await _dbContext.ApiScopes.IgnoreQueryFilters().CountAsync();
-        count.Should().Be(24);
+        count.Should().Be(23);
     }
 
     [Fact]

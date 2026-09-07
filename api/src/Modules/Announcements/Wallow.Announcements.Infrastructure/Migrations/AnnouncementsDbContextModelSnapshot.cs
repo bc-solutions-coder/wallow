@@ -18,7 +18,7 @@ namespace Wallow.Announcements.Infrastructure.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("announcements")
-                .HasAnnotation("ProductVersion", "10.0.4")
+                .HasAnnotation("ProductVersion", "10.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -151,105 +151,6 @@ namespace Wallow.Announcements.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("announcement_dismissals", "announcements");
-                });
-
-            modelBuilder.Entity("Wallow.Announcements.Domain.Changelogs.Entities.ChangelogEntry", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("content");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by");
-
-                    b.Property<bool>("IsPublished")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_published");
-
-                    b.Property<DateTime>("ReleasedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("released_at");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("title");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid")
-                        .HasColumnName("updated_by");
-
-                    b.Property<string>("Version")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("version");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IsPublished");
-
-                    b.HasIndex("ReleasedAt");
-
-                    b.HasIndex("Version")
-                        .IsUnique();
-
-                    b.ToTable("changelog_entries", "announcements");
-                });
-
-            modelBuilder.Entity("Wallow.Announcements.Domain.Changelogs.Entities.ChangelogItem", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("description");
-
-                    b.Property<Guid>("EntryId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("entry_id");
-
-                    b.Property<int>("Type")
-                        .HasColumnType("integer")
-                        .HasColumnName("type");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EntryId");
-
-                    b.ToTable("changelog_items", "announcements");
-                });
-
-            modelBuilder.Entity("Wallow.Announcements.Domain.Changelogs.Entities.ChangelogItem", b =>
-                {
-                    b.HasOne("Wallow.Announcements.Domain.Changelogs.Entities.ChangelogEntry", null)
-                        .WithMany("Items")
-                        .HasForeignKey("EntryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Wallow.Announcements.Domain.Changelogs.Entities.ChangelogEntry", b =>
-                {
-                    b.Navigation("Items");
                 });
 #pragma warning restore 612, 618
         }

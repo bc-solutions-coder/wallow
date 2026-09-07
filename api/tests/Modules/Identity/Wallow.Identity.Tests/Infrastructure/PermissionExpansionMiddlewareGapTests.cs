@@ -191,7 +191,6 @@ public class PermissionExpansionMiddlewareGapTests
     [InlineData("storage.write", PermissionType.StorageWrite)]
     [InlineData("announcements.read", PermissionType.AnnouncementRead)]
     [InlineData("announcements.manage", PermissionType.AnnouncementManage)]
-    [InlineData("changelog.manage", PermissionType.ChangelogManage)]
     [InlineData("notifications.read", PermissionType.NotificationRead)]
     [InlineData("notifications.write", PermissionType.NotificationsWrite)]
     [InlineData("configuration.read", PermissionType.ConfigurationRead)]

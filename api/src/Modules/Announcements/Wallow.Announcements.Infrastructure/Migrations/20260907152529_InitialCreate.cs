@@ -59,49 +59,6 @@ namespace Wallow.Announcements.Infrastructure.Migrations
                     table.PrimaryKey("PK_announcements", x => x.id);
                 });
 
-            migrationBuilder.CreateTable(
-                name: "changelog_entries",
-                schema: "announcements",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    version = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    title = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    content = table.Column<string>(type: "text", nullable: false),
-                    released_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    is_published = table.Column<bool>(type: "boolean", nullable: false),
-                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    created_by = table.Column<Guid>(type: "uuid", nullable: true),
-                    updated_by = table.Column<Guid>(type: "uuid", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_changelog_entries", x => x.id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "changelog_items",
-                schema: "announcements",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    entry_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    description = table.Column<string>(type: "text", nullable: false),
-                    type = table.Column<int>(type: "integer", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_changelog_items", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_changelog_items_changelog_entries_entry_id",
-                        column: x => x.entry_id,
-                        principalSchema: "announcements",
-                        principalTable: "changelog_entries",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
             migrationBuilder.CreateIndex(
                 name: "IX_announcement_dismissals_announcement_id",
                 schema: "announcements",
@@ -150,31 +107,6 @@ namespace Wallow.Announcements.Infrastructure.Migrations
                 schema: "announcements",
                 table: "announcements",
                 column: "tenant_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_changelog_entries_is_published",
-                schema: "announcements",
-                table: "changelog_entries",
-                column: "is_published");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_changelog_entries_released_at",
-                schema: "announcements",
-                table: "changelog_entries",
-                column: "released_at");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_changelog_entries_version",
-                schema: "announcements",
-                table: "changelog_entries",
-                column: "version",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_changelog_items_entry_id",
-                schema: "announcements",
-                table: "changelog_items",
-                column: "entry_id");
         }
 
         /// <inheritdoc />
@@ -186,14 +118,6 @@ namespace Wallow.Announcements.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "announcements",
-                schema: "announcements");
-
-            migrationBuilder.DropTable(
-                name: "changelog_items",
-                schema: "announcements");
-
-            migrationBuilder.DropTable(
-                name: "changelog_entries",
                 schema: "announcements");
         }
     }

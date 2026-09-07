@@ -12,7 +12,4 @@ public static class AnnouncementsErrors
 
     public static readonly ErrorCatalogEntry AnnouncementNotDismissible = new(
         "Announcement.NotDismissible", ErrorKind.BusinessRule, "This announcement cannot be dismissed");
-
-    public static readonly ErrorCatalogEntry ChangelogNotFound = new(
-        "Changelog.NotFound", ErrorKind.NotFound, "Changelog entry not found");
 }

@@ -36,7 +36,6 @@ public static class RolePermissionMapping
             PermissionType.EmailPreferenceManage,
             PermissionType.AnnouncementRead,
             PermissionType.AnnouncementManage,
-            PermissionType.ChangelogManage,
             PermissionType.StorageRead,
             PermissionType.StorageWrite,
             PermissionType.ApiKeyManage,

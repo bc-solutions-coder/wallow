@@ -62,8 +62,6 @@ public static class PermissionType
     public const string AnnouncementRead = "AnnouncementRead";
     public const string AnnouncementManage = "AnnouncementManage";
 
-    public const string ChangelogManage = "ChangelogManage";
-
     // Push notifications
     public const string PushRead = "PushRead";
     public const string PushConfigWrite = "PushConfigWrite";

@@ -105,12 +105,6 @@
       "description": "Access to create, update, and delete announcements"
     },
     {
-      "code": "changelog.manage",
-      "displayName": "Manage Changelog",
-      "category": "Announcements",
-      "description": "Access to create, update, and delete changelog entries"
-    },
-    {
       "code": "notifications.read",
       "displayName": "Read Notifications",
       "category": "Notifications",

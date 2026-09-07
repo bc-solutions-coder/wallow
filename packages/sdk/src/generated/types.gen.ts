@@ -230,37 +230,6 @@ export type ChangeEmailRequest = {
 /**
  * Data used directly or within nested payloads by the following API operations.
  *
- * Response 201 from POST /v1/admin/changelog: Create an unpublished changelog entry.
- * Response 200 from GET /v1/changelog: List published changelog entries.
- * Response 200 from GET /v1/changelog/{changelogVersion}: Get a published changelog version.
- * Also used by 1 other endpoint/status combinations.
- */
-export type ChangelogEntryResponse = {
-  id: string;
-  version: string;
-  title: string;
-  content: string;
-  releasedAt: string;
-  items: Array<ChangelogItemResponse>;
-};
-
-/**
- * Data used directly or within nested payloads by the following API operations.
- *
- * Response 201 from POST /v1/admin/changelog: Create an unpublished changelog entry.
- * Response 200 from GET /v1/changelog: List published changelog entries.
- * Response 200 from GET /v1/changelog/{changelogVersion}: Get a published changelog version.
- * Also used by 1 other endpoint/status combinations.
- */
-export type ChangelogItemResponse = {
-  id: string;
-  description: string;
-  type: string;
-};
-
-/**
- * Data used directly or within nested payloads by the following API operations.
- *
  * Response 200 from GET /v1/notification-settings: Get the current user's notification preferences.
  */
 export type ChannelPreferenceResponse = {
@@ -422,18 +391,6 @@ export type CreateBucketRequest = {
 };
 
 /**
- * Data used directly or within nested payloads by the following API operations.
- *
- * Request body for POST /v1/admin/changelog: Create an unpublished changelog entry.
- */
-export type CreateChangelogEntryRequest = {
-  version: string;
-  title: string;
-  content: string;
-  releasedAt: string;
-};
-
-/**
  * Confidential client registration. Null or empty Scopes selects the OIDC sign-in baseline.
  * Omitted logout URLs disable their respective channels; back-channel HTTP is allowed.
  * BackchannelLogoutSessionRequired is stored metadata; logout tokens always carry sid.
@@ -541,7 +498,7 @@ export type EnrollmentPolicy = number;
 /**
  * Machine-readable code identifying why a request failed. Each code has exactly one owning catalog and a fixed HTTP status.
  */
-export type ErrorCode = 'Announcement.NotDismissible' | 'Announcement.NotFound' | 'ApiKeys.ApiKeyAlreadyRevoked' | 'ApiKeys.ApiKeyDisplayNameRequired' | 'ApiKeys.CreateFailed' | 'ApiKeys.HashedKeyRequired' | 'ApiKeys.Invalid' | 'ApiKeys.LimitReached' | 'ApiKeys.NotFound' | 'ApiKeys.OrganizationRequired' | 'ApiKeys.ScopeExceedsPermissions' | 'ApiKeys.ServiceAccountIdRequired' | 'Auth.ClientIdInvalid' | 'Auth.EmailClaimMissing' | 'Auth.EmailNotConfirmed' | 'Auth.EmailTaken' | 'Auth.EmailUnchanged' | 'Auth.Forbidden' | 'Auth.InvalidCredentials' | 'Auth.LockedOut' | 'Auth.OtpInvalid' | 'Auth.PasswordsDoNotMatch' | 'Auth.ProviderRequired' | 'Auth.ProviderUnsupported' | 'Auth.TicketAlreadyUsed' | 'Auth.TicketInvalid' | 'Auth.TokenExpired' | 'Auth.TokenInvalid' | 'Auth.Unauthenticated' | 'Branding.ClientBrandingClientIdRequired' | 'Branding.ClientBrandingDisplayNameRequired' | 'Bucket.AlreadyExists' | 'Bucket.NotEmpty' | 'Bucket.NotFound' | 'Changelog.NotFound' | 'DeviceRegistration.Conflict' | 'DeviceRegistration.NotFound' | 'Email.InvalidEmailAddress' | 'File.ContentTypeNotAllowed' | 'File.ExceedsUploadLimit' | 'File.ExtensionNotAllowed' | 'File.FailedSecurityScan' | 'File.NotAvailable' | 'File.NotFound' | 'File.NotUploaded' | 'File.SignatureInvalid' | 'File.TooLarge' | 'Http.ClientError' | 'Http.MethodNotAllowed' | 'Http.NotFound' | 'Identity.AlreadyAMember' | 'Identity.ClientAlreadySuspended' | 'Identity.ClientAlreadySuspendedByPlatform' | 'Identity.ClientIdRequired' | 'Identity.ClientIdTaken' | 'Identity.ClientNameRequired' | 'Identity.ClientNameUnusable' | 'Identity.ClientNotSuspended' | 'Identity.ClientNotSuspendedByPlatform' | 'Identity.ClientOrganizationRequired' | 'Identity.DenialCooldown' | 'Identity.EmailRequired' | 'Identity.ExpiryMustBeFuture' | 'Identity.FirstNameRequired' | 'Identity.InvitationEmailMismatch' | 'Identity.InvitationEmailNotVerified' | 'Identity.InvitationEmailRequired' | 'Identity.InvitationExpired' | 'Identity.InvitationNotFound' | 'Identity.InvitationNotPending' | 'Identity.LastNameRequired' | 'Identity.LastOwner' | 'Identity.MemberNotFound' | 'Identity.MembershipNotActive' | 'Identity.MembershipNotDenied' | 'Identity.MembershipNotPending' | 'Identity.MembershipNotReinstatable' | 'Identity.MembershipNotSuspended' | 'Identity.MfaGraceDeadlineMustBeFuture' | 'Identity.NoPendingEmailChange' | 'Identity.OrganizationAlreadyActive' | 'Identity.OrganizationAlreadyInactive' | 'Identity.OrganizationAlreadySuspendedByPlatform' | 'Identity.OrganizationNameMismatch' | 'Identity.OrganizationNameRequired' | 'Identity.OrganizationNotFound' | 'Identity.OrganizationNotSuspendedByPlatform' | 'Identity.OrganizationSlugRequired' | 'Identity.OrganizationSuspendedByPlatform' | 'Identity.PlatformOnlyScope' | 'Identity.PlatformSuspensionReasonRequired' | 'Identity.ReservedRoleName' | 'Identity.RoleNotFound' | 'Identity.ScopeCategoryRequired' | 'Identity.ScopeCodeRequired' | 'Identity.ScopeDisplayNameRequired' | 'Identity.UnknownScope' | 'Identity.UserIdRequired' | 'Identity.UserNotFound' | 'Inquiries.InvalidStatusTransition' | 'Inquiry.NotFound' | 'Mfa.CodeInvalid' | 'Mfa.EnrollmentTokenInvalid' | 'Mfa.LockedOut' | 'Mfa.NotEnabled' | 'Mfa.PasswordInvalid' | 'Mfa.SessionMissing' | 'Mfa.UpdateFailed' | 'Notification.AccessDenied' | 'Notification.NotFound' | 'RateLimit.Exceeded' | 'Server.Error' | 'Settings.SystemKeyBlocked' | 'Settings.UnknownKey' | 'Setup.Required' | 'Sms.InvalidPhoneNumber' | 'Storage.QuotaExceeded' | 'Tenant.Required' | 'TenantPushConfiguration.NotFound' | 'Validation.Failed' | 'WebPush.InvalidConfiguration' | 'WebPush.InvalidSubscription' | 'WebPush.Unavailable';
+export type ErrorCode = 'Announcement.NotDismissible' | 'Announcement.NotFound' | 'ApiKeys.ApiKeyAlreadyRevoked' | 'ApiKeys.ApiKeyDisplayNameRequired' | 'ApiKeys.CreateFailed' | 'ApiKeys.HashedKeyRequired' | 'ApiKeys.Invalid' | 'ApiKeys.LimitReached' | 'ApiKeys.NotFound' | 'ApiKeys.OrganizationRequired' | 'ApiKeys.ScopeExceedsPermissions' | 'ApiKeys.ServiceAccountIdRequired' | 'Auth.ClientIdInvalid' | 'Auth.EmailClaimMissing' | 'Auth.EmailNotConfirmed' | 'Auth.EmailTaken' | 'Auth.EmailUnchanged' | 'Auth.Forbidden' | 'Auth.InvalidCredentials' | 'Auth.LockedOut' | 'Auth.OtpInvalid' | 'Auth.PasswordsDoNotMatch' | 'Auth.ProviderRequired' | 'Auth.ProviderUnsupported' | 'Auth.TicketAlreadyUsed' | 'Auth.TicketInvalid' | 'Auth.TokenExpired' | 'Auth.TokenInvalid' | 'Auth.Unauthenticated' | 'Branding.ClientBrandingClientIdRequired' | 'Branding.ClientBrandingDisplayNameRequired' | 'Bucket.AlreadyExists' | 'Bucket.NotEmpty' | 'Bucket.NotFound' | 'DeviceRegistration.Conflict' | 'DeviceRegistration.NotFound' | 'Email.InvalidEmailAddress' | 'File.ContentTypeNotAllowed' | 'File.ExceedsUploadLimit' | 'File.ExtensionNotAllowed' | 'File.FailedSecurityScan' | 'File.NotAvailable' | 'File.NotFound' | 'File.NotUploaded' | 'File.SignatureInvalid' | 'File.TooLarge' | 'Http.ClientError' | 'Http.MethodNotAllowed' | 'Http.NotFound' | 'Identity.AlreadyAMember' | 'Identity.ClientAlreadySuspended' | 'Identity.ClientAlreadySuspendedByPlatform' | 'Identity.ClientIdRequired' | 'Identity.ClientIdTaken' | 'Identity.ClientNameRequired' | 'Identity.ClientNameUnusable' | 'Identity.ClientNotSuspended' | 'Identity.ClientNotSuspendedByPlatform' | 'Identity.ClientOrganizationRequired' | 'Identity.DenialCooldown' | 'Identity.EmailRequired' | 'Identity.ExpiryMustBeFuture' | 'Identity.FirstNameRequired' | 'Identity.InvitationEmailMismatch' | 'Identity.InvitationEmailNotVerified' | 'Identity.InvitationEmailRequired' | 'Identity.InvitationExpired' | 'Identity.InvitationNotFound' | 'Identity.InvitationNotPending' | 'Identity.LastNameRequired' | 'Identity.LastOwner' | 'Identity.MemberNotFound' | 'Identity.MembershipNotActive' | 'Identity.MembershipNotDenied' | 'Identity.MembershipNotPending' | 'Identity.MembershipNotReinstatable' | 'Identity.MembershipNotSuspended' | 'Identity.MfaGraceDeadlineMustBeFuture' | 'Identity.NoPendingEmailChange' | 'Identity.OrganizationAlreadyActive' | 'Identity.OrganizationAlreadyInactive' | 'Identity.OrganizationAlreadySuspendedByPlatform' | 'Identity.OrganizationNameMismatch' | 'Identity.OrganizationNameRequired' | 'Identity.OrganizationNotFound' | 'Identity.OrganizationNotSuspendedByPlatform' | 'Identity.OrganizationSlugRequired' | 'Identity.OrganizationSuspendedByPlatform' | 'Identity.PlatformOnlyScope' | 'Identity.PlatformSuspensionReasonRequired' | 'Identity.ReservedRoleName' | 'Identity.RoleNotFound' | 'Identity.ScopeCategoryRequired' | 'Identity.ScopeCodeRequired' | 'Identity.ScopeDisplayNameRequired' | 'Identity.UnknownScope' | 'Identity.UserIdRequired' | 'Identity.UserNotFound' | 'Inquiries.InvalidStatusTransition' | 'Inquiry.NotFound' | 'Mfa.CodeInvalid' | 'Mfa.EnrollmentTokenInvalid' | 'Mfa.LockedOut' | 'Mfa.NotEnabled' | 'Mfa.PasswordInvalid' | 'Mfa.SessionMissing' | 'Mfa.UpdateFailed' | 'Notification.AccessDenied' | 'Notification.NotFound' | 'RateLimit.Exceeded' | 'Server.Error' | 'Settings.SystemKeyBlocked' | 'Settings.UnknownKey' | 'Setup.Required' | 'Sms.InvalidPhoneNumber' | 'Storage.QuotaExceeded' | 'Tenant.Required' | 'TenantPushConfiguration.NotFound' | 'Validation.Failed' | 'WebPush.InvalidConfiguration' | 'WebPush.InvalidSubscription' | 'WebPush.Unavailable';
 
 /**
  * Data used directly or within nested payloads by the following API operations.
@@ -567,7 +524,7 @@ export type FileMetadataResponse = {
  * Response 400 from POST /v1/admin/announcements: Create an announcement.
  * Response 400 from DELETE /v1/admin/announcements/{id}: Archive an announcement.
  * Response 400 from PUT /v1/admin/announcements/{id}: Replace announcement content and targeting.
- * Also used by 132 other endpoint/status combinations.
+ * Also used by 128 other endpoint/status combinations.
  */
 export type HttpValidationProblemDetails = {
   type: null | string;
@@ -990,7 +947,7 @@ export type PresignedUrlResponse = {
  * Response 400 from GET /v1/admin/announcements: List all tenant announcements.
  * Response 401 from GET /v1/admin/announcements: List all tenant announcements.
  * Response 403 from GET /v1/admin/announcements: List all tenant announcements.
- * Also used by 868 other endpoint/status combinations.
+ * Also used by 842 other endpoint/status combinations.
  */
 export type ProblemDetails = {
   type: null | string;
@@ -1830,150 +1787,6 @@ export type AdminAnnouncementsPublishAnnouncementResponses = {
 /**
  * Request arguments for this endpoint, including its URL and supported body, path, query, and header fields.
  *
- * Create an unpublished changelog entry.
- * Endpoint: POST /v1/admin/changelog.
- */
-export type AdminChangelogCreateChangelogEntryData = {
-  body: CreateChangelogEntryRequest;
-  path?: never;
-  query?: never;
-  url: '/v1/admin/changelog';
-};
-
-/**
- * Error response bodies indexed by HTTP status code for this endpoint.
- *
- * Create an unpublished changelog entry.
- * Endpoint: POST /v1/admin/changelog.
- */
-export type AdminChangelogCreateChangelogEntryErrors = {
-  /**
-   * Bad Request
-   */
-  400: HttpValidationProblemDetails;
-  /**
-   * Unauthorized
-   */
-  401: ProblemDetails;
-  /**
-   * Forbidden
-   */
-  403: ProblemDetails;
-  /**
-   * Not Found
-   */
-  404: ProblemDetails;
-  /**
-   * Too Many Requests
-   */
-  429: ProblemDetails;
-  /**
-   * Internal Server Error
-   */
-  500: ProblemDetails;
-};
-
-/**
- * Union of the documented error response bodies for this endpoint. This describes API payloads, not client-side transport exceptions.
- *
- * Create an unpublished changelog entry.
- * Endpoint: POST /v1/admin/changelog.
- */
-export type AdminChangelogCreateChangelogEntryError = AdminChangelogCreateChangelogEntryErrors[keyof AdminChangelogCreateChangelogEntryErrors];
-
-/**
- * Successful response bodies indexed by HTTP status code for this endpoint.
- *
- * Create an unpublished changelog entry.
- * Endpoint: POST /v1/admin/changelog.
- */
-export type AdminChangelogCreateChangelogEntryResponses = {
-  /**
-   * Created
-   */
-  201: ChangelogEntryResponse;
-};
-
-/**
- * Union of successful response bodies returned by this endpoint.
- *
- * Create an unpublished changelog entry.
- * Endpoint: POST /v1/admin/changelog.
- */
-export type AdminChangelogCreateChangelogEntryResponse = AdminChangelogCreateChangelogEntryResponses[keyof AdminChangelogCreateChangelogEntryResponses];
-
-/**
- * Request arguments for this endpoint, including its URL and supported body, path, query, and header fields.
- *
- * Publish a changelog entry.
- * Endpoint: POST /v1/admin/changelog/{id}/publish.
- */
-export type AdminChangelogPublishChangelogEntryData = {
-  body?: never;
-  path: {
-    id: string;
-  };
-  query?: never;
-  url: '/v1/admin/changelog/{id}/publish';
-};
-
-/**
- * Error response bodies indexed by HTTP status code for this endpoint.
- *
- * Publish a changelog entry.
- * Endpoint: POST /v1/admin/changelog/{id}/publish.
- */
-export type AdminChangelogPublishChangelogEntryErrors = {
-  /**
-   * Bad Request
-   */
-  400: HttpValidationProblemDetails;
-  /**
-   * Unauthorized
-   */
-  401: ProblemDetails;
-  /**
-   * Forbidden
-   */
-  403: ProblemDetails;
-  /**
-   * Not Found
-   */
-  404: ProblemDetails;
-  /**
-   * Too Many Requests
-   */
-  429: ProblemDetails;
-  /**
-   * Internal Server Error
-   */
-  500: ProblemDetails;
-};
-
-/**
- * Union of the documented error response bodies for this endpoint. This describes API payloads, not client-side transport exceptions.
- *
- * Publish a changelog entry.
- * Endpoint: POST /v1/admin/changelog/{id}/publish.
- */
-export type AdminChangelogPublishChangelogEntryError = AdminChangelogPublishChangelogEntryErrors[keyof AdminChangelogPublishChangelogEntryErrors];
-
-/**
- * Successful response bodies indexed by HTTP status code for this endpoint.
- *
- * Publish a changelog entry.
- * Endpoint: POST /v1/admin/changelog/{id}/publish.
- */
-export type AdminChangelogPublishChangelogEntryResponses = {
-  /**
-   * No Content
-   */
-  204: unknown;
-};
-
-/**
- * Request arguments for this endpoint, including its URL and supported body, path, query, and header fields.
- *
  * List active announcements for the current user.
  * Endpoint: GET /v1/announcements.
  */
@@ -2114,241 +1927,6 @@ export type AnnouncementsDismissAnnouncementResponses = {
    */
   204: unknown;
 };
-
-/**
- * Request arguments for this endpoint, including its URL and supported body, path, query, and header fields.
- *
- * List published changelog entries.
- * Endpoint: GET /v1/changelog.
- */
-export type ChangelogGetChangelogData = {
-  body?: never;
-  path?: never;
-  query?: {
-    /**
-     * Maximum number of entries to return; defaults to 50.
-     */
-    limit?: number | string;
-  };
-  url: '/v1/changelog';
-};
-
-/**
- * Error response bodies indexed by HTTP status code for this endpoint.
- *
- * List published changelog entries.
- * Endpoint: GET /v1/changelog.
- */
-export type ChangelogGetChangelogErrors = {
-  /**
-   * Bad Request
-   */
-  400: HttpValidationProblemDetails;
-  /**
-   * Unauthorized
-   */
-  401: ProblemDetails;
-  /**
-   * Forbidden
-   */
-  403: ProblemDetails;
-  /**
-   * Not Found
-   */
-  404: ProblemDetails;
-  /**
-   * Too Many Requests
-   */
-  429: ProblemDetails;
-  /**
-   * Internal Server Error
-   */
-  500: ProblemDetails;
-};
-
-/**
- * Union of the documented error response bodies for this endpoint. This describes API payloads, not client-side transport exceptions.
- *
- * List published changelog entries.
- * Endpoint: GET /v1/changelog.
- */
-export type ChangelogGetChangelogError = ChangelogGetChangelogErrors[keyof ChangelogGetChangelogErrors];
-
-/**
- * Successful response bodies indexed by HTTP status code for this endpoint.
- *
- * List published changelog entries.
- * Endpoint: GET /v1/changelog.
- */
-export type ChangelogGetChangelogResponses = {
-  /**
-   * OK
-   */
-  200: Array<ChangelogEntryResponse>;
-};
-
-/**
- * Union of successful response bodies returned by this endpoint.
- *
- * List published changelog entries.
- * Endpoint: GET /v1/changelog.
- */
-export type ChangelogGetChangelogResponse = ChangelogGetChangelogResponses[keyof ChangelogGetChangelogResponses];
-
-/**
- * Request arguments for this endpoint, including its URL and supported body, path, query, and header fields.
- *
- * Get a published changelog version.
- * Endpoint: GET /v1/changelog/{changelogVersion}.
- */
-export type ChangelogGetChangelogByVersionData = {
-  body?: never;
-  path: {
-    /**
-     * Exact version string recorded on the entry, including any prerelease or build suffix.
-     */
-    changelogVersion: string;
-  };
-  query?: never;
-  url: '/v1/changelog/{changelogVersion}';
-};
-
-/**
- * Error response bodies indexed by HTTP status code for this endpoint.
- *
- * Get a published changelog version.
- * Endpoint: GET /v1/changelog/{changelogVersion}.
- */
-export type ChangelogGetChangelogByVersionErrors = {
-  /**
-   * Bad Request
-   */
-  400: HttpValidationProblemDetails;
-  /**
-   * Unauthorized
-   */
-  401: ProblemDetails;
-  /**
-   * Forbidden
-   */
-  403: ProblemDetails;
-  /**
-   * Not Found
-   */
-  404: ProblemDetails;
-  /**
-   * Too Many Requests
-   */
-  429: ProblemDetails;
-  /**
-   * Internal Server Error
-   */
-  500: ProblemDetails;
-};
-
-/**
- * Union of the documented error response bodies for this endpoint. This describes API payloads, not client-side transport exceptions.
- *
- * Get a published changelog version.
- * Endpoint: GET /v1/changelog/{changelogVersion}.
- */
-export type ChangelogGetChangelogByVersionError = ChangelogGetChangelogByVersionErrors[keyof ChangelogGetChangelogByVersionErrors];
-
-/**
- * Successful response bodies indexed by HTTP status code for this endpoint.
- *
- * Get a published changelog version.
- * Endpoint: GET /v1/changelog/{changelogVersion}.
- */
-export type ChangelogGetChangelogByVersionResponses = {
-  /**
-   * OK
-   */
-  200: ChangelogEntryResponse;
-};
-
-/**
- * Union of successful response bodies returned by this endpoint.
- *
- * Get a published changelog version.
- * Endpoint: GET /v1/changelog/{changelogVersion}.
- */
-export type ChangelogGetChangelogByVersionResponse = ChangelogGetChangelogByVersionResponses[keyof ChangelogGetChangelogByVersionResponses];
-
-/**
- * Request arguments for this endpoint, including its URL and supported body, path, query, and header fields.
- *
- * Get the latest published changelog entry.
- * Endpoint: GET /v1/changelog/latest.
- */
-export type ChangelogGetLatestChangelogData = {
-  body?: never;
-  path?: never;
-  query?: never;
-  url: '/v1/changelog/latest';
-};
-
-/**
- * Error response bodies indexed by HTTP status code for this endpoint.
- *
- * Get the latest published changelog entry.
- * Endpoint: GET /v1/changelog/latest.
- */
-export type ChangelogGetLatestChangelogErrors = {
-  /**
-   * Bad Request
-   */
-  400: ProblemDetails;
-  /**
-   * Unauthorized
-   */
-  401: ProblemDetails;
-  /**
-   * Forbidden
-   */
-  403: ProblemDetails;
-  /**
-   * Not Found
-   */
-  404: ProblemDetails;
-  /**
-   * Too Many Requests
-   */
-  429: ProblemDetails;
-  /**
-   * Internal Server Error
-   */
-  500: ProblemDetails;
-};
-
-/**
- * Union of the documented error response bodies for this endpoint. This describes API payloads, not client-side transport exceptions.
- *
- * Get the latest published changelog entry.
- * Endpoint: GET /v1/changelog/latest.
- */
-export type ChangelogGetLatestChangelogError = ChangelogGetLatestChangelogErrors[keyof ChangelogGetLatestChangelogErrors];
-
-/**
- * Successful response bodies indexed by HTTP status code for this endpoint.
- *
- * Get the latest published changelog entry.
- * Endpoint: GET /v1/changelog/latest.
- */
-export type ChangelogGetLatestChangelogResponses = {
-  /**
-   * OK
-   */
-  200: ChangelogEntryResponse;
-};
-
-/**
- * Union of successful response bodies returned by this endpoint.
- *
- * Get the latest published changelog entry.
- * Endpoint: GET /v1/changelog/latest.
- */
-export type ChangelogGetLatestChangelogResponse = ChangelogGetLatestChangelogResponses[keyof ChangelogGetLatestChangelogResponses];
 
 /**
  * Request arguments for this endpoint, including its URL and supported body, path, query, and header fields.

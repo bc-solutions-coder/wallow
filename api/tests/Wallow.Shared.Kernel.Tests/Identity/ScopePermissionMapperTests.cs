@@ -145,11 +145,11 @@ public class ScopePermissionMapperTests
     }
 
     [Fact]
-    public void MapScopeToPermission_ChangelogManage_ReturnsChangelogManage()
+    public void MapScopeToPermission_RemovedChangelogScope_ReturnsNull()
     {
         string? result = ScopePermissionMapper.MapScopeToPermission("changelog.manage");
 
-        result.Should().Be(PermissionType.ChangelogManage);
+        result.Should().BeNull();
     }
 
     [Fact]

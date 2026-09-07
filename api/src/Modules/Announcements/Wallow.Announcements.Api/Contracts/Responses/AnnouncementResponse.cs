@@ -11,16 +11,3 @@ public sealed record AnnouncementResponse(
     string? ActionLabel,
     string? ImageUrl,
     DateTime CreatedAt);
-
-public sealed record ChangelogEntryResponse(
-    Guid Id,
-    string Version,
-    string Title,
-    string Content,
-    DateTime ReleasedAt,
-    IReadOnlyList<ChangelogItemResponse> Items);
-
-public sealed record ChangelogItemResponse(
-    Guid Id,
-    string Description,
-    string Type);

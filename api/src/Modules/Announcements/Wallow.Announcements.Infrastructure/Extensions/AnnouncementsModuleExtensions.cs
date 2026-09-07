@@ -5,7 +5,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using Wallow.Announcements.Application.Announcements.Interfaces;
 using Wallow.Announcements.Application.Announcements.Services;
-using Wallow.Announcements.Application.Changelogs.Interfaces;
 using Wallow.Announcements.Application.Extensions;
 using Wallow.Announcements.Domain.Errors;
 using Wallow.Announcements.Infrastructure.Modules;
@@ -59,7 +58,6 @@ public static class AnnouncementsModuleExtensions
 
         services.AddScoped<IAnnouncementRepository, AnnouncementRepository>();
         services.AddScoped<IAnnouncementDismissalRepository, AnnouncementDismissalRepository>();
-        services.AddScoped<IChangelogRepository, ChangelogRepository>();
 
         services.AddScoped<IAnnouncementTargetingService, AnnouncementTargetingService>();
 

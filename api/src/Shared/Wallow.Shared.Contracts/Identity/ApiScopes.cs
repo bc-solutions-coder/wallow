@@ -31,7 +31,6 @@ public static class ApiScopes
         // Announcements and Notifications
         "announcements.read",
         "announcements.manage",
-        "changelog.manage",
         "notifications.read",
         "notifications.write",
 

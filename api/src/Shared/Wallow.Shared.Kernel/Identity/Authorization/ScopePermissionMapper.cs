@@ -34,7 +34,6 @@ public static class ScopePermissionMapper
             // Announcements and Notifications
             "announcements.read" => PermissionType.AnnouncementRead,
             "announcements.manage" => PermissionType.AnnouncementManage,
-            "changelog.manage" => PermissionType.ChangelogManage,
             "notifications.read" => PermissionType.NotificationRead,
             "notifications.write" => PermissionType.NotificationsWrite,
 

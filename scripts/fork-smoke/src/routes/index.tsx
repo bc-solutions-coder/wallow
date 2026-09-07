@@ -1,5 +1,5 @@
 import { isSafeReturnUrl, type WallowUser } from "@bc-solutions-coder/sdk";
-import { changelogGetChangelogQueryKey } from "@bc-solutions-coder/sdk/query";
+import { accountGetExternalProvidersQueryKey } from "@bc-solutions-coder/sdk/query";
 import { createFileRoute } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 
@@ -14,7 +14,7 @@ import type { ReactElement } from "react";
  * so the smoke needs no backend.
  */
 function Home(): ReactElement {
-  const queryKey: unknown = changelogGetChangelogQueryKey();
+  const queryKey: unknown = accountGetExternalProvidersQueryKey();
   const anonymous: WallowUser | null = null;
 
   return (

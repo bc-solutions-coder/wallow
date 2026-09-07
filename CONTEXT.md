@@ -176,9 +176,6 @@ announcement fans out into notifications.
 A delivery route for reaching a user: email, SMS, in-app, or push. Preferences are held per
 channel and per notification type.
 
-**Changelog entry**:
-A global, tenant-less release note describing what changed in a version.
-
 **Inquiry**:
 A contact-form submission — lead capture, not a support ticket. Its status moves strictly
 New → Reviewed → Contacted → Closed, and comments on it are either internal or

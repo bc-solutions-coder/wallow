@@ -172,7 +172,6 @@ organization for exactly this.
 |-------|-------------|---------|
 | `announcements.read` | Read announcements | Yes |
 | `announcements.manage` | Manage announcements | No |
-| `changelog.manage` | Manage changelog entries | No |
 
 ### Notifications
 

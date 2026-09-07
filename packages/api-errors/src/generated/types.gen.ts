@@ -145,10 +145,6 @@ BUCKET_NOT_EMPTY: 'Bucket.NotEmpty',
    */
 BUCKET_NOT_FOUND: 'Bucket.NotFound',
     /**
-   * Changelog entry not found
-   */
-CHANGELOG_NOT_FOUND: 'Changelog.NotFound',
-    /**
    * The device token is already registered
    */
 DEVICE_REGISTRATION_CONFLICT: 'DeviceRegistration.Conflict',
