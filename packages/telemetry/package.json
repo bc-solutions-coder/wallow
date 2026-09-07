@@ -47,7 +47,11 @@
   "devDependencies": {
     "@bc-solutions-coder/config": "workspace:*",
     "@bc-solutions-coder/logger": "workspace:*",
+    "@bc-solutions-coder/testing": "workspace:*",
+    "@grafana/faro-web-sdk": "2.11.0",
     "@types/node": "^24.0.0",
+    "@vitest/browser-playwright": "^4.1.10",
+    "playwright": "^1.61.1",
     "typescript": "catalog:tooling",
     "vite": "^8.1.4",
     "vitest": "^4.1.10"

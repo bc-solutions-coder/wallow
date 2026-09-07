@@ -15,7 +15,7 @@ Wayfinder decisions and #240 already approve design and public testing seams.
    and bundled maintained logger. Verify a packed external Node consumer.
 4. Completed — #248: transactional registration desired state and outbox, retries and one-time reveal.
    Exercise existing organization-client integration and rendered registration seams.
-5. #249: browser entry and same-origin session-aware relay, sanitization and owned-route
+5. Completed — #249: browser entry and same-origin session-aware relay, sanitization and owned-route
    propagation. Exercise external browser consumers and login/context transitions.
 6. Completed — #250: acknowledged rotation, revocation and deletion with persisted deadlines. Test
    the public gateway boundary with a controllable clock and restart.

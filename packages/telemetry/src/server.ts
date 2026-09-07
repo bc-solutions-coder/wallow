@@ -1,3 +1,5 @@
+import type { TelemetryLogger } from "./logger-types.js";
+import { readTelemetryConfig, type TelemetryOptions } from "./configuration.js";
 import { fetchWithContext } from "./propagation.js";
 import { LIMITS, NANOSECONDS_PER_MILLISECOND } from "./limits.js";
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -11,32 +13,19 @@ const SPAN_ERROR = 2;
 const SPAN_OK = 1;
 const SERVER_ERROR_STATUS = 500;
 const START = 0;
+const identifier = /^[A-Za-z0-9_.-]{1,128}$/u;
 
 export type { ExportStats } from "./exporter.js";
 
-export interface TelemetryLogger {
-  debug: (event: string, attrs?: Record<string, unknown>, error?: unknown) => void;
-  info: (event: string, attrs?: Record<string, unknown>, error?: unknown) => void;
-  warn: (event: string, attrs?: Record<string, unknown>, error?: unknown) => void;
-  error: (event: string, attrs?: Record<string, unknown>, error?: unknown) => void;
-  child: (attrs: Record<string, unknown>) => TelemetryLogger;
-}
+export type { TelemetryLogger } from "./logger-types.js";
 
-export interface TelemetryOptions {
-  endpoint?: string;
-  credential?: string;
-  environment?: string;
-  release?: string;
-  /** Exact HTTP origins to which trace context may be sent. */
-  ownedOrigins?: readonly string[];
-}
+export type { TelemetryOptions } from "./configuration.js";
 
 interface SpanContext {
   traceId: string;
   spanId: string;
 }
 const context = new AsyncLocalStorage<SpanContext & { failed: boolean }>();
-const identifier = /^[A-Za-z0-9_.-]{1,128}$/u;
 function attributes(values: Record<string, unknown>) {
   return Object.entries(values).map(([key, value]) => {
     if (typeof value === "number") {
@@ -68,30 +57,7 @@ function parent(header: string | null): SpanContext | undefined {
 
 /** Initialize explicitly after loading server configuration. Importing this entry captures nothing. */
 export function initializeTelemetry(options: TelemetryOptions = {}) {
-  const endpoint = options.endpoint ?? process.env.WALLOW_TELEMETRY_ENDPOINT;
-  const credential = options.credential ?? process.env.WALLOW_TELEMETRY_CREDENTIAL;
-  const environment =
-    options.environment ?? process.env.WALLOW_TELEMETRY_ENVIRONMENT ?? "production";
-  const release = options.release ?? process.env.WALLOW_TELEMETRY_RELEASE ?? "unknown";
-  if (endpoint === undefined || credential === undefined) {
-    throw new Error("Telemetry endpoint and server credential are required");
-  }
-  const destination = new URL(endpoint);
-  if (
-    !/^https?:$/u.test(destination.protocol) ||
-    destination.username !== "" ||
-    destination.password !== "" ||
-    destination.search !== "" ||
-    destination.hash !== ""
-  ) {
-    throw new Error("Invalid telemetry endpoint");
-  }
-  if (!/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/u.test(credential)) {
-    throw new Error("Invalid telemetry credential");
-  }
-  if (!identifier.test(environment) || !identifier.test(release)) {
-    throw new Error("Invalid telemetry environment or release");
-  }
+  const { destination, credential, environment, release } = readTelemetryConfig(options);
   const exporter = createExporter({
     endpoint: destination.href.replace(/\/$/u, ""),
     credential,
@@ -317,3 +283,6 @@ export function initializeTelemetry(options: TelemetryOptions = {}) {
     },
   };
 }
+
+export { createBrowserRelay } from "./relay.js";
+export type { BrowserRelayOptions, TelemetrySession } from "./relay.js";

@@ -10,7 +10,11 @@
   "workspaces": {
     ".": {
       "ignoreDependencies": ["@arethetypeswrong/cli", "publint"],
-      "entry": ["scripts/external-consumer.mjs", "scripts/telemetry-consumer.mjs"]
+      "entry": [
+        "scripts/external-consumer.mjs",
+        "scripts/telemetry-consumer.mjs",
+        "scripts/browser-telemetry-consumer.mjs"
+      ]
     },
     "apps/*": {
       "entry": [
@@ -24,6 +28,7 @@
     "apps/minimal-app": {
       "entry": ["src/routes/**/*.{ts,tsx}"]
     },
+    "packages/telemetry": { "entry": ["scripts/browser-consumer.mjs"] },
     "packages/sdk": {
       "entry": ["scripts/generate.ts"]
     }
