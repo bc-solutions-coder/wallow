@@ -551,8 +551,21 @@ public sealed partial class AccountController(
         WallowUser? existingUser = await signInManager.UserManager.FindByEmailAsync(email);
         if (existingUser is not null)
         {
-            await signInManager.UserManager.AddLoginAsync(
+            if (!emailVerified)
+            {
+                Response.Cookies.Delete("ExternalLoginState");
+                return Redirect($"{authUrl}/login?error=external_login_failed");
+            }
+
+            IdentityResult existingUserLoginResult = await signInManager.UserManager.AddLoginAsync(
                 existingUser, new UserLoginInfo(loginProvider, providerKey, loginProvider));
+            if (!existingUserLoginResult.Succeeded)
+            {
+                LogExternalLoginFailed(loginProvider, "Failed to link external login to existing account");
+                Response.Cookies.Delete("ExternalLoginState");
+                return Redirect($"{authUrl}/login?error=external_login_failed");
+            }
+
             await signInManager.SignInAsync(existingUser, isPersistent: false);
             Response.Cookies.Delete("ExternalLoginState");
             return Redirect(validatedReturnUrl);

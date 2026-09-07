@@ -568,6 +568,38 @@ public class AccountControllerAdditionalTests
 
         RedirectResult redirect = result.Should().BeOfType<RedirectResult>().Subject;
         redirect.Url.Should().Be("http://app.test.com");
+        await _signInManager.Received(1).SignInAsync(existingUser, false, null);
+    }
+
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    public async Task CompleteExternalRegistration_WithUnverifiedEmailOrFailedLink_DoesNotSignIn(
+        bool emailVerified, bool linkSucceeds)
+    {
+        IDataProtector protector = _dataProtectionProvider.CreateProtector("ExternalLogin");
+        string cookieValue = protector.Protect($"Google|key-123|existing@test.com|Jane|Doe|{emailVerified}");
+        DefaultHttpContext httpContext = CreateHttpContextWithAuth();
+        httpContext.Request.Headers.Append("Cookie", $"ExternalLoginState={Uri.EscapeDataString(cookieValue)}");
+        _controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+        _redirectUriValidator.IsAllowedAsync("http://app.test.com", Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+        WallowUser existingUser = WallowUser.Create("Jane", "Doe", "existing@test.com", TimeProvider.System);
+        _userManager.FindByEmailAsync("existing@test.com").Returns(existingUser);
+        _userManager.AddLoginAsync(existingUser, Arg.Any<UserLoginInfo>()).Returns(
+            linkSucceeds ? IdentityResult.Success : IdentityResult.Failed(new IdentityError { Code = "LoginAlreadyAssociated" }));
+
+        IActionResult result = await _controller.CompleteExternalRegistration(
+            acceptedTerms: true, returnUrl: "http://app.test.com");
+
+        RedirectResult redirect = result.Should().BeOfType<RedirectResult>().Subject;
+        redirect.Url.Should().Be("http://localhost:5002/login?error=external_login_failed");
+        await _signInManager.DidNotReceive().SignInAsync(existingUser, Arg.Any<bool>(), Arg.Any<string?>());
+        if (!emailVerified)
+        {
+            await _userManager.DidNotReceive().AddLoginAsync(existingUser, Arg.Any<UserLoginInfo>());
+        }
+        httpContext.Response.Headers.SetCookie.ToString().Should().Contain("ExternalLoginState=;");
     }
 
     [Fact]
