@@ -1,4 +1,5 @@
 import { defineConfig } from "@hey-api/openapi-ts";
+import { createQueryDocumentationHooks } from "./scripts/query-documentation";
 
 export default defineConfig({
   input: "./openapi/v1.json",
@@ -22,6 +23,7 @@ export default defineConfig({
     { name: "@hey-api/sdk", responseStyle: "data" },
     {
       name: "@tanstack/react-query",
+      $hooks: createQueryDocumentationHooks(),
       queryOptions: true,
       // `tags` is what `src/query/invalidations.ts` sweeps by — hey-api emits no
       // hierarchical key prefix, so without them a subtree invalidation has

@@ -57,19 +57,12 @@ export interface ValkeySessionStoreOptions {
 }
 
 /**
- * Persists {@link BffSession} state in a Redis-compatible server and references
- * it from the cookie via an opaque sealed session id.
+ * Persist BFF sessions in Redis or Valkey with sealed cookie references.
  *
- * The reference stored in the cookie is the session id sealed with
- * iron-webcrypto — it leaks no user data and cannot be forged without the
- * cookie password. Server records are namespaced under
- * `<prefix>:session:<id>`; refresh locks under `<prefix>:refreshlock:<id>`.
- *
- * For back-channel logout the store also indexes each session at write time:
- * `<prefix>:sid:<sid>` maps the OP session id to the local session id, and the
- * `<prefix>:sub:<sub>` set collects the subject's session ids — both live as
- * long as the record and are cleared with it, so {@link revokeBySid} and
- * {@link revokeBySubject} resolve without scanning.
+ * Stores tokens server-side and maintains session-ID and subject indexes for back-channel
+ * logout. Use a distinct keyPrefix for each BFF identity, or set BFF_APP_ID with
+ * createWallowBffServer. Session writes reset the configured record TTL; refresh locks are
+ * shared across instances using the same namespace.
  */
 export class ValkeySessionStore implements SessionStore {
   private readonly client: RedisLike;
@@ -78,6 +71,11 @@ export class ValkeySessionStore implements SessionStore {
   private readonly lockTtlSeconds: number;
   private readonly keyPrefix: string;
 
+  /**
+   * Create a session store over the supplied RedisLike client. Defaults to a one-day record
+   * TTL, ten-second refresh locks, and the wallow key prefix. The host owns client
+   * connection setup and teardown.
+   */
   constructor(options: ValkeySessionStoreOptions) {
     this.client = options.client;
     this.password = options.password;
@@ -107,12 +105,9 @@ export class ValkeySessionStore implements SessionStore {
   }
 
   /**
-   * Stamp this store's key namespace with the BFF's identity, first claimer
-   * wins. `null` means the namespace is (now) ours; a string is the different
-   * identity already writing here — the multi-BFF misconfiguration the caller
-   * should warn about. The marker carries the session TTL and is refreshed on
-   * every matching claim, so a retired identity ages out with its sessions
-   * rather than warning forever.
+   * Record the BFF identity occupying this key namespace. Returns null when the claim
+   * succeeds or matches, otherwise the conflicting owner. Matching claims renew the marker
+   * for the session TTL.
    */
   async claimNamespace(owner: string): Promise<string | null> {
     const key: string = this.ownerKey();
@@ -159,6 +154,10 @@ export class ValkeySessionStore implements SessionStore {
     }
   }
 
+  /**
+   * Resolve a sealed reference to its server-side session record. Returns null for an
+   * invalid reference, missing record, or unreadable JSON. Redis failures propagate.
+   */
   async read(ref: string): Promise<BffSession | null> {
     const id: string | null = await this.refToId(ref);
     if (id === null) {
@@ -175,6 +174,11 @@ export class ValkeySessionStore implements SessionStore {
     }
   }
 
+  /**
+   * Persist the session and update its sid and subject indexes, resetting their TTLs. Reuses
+   * sessionId when present or generates one, then returns a sealed reference for the browser
+   * cookie. Redis and sealing failures propagate.
+   */
   async write(session: BffSession): Promise<string> {
     const id: string = session.sessionId || randomUrlSafe(SESSION_ID_BYTES);
     const record: BffSession = { ...session, sessionId: id };
@@ -191,6 +195,10 @@ export class ValkeySessionStore implements SessionStore {
     return seal(webCrypto, id, sealPassword(this.password), defaults);
   }
 
+  /**
+   * Delete the session record and its index entries. Invalid references are ignored. Does
+   * not clear browser cookies or revoke tokens at the issuer.
+   */
   async destroy(ref: string): Promise<void> {
     const id: string | null = await this.refToId(ref);
     if (id === null) {
@@ -220,6 +228,11 @@ export class ValkeySessionStore implements SessionStore {
     return record;
   }
 
+  /**
+   * Delete the session currently indexed by the issuer sid and return its record. If
+   * multiple logins used the same sid, only the latest indexed session is targeted. Missing
+   * records return an empty array.
+   */
   async revokeBySid(sid: string): Promise<BffSession[]> {
     const id: string | null = await this.client.get(this.sidKey(sid));
     if (id === null) {
@@ -231,6 +244,10 @@ export class ValkeySessionStore implements SessionStore {
     return record === null ? [] : [record];
   }
 
+  /**
+   * Delete every session indexed for the issuer subject and return the removed records.
+   * Prunes stale index members. Does not itself revoke tokens at the issuer.
+   */
   async revokeBySubject(sub: string): Promise<BffSession[]> {
     const ids: string[] = await this.client.smembers(this.subjectKey(sub));
     const records: (BffSession | null)[] = await Promise.all(
@@ -246,6 +263,11 @@ export class ValkeySessionStore implements SessionStore {
     return records.filter((record: BffSession | null): record is BffSession => record !== null);
   }
 
+  /**
+   * Attempt the shared refresh lock and run fn only when acquired. Returns undefined
+   * immediately for an invalid reference or a contended lock. Releases the lock after fn
+   * settles; lockTtlSeconds bounds the lock lifetime.
+   */
   async withRefreshLock<T>(ref: string, fn: () => Promise<T>): Promise<T | undefined> {
     const id: string | null = await this.refToId(ref);
     if (id === null) {

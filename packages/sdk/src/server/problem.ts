@@ -106,14 +106,18 @@ export interface ProblemResponseOptions {
 }
 
 /**
- * Render an originated problem: an RFC 7807 body in the API's envelope with a
- * top-level `code`, `application/problem+json`, and the request id on both the
- * body and the header.
+ * Create an application/problem+json response for a server-originated failure.
  *
- * @param status The HTTP status the hop answers with.
- * @param code The machine-readable code, from `ErrorCode` or `ClientErrorCode`.
- * @param options The request id, an optional detail override, and any headers
- *   already accumulated for the response.
+ * Includes about:blank, status, code, a fixed title, and requestId in both body and header.
+ * Copies optional response headers without mutating them. Known codes receive default detail
+ * text; unknown codes use the code as title.
+ *
+ * @param status HTTP failure status.
+ *
+ * @param code Machine-readable ErrorCode or ClientErrorCode value.
+ *
+ * @param options Request correlation, optional fixed detail text, and headers such as
+ * Set-Cookie.
  */
 export function problemResponse(
   status: number,

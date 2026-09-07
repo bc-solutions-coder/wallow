@@ -55,7 +55,15 @@ public partial class OrganizationClientBrandingController(
     private static readonly string[] _themeColorKeys = ["primary", "primaryForeground"];
     private static readonly Regex _colorPattern = _colorPatternRegex();
 
-    /// <summary>The client's branding as its organization sees it.</summary>
+    /// <summary>
+    /// Get an application client's branding.
+    /// </summary>
+    /// <remarks>
+    /// Requires OrganizationClientsManage and access to the owning organization through the current tenant,
+    /// global administration, or client-management membership. Returns the display name, tagline, theme JSON,
+    /// and a temporary logo URL when a logo exists. Returns 404 for inaccessible organizations, unknown clients,
+    /// service accounts, or missing branding.
+    /// </remarks>
     [HttpGet]
     [ProducesResponseType(typeof(ClientBrandingDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -77,11 +85,20 @@ public partial class OrganizationClientBrandingController(
     }
 
     /// <summary>
-    /// Replaces display name, tagline and theme. Omitting tagline or theme clears it; omitting
-    /// the logo preserves it. Use <c>DELETE branding/logo</c> to remove the logo.
-    /// Themes accept <c>primary</c> and <c>primaryForeground</c> in <c>light</c>/<c>dark</c> modes.
-    /// The display name cannot match the platform name.
+    /// Replace an application client's branding.
     /// </summary>
+    /// <remarks>
+    /// Requires OrganizationClientsManage and access to the owning organization through the current tenant,
+    /// global administration, or client-management membership. Returns the saved branding and updates the client
+    /// display name used for authentication. Omitting tagline or theme clears it; omitting the logo preserves
+    /// it. Invalid names, themes, or image content return a validation error; inaccessible clients and service
+    /// accounts return 404.
+    /// </remarks>
+    /// <param name="request">Replacement display name, optional tagline, and theme JSON. The display name cannot match the platform name; themes accept primary and primaryForeground colors in light and dark modes.</param>
+    /// <param name="logo">Optional PNG, JPEG, or WebP image up to 2 MiB. Replaces the existing logo; use the logo deletion endpoint to remove it.</param>
+    /// <param name="orgId">Organization that owns the client.</param>
+    /// <param name="clientId">Client identifier within the organization.</param>
+    /// <param name="ct">Cancels the request.</param>
     [HttpPut]
     [EnableRateLimiting("registration")]
     [Consumes("multipart/form-data")]
@@ -241,7 +258,15 @@ public partial class OrganizationClientBrandingController(
         }
     }
 
-    /// <summary>Remove the client's logo. The rest of the branding stays.</summary>
+    /// <summary>
+    /// Remove an application client's logo.
+    /// </summary>
+    /// <remarks>
+    /// Requires OrganizationClientsManage and access to the owning organization through the current tenant,
+    /// global administration, or client-management membership. Deletes the stored logo and clears its URL while
+    /// preserving the other branding fields. Returns no content if the branding already has no logo, or 404 for
+    /// inaccessible clients, service accounts, or missing branding.
+    /// </remarks>
     [HttpDelete("logo")]
     [EnableRateLimiting("registration")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

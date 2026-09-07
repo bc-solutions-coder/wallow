@@ -62,6 +62,13 @@ public sealed partial class AccountController(
 
     private static readonly TimeSpan _ticketLifetime = TimeSpan.FromSeconds(60);
 
+    /// <summary>
+    /// List external sign-in providers.
+    /// </summary>
+    /// <remarks>
+    /// Available without authentication. Returns provider scheme names accepted by external-login for the browser
+    /// sign-in flow.
+    /// </remarks>
     [HttpGet("external-providers")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(IReadOnlyList<string>), StatusCodes.Status200OK)]
@@ -75,6 +82,15 @@ public sealed partial class AccountController(
         return Ok(providers);
     }
 
+    /// <summary>
+    /// Check a password and begin browser sign-in.
+    /// </summary>
+    /// <remarks>
+    /// Available without authentication. Success returns a signInTicket valid for 60 seconds for browser navigation
+    /// to exchange-ticket, rather than an access token. MFA challenge or enrollment requirements can instead set a
+    /// five-minute partial-auth cookie and return the corresponding flags. RememberMe controls the eventual sign-in
+    /// cookie persistence; failed password attempts count toward account lockout.
+    /// </remarks>
     [HttpPost("login")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(AccountLoginResponse), StatusCodes.Status200OK)]
@@ -175,6 +191,14 @@ public sealed partial class AccountController(
         return this.Problem(IdentityErrors.AuthInvalidCredentials);
     }
 
+    /// <summary>
+    /// Complete a pending MFA sign-in challenge.
+    /// </summary>
+    /// <remarks>
+    /// Requires the five-minute MFA partial-auth cookie from the browser sign-in flow. Accepts a current TOTP code or
+    /// a backup code, which is consumed on success. Success replaces partial authentication with a full sign-in
+    /// cookie and returns a signInTicket; repeated invalid codes can lock MFA verification.
+    /// </remarks>
     [HttpPost("mfa/verify")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(MfaChallengeResponse), StatusCodes.Status200OK)]
@@ -245,6 +269,17 @@ public sealed partial class AccountController(
         return Ok(new { succeeded = true, signInTicket });
     }
 
+    /// <summary>
+    /// Redirect the browser to an external sign-in provider.
+    /// </summary>
+    /// <remarks>
+    /// Available without authentication and intended for browser navigation. The provider must be a configured
+    /// authentication scheme, and returnUrl must use an allowed origin. The challenge carries client context through
+    /// the provider callback.
+    /// </remarks>
+    /// <param name="provider">A scheme name returned by external-providers.</param>
+    /// <param name="returnUrl">Absolute destination on an allowed redirect origin.</param>
+    /// <param name="clientId">Optional OIDC client identifier used to restrict allowed redirect origins.</param>
     [HttpGet("external-login")]
     [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status302Found)]
@@ -286,6 +321,17 @@ public sealed partial class AccountController(
         return Challenge(properties, provider);
     }
 
+    /// <summary>
+    /// Complete the external provider callback.
+    /// </summary>
+    /// <remarks>
+    /// Consumes the external authentication state created by external-login and redirects the browser. An existing
+    /// provider link can establish sign-in or require MFA; a verified provider email can link an existing account.
+    /// New registrations receive a temporary ExternalLoginState cookie and continue to the terms page. Invalid return
+    /// destinations fall back to the configured authentication app.
+    /// </remarks>
+    /// <param name="returnUrl">Destination carried through the external sign-in flow.</param>
+    /// <param name="clientId">Optional client identifier; falls back to the value stored in external authentication state.</param>
     [HttpGet("external-login-callback")]
     [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status302Found)]
@@ -424,6 +470,18 @@ public sealed partial class AccountController(
         return Redirect($"{authUrl}/accept-terms?returnUrl={encodedReturnUrl}&email={encodedEmail}&name={encodedName}{clientIdQuery}");
     }
 
+    /// <summary>
+    /// Finish external registration after terms acceptance.
+    /// </summary>
+    /// <remarks>
+    /// Requires the ExternalLoginState browser cookie from the external callback and acceptedTerms=true. Creates or
+    /// links the account, signs in with a nonpersistent cookie, and clears the registration cookie. New accounts
+    /// receive email verification when the provider email is unverified; the browser redirects to the validated
+    /// return destination.
+    /// </remarks>
+    /// <param name="acceptedTerms">Whether the user accepted the terms.</param>
+    /// <param name="returnUrl">Allowed absolute return destination; otherwise the authentication app is used.</param>
+    /// <param name="clientId">Optional client identifier for redirect-origin validation.</param>
     [HttpGet("complete-external-registration")]
     [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status302Found)]
@@ -584,6 +642,17 @@ public sealed partial class AccountController(
         return Redirect(validatedReturnUrl);
     }
 
+    /// <summary>
+    /// Exchange a sign-in ticket for a browser cookie.
+    /// </summary>
+    /// <remarks>
+    /// Available without authentication and intended for browser navigation. Accepts a signInTicket issued within 60
+    /// seconds, consumes it once, and sets the Identity sign-in cookie with its requested persistence. Redirects to a
+    /// local returnUrl or an allowed absolute origin, falling back to the authentication app.
+    /// </remarks>
+    /// <param name="ticket">The signInTicket returned by login, MFA verification, or passwordless verification.</param>
+    /// <param name="returnUrl">Optional local route or allowed absolute return destination.</param>
+    /// <param name="clientId">Optional OIDC client identifier used to restrict allowed redirect origins.</param>
     [HttpGet("exchange-ticket")]
     [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status302Found)]
@@ -635,6 +704,18 @@ public sealed partial class AccountController(
         return Redirect(authUrl);
     }
 
+    /// <summary>
+    /// Check whether a redirect origin is allowed.
+    /// </summary>
+    /// <remarks>
+    /// Available without authentication. Checks the absolute URI origin against registered sign-in and post-logout
+    /// origins plus the authentication app origin. A clientId limits registered origins to that client; omission
+    /// checks all clients. Returns allowed=false for missing or invalid URIs; this does not validate an exact OIDC
+    /// redirect URI.
+    /// </remarks>
+    /// <param name="uri">Absolute URI whose origin is checked.</param>
+    /// <param name="clientId">Optional OIDC client identifier that limits the registered origins.</param>
+    /// <param name="ct">Cancels the request.</param>
     [HttpGet("redirect-uri/validate")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(RedirectUriValidationResponse), StatusCodes.Status200OK)]
@@ -652,6 +733,16 @@ public sealed partial class AccountController(
         return Ok(new { allowed = result });
     }
 
+    /// <summary>
+    /// Clear the browser sign-in cookie.
+    /// </summary>
+    /// <remarks>
+    /// Requires authentication and a form submission in the browser sign-out flow. Clears the Identity cookies, then
+    /// redirects to the authentication app logout page. An invalid post-logout origin redirects to the error page
+    /// after sign-out.
+    /// </remarks>
+    /// <param name="postLogoutRedirectUri">Optional absolute post-logout destination on an allowed origin.</param>
+    /// <param name="clientId">Optional OIDC client identifier used to restrict allowed redirect origins.</param>
     [HttpPost("sign-out")]
     [Authorize]
     [ProducesResponseType(StatusCodes.Status302Found)]
@@ -681,6 +772,15 @@ public sealed partial class AccountController(
         return Redirect(redirectUrl);
     }
 
+    /// <summary>
+    /// Register an account and request email verification.
+    /// </summary>
+    /// <remarks>
+    /// Available without authentication and does not sign the user in or grant organization membership.
+    /// LoginMethod=passwordless creates an account without a password; other values require matching password fields
+    /// and the password policy. A supplied clientId must identify an existing client, and an allowed returnUrl is
+    /// carried into the verification link. Returns succeeded=true after requesting the verification email.
+    /// </remarks>
     [HttpPost("register")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(AccountOperationResponse), StatusCodes.Status200OK)]
@@ -755,6 +855,15 @@ public sealed partial class AccountController(
         return Ok(new { succeeded = true });
     }
 
+    /// <summary>
+    /// Look up the organization associated with an OIDC client.
+    /// </summary>
+    /// <remarks>
+    /// Available without authentication. Returns the client tenantId and organization name, or a not-found problem
+    /// for an unknown client. An existing client without a valid tenant binding returns the empty GUID and no
+    /// organization name.
+    /// </remarks>
+    /// <param name="clientId">The public OIDC client identifier, not the application record ID.</param>
     [HttpGet("client-tenant/{clientId}")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(ClientTenantResponse), StatusCodes.Status200OK)]
@@ -769,6 +878,13 @@ public sealed partial class AccountController(
         return Ok(new { tenantId = tenantInfo.TenantId, orgName = tenantInfo.TenantName });
     }
 
+    /// <summary>
+    /// Request a password-reset email.
+    /// </summary>
+    /// <remarks>
+    /// Available without authentication. Requests a reset email only for an existing account with a confirmed email
+    /// address. Unknown and unconfirmed addresses receive the same succeeded=true response.
+    /// </remarks>
     [HttpPost("forgot-password")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(AccountOperationResponse), StatusCodes.Status200OK)]
@@ -796,6 +912,14 @@ public sealed partial class AccountController(
         return Ok(new { succeeded = true });
     }
 
+    /// <summary>
+    /// Reset a password using an emailed token.
+    /// </summary>
+    /// <remarks>
+    /// Available without authentication. Uses the email and reset token from the recovery link to set NewPassword,
+    /// subject to the password policy. Returns succeeded=true and publishes the password-change notification; an
+    /// unknown account or invalid token returns a token problem.
+    /// </remarks>
     [HttpPost("reset-password")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(AccountOperationResponse), StatusCodes.Status200OK)]
@@ -827,6 +951,15 @@ public sealed partial class AccountController(
         return Ok(new { succeeded = true });
     }
 
+    /// <summary>
+    /// Confirm an account email address.
+    /// </summary>
+    /// <remarks>
+    /// Available without authentication. Accepts the email and confirmation token from the verification link. Success
+    /// confirms the address and publishes the email-verification event without signing the user in.
+    /// </remarks>
+    /// <param name="email">Email address from the verification link.</param>
+    /// <param name="token">Email-confirmation token from the verification link.</param>
     [HttpGet("verify-email")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(AccountOperationResponse), StatusCodes.Status200OK)]
@@ -855,6 +988,14 @@ public sealed partial class AccountController(
         return Ok(new { succeeded = true });
     }
 
+    /// <summary>
+    /// Request a passwordless sign-in link.
+    /// </summary>
+    /// <remarks>
+    /// Available without authentication. Requests an email for an existing account and carries ReturnUrl and ClientId
+    /// into the link flow. Unknown addresses receive the same succeeded=true response. Magic-link and OTP sends share
+    /// a per-address rate limit.
+    /// </remarks>
     [HttpPost("passwordless/magic-link")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(AccountOperationResponse), StatusCodes.Status200OK)]
@@ -870,6 +1011,17 @@ public sealed partial class AccountController(
         return Ok(new { succeeded = true });
     }
 
+    /// <summary>
+    /// Verify a passwordless sign-in link.
+    /// </summary>
+    /// <remarks>
+    /// Available without authentication. Validates the emailed token and removes it after successful validation.
+    /// Returns the email and a signInTicket valid for 60 seconds for browser navigation to exchange-ticket; it does
+    /// not return an access token.
+    /// </remarks>
+    /// <param name="token">Complete token from the emailed magic link.</param>
+    /// <param name="rememberMe">Whether the eventual browser sign-in cookie persists across browser sessions.</param>
+    /// <param name="ct">Cancels the request.</param>
     [HttpGet("passwordless/magic-link/verify")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(PasswordlessVerificationResponse), StatusCodes.Status200OK)]
@@ -886,6 +1038,14 @@ public sealed partial class AccountController(
         return Ok(new { succeeded = true, email, signInTicket });
     }
 
+    /// <summary>
+    /// Request an email sign-in code.
+    /// </summary>
+    /// <remarks>
+    /// Available without authentication. Sends a six-digit code for an existing account, replacing any earlier code
+    /// for that email address. Unknown addresses receive the same succeeded=true response. OTP and magic-link sends
+    /// share a per-address rate limit.
+    /// </remarks>
     [HttpPost("passwordless/otp")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(AccountOperationResponse), StatusCodes.Status200OK)]
@@ -901,6 +1061,14 @@ public sealed partial class AccountController(
         return Ok(new { succeeded = true });
     }
 
+    /// <summary>
+    /// Verify an email sign-in code.
+    /// </summary>
+    /// <remarks>
+    /// Available without authentication. Accepts the email and six-digit code, then removes the stored code on
+    /// success. Returns the email and a signInTicket valid for 60 seconds for browser navigation to exchange-ticket;
+    /// RememberMe controls the eventual cookie persistence.
+    /// </remarks>
     [HttpPost("passwordless/otp/verify")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(PasswordlessVerificationResponse), StatusCodes.Status200OK)]
@@ -917,6 +1085,14 @@ public sealed partial class AccountController(
         return Ok(new { succeeded = true, email, signInTicket });
     }
 
+    /// <summary>
+    /// Request a change to the current user email.
+    /// </summary>
+    /// <remarks>
+    /// Requires an authenticated user. Records a pending email change with a 24-hour expiry and requests a
+    /// confirmation email to NewEmail. The current address remains in use until confirmation; unchanged addresses and
+    /// requests exceeding the per-user rate limit return problems.
+    /// </remarks>
     [HttpPost("change-email")]
     [Authorize]
     [ProducesResponseType(typeof(AccountOperationResponse), StatusCodes.Status200OK)]
@@ -964,6 +1140,17 @@ public sealed partial class AccountController(
         return Ok(new { succeeded = true });
     }
 
+    /// <summary>
+    /// Confirm a requested email change.
+    /// </summary>
+    /// <remarks>
+    /// Available without authentication. Uses the userId, newEmail, and token from the confirmation link to update
+    /// both email and username. Clears the pending change and publishes the email-change event on success; expired
+    /// pending requests or invalid tokens return problems.
+    /// </remarks>
+    /// <param name="token">Email-change confirmation token from the emailed link.</param>
+    /// <param name="userId">User identifier from the confirmation link.</param>
+    /// <param name="newEmail">New email address bound to the confirmation token.</param>
     [HttpGet("confirm-email-change")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(AccountOperationResponse), StatusCodes.Status200OK)]

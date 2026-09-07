@@ -26,6 +26,15 @@ namespace Wallow.Notifications.Api.Controllers;
 [Consumes("application/json")]
 public class UserNotificationSettingsController(IMessageBus bus, ICurrentUserService currentUserService) : ControllerBase
 {
+    /// <summary>
+    /// Get the current user's notification preferences.
+    /// </summary>
+    /// <remarks>
+    /// Requires EmailPreferenceManage and an authenticated user in the current tenant. Returns stored
+    /// preferences grouped by channel, with each channel's overall enabled state and per-type overrides.
+    /// Channels without stored preferences are omitted; delivery defaults to enabled when no preference disables
+    /// it.
+    /// </remarks>
     [HttpGet]
     [HasPermission(PermissionType.EmailPreferenceManage)]
     [ProducesResponseType(typeof(UserNotificationSettingsResponse), StatusCodes.Status200OK)]
@@ -44,6 +53,14 @@ public class UserNotificationSettingsController(IMessageBus bus, ICurrentUserSer
         return result.Map(ToResponse).ToActionResult();
     }
 
+    /// <summary>
+    /// Enable or disable a notification channel.
+    /// </summary>
+    /// <remarks>
+    /// Requires EmailPreferenceManage and applies to the authenticated user in the current tenant. Creates or
+    /// replaces the channel-wide preference without removing per-type preferences. Disabling the channel
+    /// overrides all of its per-type settings; enabling it leaves individually disabled types disabled.
+    /// </remarks>
     [HttpPut("channel")]
     [HasPermission(PermissionType.EmailPreferenceManage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -70,6 +87,14 @@ public class UserNotificationSettingsController(IMessageBus bus, ICurrentUserSer
         return NoContent();
     }
 
+    /// <summary>
+    /// Enable or disable a notification type on a channel.
+    /// </summary>
+    /// <remarks>
+    /// Requires EmailPreferenceManage and applies to the authenticated user in the current tenant. Creates or
+    /// replaces the preference for the specified channel and notification type. Enabling a type does not
+    /// override a disabled channel; the notification type * addresses the channel-wide preference.
+    /// </remarks>
     [HttpPut("type")]
     [HasPermission(PermissionType.EmailPreferenceManage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

@@ -1,17 +1,5 @@
 /**
- * The `/api` reverse proxy for the BFF tunnel with silent token refresh.
- *
- * `ensureFreshSession` is a pure helper that transparently refreshes the OIDC
- * access token when it is within {@link EXPIRY_SKEW_MS} of expiry.
- * `createApiProxy` is the web-standard handler that reads the session, ensures
- * it is fresh, strips the `/api` prefix, and forwards the request to the
- * downstream API with a `Bearer` token.
- *
- * Only the transport shell changed shape in the h3 port (Wallow-pu6a.3.3): the
- * refresh lock, 401 retry, login-redirect classification, `Retry-After`
- * honouring, and RFC 7807 passthrough are unchanged from the h3 revision. The
- * shell gained a path allowlist and a non-relative upstream URL construction,
- * neither of which h3's router made the handler's business.
+ * Authenticated /api proxy with session refresh, bounded request replay, and problem responses.
  */
 import {
   ApiFailure,
@@ -151,22 +139,25 @@ class UpstreamError extends ApiFailure {
 }
 
 /**
- * Ensure the session's access token is fresh, refreshing it when it is within
- * {@link EXPIRY_SKEW_MS} of expiry.
+ * Refresh a session when its access token expires within 30 seconds.
  *
- * The refresh runs inside {@link SessionStore.withRefreshLock} so concurrent
- * requests for the same session cannot rotate the refresh token in parallel.
- * When the lock is already held by a peer request (`withRefreshLock` resolves
- * to `undefined`), the freshly-refreshed session is re-read from the store
- * instead of refreshing a second time.
+ * Runs refresh through the store lock and persists rotated tokens. A store that declines a
+ * contended lock causes an immediate session reread; cookie stores can join the in-flight
+ * refresh instead. This helper does not write response cookies or destroy failed sessions.
  *
- * @param session The current session.
- * @param config BFF configuration.
- * @param store The session store used to lock, persist, and re-read sessions.
- * @param ref The opaque store reference for this session.
- * @returns The (possibly refreshed) session.
- * @throws When the token is expired and no refresh token is available, or when
- *   the lock is held but the store no longer has the session.
+ * @param session Current session; expiresAt is epoch milliseconds.
+ *
+ * @param config OIDC client configuration.
+ *
+ * @param store Store shared with the handlers that issued the session.
+ *
+ * @param ref Opaque reference read from the session cookie.
+ *
+ * @returns The refreshed or adopted session, or the unchanged session when the token is still
+ * fresh.
+ *
+ * @throws {RefreshFailedError} When a refresh token is missing, discovery or refresh fails, or
+ * the contended session no longer exists. Other store failures propagate.
  */
 export async function ensureFreshSession(
   session: BffSession,
@@ -250,21 +241,24 @@ async function refreshUnderLock(
 }
 
 /**
- * Refresh the session's tokens unconditionally, whatever the local expiry says.
+ * Refresh a session even when its access token has not expired.
  *
- * Used for the reactive path: the upstream API rejected a token the BFF still
- * believed was fresh (revoked, rotated out of band, or clock skew), so
- * {@link ensureFreshSession} would be a no-op. Runs inside
- * {@link SessionStore.withRefreshLock} and persists the rotated session exactly
- * like {@link ensureFreshSession} does.
+ * Runs refresh through the store lock and persists rotated tokens. A store that declines a
+ * contended lock causes an immediate session reread; cookie stores can join the in-flight
+ * refresh instead. This helper does not write response cookies or destroy failed sessions.
  *
- * @param session The current session.
- * @param config BFF configuration.
- * @param store The session store used to lock, persist, and re-read sessions.
- * @param ref The opaque store reference for this session.
- * @returns The refreshed session.
- * @throws When no refresh token is available, or when the lock is held but the
- *   store no longer has the session.
+ * @param session Current session; expiresAt is epoch milliseconds.
+ *
+ * @param config OIDC client configuration.
+ *
+ * @param store Store shared with the handlers that issued the session.
+ *
+ * @param ref Opaque reference read from the session cookie.
+ *
+ * @returns The refreshed or adopted session.
+ *
+ * @throws {RefreshFailedError} When a refresh token is missing, discovery or refresh fails, or
+ * the contended session no longer exists. Other store failures propagate.
  */
 export async function forceRefreshSession(
   session: BffSession,
@@ -292,30 +286,28 @@ async function forceRefreshStored(
 }
 
 /**
- * Forward a request to the downstream API with the Appendix B resilience
- * behaviours.
+ * Forward a buffered request with a session bearer and at most one replay.
  *
- * Each attempt runs with `redirect: "manual"` (so an auth cookie redirect to
- * the login page is observable rather than silently followed) under an
- * {@link AbortController} bounded by {@link FORWARD_TIMEOUT_MS}.
+ * A 401 or redirect to /account/login triggers token refresh when a refresh token exists. A 429
+ * instead retries after Retry-After, capped at five seconds. Each attempt has a 30-second
+ * timeout; other redirects are returned for the caller to handle.
  *
- * Reactive classification, each retried at most once:
- * - `401` — the token was rejected: force a refresh and replay the request.
- * - `3xx` whose `Location` points at the login page: the same auth failure in
- *   redirect clothing; force a refresh and replay the request.
- * - `429` — wait for `Retry-After` (bounded by {@link MAX_RETRY_AFTER_MS}) and
- *   replay the request.
+ * @param request Absolute API target, method, headers, and replayable body. This helper does not
+ * restrict the target URL.
  *
- * @param request The materialised request to forward.
- * @param config BFF configuration.
- * @param store The session store, used to refresh under lock.
- * @param session The session whose access token authorises the forward.
- * @param ref The opaque store reference for this session.
- * @returns The upstream response plus the session it was made with.
- * @throws {ApiFailure} With the upstream status and parsed RFC 7807 details
- *   for a non-OK response, `503 Transport.NetworkError` for a transport
- *   failure, and `504 Transport.Timeout` when the attempt exceeds
- *   {@link FORWARD_TIMEOUT_MS}.
+ * @param config OIDC client configuration for reactive refresh.
+ *
+ * @param store Shared session store.
+ *
+ * @param session Session whose access token authorizes the first attempt.
+ *
+ * @param ref Opaque reference for the session.
+ *
+ * @returns Upstream response, resulting session, and its stored reference; propagate a changed
+ * reference to the browser cookie.
+ *
+ * @throws {ApiFailure} For upstream errors, network failures, and timeouts. Refresh or store
+ * failures also propagate.
  */
 export async function forwardWithResilience(
   request: ForwardRequest,
@@ -545,14 +537,8 @@ const PARENT_SEGMENT: string = "..";
 const EMPTY_BODY_LENGTH = 0;
 
 /**
- * Request headers forwarded upstream; `authorization` is added per attempt.
- *
- * This is an allowlist, not a copy-everything: the inbound `Cookie` carries the
- * BFF's own session credential and stops at this hop. The `x-forwarded-*` names
- * are here because {@link applyForwardedHeaders} reads and rewrites them, and
- * it runs against these outgoing headers — an inbound chain that never made it
- * across would be silently replaced by this hop's own view instead of extended
- * (Wallow-vufu.4.2).
+ * Request header allowlist. The proxy adds authorization per attempt and rewrites forwarded
+ * headers with applyForwardedHeaders. Incoming BFF cookies remain at this hop.
  */
 const FORWARDED_REQUEST_HEADERS: readonly string[] = [
   "content-type",
@@ -732,16 +718,22 @@ function logSessionFault(requestId: string, error: unknown): void {
 }
 
 /**
- * Build the `/api` reverse-proxy handler bound to a configuration.
+ * Create an authenticated same-origin /api proxy.
  *
- * @param config Server-side BFF configuration.
- * @param store Session store used to resolve and persist sessions. Defaults to
- *   a cookie-only {@link CookieSessionStore}, so single-argument callers keep
- *   working.
- * @param trustedProxies The proxies whose `X-Forwarded-For` may be believed
- *   when resolving the caller's address. Defaults to trusting none, so the
- *   peer address is the client.
- * @returns A web-standard handler that proxies to `config.apiBaseUrl`.
+ * Requires the BFF session cookie and a matching x-csrf-token for POST, PUT, PATCH, and DELETE.
+ * Removes /api from the path, appends the remaining path to config.apiBaseUrl, and attaches the
+ * session bearer. Refreshes expiring tokens and propagates rotated session cookies; terminal
+ * refresh failures destroy the session.
+ *
+ * @param config API target, OIDC client, and cookie settings.
+ *
+ * @param store Store shared with createBffHandlers; defaults to CookieSessionStore.
+ *
+ * @param trustedProxies Ranges used to resolve request.ip and forwarded client addresses;
+ * defaults to no trusted proxies.
+ *
+ * @returns A web-standard handler that relays upstream responses and emits problem responses for
+ * proxy failures.
  */
 export function createApiProxy(
   config: BffConfig,

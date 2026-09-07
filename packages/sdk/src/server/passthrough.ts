@@ -118,7 +118,10 @@ export interface ApiPassthrough {
    * never from anything the caller sent.
    */
   handle: (request: PeerRequest) => Promise<Response>;
-  /** Whether this proxy — rather than router SSR — owns the given path. */
+  /**
+   * Return whether a URL pathname matches a configured prefix on a segment boundary.
+   * Prefixes match both their own path and descendants.
+   */
   matches: (pathname: string) => boolean;
   /** The resolved upstream base URL. */
   readonly apiInternalUrl: string;
@@ -143,8 +146,11 @@ const ROOT_PATH: string = "/";
 const PREFIX_TAIL_PATTERN: RegExp = /(?:\/\*\*)?\/*$/u;
 
 /**
- * Resolve the upstream API base URL: explicit config wins, then
- * `WALLOW_API_INTERNAL_URL`, then {@link DEFAULT_API_INTERNAL_URL}.
+ * Resolve the API passthrough target URL.
+ *
+ * Uses a nonempty options.apiInternalUrl, then WALLOW_API_INTERNAL_URL from options.env or
+ * process.env, then http://localhost:5001. Returns the configured string without validating the
+ * URL.
  */
 export function resolveApiInternalUrl(options: ApiPassthroughOptions = {}): string {
   if (options.apiInternalUrl !== undefined && options.apiInternalUrl !== "") {
@@ -185,9 +191,18 @@ function errorMessage(value: unknown): string | undefined {
 }
 
 /**
- * Build the reverse-proxy passthrough.
+ * Create a session-free reverse proxy for API and OIDC routes.
  *
- * @param options Upstream target, prefix allowlist, and client-IP forwarding.
+ * Defaults to /v1, /connect, and /.well-known subtrees, forwarding the original path and query
+ * to the internal API. Relays caller cookies and authorization headers, and returns upstream
+ * redirects without following them. Unmatched paths return 404; network failures return a 503
+ * problem response.
+ *
+ * @param options Internal target, allowed prefixes, environment source, and client-address
+ * forwarding policy.
+ *
+ * @returns A matches predicate and web-standard handle function. Pass the runtime request.ip
+ * when client-address forwarding is enabled.
  */
 export function createApiPassthrough(options: ApiPassthroughOptions = {}): ApiPassthrough {
   const apiInternalUrl: string = resolveApiInternalUrl(options);

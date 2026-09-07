@@ -1,25 +1,4 @@
-/**
- * `auth-extras` — the identity behaviors the generated client cannot
- * express (Wallow-pu6a.5.4).
- *
- * This module is what is LEFT of `auth-client.ts` after the generated operation
- * layer (`{op}()`, `{op}Options()`, `{op}Mutation()`) absorbed the rest. Every
- * method that only renamed a generated op, unwrapped an envelope, or mapped an
- * error is gone: `responseStyle: 'data'` + `throwOnError: true` plus the
- * `ApiFailure` interceptor cover all of them. What survives here is the
- * residue that no codegen flag can produce:
- *
- *   1. {@link getCurrentUser} — 401 is the ANSWER "anonymous", not a failure;
- *   2. {@link validateRedirectUriArgs} — an absent `clientId` omits the KEY.
- *
- * The second shapes ARGUMENTS rather than wrapping the call, so the same
- * helper composes with the bare operation and with its generated query
- * options, which a call wrapper could not do without re-hiding the query key.
- *
- * Nothing else belongs in this file. A new endpoint is reached by calling its
- * generated operation (or its generated query/mutation options) directly with
- * `{ client: sdk.client }` — never by adding a passthrough here.
- */
+/** Convenience helpers for resolving the current user and building redirect-validation arguments. */
 
 import { isApiFailure } from "@bc-solutions-coder/api-errors";
 
@@ -47,13 +26,11 @@ export type ValidateRedirectUriArgs = Pick<AccountValidateRedirectUriData, "quer
 const ANONYMOUS_STATUS: number = 401;
 
 /**
- * Resolve the signed-in user, or `null` when the browser is anonymous.
+ * Fetch the current API user, returning `null` for an unauthenticated response.
  *
- * A 401 resolves `null`; every other failure throws the SAME object it arrived
- * as, so an outage can never masquerade as a signed-out user. An UNBRANDED
- * failure rethrows too, even one claiming `status: 401`: under the unified
- * error contract a non-`ApiFailure` means something bypassed the interceptor,
- * and that must surface rather than sign the user out.
+ * Pass `{ client: sdk.client }` to use your configured SDK instance. A 401
+ * `ApiFailure` or an empty successful response returns `null`; other failures
+ * are rethrown so callers can distinguish a service error from a signed-out user.
  */
 export async function getCurrentUser(
   options?: AuthExtrasOptions,
@@ -73,12 +50,11 @@ export async function getCurrentUser(
 }
 
 /**
- * Shape the redirect-uri validation arguments, omitting the `clientId` KEY (not
- * sending it as `undefined`) when no client scopes the question.
+ * Build query arguments for `accountValidateRedirectUri`.
  *
- * The generated client would put a bare `clientId=` on the wire, and an unknown
- * client fails CLOSED to the AuthUrl-only origin set — a different question
- * from asking unscoped.
+ * Omits `clientId` when it is undefined or an empty string. This helper does
+ * not validate the URI or make a request; pass its result to the generated
+ * operation together with `{ client: sdk.client }`.
  */
 export function validateRedirectUriArgs(uri: string, clientId?: string): ValidateRedirectUriArgs {
   return clientId === undefined || clientId === ""

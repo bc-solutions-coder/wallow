@@ -1,20 +1,4 @@
-/**
- * The `x-request-id` correlation contract, shared by both entry points.
- *
- * Every request through the BFF tunnel carries an `x-request-id`: the caller's
- * when it supplied one, a freshly generated one when it did not. The id goes
- * upstream to the API, comes back on the BFF's own response, and rides on every
- * `ApiFailure` the tunnel raises — so an error a user reports in the
- * browser names the exact request that produced it. Pairing that id with the
- * `traceId` the API's problem details already carry is what turns a frontend
- * error into a backend OTel trace; the workflow is written up in
- * `docs/operations/request-correlation.md`.
- *
- * This module lives at the package root rather than under `server/` because
- * the browser reads the header off a response and the BFF writes it onto a
- * request, and the two must agree on the name and on what counts as a usable
- * id. It is dependency-free and runs in either runtime.
- */
+/** Request correlation helpers shared by browser and server callers. */
 
 /** The correlation header carried on every request through the BFF tunnel. */
 export const REQUEST_ID_HEADER: string = "x-request-id";
@@ -42,13 +26,10 @@ export const MAX_REQUEST_ID_LENGTH = 200;
 const REQUEST_ID_CHARSET: RegExp = /^[A-Za-z0-9._:-]+$/u;
 
 /**
- * Whether `value` is safe to echo back onto a header, a log line, and a trace
- * tag.
+ * Check whether a correlation ID can be forwarded in `x-request-id`.
  *
- * The charset is deliberately narrow rather than "whatever a header field-value
- * allows": the id is a correlation key, not a message. Whitespace, control
- * characters, and CR/LF in particular never appear in a real id and are exactly
- * what a caller would use to forge a second header or a second log record.
+ * Accepts 1–200 ASCII letters, digits, periods, underscores, colons, or hyphens.
+ * Empty values, whitespace, and other characters are rejected.
  */
 export function isValidRequestId(value: string): boolean {
   // The charset's `+` is what rejects the empty string: an id of no characters
@@ -57,18 +38,14 @@ export function isValidRequestId(value: string): boolean {
 }
 
 /**
- * A fresh request id, unique per call.
+ * Generate a UUID correlation ID using `crypto.randomUUID()`.
  */
 export function newRequestId(): string {
   return crypto.randomUUID();
 }
 
 /**
- * The request id for an inbound request: the caller's when `headers` carries a
- * usable {@link REQUEST_ID_HEADER}, a fresh one otherwise.
- *
- * Always answers an id — a request with no usable correlation key gets one
- * rather than travelling uncorrelated.
+ * Read a valid `x-request-id` header, or generate a UUID when it is missing or invalid.
  */
 export function resolveRequestId(headers: Headers): string {
   const inbound: string | null = headers.get(REQUEST_ID_HEADER);

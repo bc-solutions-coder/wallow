@@ -19,6 +19,8 @@
         "tags": [
           "Admin - Announcements"
         ],
+        "summary": "List all tenant announcements.",
+        "description": "Requires AnnouncementManage in the current tenant. Returns an unpaginated list, newest first, including\ndrafts, scheduled, expired, and archived announcements. User targeting and dismissals do not filter this\nadministrative list.",
         "operationId": "AdminAnnouncementsGetAllAnnouncements",
         "responses": {
           "200": {
@@ -100,6 +102,8 @@
         "tags": [
           "Admin - Announcements"
         ],
+        "summary": "Create an announcement.",
+        "description": "Requires AnnouncementManage in the current tenant and returns the created announcement. Title and content\nare sanitized before storage. Supplying PublishAt creates a scheduled announcement; omitting it creates a\ndraft. TargetValue is a tenant GUID for Tenant targeting or a case-insensitive role name for Role\ntargeting.",
         "operationId": "AdminAnnouncementsCreateAnnouncement",
         "requestBody": {
           "content": {
@@ -200,6 +204,8 @@
         "tags": [
           "Admin - Announcements"
         ],
+        "summary": "Replace announcement content and targeting.",
+        "description": "Requires AnnouncementManage in the current tenant. Replaces the supplied content, targeting, dates, and\npresentation options after sanitizing title and content, while preserving the publication status. Returns\nthe updated announcement, or 404 when the ID is not found in the current tenant.",
         "operationId": "AdminAnnouncementsUpdateAnnouncement",
         "parameters": [
           {
@@ -309,6 +315,8 @@
         "tags": [
           "Admin - Announcements"
         ],
+        "summary": "Archive an announcement.",
+        "description": "Requires AnnouncementManage in the current tenant. Removes the announcement from the active user list\nwhile retaining it in the administrative list. Returns no content, or 404 when the announcement is not\nfound.",
         "operationId": "AdminAnnouncementsArchiveAnnouncement",
         "parameters": [
           {
@@ -396,6 +404,8 @@
         "tags": [
           "Admin - Announcements"
         ],
+        "summary": "Publish an announcement now.",
+        "description": "Requires AnnouncementManage in the current tenant. Changes an unpublished announcement to Published and\nsets PublishAt to the current time, including when it was scheduled or archived. Returns no content, or\n404 when the announcement is not found.",
         "operationId": "AdminAnnouncementsPublishAnnouncement",
         "parameters": [
           {
@@ -483,6 +493,8 @@
         "tags": [
           "Admin - Changelog"
         ],
+        "summary": "Create an unpublished changelog entry.",
+        "description": "Requires ChangelogManage. Changelog entries are global and shared across tenants. Accepts a semantic\nversion, release date, title, and content, sanitizes the title and content, and returns the unpublished\nentry. Publish the entry separately to make it visible anonymously.",
         "operationId": "AdminChangelogCreateChangelogEntry",
         "requestBody": {
           "content": {
@@ -583,6 +595,8 @@
         "tags": [
           "Admin - Changelog"
         ],
+        "summary": "Publish a changelog entry.",
+        "description": "Requires ChangelogManage and makes the global entry visible through the anonymous changelog endpoints.\nPreserves the supplied release date, which determines list order and the latest entry. Returns no\ncontent, including for an already published entry, or 404 if the ID is unknown.",
         "operationId": "AdminChangelogPublishChangelogEntry",
         "parameters": [
           {
@@ -670,6 +684,8 @@
         "tags": [
           "Announcements"
         ],
+        "summary": "List active announcements for the current user.",
+        "description": "Requires an authenticated user with AnnouncementRead in the current tenant. Returns published\nannouncements within their publication and expiry dates that match the user's tenant or roles, excluding\ndismissible announcements already dismissed by that user. Pinned announcements appear first, then newest\nfirst within each group.",
         "operationId": "AnnouncementsGetAnnouncements",
         "responses": {
           "200": {
@@ -753,6 +769,8 @@
         "tags": [
           "Announcements"
         ],
+        "summary": "Dismiss an announcement for the current user.",
+        "description": "Requires an authenticated user with AnnouncementRead in the current tenant. Hides a dismissible\nannouncement from this user's active list; repeating the dismissal succeeds without creating another\ndismissal. Returns 404 for an unknown announcement and rejects announcements that are not dismissible.",
         "operationId": "AnnouncementsDismissAnnouncement",
         "parameters": [
           {
@@ -840,11 +858,14 @@
         "tags": [
           "Changelog"
         ],
+        "summary": "List published changelog entries.",
+        "description": "Available without authentication. Returns global entries shared across tenants, ordered by release date\ndescending, up to the requested limit. Unpublished entries are excluded.",
         "operationId": "ChangelogGetChangelog",
         "parameters": [
           {
             "name": "limit",
             "in": "query",
+            "description": "Maximum number of entries to return; defaults to 50.",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -938,11 +959,14 @@
         "tags": [
           "Changelog"
         ],
+        "summary": "Get a published changelog version.",
+        "description": "Available without authentication and independent of the current tenant. Returns the published global\nentry with the exact version string, including its change items. Returns 404 when the version is unknown\nor unpublished.",
         "operationId": "ChangelogGetChangelogByVersion",
         "parameters": [
           {
             "name": "changelogVersion",
             "in": "path",
+            "description": "Exact version string recorded on the entry, including any prerelease or build suffix.",
             "required": true,
             "schema": {
               "type": "string"
@@ -1028,6 +1052,8 @@
         "tags": [
           "Changelog"
         ],
+        "summary": "Get the latest published changelog entry.",
+        "description": "Available without authentication. Returns the global published entry with the greatest release date,\nincluding its change items. Returns 404 when no published entry exists.",
         "operationId": "ChangelogGetLatestChangelog",
         "responses": {
           "200": {
@@ -1108,8 +1134,8 @@
         "tags": [
           "ApiKeys"
         ],
-        "summary": "Create a new API key for the current user.",
-        "description": "The key belongs to the current user and tenant. Store the full key securely;\nthis is the only response that returns it.\n\nExample request:\n```json\n{\n  \"name\": \"Production Backend\",\n  \"scopes\": [\"storage.read\", \"storage.write\"],\n  \"expiresAt\": \"2027-01-01T00:00:00Z\"\n}\n```",
+        "summary": "Create an API key for the current user.",
+        "description": "Requires ApiKeyManage and an organization tenant. Requested scopes must be recognized and covered by the\ncaller's permissions; service accounts must also stay within their permitted scopes. Creation is subject\nto the configured per-user key limit. The response returns the full key once; retain it securely because\nsubsequent reads return metadata only.",
         "operationId": "ApiKeysCreateApiKey",
         "requestBody": {
           "content": {
@@ -1228,8 +1254,8 @@
         "tags": [
           "ApiKeys"
         ],
-        "summary": "List unrevoked API keys for the current user and tenant.",
-        "description": "Returns metadata without plaintext key values.",
+        "summary": "List the current user's unrevoked API keys.",
+        "description": "Requires ApiKeyManage. Returns keys owned by the current user in the current tenant, newest first,\nincluding expired keys that have not been revoked. The response contains metadata only and never returns\nplaintext keys.",
         "operationId": "ApiKeysListApiKeys",
         "responses": {
           "200": {
@@ -1330,12 +1356,13 @@
           "ApiKeys"
         ],
         "summary": "Revoke an API key.",
-        "description": "Revokes a key owned by the current user and removes its validation cache entries.\nRevocation cannot be undone.",
+        "description": "Requires ApiKeyManage and ownership of the key in the current tenant. Revocation permanently prevents\nauthentication with the key; repeating a successful revocation returns no content. Returns 404 for an\ninvalid or unknown key ID or a key owned by another user.",
         "operationId": "ApiKeysRevokeApiKey",
         "parameters": [
           {
             "name": "keyId",
             "in": "path",
+            "description": "Key identifier returned by key creation or listing, not the plaintext API key.",
             "required": true,
             "schema": {
               "type": "string"
@@ -1414,7 +1441,8 @@
         "tags": [
           "Organization Client Branding"
         ],
-        "summary": "The client's branding as its organization sees it.",
+        "summary": "Get an application client's branding.",
+        "description": "Requires OrganizationClientsManage and access to the owning organization through the current tenant,\nglobal administration, or client-management membership. Returns the display name, tagline, theme JSON,\nand a temporary logo URL when a logo exists. Returns 404 for inaccessible organizations, unknown clients,\nservice accounts, or missing branding.",
         "operationId": "OrganizationClientBrandingGetBranding",
         "parameters": [
           {
@@ -1512,12 +1540,14 @@
         "tags": [
           "Organization Client Branding"
         ],
-        "summary": "Replaces display name, tagline and theme. Omitting tagline or theme clears it; omitting\nthe logo preserves it. Use `DELETE branding/logo` to remove the logo.\nThemes accept `primary` and `primaryForeground` in `light`/`dark` modes.\nThe display name cannot match the platform name.",
+        "summary": "Replace an application client's branding.",
+        "description": "Requires OrganizationClientsManage and access to the owning organization through the current tenant,\nglobal administration, or client-management membership. Returns the saved branding and updates the client\ndisplay name used for authentication. Omitting tagline or theme clears it; omitting the logo preserves\nit. Invalid names, themes, or image content return a validation error; inaccessible clients and service\naccounts return 404.",
         "operationId": "OrganizationClientBrandingUpsertBranding",
         "parameters": [
           {
             "name": "orgId",
             "in": "path",
+            "description": "Organization that owns the client.",
             "required": true,
             "schema": {
               "type": "string",
@@ -1527,6 +1557,7 @@
           {
             "name": "clientId",
             "in": "path",
+            "description": "Client identifier within the organization.",
             "required": true,
             "schema": {
               "type": "string"
@@ -1534,6 +1565,7 @@
           }
         ],
         "requestBody": {
+          "description": "Cancels the request.",
           "content": {
             "multipart/form-data": {
               "schema": {
@@ -1646,7 +1678,8 @@
         "tags": [
           "Organization Client Branding"
         ],
-        "summary": "Remove the client's logo. The rest of the branding stays.",
+        "summary": "Remove an application client's logo.",
+        "description": "Requires OrganizationClientsManage and access to the owning organization through the current tenant,\nglobal administration, or client-management membership. Deletes the stored logo and clears its URL while\npreserving the other branding fields. Returns no content if the branding already has no logo, or 404 for\ninaccessible clients, service accounts, or missing branding.",
         "operationId": "OrganizationClientBrandingDeleteLogo",
         "parameters": [
           {
@@ -1742,6 +1775,8 @@
         "tags": [
           "Identity"
         ],
+        "summary": "List external sign-in providers.",
+        "description": "Available without authentication. Returns provider scheme names accepted by external-login for the browser\nsign-in flow.",
         "operationId": "AccountGetExternalProviders",
         "responses": {
           "200": {
@@ -1841,6 +1876,8 @@
         "tags": [
           "Identity"
         ],
+        "summary": "Check a password and begin browser sign-in.",
+        "description": "Available without authentication. Success returns a signInTicket valid for 60 seconds for browser navigation\nto exchange-ticket, rather than an access token. MFA challenge or enrollment requirements can instead set a\nfive-minute partial-auth cookie and return the corresponding flags. RememberMe controls the eventual sign-in\ncookie persistence; failed password attempts count toward account lockout.",
         "operationId": "AccountLogin",
         "requestBody": {
           "content": {
@@ -1951,6 +1988,8 @@
         "tags": [
           "Identity"
         ],
+        "summary": "Complete a pending MFA sign-in challenge.",
+        "description": "Requires the five-minute MFA partial-auth cookie from the browser sign-in flow. Accepts a current TOTP code or\na backup code, which is consumed on success. Success replaces partial authentication with a full sign-in\ncookie and returns a signInTicket; repeated invalid codes can lock MFA verification.",
         "operationId": "AccountVerifyMfaChallenge",
         "requestBody": {
           "content": {
@@ -2061,11 +2100,14 @@
         "tags": [
           "Identity"
         ],
+        "summary": "Redirect the browser to an external sign-in provider.",
+        "description": "Available without authentication and intended for browser navigation. The provider must be a configured\nauthentication scheme, and returnUrl must use an allowed origin. The challenge carries client context through\nthe provider callback.",
         "operationId": "AccountExternalLogin",
         "parameters": [
           {
             "name": "provider",
             "in": "query",
+            "description": "A scheme name returned by external-providers.",
             "schema": {
               "type": "string"
             }
@@ -2073,6 +2115,7 @@
           {
             "name": "returnUrl",
             "in": "query",
+            "description": "Absolute destination on an allowed redirect origin.",
             "schema": {
               "type": "string"
             }
@@ -2080,6 +2123,7 @@
           {
             "name": "clientId",
             "in": "query",
+            "description": "Optional OIDC client identifier used to restrict allowed redirect origins.",
             "schema": {
               "type": "string"
             }
@@ -2157,11 +2201,14 @@
         "tags": [
           "Identity"
         ],
+        "summary": "Complete the external provider callback.",
+        "description": "Consumes the external authentication state created by external-login and redirects the browser. An existing\nprovider link can establish sign-in or require MFA; a verified provider email can link an existing account.\nNew registrations receive a temporary ExternalLoginState cookie and continue to the terms page. Invalid return\ndestinations fall back to the configured authentication app.",
         "operationId": "AccountExternalLoginCallback",
         "parameters": [
           {
             "name": "returnUrl",
             "in": "query",
+            "description": "Destination carried through the external sign-in flow.",
             "schema": {
               "type": "string"
             }
@@ -2169,6 +2216,7 @@
           {
             "name": "clientId",
             "in": "query",
+            "description": "Optional client identifier; falls back to the value stored in external authentication state.",
             "schema": {
               "type": "string"
             }
@@ -2246,11 +2294,14 @@
         "tags": [
           "Identity"
         ],
+        "summary": "Finish external registration after terms acceptance.",
+        "description": "Requires the ExternalLoginState browser cookie from the external callback and acceptedTerms=true. Creates or\nlinks the account, signs in with a nonpersistent cookie, and clears the registration cookie. New accounts\nreceive email verification when the provider email is unverified; the browser redirects to the validated\nreturn destination.",
         "operationId": "AccountCompleteExternalRegistration",
         "parameters": [
           {
             "name": "acceptedTerms",
             "in": "query",
+            "description": "Whether the user accepted the terms.",
             "schema": {
               "type": "boolean"
             }
@@ -2258,6 +2309,7 @@
           {
             "name": "returnUrl",
             "in": "query",
+            "description": "Allowed absolute return destination; otherwise the authentication app is used.",
             "schema": {
               "type": "string"
             }
@@ -2265,6 +2317,7 @@
           {
             "name": "clientId",
             "in": "query",
+            "description": "Optional client identifier for redirect-origin validation.",
             "schema": {
               "type": "string"
             }
@@ -2342,11 +2395,14 @@
         "tags": [
           "Identity"
         ],
+        "summary": "Exchange a sign-in ticket for a browser cookie.",
+        "description": "Available without authentication and intended for browser navigation. Accepts a signInTicket issued within 60\nseconds, consumes it once, and sets the Identity sign-in cookie with its requested persistence. Redirects to a\nlocal returnUrl or an allowed absolute origin, falling back to the authentication app.",
         "operationId": "AccountExchangeTicket",
         "parameters": [
           {
             "name": "ticket",
             "in": "query",
+            "description": "The signInTicket returned by login, MFA verification, or passwordless verification.",
             "schema": {
               "type": "string"
             }
@@ -2354,6 +2410,7 @@
           {
             "name": "returnUrl",
             "in": "query",
+            "description": "Optional local route or allowed absolute return destination.",
             "schema": {
               "type": "string"
             }
@@ -2361,6 +2418,7 @@
           {
             "name": "clientId",
             "in": "query",
+            "description": "Optional OIDC client identifier used to restrict allowed redirect origins.",
             "schema": {
               "type": "string"
             }
@@ -2438,11 +2496,14 @@
         "tags": [
           "Identity"
         ],
+        "summary": "Check whether a redirect origin is allowed.",
+        "description": "Available without authentication. Checks the absolute URI origin against registered sign-in and post-logout\norigins plus the authentication app origin. A clientId limits registered origins to that client; omission\nchecks all clients. Returns allowed=false for missing or invalid URIs; this does not validate an exact OIDC\nredirect URI.",
         "operationId": "AccountValidateRedirectUri",
         "parameters": [
           {
             "name": "uri",
             "in": "query",
+            "description": "Absolute URI whose origin is checked.",
             "schema": {
               "type": "string"
             }
@@ -2450,6 +2511,7 @@
           {
             "name": "clientId",
             "in": "query",
+            "description": "Optional OIDC client identifier that limits the registered origins.",
             "schema": {
               "type": "string"
             }
@@ -2544,8 +2606,11 @@
         "tags": [
           "Identity"
         ],
+        "summary": "Clear the browser sign-in cookie.",
+        "description": "Requires authentication and a form submission in the browser sign-out flow. Clears the Identity cookies, then\nredirects to the authentication app logout page. An invalid post-logout origin redirects to the error page\nafter sign-out.",
         "operationId": "AccountSignOut",
         "requestBody": {
+          "description": "Optional OIDC client identifier used to restrict allowed redirect origins.",
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
@@ -2645,6 +2710,8 @@
         "tags": [
           "Identity"
         ],
+        "summary": "Register an account and request email verification.",
+        "description": "Available without authentication and does not sign the user in or grant organization membership.\nLoginMethod=passwordless creates an account without a password; other values require matching password fields\nand the password policy. A supplied clientId must identify an existing client, and an allowed returnUrl is\ncarried into the verification link. Returns succeeded=true after requesting the verification email.",
         "operationId": "AccountRegister",
         "requestBody": {
           "content": {
@@ -2755,11 +2822,14 @@
         "tags": [
           "Identity"
         ],
+        "summary": "Look up the organization associated with an OIDC client.",
+        "description": "Available without authentication. Returns the client tenantId and organization name, or a not-found problem\nfor an unknown client. An existing client without a valid tenant binding returns the empty GUID and no\norganization name.",
         "operationId": "AccountGetClientTenant",
         "parameters": [
           {
             "name": "clientId",
             "in": "path",
+            "description": "The public OIDC client identifier, not the application record ID.",
             "required": true,
             "schema": {
               "type": "string"
@@ -2855,6 +2925,8 @@
         "tags": [
           "Identity"
         ],
+        "summary": "Request a password-reset email.",
+        "description": "Available without authentication. Requests a reset email only for an existing account with a confirmed email\naddress. Unknown and unconfirmed addresses receive the same succeeded=true response.",
         "operationId": "AccountForgotPassword",
         "requestBody": {
           "content": {
@@ -2965,6 +3037,8 @@
         "tags": [
           "Identity"
         ],
+        "summary": "Reset a password using an emailed token.",
+        "description": "Available without authentication. Uses the email and reset token from the recovery link to set NewPassword,\nsubject to the password policy. Returns succeeded=true and publishes the password-change notification; an\nunknown account or invalid token returns a token problem.",
         "operationId": "AccountResetPassword",
         "requestBody": {
           "content": {
@@ -3075,11 +3149,14 @@
         "tags": [
           "Identity"
         ],
+        "summary": "Confirm an account email address.",
+        "description": "Available without authentication. Accepts the email and confirmation token from the verification link. Success\nconfirms the address and publishes the email-verification event without signing the user in.",
         "operationId": "AccountVerifyEmail",
         "parameters": [
           {
             "name": "email",
             "in": "query",
+            "description": "Email address from the verification link.",
             "schema": {
               "type": "string"
             }
@@ -3087,6 +3164,7 @@
           {
             "name": "token",
             "in": "query",
+            "description": "Email-confirmation token from the verification link.",
             "schema": {
               "type": "string"
             }
@@ -3181,6 +3259,8 @@
         "tags": [
           "Identity"
         ],
+        "summary": "Request a passwordless sign-in link.",
+        "description": "Available without authentication. Requests an email for an existing account and carries ReturnUrl and ClientId\ninto the link flow. Unknown addresses receive the same succeeded=true response. Magic-link and OTP sends share\na per-address rate limit.",
         "operationId": "AccountSendMagicLink",
         "requestBody": {
           "content": {
@@ -3291,11 +3371,14 @@
         "tags": [
           "Identity"
         ],
+        "summary": "Verify a passwordless sign-in link.",
+        "description": "Available without authentication. Validates the emailed token and removes it after successful validation.\nReturns the email and a signInTicket valid for 60 seconds for browser navigation to exchange-ticket; it does\nnot return an access token.",
         "operationId": "AccountVerifyMagicLink",
         "parameters": [
           {
             "name": "token",
             "in": "query",
+            "description": "Complete token from the emailed magic link.",
             "schema": {
               "type": "string"
             }
@@ -3303,6 +3386,7 @@
           {
             "name": "rememberMe",
             "in": "query",
+            "description": "Whether the eventual browser sign-in cookie persists across browser sessions.",
             "schema": {
               "type": "boolean",
               "default": false
@@ -3398,6 +3482,8 @@
         "tags": [
           "Identity"
         ],
+        "summary": "Request an email sign-in code.",
+        "description": "Available without authentication. Sends a six-digit code for an existing account, replacing any earlier code\nfor that email address. Unknown addresses receive the same succeeded=true response. OTP and magic-link sends\nshare a per-address rate limit.",
         "operationId": "AccountSendOtp",
         "requestBody": {
           "content": {
@@ -3508,6 +3594,8 @@
         "tags": [
           "Identity"
         ],
+        "summary": "Verify an email sign-in code.",
+        "description": "Available without authentication. Accepts the email and six-digit code, then removes the stored code on\nsuccess. Returns the email and a signInTicket valid for 60 seconds for browser navigation to exchange-ticket;\nRememberMe controls the eventual cookie persistence.",
         "operationId": "AccountVerifyOtp",
         "requestBody": {
           "content": {
@@ -3618,6 +3706,8 @@
         "tags": [
           "Identity"
         ],
+        "summary": "Request a change to the current user email.",
+        "description": "Requires an authenticated user. Records a pending email change with a 24-hour expiry and requests a\nconfirmation email to NewEmail. The current address remains in use until confirmation; unchanged addresses and\nrequests exceeding the per-user rate limit return problems.",
         "operationId": "AccountChangeEmail",
         "requestBody": {
           "content": {
@@ -3728,11 +3818,14 @@
         "tags": [
           "Identity"
         ],
+        "summary": "Confirm a requested email change.",
+        "description": "Available without authentication. Uses the userId, newEmail, and token from the confirmation link to update\nboth email and username. Clears the pending change and publishes the email-change event on success; expired\npending requests or invalid tokens return problems.",
         "operationId": "AccountConfirmEmailChange",
         "parameters": [
           {
             "name": "token",
             "in": "query",
+            "description": "Email-change confirmation token from the emailed link.",
             "schema": {
               "type": "string"
             }
@@ -3740,6 +3833,7 @@
           {
             "name": "userId",
             "in": "query",
+            "description": "User identifier from the confirmation link.",
             "schema": {
               "type": "string"
             }
@@ -3747,6 +3841,7 @@
           {
             "name": "newEmail",
             "in": "query",
+            "description": "New email address bound to the confirmation token.",
             "schema": {
               "type": "string"
             }
@@ -3841,11 +3936,14 @@
         "tags": [
           "Authorize Context"
         ],
+        "summary": "Get display context for a browser authorization request.",
+        "description": "Available without authentication. Accepts a local returnUrl ending in /connect/authorize with client_id and a\nregistered redirect_uri. Returns client branding, organization name, and requested scope descriptions, or 404\nfor invalid context or a refused client. This display context does not authenticate or authorize the\ntransaction.",
         "operationId": "AuthorizeContextGet",
         "parameters": [
           {
             "name": "returnUrl",
             "in": "query",
+            "description": "Local authorization return URL containing client_id and redirect_uri.",
             "schema": {
               "type": "string"
             }
@@ -3853,6 +3951,7 @@
           {
             "name": "scope",
             "in": "query",
+            "description": "Optional space-separated scope names; a nonblank value overrides scope in returnUrl.",
             "schema": {
               "type": "string"
             }
@@ -3937,6 +4036,8 @@
         "tags": [
           "Clients"
         ],
+        "summary": "List OIDC application registrations.",
+        "description": "Requires the AdminAccess permission. Returns all application registrations across organizations without\npagination. Responses include redirect, scope, logout, and refresh-token settings but omit client secrets.",
         "operationId": "ClientsGetAll",
         "responses": {
           "200": {
@@ -4018,6 +4119,8 @@
         "tags": [
           "Clients"
         ],
+        "summary": "Register a confidential OIDC application.",
+        "description": "Requires the AdminAccess permission. Creates an unbound confidential client for authorization-code and\nrefresh-token flows, returning its generated clientId and plaintext secret once. Missing or empty Scopes\ndefaults to openid, profile, email, roles, and offline_access; unknown scopes are rejected. Redirect URIs\nrequire HTTPS or loopback HTTP, and RefreshTokenLifetime is seconds from 60 to 31536000, defaulting to 86400.",
         "operationId": "ClientsCreate",
         "requestBody": {
           "content": {
@@ -4113,11 +4216,14 @@
         "tags": [
           "Clients"
         ],
+        "summary": "Get an OIDC application registration.",
+        "description": "Requires the AdminAccess permission. Looks up the application record across organizations and returns its\nconfiguration without the client secret. Returns 404 when the record does not exist.",
         "operationId": "ClientsGetById",
         "parameters": [
           {
             "name": "id",
             "in": "path",
+            "description": "Application record ID returned by client administration, not the public OIDC clientId.",
             "required": true,
             "schema": {
               "type": "string"
@@ -4201,11 +4307,14 @@
         "tags": [
           "Clients"
         ],
+        "summary": "Update an OIDC application registration.",
+        "description": "Requires the AdminAccess permission. Replaces the display name and redirect lists while preserving the client\nidentifier, secret, and scope permissions. Omitted logout URLs remove those registrations; a null\nRefreshTokenLifetime preserves its current value, while an explicit value changes future refresh tokens.\nReturns the updated configuration or 404 for an unknown record.",
         "operationId": "ClientsUpdate",
         "parameters": [
           {
             "name": "id",
             "in": "path",
+            "description": "Application record ID returned by client administration, not the public OIDC clientId.",
             "required": true,
             "schema": {
               "type": "string"
@@ -4213,6 +4322,7 @@
           }
         ],
         "requestBody": {
+          "description": "Cancels the request.",
           "content": {
             "application/json": {
               "schema": {
@@ -4304,11 +4414,14 @@
         "tags": [
           "Clients"
         ],
+        "summary": "Delete an OIDC application registration.",
+        "description": "Requires the AdminAccess permission. Deletes the application record across organizations and returns no\ncontent. Returns 404 when the record does not exist.",
         "operationId": "ClientsDelete",
         "parameters": [
           {
             "name": "id",
             "in": "path",
+            "description": "Application record ID returned by client administration, not the public OIDC clientId.",
             "required": true,
             "schema": {
               "type": "string"
@@ -4390,11 +4503,14 @@
         "tags": [
           "Clients"
         ],
+        "summary": "Replace an OIDC client secret.",
+        "description": "Requires the AdminAccess permission. Replaces the application secret immediately and returns the new plaintext\nsecret with its configuration. The previous secret stops authenticating the client; subsequent reads do not\nreturn the new secret.",
         "operationId": "ClientsRotateSecret",
         "parameters": [
           {
             "name": "id",
             "in": "path",
+            "description": "Application record ID returned by client administration, not the public OIDC clientId.",
             "required": true,
             "schema": {
               "type": "string"
@@ -4480,6 +4596,8 @@
         "tags": [
           "Identity Settings"
         ],
+        "summary": "Get effective Identity configuration for the current user.",
+        "description": "Requires an authenticated user and resolved tenant context. Returns a key-value map of Identity settings with\nuser overrides taking precedence over tenant overrides and registered defaults.",
         "operationId": "IdentitySettingsGetConfig",
         "responses": {
           "200": {
@@ -4560,6 +4678,8 @@
         "tags": [
           "Identity Settings"
         ],
+        "summary": "List resolved tenant Identity settings.",
+        "description": "Requires the SystemSettings permission and resolved tenant context. Returns tenant overrides merged with\nregistered defaults, including each setting source and available metadata.",
         "operationId": "IdentitySettingsGetTenantSettings",
         "responses": {
           "200": {
@@ -4641,6 +4761,8 @@
         "tags": [
           "Identity Settings"
         ],
+        "summary": "Set an Identity setting override for the tenant.",
+        "description": "Requires an authenticated user, the SystemSettings permission, and resolved tenant context. Creates or\nreplaces one tenant override using a registered Identity key or a custom. key and a string value. System keys\nand unknown keys are rejected; success returns no content.",
         "operationId": "IdentitySettingsUpsertTenantSetting",
         "requestBody": {
           "content": {
@@ -4735,11 +4857,14 @@
         "tags": [
           "Identity Settings"
         ],
+        "summary": "Remove an Identity setting override for the tenant.",
+        "description": "Requires an authenticated user, the SystemSettings permission, and resolved tenant context. Removes the tenant\noverride so resolution falls back to the registered default. Registered Identity keys and custom. keys are\naccepted; system keys and unknown keys are rejected.",
         "operationId": "IdentitySettingsDeleteTenantSetting",
         "parameters": [
           {
             "name": "key",
             "in": "query",
+            "description": "Registered Identity setting key or custom. key whose override is removed.",
             "schema": {
               "type": "string"
             }
@@ -4820,6 +4945,8 @@
         "tags": [
           "Identity Settings"
         ],
+        "summary": "List resolved Identity settings for the current user.",
+        "description": "Requires an authenticated user and resolved tenant context. Returns user overrides merged with tenant\noverrides and registered defaults, including each value source and available metadata.",
         "operationId": "IdentitySettingsGetUserSettings",
         "responses": {
           "200": {
@@ -4901,6 +5028,8 @@
         "tags": [
           "Identity Settings"
         ],
+        "summary": "Set an Identity setting override for the user.",
+        "description": "Requires an authenticated user and resolved tenant context. Creates or replaces one user override using a\nregistered Identity key or a custom. key and a string value. System keys and unknown keys are rejected;\nsuccess returns no content.",
         "operationId": "IdentitySettingsUpsertUserSetting",
         "requestBody": {
           "content": {
@@ -4995,11 +5124,14 @@
         "tags": [
           "Identity Settings"
         ],
+        "summary": "Remove an Identity setting override for the user.",
+        "description": "Requires an authenticated user and resolved tenant context. Removes the user override so resolution falls back\nto the tenant value or registered default. Registered Identity keys and custom. keys are accepted; system keys\nand unknown keys are rejected.",
         "operationId": "IdentitySettingsDeleteUserSetting",
         "parameters": [
           {
             "name": "key",
             "in": "query",
+            "description": "Registered Identity setting key or custom. key whose override is removed.",
             "schema": {
               "type": "string"
             }
@@ -5080,6 +5212,8 @@
         "tags": [
           "Invitations"
         ],
+        "summary": "Invite a user to the resolved organization.",
+        "description": "Requires OrganizationsManageMembers in the resolved tenant. Creates an email invitation valid for seven days,\nor renews an outstanding invitation with the same token, and requests delivery. Existing active members cannot\nbe invited; the response includes invitation status and expiry.",
         "operationId": "InvitationsCreate",
         "requestBody": {
           "content": {
@@ -5173,6 +5307,8 @@
         "tags": [
           "Invitations"
         ],
+        "summary": "List organization invitations.",
+        "description": "Requires OrganizationsManageMembers in the resolved tenant. Returns invitations of all statuses, newest first,\nwithout invitation tokens. skip is a zero-based offset and take is the maximum number of results.",
         "operationId": "InvitationsGetByTenant",
         "parameters": [
           {
@@ -5284,6 +5420,8 @@
         "tags": [
           "Invitations"
         ],
+        "summary": "Revoke an organization invitation.",
+        "description": "Requires OrganizationsManageMembers in the resolved tenant. Revokes a pending invitation identified by its ID,\npreventing acceptance. An invitation outside the resolved tenant or a missing invitation returns 404.",
         "operationId": "InvitationsRevoke",
         "parameters": [
           {
@@ -5371,6 +5509,8 @@
         "tags": [
           "Invitations"
         ],
+        "summary": "Look up an invitation token.",
+        "description": "Allows anonymous access without an organization context. Returns the matching invitation recipient, status,\nand expiry, including invitations that are no longer pending. A successful lookup does not guarantee that\nacceptance is allowed; unknown tokens return 404.",
         "operationId": "InvitationsVerify",
         "parameters": [
           {
@@ -5461,7 +5601,8 @@
         "tags": [
           "Invitations"
         ],
-        "summary": "Accepts an invitation for the authenticated user, whose verified email must match the invitation.",
+        "summary": "Accept an organization invitation.",
+        "description": "Requires an authenticated user whose verified email matches the invitation, without an existing organization\ncontext. A valid pending invitation creates or approves membership using the invited organization default\nrole. Expired invitations and suspended or denied memberships are rejected.",
         "operationId": "InvitationsAccept",
         "parameters": [
           {
@@ -5558,7 +5699,8 @@
         "tags": [
           "Me"
         ],
-        "summary": "Lists valid permanent consent records for the caller.",
+        "summary": "List your application consents.",
+        "description": "Requires an authenticated user, without an organization context or management permission. Returns valid\npermanent consent records for existing applications, newest first, including authorization IDs and granted\nscopes.",
         "operationId": "MeAuthorizationsListConnectedApplications",
         "responses": {
           "200": {
@@ -5642,7 +5784,8 @@
         "tags": [
           "Me"
         ],
-        "summary": "Withdraws the caller consent and revokes associated user/client access.\nReturns 404 when the consent cannot be found for the caller.",
+        "summary": "Withdraw consent for an application.",
+        "description": "Requires an authenticated user, without an organization context or management permission. Uses an\nauthorization ID from your consent list to request revocation of that consent and your tokens for its\napplication. A missing, invalid, or other user consent returns 404.",
         "operationId": "MeAuthorizationsWithdrawConsent",
         "parameters": [
           {
@@ -5729,7 +5872,8 @@
         "tags": [
           "Me"
         ],
-        "summary": "Lists the caller active organization memberships without requiring a management permission.",
+        "summary": "List your active organizations.",
+        "description": "Requires an authenticated user, without an organization context or management permission. Returns active\norganizations where the caller has an active membership, including organization IDs, slugs, and owner status,\nordered by name.",
         "operationId": "MeGetOrganizations",
         "responses": {
           "200": {
@@ -5813,6 +5957,8 @@
         "tags": [
           "Identity"
         ],
+        "summary": "Get the current user MFA status.",
+        "description": "Requires an authenticated user. Returns whether MFA is enabled, the configured method, and the number of\nremaining backup codes. MFA belongs to the account across organizations.",
         "operationId": "MfaGetStatus",
         "responses": {
           "200": {
@@ -5903,6 +6049,8 @@
         "tags": [
           "Identity"
         ],
+        "summary": "Generate a TOTP enrollment secret.",
+        "description": "Requires an authenticated user or a valid MFA partial-auth browser cookie. Returns a base32 secret and an\notpauth URI for an authenticator app. MFA is enabled only after enroll/confirm receives the secret and a valid\ncode.",
         "operationId": "MfaEnrollTotp",
         "responses": {
           "200": {
@@ -5993,6 +6141,8 @@
         "tags": [
           "Identity"
         ],
+        "summary": "Confirm TOTP enrollment and return backup codes.",
+        "description": "Requires an authenticated user or a valid MFA partial-auth browser cookie. Accepts the enrollment Secret and a\ncurrent authenticator Code, enables account MFA, and replaces backup codes with ten new codes. Returns the\nplaintext backup codes for storage by the user. A partial-auth enrollment also establishes the full browser\nsign-in cookie.",
         "operationId": "MfaConfirmEnrollment",
         "requestBody": {
           "content": {
@@ -6103,6 +6253,8 @@
         "tags": [
           "Identity"
         ],
+        "summary": "Disable MFA for the current user.",
+        "description": "Requires an authenticated user and their current password. Disables account MFA and clears its secret and\nbackup codes. Returns a problem when the password is invalid or MFA is already disabled.",
         "operationId": "MfaDisable",
         "requestBody": {
           "content": {
@@ -6213,6 +6365,8 @@
         "tags": [
           "Identity"
         ],
+        "summary": "Replace the current user MFA backup codes.",
+        "description": "Requires an authenticated user and their current password. Replaces all stored backup codes with ten new codes\nand returns their plaintext values. Previously issued backup codes stop working.",
         "operationId": "MfaRegenerateBackupCodes",
         "requestBody": {
           "content": {
@@ -6323,11 +6477,14 @@
         "tags": [
           "Identity"
         ],
+        "summary": "Disable MFA for a specified account.",
+        "description": "Requires authentication. Targets the account by userId and clears its MFA configuration and backup codes\nwithout asking for its password. Returns succeeded=true, or a user-not-found problem if the account does not\nexist.",
         "operationId": "MfaAdminDisableMfa",
         "parameters": [
           {
             "name": "userId",
             "in": "path",
+            "description": "Account user identifier whose MFA configuration is cleared.",
             "required": true,
             "schema": {
               "type": "string"
@@ -6423,11 +6580,14 @@
         "tags": [
           "Identity"
         ],
+        "summary": "Clear password and MFA lockout for an account.",
+        "description": "Requires authentication. Clears the target account password lockout, failed-password count, and MFA lockout\nstate. Returns succeeded=true and records the current user as the actor in the lockout-cleared event.",
         "operationId": "MfaAdminClearLockout",
         "parameters": [
           {
             "name": "userId",
             "in": "path",
+            "description": "Account user identifier whose lockout state is cleared.",
             "required": true,
             "schema": {
               "type": "string"
@@ -6523,7 +6683,8 @@
         "tags": [
           "Identity"
         ],
-        "summary": "Issues a sixty-second token that the enrollment exchange endpoint accepts for partial authentication.",
+        "summary": "Issue a token for browser MFA enrollment.",
+        "description": "Requires an authenticated user with an email claim. Returns a protected enrollment token valid for 60 seconds.\nThe authentication app exchanges this token for an MFA partial-auth cookie to continue enrollment.",
         "operationId": "MfaIssueEnrollmentToken",
         "responses": {
           "200": {
@@ -6614,12 +6775,14 @@
         "tags": [
           "Identity"
         ],
-        "summary": "Exchanges an unexpired enrollment token for an MFA partial-auth cookie.",
+        "summary": "Exchange an enrollment token for an MFA cookie.",
+        "description": "Available without authentication and intended for the browser enrollment flow. Accepts an unexpired token from\nenroll/issue-token and sets a five-minute MFA partial-auth cookie. Returns succeeded=true so the browser can\ncontinue with TOTP enrollment.",
         "operationId": "MfaExchangeEnrollmentToken",
         "parameters": [
           {
             "name": "token",
             "in": "query",
+            "description": "Enrollment token returned by enroll/issue-token within the last 60 seconds.",
             "schema": {
               "type": "string"
             }
@@ -6714,7 +6877,8 @@
         "tags": [
           "Organization Clients"
         ],
-        "summary": "Registers an organization client and reveals its secret. Service accounts ignore URI fields.",
+        "summary": "Register an organization client.",
+        "description": "Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global\nadministrator or hold this permission through membership in that organization. Creates a confidential\napplication for authorization code with PKCE and refresh tokens, or a service-account for client credentials.\nApplications require redirect URIs; both kinds require scopes and reject platform-only API scopes. Returns the\nclient secret once, with issuer and API URLs.",
         "operationId": "OrganizationClientsRegister",
         "parameters": [
           {
@@ -6829,7 +6993,8 @@
         "tags": [
           "Organization Clients"
         ],
-        "summary": "List the clients the organization owns.",
+        "summary": "List organization clients.",
+        "description": "Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global\nadministrator or hold this permission through membership in that organization. Returns owned applications and\nservice accounts with configuration and status, without secrets.",
         "operationId": "OrganizationClientsList",
         "parameters": [
           {
@@ -6924,7 +7089,8 @@
         "tags": [
           "Organization Clients"
         ],
-        "summary": "Rotates and reveals the client secret. revokeActiveTokens also requests revocation of issued tokens.",
+        "summary": "Rotate an organization client secret.",
+        "description": "Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global\nadministrator or hold this permission through membership in that organization. Replaces the secret for a\nclient owned by the addressed organization and reveals the new secret once. Set revokeActiveTokens to revoke\nissued access as part of rotation.",
         "operationId": "OrganizationClientsRotateSecret",
         "parameters": [
           {
@@ -7039,7 +7205,8 @@
         "tags": [
           "Organization Clients"
         ],
-        "summary": "Get one of the organization's clients.",
+        "summary": "Get an organization client.",
+        "description": "Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global\nadministrator or hold this permission through membership in that organization. Returns configuration and\nstatus without a secret. A missing client or one owned by another organization returns 404.",
         "operationId": "OrganizationClientsGetById",
         "parameters": [
           {
@@ -7137,7 +7304,8 @@
         "tags": [
           "Organization Clients"
         ],
-        "summary": "Replaces redirect URIs, back-channel logout settings, and scopes. Null lifetime preserves\nthe current value; service accounts ignore URI fields.",
+        "summary": "Replace organization client configuration.",
+        "description": "Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global\nadministrator or hold this permission through membership in that organization. Replaces application redirect\nURIs, logout settings, and scopes; null refreshTokenLifetime preserves the current value, in seconds. Service\naccounts ignore URI and lifetime settings. Returns the updated client; unknown or platform-only scopes are\nrejected.",
         "operationId": "OrganizationClientsUpdate",
         "parameters": [
           {
@@ -7260,7 +7428,8 @@
         "tags": [
           "Organization Clients"
         ],
-        "summary": "Deletes the client and its authorizations after access revocation; branding cleanup follows the deletion event.",
+        "summary": "Delete an organization client.",
+        "description": "Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global\nadministrator or hold this permission through membership in that organization. Revokes access and deletes the\nclient and its authorizations, then requests branding cleanup. A missing client or one owned by another\norganization returns 404.",
         "operationId": "OrganizationClientsDelete",
         "parameters": [
           {
@@ -7356,7 +7525,8 @@
         "tags": [
           "Organization Clients"
         ],
-        "summary": "Suspends a client and revokes its access while retaining registration, branding, and permanent consents.",
+        "summary": "Suspend an organization client.",
+        "description": "Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global\nadministrator or hold this permission through membership in that organization. Revokes client access while\nretaining registration, branding, and permanent consents. Returns the updated client status.",
         "operationId": "OrganizationClientsSuspend",
         "parameters": [
           {
@@ -7466,7 +7636,8 @@
         "tags": [
           "Organization Clients"
         ],
-        "summary": "Lifts the organization client suspension. Revoked tokens remain revoked.",
+        "summary": "Reinstate an organization client.",
+        "description": "Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global\nadministrator or hold this permission through membership in that organization. Lifts the client suspension\nimposed by its organization and returns its status. Revoked tokens stay revoked, and platform or organization\nrestrictions still apply.",
         "operationId": "OrganizationClientsReinstate",
         "parameters": [
           {
@@ -7576,7 +7747,8 @@
         "tags": [
           "Organization Clients"
         ],
-        "summary": "Applies a client platform suspension with a reason. Requires global administrator authority.",
+        "summary": "Suspend a client at platform level.",
+        "description": "Requires a global administrator and a client owned by the addressed organization. Records the supplied reason,\nrevokes client access, and returns the updated client. A missing client or organization ownership mismatch\nreturns 404.",
         "operationId": "OrganizationClientsPlacePlatformSuspension",
         "parameters": [
           {
@@ -7699,7 +7871,8 @@
         "tags": [
           "Organization Clients"
         ],
-        "summary": "Lifts the client platform suspension. Other client and organization restrictions still apply.",
+        "summary": "Lift a client platform suspension.",
+        "description": "Requires a global administrator and a client owned by the addressed organization. Clears the platform\nsuspension and returns the updated client. Revoked tokens and other client or organization restrictions remain\nunchanged.",
         "operationId": "OrganizationClientsLiftPlatformSuspension",
         "parameters": [
           {
@@ -7809,7 +7982,8 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "Creates an organization for the authenticated caller. No existing organization or tenant permission is required.",
+        "summary": "Create an organization.",
+        "description": "Requires an authenticated user, without an existing organization or tenant permission. Creates a tenant and\nenrolls the caller as an owner with the admin role, then returns the organization ID.",
         "operationId": "OrganizationsCreate",
         "requestBody": {
           "content": {
@@ -7903,7 +8077,8 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "Returns the resolved tenant organization if present in the requested search-result page.",
+        "summary": "Find the resolved tenant organization.",
+        "description": "Requires OrganizationsRead. Searches organization names and pages results in name order before retaining only\nthe resolved tenant, so the response contains at most one organization and can be empty. first is the\nzero-based offset and max is the result limit before this tenant filter.",
         "operationId": "OrganizationsGetAll",
         "parameters": [
           {
@@ -8022,7 +8197,8 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "Get a specific organization by ID.",
+        "summary": "Get an organization.",
+        "description": "Requires OrganizationsRead. The organization must be the resolved tenant, or you must be a global\nadministrator or hold this permission through membership in that organization. Returns organization details,\nor 404 when the organization is missing or inaccessible.",
         "operationId": "OrganizationsGetById",
         "parameters": [
           {
@@ -8112,7 +8288,8 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "Permanently delete an organization. Requires name confirmation.",
+        "summary": "Permanently delete an organization.",
+        "description": "Requires OrganizationsDelete. The organization must be the resolved tenant, or you must be a global\nadministrator or hold this permission through membership in that organization. confirmName must exactly match\nthe organization name. Revokes access and deletes the organization, memberships, clients, invitations, and\nidentity settings, then requests cleanup in other modules.",
         "operationId": "OrganizationsDelete",
         "parameters": [
           {
@@ -8215,7 +8392,8 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "Get all members of a specific organization.",
+        "summary": "List active organization members.",
+        "description": "Requires OrganizationsRead. The organization must be the resolved tenant, or you must be a global\nadministrator or hold this permission through membership in that organization. Returns user profiles and roles\nfor active memberships in the addressed organization.",
         "operationId": "OrganizationsGetMembers",
         "parameters": [
           {
@@ -8308,7 +8486,8 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "Add a user to an organization.",
+        "summary": "Grant organization membership.",
+        "description": "Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global\nadministrator or hold this permission through membership in that organization. Supply an existing user ID and\nrole name. Creates or activates the membership and adds the role, including when the existing membership is\npending, denied, or suspended.",
         "operationId": "OrganizationsAddMember",
         "parameters": [
           {
@@ -8411,7 +8590,8 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "Remove a user from an organization.",
+        "summary": "Remove an organization member.",
+        "description": "Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global\nadministrator or hold this permission through membership in that organization. Deletes the membership and\nrevokes its access. Removing the last active owner is rejected.",
         "operationId": "OrganizationsRemoveMember",
         "parameters": [
           {
@@ -8508,7 +8688,8 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "List the organization's outstanding access requests, oldest first.",
+        "summary": "List pending membership requests.",
+        "description": "Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global\nadministrator or hold this permission through membership in that organization. Returns requester profiles and\nrequest times, oldest first.",
         "operationId": "OrganizationsGetPendingMembers",
         "parameters": [
           {
@@ -8590,7 +8771,8 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "Lists suspended memberships by most recent update.",
+        "summary": "List suspended organization members.",
+        "description": "Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global\nadministrator or hold this permission through membership in that organization. Returns suspended memberships\nwith user profiles, ordered by most recent membership update.",
         "operationId": "OrganizationsGetSuspendedMembers",
         "parameters": [
           {
@@ -8672,7 +8854,8 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "Lists denied memberships by most recent update.",
+        "summary": "List denied membership requests.",
+        "description": "Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global\nadministrator or hold this permission through membership in that organization. Returns denied memberships with\nrequester profiles, ordered by most recent review.",
         "operationId": "OrganizationsGetDeniedMembers",
         "parameters": [
           {
@@ -8754,7 +8937,8 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "Admit a pending requester, granting them the organization's default role.",
+        "summary": "Approve a membership request.",
+        "description": "Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global\nadministrator or hold this permission through membership in that organization. Activates a pending membership\nand grants the organization default role. A membership that is not pending is rejected.",
         "operationId": "OrganizationsApproveMember",
         "parameters": [
           {
@@ -8861,7 +9045,8 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "Turn a pending requester away.",
+        "summary": "Deny a membership request.",
+        "description": "Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global\nadministrator or hold this permission through membership in that organization. Marks a pending membership as\ndenied. A membership that is not pending is rejected.",
         "operationId": "OrganizationsDenyMember",
         "parameters": [
           {
@@ -8968,7 +9153,8 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "Let a denied requester ask again now, instead of waiting out the denial.",
+        "summary": "Clear a membership denial.",
+        "description": "Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global\nadministrator or hold this permission through membership in that organization. Removes a denied membership so\nthe user can request access again immediately. This does not grant access.",
         "operationId": "OrganizationsClearDenial",
         "parameters": [
           {
@@ -9075,7 +9261,8 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "Take an active member's access to this organization away, keeping the membership so it can\nbe reinstated.",
+        "summary": "Suspend an organization member.",
+        "description": "Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global\nadministrator or hold this permission through membership in that organization. Suspends an active membership\nand revokes its access while retaining its roles. Suspending the last active owner is rejected.",
         "operationId": "OrganizationsSuspendMember",
         "parameters": [
           {
@@ -9182,7 +9369,8 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "Reinstates membership using the current default role. Revoked tokens remain revoked.",
+        "summary": "Reinstate a suspended member.",
+        "description": "Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global\nadministrator or hold this permission through membership in that organization. Reactivates a suspended\nmembership with its retained roles. Revoked tokens remain revoked.",
         "operationId": "OrganizationsReinstateMember",
         "parameters": [
           {
@@ -9289,7 +9477,8 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "Removes the caller membership without requiring a management permission.\nThe service still enforces membership and last-owner rules.",
+        "summary": "Leave an organization.",
+        "description": "Requires an authenticated member, without a management permission. Removes the caller membership and revokes\naccess to that organization. Leaving as the last active owner is rejected, and platform suspension prevents\nthis action for non-global administrators.",
         "operationId": "OrganizationsLeave",
         "parameters": [
           {
@@ -9388,6 +9577,7 @@
           "Organizations"
         ],
         "summary": "Archive an organization.",
+        "description": "Requires OrganizationsUpdate. The organization must be the resolved tenant, or you must be a global\nadministrator or hold this permission through membership in that organization. Archives the organization and\nrevokes organization access. Registration and membership records remain available for reactivation.",
         "operationId": "OrganizationsArchive",
         "parameters": [
           {
@@ -9476,6 +9666,7 @@
           "Organizations"
         ],
         "summary": "Reactivate an archived organization.",
+        "description": "Requires OrganizationsUpdate. The organization must be the resolved tenant, or you must be a global\nadministrator or hold this permission through membership in that organization. Restores the organization to\nactive status. Revoked credentials and separate client suspensions are not restored.",
         "operationId": "OrganizationsReactivate",
         "parameters": [
           {
@@ -9563,7 +9754,8 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "Applies an organization platform suspension and revokes associated access.\nRequires global administrator authority; global administrators may still make changes.",
+        "summary": "Suspend an organization at platform level.",
+        "description": "Requires a global administrator. Records the supplied reason and revokes organization access. Non-global\nadministrators cannot mutate the organization while the platform suspension remains in effect.",
         "operationId": "OrganizationsPlacePlatformSuspension",
         "parameters": [
           {
@@ -9674,7 +9866,8 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "Lifts the organization platform suspension. Revoked tokens and separate client suspensions remain unchanged.",
+        "summary": "Lift an organization platform suspension.",
+        "description": "Requires a global administrator. Clears the addressed organization platform suspension. Revoked tokens,\narchive status, and separate client suspensions remain unchanged.",
         "operationId": "OrganizationsLiftPlatformSuspension",
         "parameters": [
           {
@@ -9773,6 +9966,7 @@
           "Organizations"
         ],
         "summary": "Get organization branding.",
+        "description": "Requires OrganizationsRead. The organization must be the resolved tenant, or you must be a global\nadministrator or hold this permission through membership in that organization. Returns stored logo and colors,\nor 404 when no branding exists in the resolved tenant. displayName is not stored by this endpoint and is\nreturned as null.",
         "operationId": "OrganizationsGetBranding",
         "parameters": [
           {
@@ -9863,6 +10057,7 @@
           "Organizations"
         ],
         "summary": "Update organization branding.",
+        "description": "Requires OrganizationsUpdate. The organization must be the resolved tenant, or you must be a global\nadministrator or hold this permission through membership in that organization. Replaces the logo URL and\nprimary color, preserving the accent color. displayName is echoed in this response but is not persisted.",
         "operationId": "OrganizationsUpdateBranding",
         "parameters": [
           {
@@ -9969,7 +10164,8 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "Upload organization branding logo.",
+        "summary": "Get a proposed organization logo URL.",
+        "description": "Requires OrganizationsUpdate. The organization must be the resolved tenant, or you must be a global\nadministrator or hold this permission through membership in that organization. Accepts a multipart file and\nreturns a URL based on its filename. This endpoint currently does not store the file or update the\norganization branding.",
         "operationId": "OrganizationsUploadBrandingLogo",
         "parameters": [
           {
@@ -10076,7 +10272,8 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "Get organization settings.",
+        "summary": "Get organization security and enrollment settings.",
+        "description": "Requires OrganizationsRead. The organization must be the resolved tenant, or you must be a global\nadministrator or hold this permission through membership in that organization. Returns MFA, passwordless\nlogin, and enrollment settings, or 404 when settings are absent from the resolved tenant.",
         "operationId": "OrganizationsGetSettings",
         "parameters": [
           {
@@ -10166,7 +10363,8 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "Update organization settings.",
+        "summary": "Replace organization MFA settings.",
+        "description": "Requires OrganizationsUpdate. The organization must be the resolved tenant, or you must be a global\nadministrator or hold this permission through membership in that organization. Omitted requireMfa and\nmfaGracePeriodDays become false and zero; passwordless login is disabled. A positive grace period with\nrequired MFA sets a new deadline for active members without MFA; allowedLoginMethods and defaultMemberRole are\ncurrently ignored.",
         "operationId": "OrganizationsUpdateSettings",
         "parameters": [
           {
@@ -10269,7 +10467,8 @@
         "tags": [
           "Organizations"
         ],
-        "summary": "Replaces the enrollment policy, request-email address, and default role.\nRequires permission to manage members.",
+        "summary": "Replace organization enrollment settings.",
+        "description": "Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global\nadministrator or hold this permission through membership in that organization. Replaces the enrollment policy,\naccess-request email, and default role ID. A supplied role ID must exist; null selects the user role for\nfuture enrollments.",
         "operationId": "OrganizationsUpdateEnrollment",
         "parameters": [
           {
@@ -10382,7 +10581,8 @@
         "tags": [
           "Roles"
         ],
-        "summary": "Get all available roles in the system.",
+        "summary": "List available roles.",
+        "description": "Requires RolesRead in the resolved tenant. Returns names from the global role catalog, rather than the caller\nrole assignments.",
         "operationId": "RolesGetRoles",
         "responses": {
           "200": {
@@ -10466,7 +10666,8 @@
         "tags": [
           "Roles"
         ],
-        "summary": "Get the permissions associated with a specific role.",
+        "summary": "Get permissions for a role.",
+        "description": "Requires RolesRead in the resolved tenant. Returns permission names from the platform role mapping for\nroleName. An unknown role returns an empty list.",
         "operationId": "RolesGetRolePermissions",
         "parameters": [
           {
@@ -10560,7 +10761,8 @@
         "tags": [
           "API Scopes"
         ],
-        "summary": "List available API scopes with optional category filter.",
+        "summary": "List API scopes.",
+        "description": "Requires ScopeRead in the resolved tenant. Returns the global scope catalog ordered by category and code,\noptionally filtered by an exact category. Includes platform-only scopes as metadata; their presence does not\npermit granting them to organization clients.",
         "operationId": "ScopesList",
         "parameters": [
           {
@@ -10653,6 +10855,8 @@
         "tags": [
           "Identity"
         ],
+        "summary": "List the current user active sign-in sessions.",
+        "description": "Requires an authenticated user. Returns unrevoked, unexpired account sessions across organizations, ordered\nnewest first, with creation, activity, and expiry timestamps.",
         "operationId": "SessionListSessions",
         "responses": {
           "200": {
@@ -10752,11 +10956,14 @@
         "tags": [
           "Identity"
         ],
+        "summary": "Revoke one of the current user sign-in sessions.",
+        "description": "Requires an authenticated user. Marks the owned session revoked and revokes credentials associated with its\nOIDC session identifier. Returns no content after revocation; the session must belong to the caller.",
         "operationId": "SessionRevokeSession",
         "parameters": [
           {
             "name": "sessionId",
             "in": "path",
+            "description": "Session ID returned by the session list, not an access token.",
             "required": true,
             "schema": {
               "type": "string",
@@ -10836,6 +11043,8 @@
         "tags": [
           "Setup"
         ],
+        "summary": "Check whether administrator setup is required.",
+        "description": "Available without authentication. Setup remains open until an active organization membership has a role\ngranting AdminAccess. While setup is open, the response includes an organization name only when exactly one\norganization exists.",
         "operationId": "SetupGetStatus",
         "responses": {
           "200": {
@@ -10916,6 +11125,8 @@
         "tags": [
           "Setup"
         ],
+        "summary": "Create the initial organization administrator.",
+        "description": "Available without authentication while setup is required. Creates the account and enrolls it as owner of an\norganization with a matching name, or creates that organization. Returns no content on success and 409 if\nsetup is already complete or the bootstrap result fails. An existing account with the supplied email leaves\nbootstrap unchanged.",
         "operationId": "SetupCreateAdmin",
         "requestBody": {
           "content": {
@@ -11017,7 +11228,8 @@
         "tags": [
           "Users"
         ],
-        "summary": "Searches users in the resolved tenant with pagination.",
+        "summary": "Search user accounts.",
+        "description": "Requires UsersRead in the resolved tenant. Searches the global user directory by email, first name, or last\nname, ordered by email; displayed roles come only from active memberships in the resolved tenant. first is a\nzero-based offset and max is the page size; the response includes total count and page metadata.",
         "operationId": "UsersGetUsers",
         "parameters": [
           {
@@ -11131,7 +11343,8 @@
         "tags": [
           "Users"
         ],
-        "summary": "Creates a user account and adds it to the resolved tenant with the user role.",
+        "summary": "Create a user and organization membership.",
+        "description": "Requires UsersCreate in the resolved tenant. Creates an account with the supplied email and profile,\noptionally sets a password, and enrolls the user with the user role. Returns the created account and its URL.",
         "operationId": "UsersCreateUser",
         "requestBody": {
           "content": {
@@ -11227,7 +11440,8 @@
         "tags": [
           "Users"
         ],
-        "summary": "Gets a user who belongs to the resolved tenant.",
+        "summary": "Get an organization member account.",
+        "description": "Requires UsersRead and an active membership for the target user in the resolved tenant. Returns the account\nprofile and roles in that tenant, or 404 when the user is missing or is not a member.",
         "operationId": "UsersGetUserById",
         "parameters": [
           {
@@ -11319,7 +11533,8 @@
         "tags": [
           "Users"
         ],
-        "summary": "Get the currently authenticated user's profile, roles, and permissions.",
+        "summary": "Get the authenticated user profile.",
+        "description": "Requires authentication without an organization context or management permission. Returns profile fields,\nroles, permissions, and global administrator status from the current authentication claims.",
         "operationId": "UsersGetCurrentUser",
         "responses": {
           "200": {
@@ -11400,7 +11615,8 @@
         "tags": [
           "Users"
         ],
-        "summary": "Deactivate a user account.",
+        "summary": "Lock a member user account.",
+        "description": "Requires UsersUpdate and an active membership for the target user in the resolved tenant. Locks the account\nindefinitely and revokes the user access across organizations. A missing membership returns 404.",
         "operationId": "UsersDeactivateUser",
         "parameters": [
           {
@@ -11488,7 +11704,8 @@
         "tags": [
           "Users"
         ],
-        "summary": "Activate a previously deactivated user account.",
+        "summary": "Unlock a member user account.",
+        "description": "Requires UsersUpdate and an active membership for the target user in the resolved tenant. Clears the account\nlockout across organizations. Previously revoked tokens remain revoked; a missing membership returns 404.",
         "operationId": "UsersActivateUser",
         "parameters": [
           {
@@ -11576,7 +11793,8 @@
         "tags": [
           "Users"
         ],
-        "summary": "Assigns a role within the resolved tenant. Reserved global-administrator names are rejected.",
+        "summary": "Assign a role to an organization member.",
+        "description": "Requires RolesUpdate and an active membership for the target user in the resolved tenant. Adds an existing\nnamed role to that membership without replacing other roles. Reserved global-administrator role names are\nrejected.",
         "operationId": "UsersAssignRole",
         "parameters": [
           {
@@ -11679,7 +11897,8 @@
         "tags": [
           "Users"
         ],
-        "summary": "Removes the named role within the resolved tenant.",
+        "summary": "Remove a role from an organization member.",
+        "description": "Requires RolesUpdate and an active membership for the target user in the resolved tenant. Removes the named\nrole from that membership while retaining other roles. A missing membership returns 404.",
         "operationId": "UsersRemoveRole",
         "parameters": [
           {
@@ -11775,6 +11994,8 @@
         "tags": [
           "Inquiries"
         ],
+        "summary": "Submit an inquiry.",
+        "description": "Requires InquiriesWrite and creates an inquiry with status New in the current tenant. Human callers are\nrecorded as the submitter; service-account submissions have no submitter association. Returns the saved\ninquiry after validating the contact details and required project information.",
         "operationId": "InquiriesSubmit",
         "requestBody": {
           "content": {
@@ -11868,11 +12089,14 @@
         "tags": [
           "Inquiries"
         ],
+        "summary": "List tenant inquiries.",
+        "description": "Requires InquiriesRead in the current tenant. Returns an unpaginated list ordered newest first,\noptionally filtered by status. An empty or unrecognized status string applies no filter.",
         "operationId": "InquiriesGetAll",
         "parameters": [
           {
             "name": "status",
             "in": "query",
+            "description": "Optional status name, matched case-insensitively. Unrecognized text is ignored.",
             "schema": {
               "type": "string"
             }
@@ -11960,6 +12184,8 @@
         "tags": [
           "Inquiries"
         ],
+        "summary": "List inquiries submitted by the current user.",
+        "description": "Requires authentication and returns the current user's inquiries in the current tenant, newest first.\nDoes not require InquiriesRead. Service accounts and callers without a user identifier receive an empty\nlist.",
         "operationId": "InquiriesGetSubmitted",
         "responses": {
           "200": {
@@ -12043,6 +12269,8 @@
         "tags": [
           "Inquiries"
         ],
+        "summary": "Get an inquiry.",
+        "description": "Requires authentication in the current tenant. Callers with InquiriesRead can read any inquiry in that\ntenant; other callers can read only inquiries associated with them as submitter. Returns 404 for an\nunknown or inaccessible inquiry.",
         "operationId": "InquiriesGetById",
         "parameters": [
           {
@@ -12134,6 +12362,8 @@
         "tags": [
           "Inquiries"
         ],
+        "summary": "Advance an inquiry's status.",
+        "description": "Requires InquiriesWrite in the current tenant and returns the updated inquiry. Status names are\ncase-insensitive, and only New to Reviewed, Reviewed to Contacted, and Contacted to Closed transitions\nare allowed. Invalid transitions are rejected, including repeated or backward transitions; an unknown\ninquiry returns 404.",
         "operationId": "InquiriesUpdateStatus",
         "parameters": [
           {
@@ -12240,6 +12470,8 @@
         "tags": [
           "Inquiries"
         ],
+        "summary": "Add a comment to an inquiry.",
+        "description": "Requires InquiriesWrite in the current tenant. Records the caller as author and returns the new comment\nidentifier. Content must be nonempty and at most 5,000 characters; internal comments are hidden from\nsubmitters without InquiriesRead.",
         "operationId": "InquiriesAddComment",
         "parameters": [
           {
@@ -12344,6 +12576,8 @@
         "tags": [
           "Inquiries"
         ],
+        "summary": "List an inquiry's comments.",
+        "description": "Requires authentication in the current tenant and returns comments oldest first. Callers with\nInquiriesRead receive internal and public comments; other callers must be the inquiry's submitter and\nreceive public comments only. Submitters receive 404 for unknown or inaccessible inquiries; readers\nreceive an empty list when no comments match.",
         "operationId": "InquiriesGetComments",
         "parameters": [
           {
@@ -12438,12 +12672,14 @@
         "tags": [
           "Notifications"
         ],
-        "summary": "Get the current user's notification history.",
+        "summary": "List the current user's notification history.",
+        "description": "Requires NotificationRead and an authenticated user in the current tenant. Returns a page ordered newest\nfirst, excluding archived and expired notifications. Pagination metadata includes the total matching\ncount and whether adjacent pages exist.",
         "operationId": "NotificationsGetNotifications",
         "parameters": [
           {
             "name": "pageNumber",
             "in": "query",
+            "description": "One-based page number; defaults to 1.",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -12457,6 +12693,7 @@
           {
             "name": "pageSize",
             "in": "query",
+            "description": "Number of notifications per page; defaults to 20.",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -12547,7 +12784,8 @@
         "tags": [
           "Notifications"
         ],
-        "summary": "Get the current user's unread notification count.",
+        "summary": "Count the current user's unread notifications.",
+        "description": "Requires NotificationRead and an authenticated user in the current tenant. Counts all unread\nnotifications for that user, including archived or expired notifications that the history endpoint omits.\nReturns a count without changing read state.",
         "operationId": "NotificationsGetUnreadCount",
         "responses": {
           "200": {
@@ -12628,7 +12866,8 @@
         "tags": [
           "Notifications"
         ],
-        "summary": "Mark a single notification as read.",
+        "summary": "Mark a notification as read.",
+        "description": "Requires NotificationRead and ownership of the notification in the current tenant. Records the current\nread time and returns no content, updating the timestamp even for an already read notification. Returns\n404 for an unknown notification and an access-denied error for another user's notification.",
         "operationId": "NotificationsMarkAsRead",
         "parameters": [
           {
@@ -12716,7 +12955,8 @@
         "tags": [
           "Notifications"
         ],
-        "summary": "Mark all notifications as read for the current user.",
+        "summary": "Mark all of the current user's notifications as read.",
+        "description": "Requires NotificationRead and an authenticated user in the current tenant. Marks every unread\nnotification for that user as read, including archived or expired notifications and notifications outside\nthe current history page. Returns no content, including when there are no unread notifications.",
         "operationId": "NotificationsMarkAllAsRead",
         "responses": {
           "204": {
@@ -12793,6 +13033,8 @@
         "tags": [
           "Admin - Push Configuration"
         ],
+        "summary": "List tenant Web Push signing key versions.",
+        "description": "Requires PushConfigWrite in the current tenant. Returns key IDs, public keys, and current or retired\nflags without private keys or credentials. Returns an empty list when no valid Web Push configuration\nexists.",
         "operationId": "PushConfigurationGetWebPushKeys",
         "responses": {
           "200": {
@@ -12874,8 +13116,11 @@
         "tags": [
           "Admin - Push Configuration"
         ],
+        "summary": "Create a new current Web Push signing key.",
+        "description": "Requires PushConfigWrite in the current tenant and a valid VAPID contact subject. Returns the new key ID\nand public key, retaining previous nonretired keys for existing subscriptions. Rotation preserves the\nconfiguration's enabled state; private keys are never returned.",
         "operationId": "PushConfigurationRotateWebPushKey",
         "requestBody": {
+          "description": "Cancels the request.",
           "content": {
             "application/json": {
               "schema": {
@@ -12974,6 +13219,8 @@
         "tags": [
           "Admin - Push Configuration"
         ],
+        "summary": "Retire a tenant Web Push signing key.",
+        "description": "Requires PushConfigWrite in the current tenant. Removes the private key and disables delivery for\nsubscriptions bound to this key. Retiring the current key also leaves no current key for new\nsubscriptions until another rotation. Returns 404 if the key or a valid configuration cannot be found.",
         "operationId": "PushConfigurationRetireWebPushKey",
         "parameters": [
           {
@@ -13060,6 +13307,8 @@
         "tags": [
           "Admin - Push Configuration"
         ],
+        "summary": "Get a tenant push configuration.",
+        "description": "Requires PushRead in the current tenant. Returns one stored platform configuration and its enabled state,\nor no content when none exists. The credentials field always contains [redacted]; neither plaintext nor\nencrypted credentials are returned. When multiple platforms are configured, the selected platform is\nunspecified.",
         "operationId": "PushConfigurationGetTenantPushConfig",
         "responses": {
           "200": {
@@ -13144,6 +13393,8 @@
         "tags": [
           "Admin - Push Configuration"
         ],
+        "summary": "Set tenant push provider credentials.",
+        "description": "Requires PushConfigWrite in the current tenant. Creates a configuration for the specified platform or\nreplaces its credentials while preserving an existing enabled state. Credentials are encrypted for\nstorage and are not returned. Web Push replacements must preserve signing key history and cannot remove\nor reactivate retired keys.",
         "operationId": "PushConfigurationUpsertTenantPushConfig",
         "requestBody": {
           "content": {
@@ -13240,6 +13491,8 @@
         "tags": [
           "Admin - Push Configuration"
         ],
+        "summary": "Enable or disable a tenant push platform.",
+        "description": "Requires PushConfigWrite in the current tenant. Changes the specified platform's enabled state while\nretaining its credentials and registered devices. Returns no content, or 404 when that platform has no\nconfiguration.",
         "operationId": "PushConfigurationSetTenantPushEnabled",
         "requestBody": {
           "content": {
@@ -13336,6 +13589,8 @@
         "tags": [
           "Admin - Push Configuration"
         ],
+        "summary": "Remove a tenant push platform configuration.",
+        "description": "Requires PushConfigWrite in the current tenant. Deletes the specified platform's credentials and\nconfiguration, returning no content even when no matching configuration exists. Web Push configuration\ncannot be removed this way; disable it or retire its signing keys instead.",
         "operationId": "PushConfigurationRemoveTenantPushConfig",
         "parameters": [
           {
@@ -13422,6 +13677,8 @@
         "tags": [
           "Push Devices"
         ],
+        "summary": "Get the current Web Push public key.",
+        "description": "Requires an authenticated user and an organization tenant. Returns the current signing key ID and public\nkey for browser subscription creation; private keys are never returned. Returns 409 when Web Push is\ndisabled, unconfigured, or has no usable current key.",
         "operationId": "PushDevicesGetWebPushPublicKey",
         "responses": {
           "200": {
@@ -13512,6 +13769,8 @@
         "tags": [
           "Push Devices"
         ],
+        "summary": "Register a push device for the current user.",
+        "description": "Requires an authenticated user in the current tenant. Web Push registrations require a browser\nsubscription and signing key ID with no token; other platforms require a token and no subscription or\nsigning key ID. An active token owned by another user or registered for another platform returns 409.\nRe-registering an owned device updates it, while an inactive registration can be claimed by a new owner.",
         "operationId": "PushDevicesRegisterDevice",
         "requestBody": {
           "content": {
@@ -13611,6 +13870,8 @@
         "tags": [
           "Push Devices"
         ],
+        "summary": "List the current user's active push devices.",
+        "description": "Requires an authenticated user in the current tenant. Returns active registrations owned by that user,\nincluding platform, token, registration ID, and Web Push signing key ID where applicable. Inactive\nregistrations are excluded.",
         "operationId": "PushDevicesGetUserDevices",
         "responses": {
           "200": {
@@ -13694,6 +13955,8 @@
         "tags": [
           "Push Devices"
         ],
+        "summary": "Deactivate a push device.",
+        "description": "Requires an authenticated user who owns the registration in the current tenant. Stops future delivery to\nthat registration and removes it from the active device list. Returns no content for an owned\nregistration, including one already inactive, or 404 for an unknown or foreign registration.",
         "operationId": "PushDevicesDeregisterDevice",
         "parameters": [
           {
@@ -13781,6 +14044,8 @@
         "tags": [
           "Push Devices"
         ],
+        "summary": "Send a push notification to the current user.",
+        "description": "Requires an authenticated user in the current tenant and targets only that user's eligible active\ndevices. Delivery is queued; a successful response does not confirm device receipt and also covers\ndisabled preferences or no registered devices. Returns 409 when registered devices exist but none has an\navailable Web Push key. ClickPath, when supplied, must be a local absolute path such as /notifications.",
         "operationId": "PushDevicesSendPush",
         "requestBody": {
           "content": {
@@ -13882,6 +14147,8 @@
         "tags": [
           "Notification Settings"
         ],
+        "summary": "Get the current user's notification preferences.",
+        "description": "Requires EmailPreferenceManage and an authenticated user in the current tenant. Returns stored\npreferences grouped by channel, with each channel's overall enabled state and per-type overrides.\nChannels without stored preferences are omitted; delivery defaults to enabled when no preference disables\nit.",
         "operationId": "UserNotificationSettingsGetUserNotificationSettings",
         "responses": {
           "200": {
@@ -13962,6 +14229,8 @@
         "tags": [
           "Notification Settings"
         ],
+        "summary": "Enable or disable a notification channel.",
+        "description": "Requires EmailPreferenceManage and applies to the authenticated user in the current tenant. Creates or\nreplaces the channel-wide preference without removing per-type preferences. Disabling the channel\noverrides all of its per-type settings; enabling it leaves individually disabled types disabled.",
         "operationId": "UserNotificationSettingsSetChannelEnabled",
         "requestBody": {
           "content": {
@@ -14053,6 +14322,8 @@
         "tags": [
           "Notification Settings"
         ],
+        "summary": "Enable or disable a notification type on a channel.",
+        "description": "Requires EmailPreferenceManage and applies to the authenticated user in the current tenant. Creates or\nreplaces the preference for the specified channel and notification type. Enabling a type does not\noverride a disabled channel; the notification type * addresses the channel-wide preference.",
         "operationId": "UserNotificationSettingsSetNotificationTypeEnabled",
         "requestBody": {
           "content": {
@@ -14144,7 +14415,8 @@
         "tags": [
           "Storage"
         ],
-        "summary": "Create a new storage bucket.",
+        "summary": "Create a tenant storage bucket.",
+        "description": "Requires StorageWrite in the current tenant and returns the created bucket configuration. Names must be\nlowercase letters or digits with optional internal hyphens and must be unique within the tenant;\nduplicates return 409. Unrecognized access values default to Private, and retention days require a valid\nretention action.",
         "operationId": "StorageCreateBucket",
         "requestBody": {
           "content": {
@@ -14255,7 +14527,8 @@
         "tags": [
           "Storage"
         ],
-        "summary": "Get bucket by name.",
+        "summary": "Get a storage bucket by name.",
+        "description": "Requires StorageRead in the current tenant. Returns the bucket's access level, upload restrictions,\nretention policy, and versioning setting. Returns 404 when no bucket with this name exists in the tenant.",
         "operationId": "StorageGetBucket",
         "parameters": [
           {
@@ -14344,12 +14617,14 @@
         "tags": [
           "Storage"
         ],
-        "summary": "Delete a bucket.",
+        "summary": "Delete a storage bucket.",
+        "description": "Requires StorageWrite in the current tenant. Rejects nonempty buckets unless force is true, which also\ndeletes their file records and stored objects. Returns no content on success or 404 if the bucket is\nunknown.",
         "operationId": "StorageDeleteBucket",
         "parameters": [
           {
             "name": "name",
             "in": "path",
+            "description": "Name of the bucket to delete.",
             "required": true,
             "schema": {
               "type": "string"
@@ -14358,6 +14633,7 @@
           {
             "name": "force",
             "in": "query",
+            "description": "Whether to delete the bucket and all of its files. Defaults to false.",
             "schema": {
               "type": "boolean",
               "default": false
@@ -14439,9 +14715,11 @@
         "tags": [
           "Storage"
         ],
-        "summary": "Upload a file.",
+        "summary": "Upload and validate a file.",
+        "description": "Requires StorageWrite and an authenticated user in the current tenant. Accepts multipart content for an\nexisting bucket, validates file signatures and paths, enforces bucket and tenant limits, and scans the\nbytes before storage. Returns the saved file metadata only after the file becomes Available; no\ncompletion request is needed. Empty, disallowed, oversized, or unsafe files are rejected, and an unknown\nbucket returns 404.",
         "operationId": "StorageUpload",
         "requestBody": {
+          "description": "Cancels the request.",
           "content": {
             "multipart/form-data": {
               "schema": {
@@ -14565,7 +14843,8 @@
         "tags": [
           "Storage"
         ],
-        "summary": "Get file metadata by ID.",
+        "summary": "Get file metadata.",
+        "description": "Requires StorageRead in the current tenant. Returns metadata for an existing file, including pending or\nrejected uploads, or 404 if the ID is unknown. This response does not contain validation status and does\nnot establish that the file is available for download.",
         "operationId": "StorageGetFile",
         "parameters": [
           {
@@ -14655,7 +14934,8 @@
         "tags": [
           "Storage"
         ],
-        "summary": "Delete a file.",
+        "summary": "Delete a stored file.",
+        "description": "Requires StorageWrite in the current tenant. Removes the file record and its stored object, including for\npending or rejected uploads, releasing the reserved quota. Returns no content on success or 404 for an\nunknown file ID.",
         "operationId": "StorageDelete",
         "parameters": [
           {
@@ -14743,7 +15023,8 @@
         "tags": [
           "Storage"
         ],
-        "summary": "Download a file (redirects to presigned URL).",
+        "summary": "Redirect to a file download.",
+        "description": "Requires StorageRead in the current tenant. Returns a 302 redirect to a temporary signed URL for the file\nbytes, not a JSON response. Only Available files can be downloaded; pending or rejected files are\nrefused, and unknown IDs return 404.",
         "operationId": "StorageDownload",
         "parameters": [
           {
@@ -14831,12 +15112,14 @@
         "tags": [
           "Storage"
         ],
-        "summary": "List files in a bucket.",
+        "summary": "List files in a storage bucket.",
+        "description": "Requires StorageRead in the current tenant. Returns a page of file metadata ordered by upload time\ndescending, optionally filtered by a path prefix, with the total matching count. Includes pending and\nrejected uploads; listed metadata does not confirm download availability. Returns 404 if the bucket does\nnot exist.",
         "operationId": "StorageListFiles",
         "parameters": [
           {
             "name": "bucket",
             "in": "query",
+            "description": "Name of an existing bucket in the current tenant.",
             "schema": {
               "type": "string"
             }
@@ -14844,6 +15127,7 @@
           {
             "name": "path",
             "in": "query",
+            "description": "Optional prefix of the stored folder path, not an exact folder match; empty or whitespace applies no filter.",
             "schema": {
               "type": "string"
             }
@@ -14851,6 +15135,7 @@
           {
             "name": "page",
             "in": "query",
+            "description": "One-based page number; defaults to 1.",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -14864,6 +15149,7 @@
           {
             "name": "pageSize",
             "in": "query",
+            "description": "Number of files per page; defaults to 20.",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -14954,7 +15240,8 @@
         "tags": [
           "Storage"
         ],
-        "summary": "Get a presigned URL for direct upload to storage.",
+        "summary": "Reserve a file and get a direct upload URL.",
+        "description": "Requires StorageWrite and an authenticated user in the current tenant. Validates the declared file\nmetadata against bucket and tenant limits, reserves quota, and returns a file ID plus a signed upload\nURL. PUT the bytes to that URL, then call the file completion endpoint and check for Available before\ndownloading. Uncompleted uploads stay PendingValidation and reserve quota until deleted; URL expiry\ndefaults to 15 minutes and is capped by server configuration.",
         "operationId": "StorageGetPresignedUploadUrl",
         "requestBody": {
           "content": {
@@ -15055,7 +15342,8 @@
         "tags": [
           "Storage"
         ],
-        "summary": "Complete a presigned upload: verify the object exists, scan it, and promote the file\nto Available (or Rejected). Idempotent once the file has left PendingValidation.",
+        "summary": "Complete a direct upload and get its validation status.",
+        "description": "Requires StorageWrite in the current tenant after the bytes have been PUT to the signed upload URL.\nVerifies that the object exists, scans it, and returns Available or Rejected; a successful HTTP response\nalone does not mean the scan passed. Repeated calls after PendingValidation return the existing status\nwithout another scan. Returns 404 for an unknown file and rejects completion when the object has not been\nuploaded.",
         "operationId": "StorageCompletePresignedUpload",
         "parameters": [
           {
@@ -15147,12 +15435,14 @@
         "tags": [
           "Storage"
         ],
-        "summary": "Get a presigned URL for downloading a file.",
+        "summary": "Get a temporary file download URL.",
+        "description": "Requires StorageRead in the current tenant. Returns a signed URL and expiry for an Available file,\nwithout redirecting or returning its bytes. Pending or rejected files are refused; unknown IDs return\n404. Treat the returned URL as an opaque temporary credential for the download.",
         "operationId": "StorageGetPresignedDownloadUrl",
         "parameters": [
           {
             "name": "id",
             "in": "path",
+            "description": "Stored file identifier.",
             "required": true,
             "schema": {
               "type": "string",
@@ -15162,6 +15452,7 @@
           {
             "name": "expiryMinutes",
             "in": "query",
+            "description": "Requested URL lifetime in minutes; defaults to 60 and is capped by the server's maximum download lifetime.",
             "schema": {
               "pattern": "^-?(?:0|[1-9]\\d*)$",
               "type": [
@@ -15251,6 +15542,8 @@
         "tags": [
           "Storage Settings"
         ],
+        "summary": "Get resolved storage configuration.",
+        "description": "Requires an authenticated user in the current tenant. Returns a key-value map using user overrides first,\nthen tenant overrides, then registered defaults. Upload enforcement ignores user overrides and uses\ntenant limits, so this map can differ from the limits enforced for uploads.",
         "operationId": "StorageSettingsGetConfig",
         "responses": {
           "200": {
@@ -15331,6 +15624,8 @@
         "tags": [
           "Storage Settings"
         ],
+        "summary": "Get resolved tenant storage settings.",
+        "description": "Requires StorageWrite in the current tenant. Returns tenant overrides merged with registered defaults,\nincluding each value's source and descriptive metadata. User overrides are excluded.",
         "operationId": "StorageSettingsGetTenantSettings",
         "responses": {
           "200": {
@@ -15412,6 +15707,8 @@
         "tags": [
           "Storage Settings"
         ],
+        "summary": "Set a tenant storage setting.",
+        "description": "Requires StorageWrite and an authenticated user in the current tenant. Creates or replaces one\nstring-valued tenant override and returns no content. Accepts registered storage keys and custom. keys;\nsystem. keys and unknown keys are rejected.",
         "operationId": "StorageSettingsUpsertTenantSetting",
         "requestBody": {
           "content": {
@@ -15506,11 +15803,14 @@
         "tags": [
           "Storage Settings"
         ],
+        "summary": "Remove a tenant storage setting override.",
+        "description": "Requires StorageWrite and an authenticated user in the current tenant. Removes the named override so the\nregistered default applies where one exists; user overrides remain in place. Returns no content even when\nno override exists, but rejects system. keys and unknown keys.",
         "operationId": "StorageSettingsDeleteTenantSetting",
         "parameters": [
           {
             "name": "key",
             "in": "query",
+            "description": "Registered storage key or a key beginning with custom.",
             "schema": {
               "type": "string"
             }
@@ -15591,6 +15891,8 @@
         "tags": [
           "Storage Settings"
         ],
+        "summary": "Get resolved storage settings for the current user.",
+        "description": "Requires an authenticated user in the current tenant. Returns user overrides merged with tenant overrides\nand registered defaults, including each value's source and descriptive metadata. User overrides do not\nchange the tenant limits enforced during upload.",
         "operationId": "StorageSettingsGetUserSettings",
         "responses": {
           "200": {
@@ -15672,6 +15974,8 @@
         "tags": [
           "Storage Settings"
         ],
+        "summary": "Set a storage setting for the current user.",
+        "description": "Requires an authenticated user in the current tenant. Creates or replaces one string-valued user override\nused by resolved configuration responses. Accepts registered storage keys and custom. keys; system. keys\nand unknown keys are rejected. This override does not raise or otherwise change enforced tenant upload\nlimits.",
         "operationId": "StorageSettingsUpsertUserSetting",
         "requestBody": {
           "content": {
@@ -15766,11 +16070,14 @@
         "tags": [
           "Storage Settings"
         ],
+        "summary": "Remove a user storage setting override.",
+        "description": "Requires an authenticated user in the current tenant. Removes the named user override so the tenant value\nor registered default applies where one exists. Returns no content even when no override exists, but\nrejects system. keys and unknown keys.",
         "operationId": "StorageSettingsDeleteUserSetting",
         "parameters": [
           {
             "name": "key",
             "in": "query",
+            "description": "Registered storage key or a key beginning with custom.",
             "schema": {
               "type": "string"
             }

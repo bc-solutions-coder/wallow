@@ -39,9 +39,17 @@ const SERVED_SCHEMES: ReadonlySet<string> = new Set(["http", "https"]);
 const SCHEME_TERMINATOR = /:$/u;
 
 /**
- * The origin (`https://wallow.dev`, `http://localhost:3000`) the browser sees
- * for `request` — its own origin, unless the immediate `peer` is a trusted
- * proxy that reported a different scheme.
+ * Resolve the browser-facing origin of an incoming request.
+ *
+ * For a trusted socket peer, honors the first X-Forwarded-Proto value when it is http or https.
+ * Preserves the request URL host and port; forwarded host headers are not used. Otherwise
+ * returns the request URL origin.
+ *
+ * @param request Incoming request with an absolute URL.
+ *
+ * @param peer Socket peer supplied by the server runtime.
+ *
+ * @param trusted Parsed proxy trust ranges.
  */
 export function resolveRequestOrigin(
   request: Request,
@@ -75,13 +83,11 @@ export function resolveRequestOrigin(
 }
 
 /**
- * Bind {@link resolveRequestOrigin} to a deployment's trusted-proxy list.
+ * Create a reusable browser-origin resolver for SSR requests.
  *
- * The env record is a PARAMETER because this package must not read the
- * environment itself: every app's `start.ts` is aliased into the client module
- * graph as well as the server one, so a `process.env` read at module scope here
- * would either break the client build or leak a server value into it. Bind once
- * in server-only code — the CIDR parse is not per-request work.
+ * Reads WALLOW_TRUSTED_PROXIES from the supplied environment once. The returned function passes
+ * request.ip to resolveRequestOrigin, so trusted TLS proxies can supply the browser scheme used
+ * in SDK base URLs.
  */
 export function createRequestOriginResolver(
   env: Readonly<Record<string, string | undefined>>,

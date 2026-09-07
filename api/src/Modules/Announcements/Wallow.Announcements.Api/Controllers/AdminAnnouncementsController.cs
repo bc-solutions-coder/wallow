@@ -26,6 +26,14 @@ namespace Wallow.Announcements.Api.Controllers;
 public class AdminAnnouncementsController(IMessageBus bus, IHtmlSanitizationService sanitizer) : ControllerBase
 {
 
+    /// <summary>
+    /// List all tenant announcements.
+    /// </summary>
+    /// <remarks>
+    /// Requires AnnouncementManage in the current tenant. Returns an unpaginated list, newest first, including
+    /// drafts, scheduled, expired, and archived announcements. User targeting and dismissals do not filter this
+    /// administrative list.
+    /// </remarks>
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<AnnouncementResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAllAnnouncements(CancellationToken ct)
@@ -38,6 +46,15 @@ public class AdminAnnouncementsController(IMessageBus bus, IHtmlSanitizationServ
             .ToActionResult();
     }
 
+    /// <summary>
+    /// Create an announcement.
+    /// </summary>
+    /// <remarks>
+    /// Requires AnnouncementManage in the current tenant and returns the created announcement. Title and content
+    /// are sanitized before storage. Supplying PublishAt creates a scheduled announcement; omitting it creates a
+    /// draft. TargetValue is a tenant GUID for Tenant targeting or a case-insensitive role name for Role
+    /// targeting.
+    /// </remarks>
     [HttpPost]
     [ProducesResponseType(typeof(AnnouncementResponse), StatusCodes.Status201Created)]
     public async Task<IActionResult> CreateAnnouncement(
@@ -64,6 +81,14 @@ public class AdminAnnouncementsController(IMessageBus bus, IHtmlSanitizationServ
             .ToCreatedResult("/v1/admin/announcements");
     }
 
+    /// <summary>
+    /// Replace announcement content and targeting.
+    /// </summary>
+    /// <remarks>
+    /// Requires AnnouncementManage in the current tenant. Replaces the supplied content, targeting, dates, and
+    /// presentation options after sanitizing title and content, while preserving the publication status. Returns
+    /// the updated announcement, or 404 when the ID is not found in the current tenant.
+    /// </remarks>
     [HttpPut("{id:guid}")]
     [ProducesResponseType(typeof(AnnouncementResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -92,6 +117,14 @@ public class AdminAnnouncementsController(IMessageBus bus, IHtmlSanitizationServ
         return result.Map(MapToResponse).ToActionResult();
     }
 
+    /// <summary>
+    /// Publish an announcement now.
+    /// </summary>
+    /// <remarks>
+    /// Requires AnnouncementManage in the current tenant. Changes an unpublished announcement to Published and
+    /// sets PublishAt to the current time, including when it was scheduled or archived. Returns no content, or
+    /// 404 when the announcement is not found.
+    /// </remarks>
     [HttpPost("{id:guid}/publish")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -101,6 +134,14 @@ public class AdminAnnouncementsController(IMessageBus bus, IHtmlSanitizationServ
         return result.ToNoContentResult();
     }
 
+    /// <summary>
+    /// Archive an announcement.
+    /// </summary>
+    /// <remarks>
+    /// Requires AnnouncementManage in the current tenant. Removes the announcement from the active user list
+    /// while retaining it in the administrative list. Returns no content, or 404 when the announcement is not
+    /// found.
+    /// </remarks>
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]

@@ -7,8 +7,7 @@ its APIs with an older published SDK.
 This guide explains how to consume Wallow from a TypeScript frontend using the
 `@bc-solutions-coder/sdk` package. The SDK ships a **browser
 client** for calling Wallow APIs from the page, and a **server (BFF) tunnel**
-that runs the OAuth 2.0 Authorization Code flow entirely server-side so that no
-token ever reaches the browser.
+that runs the OAuth 2.0 Authorization Code flow on the server so that tokens are unavailable to browser JavaScript.
 
 If you are building a bespoke BFF by hand — or targeting a non-TypeScript
 runtime — read the [BFF Pattern guide](bff-pattern.md) first for the underlying
@@ -18,14 +17,69 @@ you.
 
 ## Overview
 
-`@bc-solutions-coder/sdk` has four entrypoints:
+`@bc-solutions-coder/sdk` has six entrypoints:
 
-| Import                                       | Runs in                                             | Purpose                                                                                                                                                                                                                                                                                              |
-| -------------------------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@bc-solutions-coder/sdk`                    | Browser (also safe to import from a Node SSR entry) | `createWallowSdk()` — the [per-request client factory](#browser-api) targeting the same-origin `/api` proxy — plus `logout()`, `loginRedirect()`, `getCurrentUser()`, the generated typed operations, the [CSRF module](#csrf-protection), and the [SSR wiring](#per-request-instances-for-server-rendered-loaders) |
-| `@bc-solutions-coder/sdk/server`             | Server (Node)                                       | The BFF tunnel: `createWallowBffServer()`, `createBffHandlers()`, `createApiProxy()`, `loadBffConfigFromEnv()`, and the session stores. Every handler is a plain `(Request) => Promise<Response>` function                                                                                           |
-| `@bc-solutions-coder/sdk/server/passthrough` | Server (Node)                                       | `createApiPassthrough()` — a pure reverse proxy that owns no session and forwards the upstream response verbatim. Its own subpath so a passthrough-only app never pulls `openid-client` into its server bundle                                                                                       |
-| `@bc-solutions-coder/sdk/query`              | Browser                                             | The TanStack Query layer — a generated `{op}Options()` / `{op}QueryKey()` / `{op}Mutation()` trio per OpenAPI operation, plus the curated invalidation predicates `queriesForOperation()` and `queriesWithTag()`                                                                                     |
+| Import | Runs in | Purpose |
+| --- | --- | --- |
+| `@bc-solutions-coder/sdk` | Browser and SSR | `createWallowSdk()`, browser authentication helpers, and generated operations and request/response types |
+| `@bc-solutions-coder/sdk/query` | React, including SSR | Generated read options and query keys, write mutations, and cache invalidation filters; requires `@tanstack/react-query` |
+| `@bc-solutions-coder/sdk/server` | Node | `createWallowBffServer()`, BFF handlers, API proxy, configuration, and session stores |
+| `@bc-solutions-coder/sdk/server/service` | Node | `createServiceClient()` for authenticated service-account calls without a user session |
+| `@bc-solutions-coder/sdk/server/passthrough` | Node | `createApiPassthrough()` for a reverse proxy that does not own a BFF session |
+| `@bc-solutions-coder/sdk/server/forwarded` | Browser and server | Trusted-proxy address and request-origin helpers, safe to import from shared SSR modules |
+
+Choose the client by who is making the request:
+
+- **Browser user:** create `createWallowSdk({ baseUrl: "/api" })` for the page and
+  pass `sdk.client` to operations. The same-origin BFF owns the user session.
+- **Server-rendered user page:** create a separate SDK instance for each incoming
+  request, with an absolute BFF URL and that request's `cookieHeader`.
+  See [SSR loaders](#per-request-instances-for-server-rendered-loaders).
+- **Backend job or service:** use `createServiceClient()` with a service-account
+  registration. It calls the platform API with client credentials and does not act
+  as a signed-in user. See [service accounts](#service-accounts-createserviceclient).
+
+### Find an operation
+
+Import generated operations from `@bc-solutions-coder/sdk`. Names combine the
+controller and action in camel case, such as `organizationsGetById` or
+`inquiriesSubmit`. Your editor's import completion lists the available operations;
+hover over one for its endpoint description, permission requirements, organization
+context, and input or side-effect details. These comments come from the API's
+OpenAPI summaries and descriptions and ship with the package declarations.
+
+The [API explorer](../getting-started/developer-guide.md) groups endpoints by tag.
+In Development, the API publishes `/openapi/v1.json`; its `operationId`
+identifies the matching SDK function, with a lowercase initial letter. Generated names and
+comments describe the SDK version you installed, so keep it aligned with your API.
+
+Every operation accepts one options object. Pass the selected `client`, route
+parameters under `path`, URL parameters under `query`, and JSON input under
+`body`. Only include the fields that the operation accepts. For example, after
+sign-in and with the endpoint's required permission:
+
+```ts
+import {
+	createWallowSdk,
+	organizationsGetById,
+	usersGetUsers,
+} from "@bc-solutions-coder/sdk";
+
+const sdk = createWallowSdk({ baseUrl: "/api" });
+const organization = await organizationsGetById({
+	client: sdk.client,
+	path: { id: "11111111-1111-1111-1111-111111111111" },
+});
+const users = await usersGetUsers({
+	client: sdk.client,
+	query: { search: "alex", first: 0, max: 20 },
+});
+```
+
+The UUID represents an organization you can access. Operations return the response
+body directly, not an envelope to unwrap. Pass the factory's client on every call
+so requests use its authentication, CSRF, and error handling. A failed operation
+rejects with `ApiFailure`; see [error handling](#error-handling-and-resilience).
 
 With production Valkey sessions, tokens stay on the server and the browser holds
 only a sealed session identifier in an HttpOnly cookie. The development cookie store
@@ -101,8 +155,7 @@ npm config set "//npm.pkg.github.com/:_authToken" "$GITHUB_TOKEN"
 npm install @bc-solutions-coder/sdk @bc-solutions-coder/api-errors 'redis@^4.7.0'
 ```
 
-`@bc-solutions-coder/api-errors` is the failure model every SDK rejection is an
-instance of — see [Error handling](#error-handling-and-resilience). `redis` is the SDK's optional peer for [server-side sessions](#session-stores) —
+`@bc-solutions-coder/api-errors` defines the failure model for generated API calls — see [Error handling](#error-handling-and-resilience). `redis` is the SDK's optional peer for [server-side sessions](#session-stores) —
 optional locally, required in production (step 5).
 
 ### 3. Paste the reveal
@@ -159,7 +212,7 @@ can only revoke sessions the server holds — sealed-cookie sessions are a
 single-process development convenience nothing can revoke. Run the store with
 authentication and TLS (`rediss://user:password@host`).
 
-### 6. Anonymous server-to-server calls (optional)
+### 6. Service-account calls (optional)
 
 A contact form, a webhook, a nightly job — anything that must reach the platform
 with no user signed in — uses a **service account: a separate registration with its
@@ -710,20 +763,21 @@ so a BFF host can reuse them rather than hardcode strings.
 
 ## Error handling and resilience
 
-Every failure the SDK raises — a rejected generated operation in the browser, a
-proxy or passthrough fault on the server, a service-client call that was refused —
-is an `ApiFailure` from `@bc-solutions-coder/api-errors`: `status`, a machine
-`code`, `title`, an optional `detail`, `fieldErrors`, `retryAfter`, and the two
-correlation members `requestId` and `traceId`. The SDK has no error type of its
-own; install `api-errors` next to it and match with `isApiFailure`, which tests a
-brand rather than the constructor so it holds across bundle boundaries.
+Generated operations called with the client returned by `createWallowSdk()` or
+`createServiceClient()` reject HTTP and transport failures with `ApiFailure`
+from `@bc-solutions-coder/api-errors`. It carries `status`, a machine `code`,
+`title`, optional `detail`, `fieldErrors`, `retryAfter`, and correlation identifiers.
+Use `isApiFailure` to narrow a caught error across bundle boundaries. Configuration
+errors and application bugs can still be ordinary errors; do not assume every
+exception is an API response. BFF handlers return HTTP problem responses rather
+than throwing an `ApiFailure` to the browser.
 
 The BFF and the API both answer RFC 7807 problem details
 (`content-type: application/problem+json`) with a top-level `code`, and the
 package parses any body into a failure: a problem keeps its code, a bare OAuth
 `{ error }` body becomes `OAuth.<Error>`, and anything else is
-`Client.UnrecognizedResponse` at the response's status. A request that never
-produced a response is a `503 Transport.NetworkError`. `resolveFailureMessage`
+`Client.UnrecognizedResponse` at the response's status. A network failure without a response becomes `503 Transport.NetworkError`;
+timeouts and cancellations have their own transport codes. `resolveFailureMessage`
 turns a failure into the sentence to show — a call-site override first, then the
 app's `defineFailureMessages` registry, then the copy shipped with the code
 catalogue, then a default for the status.
@@ -911,52 +965,43 @@ wants the raw endpoint rather than a typed operation.
 
 ### Calling module endpoints: the TanStack Query layer
 
-`@bc-solutions-coder/sdk/query` is the golden path for reading and writing module data. It is
-GENERATED from the same OpenAPI document as the operations, so every operation gets a
-`{op}Options()` for reads, a `{op}Mutation()` for writes, and a `{op}QueryKey()` for both.
-Each takes the request-scoped client as a call option — components read that client off the
-router context rather than importing one:
+`@bc-solutions-coder/sdk/query` exports `{op}Options()` and `{op}QueryKey()`
+for reads, and `{op}Mutation()` for writes. Install the optional
+`@tanstack/react-query` peer when using this entrypoint. Pass the same SDK instance
+to each factory and supply mutation input when calling `mutate` or `mutateAsync`:
 
 ```tsx
-import { useMutation, useQuery, useQueryClient } from "@bc-solutions-coder/query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { SubmitInquiryRequest, WallowSdk } from "@bc-solutions-coder/sdk";
 import {
-  inquiriesGetAllOptions,
-  inquiriesGetAllQueryKey,
-  inquiriesSubmitMutation,
-  queriesForOperation,
+	inquiriesGetAllOptions,
+	inquiriesGetAllQueryKey,
+	inquiriesSubmitMutation,
+	queriesForOperation,
 } from "@bc-solutions-coder/sdk/query";
-import { useRouteContext } from "@tanstack/react-router";
 
-function InquiriesList(): React.ReactElement {
-  const { sdk } = useRouteContext({ from: "__root__" });
-  const queryClient = useQueryClient();
+function useInquiries(sdk: WallowSdk) {
+	const queryClient = useQueryClient();
+	const inquiries = useQuery(inquiriesGetAllOptions({ client: sdk.client }));
+	const submit = useMutation({
+		...inquiriesSubmitMutation({ client: sdk.client }),
+		onSuccess: () => queryClient.invalidateQueries(
+			queriesForOperation(inquiriesGetAllQueryKey({ client: sdk.client })),
+		),
+	});
 
-  const { data } = useQuery(inquiriesGetAllOptions({ client: sdk.client }));
-
-  const submit = useMutation({
-    ...inquiriesSubmitMutation({ client: sdk.client }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries(
-        queriesForOperation(inquiriesGetAllQueryKey({ client: sdk.client })),
-      );
-    },
-  });
-
-  // data is fully typed from the OpenAPI schema; the request went
-  // browser -> /api proxy -> Wallow API with a server-attached Bearer token.
-  return (
-    <ul>
-      {data?.map((inquiry) => (
-        <li key={inquiry.id}>{inquiry.name}</li>
-      ))}
-    </ul>
-  );
+	return {
+		inquiries,
+		submit: (body: SubmitInquiryRequest) => submit.mutateAsync({ body }),
+	};
 }
 ```
 
-Operations are generated with `responseStyle: "data"` and `throwOnError: true`, so a hook's
-`data` is the response BODY — there is no `{ data, error }` envelope to unwrap — and every
-failure arrives as a thrown `ApiFailure` on `error`.
+Supply `sdk` from your app's context or props. The hook's `inquiries.data` contains
+the response body, and `submit` resolves to the created inquiry. Failed requests
+appear in the hook's `error` or reject `mutateAsync` with `ApiFailure`. Narrow the
+error with `isApiFailure`; generated error types describe HTTP problem bodies,
+while the configured client normalizes runtime failures.
 
 **Generated keys are FLAT, not hierarchical.** A key is a single-element array holding one
 object — `[{ _id, baseUrl, tags, ...args }]` — so there is no prefix that sweeps a subtree,
@@ -981,7 +1026,7 @@ The hand-written layer this replaced — the `queryKeys` registry, the per-domai
 `registerQueryBootstrap` / `ensureQueryBootstrapped` — is deleted rather than deprecated:
 every one of them closed over the module-global client that no longer exists.
 
-#### Escape hatch: calling a generated operation directly
+#### Call a generated operation directly
 
 Outside a component render — a one-off script, a non-React host, or code that genuinely has no
 use for caching — call the generated typed operation directly instead of going through the query
@@ -1023,8 +1068,12 @@ export function getServiceClient(): WallowServiceClient {
 
 // anywhere server-side — a generated operation is called exactly as with a
 // user session's SDK instance: pass the service client's `client`
-import { inquiriesCreate } from "@bc-solutions-coder/sdk";
-const { data } = await inquiriesCreate({ client: getServiceClient().client, body });
+import { inquiriesSubmit, type SubmitInquiryRequest } from "@bc-solutions-coder/sdk";
+
+export async function submitContact(body: SubmitInquiryRequest) {
+	const inquiry = await inquiriesSubmit({ client: getServiceClient().client, body });
+	return inquiry.id;
+}
 ```
 
 What it does for you:
@@ -1058,9 +1107,9 @@ To bypass the environment (tests, a multi-tenant worker) pass `config` directly:
 const service = createServiceClient({
   config: {
     issuer: "https://auth.example.com",
-    clientId: "billing-worker",
-    clientSecret: process.env.BILLING_WORKER_SECRET!,
-    scopes: ["invoices.write"],
+    clientId: "svc-your-org-contact-form",
+    clientSecret: process.env.OIDC_SERVICE_CLIENT_SECRET!,
+    scopes: ["inquiries.write"],
     apiBaseUrl: "https://api.example.com",
   },
   store, // optional RedisLike

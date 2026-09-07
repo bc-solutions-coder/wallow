@@ -1,16 +1,5 @@
 /**
- * Web-standard route handlers for the BFF OIDC tunnel: login, callback, user,
- * logout.
- *
- * `createBffHandlers(config)` composes the pure F3 modules (PKCE, OIDC,
- * session, claims, txstate) into four `(request: Request) => Promise<Response>`
- * handlers. The `readSession`/`writeSession` helpers are shared with the `/api`
- * proxy: the read side takes the incoming `Request`, the write side takes the
- * `Headers` of the response under construction so each cookie is `append`ed
- * (never `set`) and multiple `Set-Cookie` headers survive.
- *
- * Cookie parsing and serialization come from `cookie-es` — the same layer h3
- * used underneath `getCookie`/`setCookie`, so the wire format is unchanged.
+ * Web-standard BFF handlers for login, callback, user identity, and three logout flows.
  */
 import { ClientErrorCode, ErrorCode } from "@bc-solutions-coder/api-errors";
 import { parse as parseCookies, serialize as serializeCookie } from "cookie-es";
@@ -48,11 +37,43 @@ export type BffHandler = (request: Request) => Promise<Response>;
 
 /** The six BFF route handlers returned by {@link createBffHandlers}. */
 export interface BffHandlers {
+  /**
+   * Redirect the browser to OIDC authorization with PKCE and set a ten-minute transaction
+   * cookie. Accepts a local returnTo query parameter, falling back to / for unsafe values,
+   * and an optional organization hint validated by the issuer.
+   */
   login: BffHandler;
+  /**
+   * Consume the transaction cookie and validate the authorization code, state, nonce, and
+   * PKCE verifier. Stores the token session, sets session and readable CSRF cookies, and
+   * redirects to the saved local returnTo. Missing or mismatched transaction data returns a
+   * 400 problem.
+   */
   callback: BffHandler;
+  /**
+   * Return stored identity claims and the session CSRF token with Cache-Control: no-store.
+   * Returns a 401 problem when no session resolves. Does not expose access or refresh tokens
+   * or refresh the session.
+   */
   user: BffHandler;
+  /**
+   * Accept POST with a matching x-csrf-token, destroy the session, and clear its cookies.
+   * Returns a JSON logoutUrl for browser navigation to the issuer. A missing session clears
+   * cookies and returns 204; other methods return 405 and invalid CSRF returns 403.
+   */
   logout: BffHandler;
+  /**
+   * Accept the issuer GET notification with iss and sid query values. Destroys the session
+   * and clears cookies only when both match the browser session. Returns the same no-store
+   * HTML page for matching and nonmatching notifications.
+   */
   frontchannelLogout: BffHandler;
+  /**
+   * Accept an issuer POST containing a signed logout_token form field without browser
+   * cookies or CSRF. Verifies the token, revokes indexed sessions through the store, and
+   * attempts upstream refresh-token revocation. Cookie-only stores cannot revoke sessions
+   * through this handler.
+   */
   backchannelLogout: BffHandler;
 }
 
@@ -274,16 +295,16 @@ function safeReturnTo(returnTo: string | null | undefined): string {
 }
 
 /**
- * Reassemble the opaque session reference from its chunk cookies.
+ * Read and reassemble the opaque BFF session reference from request cookies.
  *
- * Concatenates the chunk cookies (`name`, `name.1`, `name.2`, ...) into the
- * single reference string that was written across them, so references larger
- * than a single cookie are restored transparently.
+ * Joins the base cookie and consecutive numbered chunks, stopping at the first missing or empty
+ * chunk. Does not validate or unseal the reference.
  *
- * @param request The incoming request, whose merged `Cookie` header carries the
- *   chunks.
- * @param config BFF configuration providing the cookie name.
- * @returns The assembled reference, or `null` when no session cookie exists.
+ * @param request Incoming request containing the Cookie header.
+ *
+ * @param config Configuration providing the session cookie name.
+ *
+ * @returns The assembled reference, or null when the base cookie is missing or empty.
  */
 export function readSessionRef(request: Request, config: BffConfig): string | null {
   const cookies: Record<string, string | undefined> = requestCookies(request);
@@ -305,13 +326,18 @@ export function readSessionRef(request: Request, config: BffConfig): string | nu
 }
 
 /**
- * Read the current session by resolving the cookie's opaque reference through
- * the injected {@link SessionStore}.
+ * Resolve the incoming BFF cookie through the selected session store.
  *
- * @param request The incoming request.
- * @param config BFF configuration providing the cookie name.
- * @param store The session store that resolves the reference into a session.
- * @returns The decoded session, or `null` when no valid session cookie exists.
+ * Returns null when there is no reference or the store cannot resolve it. Does not refresh
+ * access tokens or modify response cookies.
+ *
+ * @param request Incoming request containing the session cookie.
+ *
+ * @param config Configuration providing the session cookie name.
+ *
+ * @param store The same store used by the login callback and API proxy.
+ *
+ * @throws Propagates session-store failures.
  */
 export async function readSession(
   request: Request,
@@ -326,16 +352,17 @@ export async function readSession(
 }
 
 /**
- * Write an opaque session reference to the BFF session cookie(s).
+ * Append an opaque session reference to response Set-Cookie headers.
  *
- * The reference is split across as many chunk cookies as needed to stay under
- * the per-cookie size limit, and any stale higher-index chunks from a
- * previously larger reference are cleared. Every cookie is `append`ed to
- * {@link headers}: `Headers.set` would destroy the cookies already written.
+ * Splits long references into cookie chunks and expires stale chunk positions below index 16.
+ * Uses the configured cookie name, security attributes, and session TTL; existing response
+ * cookies remain intact.
  *
- * @param headers The response headers under construction.
- * @param config BFF configuration providing the cookie name.
- * @param ref The opaque store reference to place in the cookie.
+ * @param headers Mutable response headers that the host must send to the browser.
+ *
+ * @param config Session cookie settings.
+ *
+ * @param ref Reference returned by the session store.
  */
 export function writeSessionRef(headers: Headers, config: BffConfig, ref: string): void {
   const chunkCount: number = Math.max(
@@ -358,14 +385,22 @@ export function writeSessionRef(headers: Headers, config: BffConfig, ref: string
 }
 
 /**
- * Persist a session through the injected {@link SessionStore} and write the
- * returned opaque reference to the BFF session cookie(s).
+ * Persist a BFF session and append its reference to response cookies.
  *
- * @param headers The response headers under construction.
- * @param config BFF configuration providing the cookie name.
- * @param store The session store that persists the session and returns its ref.
- * @param session The session to persist.
- * @returns The opaque reference the session was stored under.
+ * Uses store.write before adding the session cookies, preserving existing Set-Cookie headers.
+ * Does not create the companion CSRF cookie.
+ *
+ * @param headers Mutable response headers that the host must send to the browser.
+ *
+ * @param config Session cookie settings.
+ *
+ * @param store Store shared with the BFF handlers and API proxy.
+ *
+ * @param session Session containing tokens, identity, and expiry in epoch milliseconds.
+ *
+ * @returns The opaque reference returned by the store.
+ *
+ * @throws Propagates persistence and cookie-sealing failures.
  */
 export async function writeSession(
   headers: Headers,
@@ -429,13 +464,20 @@ function callbackUrl(config: BffConfig, incoming: URL): URL {
 }
 
 /**
- * Build the four BFF route handlers bound to a given configuration.
+ * Create the six browser authentication and OIDC logout handlers.
  *
- * @param config Server-side BFF configuration.
- * @param store Session store used to resolve, persist, and revoke sessions.
- *   Defaults to a cookie-only {@link CookieSessionStore}, so single-argument
- *   callers keep working.
- * @returns `{ login, callback, user, logout }` web-standard handlers.
+ * The login and callback handlers implement authorization code with PKCE and keep tokens in the
+ * session store. User reads expose identity and CSRF data; logout handlers clear or revoke
+ * sessions. Mount these with the same configuration and store as createApiProxy, or use
+ * createWallowBffServer for routing.
+ *
+ * @param config Server-only OIDC and cookie settings.
+ *
+ * @param store Shared session store, defaulting to CookieSessionStore. Cookie-only sessions
+ * cannot be revoked through back-channel logout.
+ *
+ * @returns login, callback, user, logout, frontchannelLogout, and backchannelLogout web-standard
+ * handlers.
  */
 export function createBffHandlers(
   config: BffConfig,

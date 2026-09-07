@@ -33,6 +33,14 @@ namespace Wallow.Inquiries.Api.Controllers;
 public partial class InquiriesController(IMessageBus bus, ITenantContext tenantContext, ILogger<InquiriesController> logger) : ControllerBase
 {
 
+    /// <summary>
+    /// Submit an inquiry.
+    /// </summary>
+    /// <remarks>
+    /// Requires InquiriesWrite and creates an inquiry with status New in the current tenant. Human callers are
+    /// recorded as the submitter; service-account submissions have no submitter association. Returns the saved
+    /// inquiry after validating the contact details and required project information.
+    /// </remarks>
     [HttpPost]
     [HasPermission(PermissionType.InquiriesWrite)]
     [ProducesResponseType(typeof(InquiryResponse), StatusCodes.Status200OK)]
@@ -63,6 +71,15 @@ public partial class InquiriesController(IMessageBus bus, ITenantContext tenantC
         return result.Map(ToInquiryResponse).ToActionResult();
     }
 
+    /// <summary>
+    /// List tenant inquiries.
+    /// </summary>
+    /// <remarks>
+    /// Requires InquiriesRead in the current tenant. Returns an unpaginated list ordered newest first,
+    /// optionally filtered by status. An empty or unrecognized status string applies no filter.
+    /// </remarks>
+    /// <param name="status">Optional status name, matched case-insensitively. Unrecognized text is ignored.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
     [HttpGet]
     [HasPermission(PermissionType.InquiriesRead)]
     [ProducesResponseType(typeof(IReadOnlyList<InquiryResponse>), StatusCodes.Status200OK)]
@@ -84,6 +101,14 @@ public partial class InquiriesController(IMessageBus bus, ITenantContext tenantC
             .ToActionResult();
     }
 
+    /// <summary>
+    /// List inquiries submitted by the current user.
+    /// </summary>
+    /// <remarks>
+    /// Requires authentication and returns the current user's inquiries in the current tenant, newest first.
+    /// Does not require InquiriesRead. Service accounts and callers without a user identifier receive an empty
+    /// list.
+    /// </remarks>
     [HttpGet("submitted")]
     [ProducesResponseType(typeof(IReadOnlyList<InquiryResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetSubmitted(CancellationToken cancellationToken)
@@ -102,6 +127,14 @@ public partial class InquiriesController(IMessageBus bus, ITenantContext tenantC
             .ToActionResult();
     }
 
+    /// <summary>
+    /// Get an inquiry.
+    /// </summary>
+    /// <remarks>
+    /// Requires authentication in the current tenant. Callers with InquiriesRead can read any inquiry in that
+    /// tenant; other callers can read only inquiries associated with them as submitter. Returns 404 for an
+    /// unknown or inaccessible inquiry.
+    /// </remarks>
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(InquiryResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -136,6 +169,15 @@ public partial class InquiriesController(IMessageBus bus, ITenantContext tenantC
         return result.Map(ToInquiryResponse).ToActionResult();
     }
 
+    /// <summary>
+    /// Advance an inquiry's status.
+    /// </summary>
+    /// <remarks>
+    /// Requires InquiriesWrite in the current tenant and returns the updated inquiry. Status names are
+    /// case-insensitive, and only New to Reviewed, Reviewed to Contacted, and Contacted to Closed transitions
+    /// are allowed. Invalid transitions are rejected, including repeated or backward transitions; an unknown
+    /// inquiry returns 404.
+    /// </remarks>
     [HttpPatch("{id:guid}/status")]
     [HasPermission(PermissionType.InquiriesWrite)]
     [ProducesResponseType(typeof(InquiryResponse), StatusCodes.Status200OK)]
@@ -157,6 +199,14 @@ public partial class InquiriesController(IMessageBus bus, ITenantContext tenantC
         return result.Map(ToInquiryResponse).ToActionResult();
     }
 
+    /// <summary>
+    /// Add a comment to an inquiry.
+    /// </summary>
+    /// <remarks>
+    /// Requires InquiriesWrite in the current tenant. Records the caller as author and returns the new comment
+    /// identifier. Content must be nonempty and at most 5,000 characters; internal comments are hidden from
+    /// submitters without InquiriesRead.
+    /// </remarks>
     [HttpPost("{id:guid}/comments")]
     [HasPermission(PermissionType.InquiriesWrite)]
     [ProducesResponseType(typeof(InquiryCommentCreatedResponse), StatusCodes.Status201Created)]
@@ -187,6 +237,15 @@ public partial class InquiriesController(IMessageBus bus, ITenantContext tenantC
             new InquiryCommentCreatedResponse(result.Value.Value));
     }
 
+    /// <summary>
+    /// List an inquiry's comments.
+    /// </summary>
+    /// <remarks>
+    /// Requires authentication in the current tenant and returns comments oldest first. Callers with
+    /// InquiriesRead receive internal and public comments; other callers must be the inquiry's submitter and
+    /// receive public comments only. Submitters receive 404 for unknown or inaccessible inquiries; readers
+    /// receive an empty list when no comments match.
+    /// </remarks>
     [HttpGet("{id:guid}/comments")]
     [ProducesResponseType(typeof(IReadOnlyList<InquiryCommentResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]

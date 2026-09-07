@@ -22,8 +22,13 @@ public class ScopesController(IApiScopeRepository apiScopeRepository) : Controll
 {
 
     /// <summary>
-    /// List available API scopes with optional category filter.
+    /// List API scopes.
     /// </summary>
+    /// <remarks>
+    /// Requires ScopeRead in the resolved tenant. Returns the global scope catalog ordered by category and code,
+    /// optionally filtered by an exact category. Includes platform-only scopes as metadata; their presence does not
+    /// permit granting them to organization clients.
+    /// </remarks>
     [HttpGet]
     [HasPermission(PermissionType.ScopeRead)]
     [ProducesResponseType(typeof(IReadOnlyList<ApiScopeDto>), StatusCodes.Status200OK)]

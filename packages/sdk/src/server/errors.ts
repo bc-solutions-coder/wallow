@@ -20,15 +20,18 @@ export const REDACTED: string = "[redacted]";
 const UNAUTHORIZED_STATUS = 401;
 
 /**
- * A session refresh that failed terminally: the grant behind the session was
- * rejected (revoked at the auth host by a logout elsewhere or a deactivation),
- * there was no refresh token left to spend, or the store record vanished
- * mid-refresh. Replaying the refresh on the next request could only fail the
- * same way, so the proxy answers it by tearing the session down — store record
- * destroyed, cookies cleared — rather than by a bare 401 the browser would
- * retry forever.
+ * A Bff.SessionRefreshFailed ApiFailure with HTTP status 401.
+ *
+ * Raised when refresh has no usable token, OIDC discovery or token refresh fails, or a contended
+ * refresh cannot find the session. The API proxy responds by destroying the stored session and
+ * clearing browser cookies. Low-level refresh helpers throw this error without performing that
+ * teardown.
  */
 export class RefreshFailedError extends ApiFailure {
+  /**
+   * Create a refresh-failure error with optional diagnostic detail. The proxy uses fixed
+   * response wording instead of exposing this detail to the browser.
+   */
   constructor(detail?: string) {
     super({
       status: UNAUTHORIZED_STATUS,
@@ -41,8 +44,11 @@ export class RefreshFailedError extends ApiFailure {
 }
 
 /**
- * Returns a deep copy of `value` with credential-shaped members replaced by
- * {@link REDACTED}, safe for logging.
+ * Copy a value while replacing recognizable credentials with REDACTED.
+ *
+ * Recursively handles arrays and object members. Redacts authorization, cookie, set-cookie,
+ * password, token, and secret fields, plus strings matching bearer or JWT patterns. Unrecognized
+ * sensitive values remain unchanged, so this is not a general-purpose data anonymizer.
  */
 export function redact(value: unknown): unknown {
   if (Array.isArray(value)) {

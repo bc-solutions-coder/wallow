@@ -21,6 +21,15 @@ namespace Wallow.Announcements.Api.Controllers;
 public class ChangelogController(IMessageBus bus) : ControllerBase
 {
 
+    /// <summary>
+    /// List published changelog entries.
+    /// </summary>
+    /// <remarks>
+    /// Available without authentication. Returns global entries shared across tenants, ordered by release date
+    /// descending, up to the requested limit. Unpublished entries are excluded.
+    /// </remarks>
+    /// <param name="limit">Maximum number of entries to return; defaults to 50.</param>
+    /// <param name="ct">Cancels the request.</param>
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<ChangelogEntryResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetChangelog(
@@ -36,6 +45,16 @@ public class ChangelogController(IMessageBus bus) : ControllerBase
             .ToActionResult();
     }
 
+    /// <summary>
+    /// Get a published changelog version.
+    /// </summary>
+    /// <remarks>
+    /// Available without authentication and independent of the current tenant. Returns the published global
+    /// entry with the exact version string, including its change items. Returns 404 when the version is unknown
+    /// or unpublished.
+    /// </remarks>
+    /// <param name="changelogVersion">Exact version string recorded on the entry, including any prerelease or build suffix.</param>
+    /// <param name="ct">Cancels the request.</param>
     [HttpGet("{changelogVersion}")]
     [ProducesResponseType(typeof(ChangelogEntryResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -48,6 +67,13 @@ public class ChangelogController(IMessageBus bus) : ControllerBase
         return result.Map(MapToResponse).ToActionResult();
     }
 
+    /// <summary>
+    /// Get the latest published changelog entry.
+    /// </summary>
+    /// <remarks>
+    /// Available without authentication. Returns the global published entry with the greatest release date,
+    /// including its change items. Returns 404 when no published entry exists.
+    /// </remarks>
     [HttpGet("latest")]
     [ProducesResponseType(typeof(ChangelogEntryResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]

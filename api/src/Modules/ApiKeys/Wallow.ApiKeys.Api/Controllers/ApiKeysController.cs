@@ -28,20 +28,13 @@ public sealed class ApiKeysController(IApiKeyService apiKeyService, IScopeSubset
 {
 
     /// <summary>
-    /// Create a new API key for the current user.
+    /// Create an API key for the current user.
     /// </summary>
     /// <remarks>
-    /// The key belongs to the current user and tenant. Store the full key securely;
-    /// this is the only response that returns it.
-    ///
-    /// Example request:
-    /// ```json
-    /// {
-    ///   "name": "Production Backend",
-    ///   "scopes": ["storage.read", "storage.write"],
-    ///   "expiresAt": "2027-01-01T00:00:00Z"
-    /// }
-    /// ```
+    /// Requires ApiKeyManage and an organization tenant. Requested scopes must be recognized and covered by the
+    /// caller's permissions; service accounts must also stay within their permitted scopes. Creation is subject
+    /// to the configured per-user key limit. The response returns the full key once; retain it securely because
+    /// subsequent reads return metadata only.
     /// </remarks>
     [HttpPost]
     [HasPermission(PermissionType.ApiKeyManage)]
@@ -142,10 +135,12 @@ public sealed class ApiKeysController(IApiKeyService apiKeyService, IScopeSubset
     }
 
     /// <summary>
-    /// List unrevoked API keys for the current user and tenant.
+    /// List the current user's unrevoked API keys.
     /// </summary>
     /// <remarks>
-    /// Returns metadata without plaintext key values.
+    /// Requires ApiKeyManage. Returns keys owned by the current user in the current tenant, newest first,
+    /// including expired keys that have not been revoked. The response contains metadata only and never returns
+    /// plaintext keys.
     /// </remarks>
     [HttpGet]
     [HasPermission(PermissionType.ApiKeyManage)]
@@ -177,9 +172,12 @@ public sealed class ApiKeysController(IApiKeyService apiKeyService, IScopeSubset
     /// Revoke an API key.
     /// </summary>
     /// <remarks>
-    /// Revokes a key owned by the current user and removes its validation cache entries.
-    /// Revocation cannot be undone.
+    /// Requires ApiKeyManage and ownership of the key in the current tenant. Revocation permanently prevents
+    /// authentication with the key; repeating a successful revocation returns no content. Returns 404 for an
+    /// invalid or unknown key ID or a key owned by another user.
     /// </remarks>
+    /// <param name="keyId">Key identifier returned by key creation or listing, not the plaintext API key.</param>
+    /// <param name="ct">Cancels the request.</param>
     [HttpDelete("{keyId}")]
     [HasPermission(PermissionType.ApiKeyManage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

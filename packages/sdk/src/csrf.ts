@@ -1,21 +1,4 @@
-/**
- * CSRF interceptor module.
- *
- * The BFF rejects any state-changing request (POST/PUT/PATCH/DELETE) that does
- * not echo the session's CSRF token in the `x-csrf-token` header. This module
- * owns the cookie reader and the request interceptor that stamps the header, so
- * app-level wiring can reuse it against the generated `@hey-api` client without
- * hand-rolling the logic.
- *
- * The ONLY token source is the BFF's non-HttpOnly double-submit cookie. There
- * is deliberately no module-scope token store (Wallow-j7qk): the SDK's doctrine
- * is that nothing request-scoped lives at module scope (`create-sdk.ts`), and a
- * process-global token shared by concurrent SSR renders is exactly the
- * cross-user leak that doctrine exists to prevent. The cookie jar is already
- * per-tab, per-user state, and the BFF rewrites the cookie on every login, so
- * it is always the live synchronizer token — a copy held in a variable could
- * only ever be equal or stale.
- */
+/** Read the browser BFF CSRF cookie and echo it on state-changing API requests. */
 
 /** HTTP methods the BFF does not gate on CSRF, per RFC 9110 safe methods. */
 const safeMethods: ReadonlySet<string> = new Set(["GET", "HEAD", "OPTIONS"]);
@@ -76,7 +59,7 @@ export function readCsrfCookie(): string | null {
   return fallback;
 }
 
-/** True when the method is CSRF-exempt (safe per RFC 9110), case-insensitively. */
+/** Return whether the method is GET, HEAD, or OPTIONS, ignoring case. */
 export function isSafeMethod(method: string): boolean {
   return safeMethods.has(method.toUpperCase());
 }
@@ -95,16 +78,11 @@ export interface CsrfInterceptorClient {
 }
 
 /**
- * Register the CSRF request interceptor on the given client. The interceptor
- * stamps the live double-submit cookie into `x-csrf-token` on state-changing
- * requests, leaves safe methods (and the anonymous, cookie-less state)
- * untouched, and returns the request instance unchanged so it chains with other
- * interceptors.
+ * Add a request interceptor that echoes the CSRF cookie in `x-csrf-token`.
  *
- * The cookie is the interceptor's only source: it is rewritten by the BFF on
- * every login and unreadable outside the browser, so the interceptor is
- * automatically live after a re-login and automatically inert during SSR —
- * `readCsrfCookie()` returns `null` where `document` does not exist.
+ * Applies to methods other than GET, HEAD, and OPTIONS when a token is readable
+ * from `document.cookie`. It does nothing during SSR. `createWallowSdk`
+ * installs this by default; call it once when configuring a client manually.
  */
 export function wireCsrfInterceptor(client: CsrfInterceptorClient): void {
   client.interceptors.request.use((request: Request): Request => {

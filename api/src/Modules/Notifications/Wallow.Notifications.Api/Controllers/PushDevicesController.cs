@@ -33,6 +33,14 @@ public class PushDevicesController(
     ITenantContext tenantContext,
     Application.Channels.Push.Interfaces.IWebPushConfiguration webPushConfiguration) : ControllerBase
 {
+    /// <summary>
+    /// Get the current Web Push public key.
+    /// </summary>
+    /// <remarks>
+    /// Requires an authenticated user and an organization tenant. Returns the current signing key ID and public
+    /// key for browser subscription creation; private keys are never returned. Returns 409 when Web Push is
+    /// disabled, unconfigured, or has no usable current key.
+    /// </remarks>
     [HttpGet("web-push/public-key")]
     [ProducesResponseType(typeof(Application.Channels.Push.Interfaces.WebPushPublicKey), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
@@ -44,6 +52,15 @@ public class PushDevicesController(
         return key is null ? this.Problem(Domain.Errors.NotificationsErrors.WebPushUnavailable) : Ok(key);
     }
 
+    /// <summary>
+    /// Register a push device for the current user.
+    /// </summary>
+    /// <remarks>
+    /// Requires an authenticated user in the current tenant. Web Push registrations require a browser
+    /// subscription and signing key ID with no token; other platforms require a token and no subscription or
+    /// signing key ID. An active token owned by another user or registered for another platform returns 409.
+    /// Re-registering an owned device updates it, while an inactive registration can be claimed by a new owner.
+    /// </remarks>
     [HttpPost("devices")]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -74,6 +91,14 @@ public class PushDevicesController(
         return NoContent();
     }
 
+    /// <summary>
+    /// Deactivate a push device.
+    /// </summary>
+    /// <remarks>
+    /// Requires an authenticated user who owns the registration in the current tenant. Stops future delivery to
+    /// that registration and removes it from the active device list. Returns no content for an owned
+    /// registration, including one already inactive, or 404 for an unknown or foreign registration.
+    /// </remarks>
     [HttpDelete("devices/{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -98,6 +123,14 @@ public class PushDevicesController(
         return NoContent();
     }
 
+    /// <summary>
+    /// List the current user's active push devices.
+    /// </summary>
+    /// <remarks>
+    /// Requires an authenticated user in the current tenant. Returns active registrations owned by that user,
+    /// including platform, token, registration ID, and Web Push signing key ID where applicable. Inactive
+    /// registrations are excluded.
+    /// </remarks>
     [HttpGet("devices")]
     [ProducesResponseType(typeof(List<DeviceRegistrationResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -116,6 +149,15 @@ public class PushDevicesController(
         return result.Map(devices => devices.Select(ToResponse).ToList()).ToActionResult();
     }
 
+    /// <summary>
+    /// Send a push notification to the current user.
+    /// </summary>
+    /// <remarks>
+    /// Requires an authenticated user in the current tenant and targets only that user's eligible active
+    /// devices. Delivery is queued; a successful response does not confirm device receipt and also covers
+    /// disabled preferences or no registered devices. Returns 409 when registered devices exist but none has an
+    /// available Web Push key. ClickPath, when supplied, must be a local absolute path such as /notifications.
+    /// </remarks>
     [HttpPost("send")]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

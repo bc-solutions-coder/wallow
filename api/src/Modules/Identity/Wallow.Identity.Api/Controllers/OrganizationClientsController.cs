@@ -48,8 +48,15 @@ public class OrganizationClientsController(
         nameof(RegisterOrganizationClientRequest.Branding) + "." + nameof(RegisterOrganizationClientBranding.Tagline);
 
     /// <summary>
-    /// Registers an organization client and reveals its secret. Service accounts ignore URI fields.
+    /// Register an organization client.
     /// </summary>
+    /// <remarks>
+    /// Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global
+    /// administrator or hold this permission through membership in that organization. Creates a confidential
+    /// application for authorization code with PKCE and refresh tokens, or a service-account for client credentials.
+    /// Applications require redirect URIs; both kinds require scopes and reject platform-only API scopes. Returns the
+    /// client secret once, with issuer and API URLs.
+    /// </remarks>
     [HttpPost]
     [HasPermission(PermissionType.OrganizationClientsManage)]
     [EnableRateLimiting("registration")]
@@ -110,8 +117,14 @@ public class OrganizationClientsController(
     }
 
     /// <summary>
-    /// Rotates and reveals the client secret. revokeActiveTokens also requests revocation of issued tokens.
+    /// Rotate an organization client secret.
     /// </summary>
+    /// <remarks>
+    /// Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global
+    /// administrator or hold this permission through membership in that organization. Replaces the secret for a
+    /// client owned by the addressed organization and reveals the new secret once. Set revokeActiveTokens to revoke
+    /// issued access as part of rotation.
+    /// </remarks>
     [HttpPost("{clientId}/rotate-secret")]
     [EnableRateLimiting("registration")]
     [HasPermission(PermissionType.OrganizationClientsManage)]
@@ -138,7 +151,14 @@ public class OrganizationClientsController(
         return Ok(Reveal(result));
     }
 
-    /// <summary>List the clients the organization owns.</summary>
+    /// <summary>
+    /// List organization clients.
+    /// </summary>
+    /// <remarks>
+    /// Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global
+    /// administrator or hold this permission through membership in that organization. Returns owned applications and
+    /// service accounts with configuration and status, without secrets.
+    /// </remarks>
     [HttpGet]
     [HasPermission(PermissionType.OrganizationClientsManage)]
     [ProducesResponseType(typeof(IReadOnlyList<OrganizationClientResponse>), StatusCodes.Status200OK)]
@@ -154,7 +174,14 @@ public class OrganizationClientsController(
         return Ok(result.Select(OrganizationClientResponse.From).ToList());
     }
 
-    /// <summary>Get one of the organization's clients.</summary>
+    /// <summary>
+    /// Get an organization client.
+    /// </summary>
+    /// <remarks>
+    /// Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global
+    /// administrator or hold this permission through membership in that organization. Returns configuration and
+    /// status without a secret. A missing client or one owned by another organization returns 404.
+    /// </remarks>
     [HttpGet("{clientId}")]
     [HasPermission(PermissionType.OrganizationClientsManage)]
     [ProducesResponseType(typeof(OrganizationClientResponse), StatusCodes.Status200OK)]
@@ -171,9 +198,15 @@ public class OrganizationClientsController(
     }
 
     /// <summary>
-    /// Replaces redirect URIs, back-channel logout settings, and scopes. Null lifetime preserves
-    /// the current value; service accounts ignore URI fields.
+    /// Replace organization client configuration.
     /// </summary>
+    /// <remarks>
+    /// Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global
+    /// administrator or hold this permission through membership in that organization. Replaces application redirect
+    /// URIs, logout settings, and scopes; null refreshTokenLifetime preserves the current value, in seconds. Service
+    /// accounts ignore URI and lifetime settings. Returns the updated client; unknown or platform-only scopes are
+    /// rejected.
+    /// </remarks>
     [HttpPatch("{clientId}")]
     [EnableRateLimiting("registration")]
     [HasPermission(PermissionType.OrganizationClientsManage)]
@@ -218,8 +251,13 @@ public class OrganizationClientsController(
     }
 
     /// <summary>
-    /// Suspends a client and revokes its access while retaining registration, branding, and permanent consents.
+    /// Suspend an organization client.
     /// </summary>
+    /// <remarks>
+    /// Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global
+    /// administrator or hold this permission through membership in that organization. Revokes client access while
+    /// retaining registration, branding, and permanent consents. Returns the updated client status.
+    /// </remarks>
     [HttpPost("{clientId}/suspend")]
     [EnableRateLimiting("registration")]
     [HasPermission(PermissionType.OrganizationClientsManage)]
@@ -236,8 +274,14 @@ public class OrganizationClientsController(
     }
 
     /// <summary>
-    /// Lifts the organization client suspension. Revoked tokens remain revoked.
+    /// Reinstate an organization client.
     /// </summary>
+    /// <remarks>
+    /// Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global
+    /// administrator or hold this permission through membership in that organization. Lifts the client suspension
+    /// imposed by its organization and returns its status. Revoked tokens stay revoked, and platform or organization
+    /// restrictions still apply.
+    /// </remarks>
     [HttpPost("{clientId}/reinstate")]
     [EnableRateLimiting("registration")]
     [HasPermission(PermissionType.OrganizationClientsManage)]
@@ -254,8 +298,13 @@ public class OrganizationClientsController(
     }
 
     /// <summary>
-    /// Applies a client platform suspension with a reason. Requires global administrator authority.
+    /// Suspend a client at platform level.
     /// </summary>
+    /// <remarks>
+    /// Requires a global administrator and a client owned by the addressed organization. Records the supplied reason,
+    /// revokes client access, and returns the updated client. A missing client or organization ownership mismatch
+    /// returns 404.
+    /// </remarks>
     [HttpPost("{clientId}/platform-suspension")]
     [EnableRateLimiting("registration")]
     [ProducesResponseType(typeof(OrganizationClientResponse), StatusCodes.Status200OK)]
@@ -282,8 +331,13 @@ public class OrganizationClientsController(
     }
 
     /// <summary>
-    /// Lifts the client platform suspension. Other client and organization restrictions still apply.
+    /// Lift a client platform suspension.
     /// </summary>
+    /// <remarks>
+    /// Requires a global administrator and a client owned by the addressed organization. Clears the platform
+    /// suspension and returns the updated client. Revoked tokens and other client or organization restrictions remain
+    /// unchanged.
+    /// </remarks>
     [HttpDelete("{clientId}/platform-suspension")]
     [EnableRateLimiting("registration")]
     [ProducesResponseType(typeof(OrganizationClientResponse), StatusCodes.Status200OK)]
@@ -308,8 +362,14 @@ public class OrganizationClientsController(
     }
 
     /// <summary>
-    /// Deletes the client and its authorizations after access revocation; branding cleanup follows the deletion event.
+    /// Delete an organization client.
     /// </summary>
+    /// <remarks>
+    /// Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global
+    /// administrator or hold this permission through membership in that organization. Revokes access and deletes the
+    /// client and its authorizations, then requests branding cleanup. A missing client or one owned by another
+    /// organization returns 404.
+    /// </remarks>
     [HttpDelete("{clientId}")]
     [EnableRateLimiting("registration")]
     [HasPermission(PermissionType.OrganizationClientsManage)]

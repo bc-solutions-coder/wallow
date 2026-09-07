@@ -41,14 +41,15 @@ export interface ServiceClientConfig {
 const NO_PROBLEMS = 0;
 
 /**
- * Build a {@link ServiceClientConfig} from environment variables.
+ * Load OIDC client-credentials configuration for a service account.
  *
- * Required: `OIDC_ISSUER`, `OIDC_SERVICE_CLIENT_ID`, `OIDC_SERVICE_CLIENT_SECRET`,
- * `OIDC_SERVICE_SCOPES`, `BFF_API_BASE_URL`. Optional: `OIDC_METADATA_URL`.
- * Only this subset is read — the user BFF's `OIDC_CLIENT_ID`, redirect URIs and
- * cookie settings are neither required nor consulted, so a service-only worker
- * carries five variables. Every problem is reported in ONE error, as the user
- * BFF's loader does.
+ * Requires OIDC_ISSUER, OIDC_SERVICE_CLIENT_ID, OIDC_SERVICE_CLIENT_SECRET, OIDC_SERVICE_SCOPES,
+ * and BFF_API_BASE_URL. OIDC_METADATA_URL is optional. Trims values and splits scopes on
+ * whitespace; user-session cookie and redirect settings are not read.
+ *
+ * @param env Environment source, defaulting to process.env.
+ *
+ * @throws {Error} Lists every missing or blank required setting in one error.
  */
 export function loadServiceConfigFromEnv(
   env: NodeJS.ProcessEnv = process.env,
@@ -105,7 +106,10 @@ export interface ServiceClientOptions {
    * supplied). Defaults to `console.error`.
    */
   onRedisError?: (error: unknown) => void;
-  /** Transport to send API calls and the grant through. Defaults to `globalThis.fetch`. */
+  /**
+   * Transport for API requests only, defaulting to globalThis.fetch. OIDC discovery and
+   * token grants use their own transport.
+   */
   fetch?: typeof globalThis.fetch;
 }
 
@@ -116,7 +120,10 @@ export interface ServiceClientOptions {
  * for the rare call outside the generated surface.
  */
 export interface WallowServiceClient extends Pick<WallowSdk, "client"> {
-  /** The current access token, fetched or refreshed as needed. */
+  /**
+   * Return the cached service bearer or obtain a client-credentials token when needed. Keep
+   * the result on the server. Rejects if discovery, the grant, or token-cache access fails.
+   */
   accessToken: () => Promise<string>;
 }
 
@@ -294,12 +301,21 @@ function selectCache(env: NodeJS.ProcessEnv, options: ServiceClientOptions): Red
 }
 
 /**
- * Build a service-account client.
+ * Create a server-only SDK client authenticated as a service account.
  *
- * Every API call carries the service account's bearer; a rejected bearer
- * (`401`) invalidates the cached token, fetches a fresh one, and replays the
- * request exactly once. Tokens are renewed {@link EXPIRY_SKEW_MS} before they
- * expire, so a caller never sends one about to lapse.
+ * Pass the returned client to generated operations. Obtains client-credentials tokens on demand
+ * and caches them until 30 seconds before expiry, using options.store, REDIS_URL, or an
+ * instance-local memory cache. API requests attach the bearer and replay once after a 401 with a
+ * newly obtained token.
+ *
+ * @param options Explicit service configuration or environment values, optional token cache, and
+ * API transport.
+ *
+ * @returns A typed client and accessToken helper for server integrations outside generated
+ * operations.
+ *
+ * @throws {Error} When environment configuration is incomplete. Token acquisition, cache, and
+ * API failures reject the operation that triggers them.
  */
 export function createServiceClient(options: ServiceClientOptions = {}): WallowServiceClient {
   const env: NodeJS.ProcessEnv = options.env ?? process.env;

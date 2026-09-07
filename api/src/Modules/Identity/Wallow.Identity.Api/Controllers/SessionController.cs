@@ -15,6 +15,13 @@ namespace Wallow.Identity.Api.Controllers;
 [Route("v{version:apiVersion}/identity/sessions")]
 public sealed class SessionController(ISessionService sessionService) : ControllerBase
 {
+    /// <summary>
+    /// List the current user active sign-in sessions.
+    /// </summary>
+    /// <remarks>
+    /// Requires an authenticated user. Returns unrevoked, unexpired account sessions across organizations, ordered
+    /// newest first, with creation, activity, and expiry timestamps.
+    /// </remarks>
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<SessionDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListSessions(CancellationToken ct)
@@ -27,6 +34,15 @@ public sealed class SessionController(ISessionService sessionService) : Controll
         return Ok(dtos);
     }
 
+    /// <summary>
+    /// Revoke one of the current user sign-in sessions.
+    /// </summary>
+    /// <remarks>
+    /// Requires an authenticated user. Marks the owned session revoked and revokes credentials associated with its
+    /// OIDC session identifier. Returns no content after revocation; the session must belong to the caller.
+    /// </remarks>
+    /// <param name="sessionId">Session ID returned by the session list, not an access token.</param>
+    /// <param name="ct">Cancels the request.</param>
     [HttpDelete("{sessionId:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> RevokeSession(Guid sessionId, CancellationToken ct)

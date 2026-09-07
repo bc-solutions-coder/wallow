@@ -57,10 +57,18 @@ async function loadRedisModule(): Promise<RedisModule> {
 }
 
 /**
- * Build a {@link RedisLike} over `url` that connects on first use.
+ * Create a RedisLike client that connects on its first operation.
  *
- * @param url A `redis://` / `rediss://` URL, as accepted by node-redis.
- * @param options Error reporting for the client's `error` events.
+ * Loads the optional redis package lazily and shares the pending connection across concurrent
+ * calls. A failed connection is retried on the next operation. For explicit connection lifecycle
+ * control, supply a connected client through createRedisAdapter.
+ *
+ * @param url Redis connection URL accepted by node-redis.
+ *
+ * @param options Error-event callback, defaulting to console.error.
+ *
+ * @returns Deferred Redis operations, which reject on package-loading, connection, or command
+ * failures.
  */
 export function createRedisFromUrl(url: string, options: RedisFromUrlOptions = {}): RedisLike {
   const onError: (error: unknown) => void = options.onError ?? console.error;

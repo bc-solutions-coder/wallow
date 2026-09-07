@@ -25,9 +25,14 @@ export function isStateChangingMethod(method: string): boolean {
 }
 
 /**
- * Whether the token presented by the browser matches the session-bound token.
+ * Compare a browser CSRF token with the token stored in its BFF session.
  *
- * The comparison must not leak the position of the first differing byte.
+ * Returns false for missing, empty, or unequal-length tokens. Equal-length UTF-8 tokens use a
+ * timing-safe comparison.
+ *
+ * @param expected Session csrfToken.
+ *
+ * @param presented Value of the incoming x-csrf-token header.
  */
 export function csrfTokenMatches(
   expected: string | undefined,

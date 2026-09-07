@@ -42,8 +42,14 @@ public sealed class StorageController(IMessageBus bus, ITenantContext tenantCont
     #region Bucket Operations
 
     /// <summary>
-    /// Create a new storage bucket.
+    /// Create a tenant storage bucket.
     /// </summary>
+    /// <remarks>
+    /// Requires StorageWrite in the current tenant and returns the created bucket configuration. Names must be
+    /// lowercase letters or digits with optional internal hyphens and must be unique within the tenant;
+    /// duplicates return 409. Unrecognized access values default to Private, and retention days require a valid
+    /// retention action.
+    /// </remarks>
     [HttpPost("buckets")]
     [HasPermission(PermissionType.StorageWrite)]
     [ProducesResponseType(typeof(BucketResponse), StatusCodes.Status201Created)]
@@ -80,8 +86,12 @@ public sealed class StorageController(IMessageBus bus, ITenantContext tenantCont
     }
 
     /// <summary>
-    /// Get bucket by name.
+    /// Get a storage bucket by name.
     /// </summary>
+    /// <remarks>
+    /// Requires StorageRead in the current tenant. Returns the bucket's access level, upload restrictions,
+    /// retention policy, and versioning setting. Returns 404 when no bucket with this name exists in the tenant.
+    /// </remarks>
     [HttpGet("buckets/{name}")]
     [HasPermission(PermissionType.StorageRead)]
     [ProducesResponseType(typeof(BucketResponse), StatusCodes.Status200OK)]
@@ -95,8 +105,16 @@ public sealed class StorageController(IMessageBus bus, ITenantContext tenantCont
     }
 
     /// <summary>
-    /// Delete a bucket.
+    /// Delete a storage bucket.
     /// </summary>
+    /// <remarks>
+    /// Requires StorageWrite in the current tenant. Rejects nonempty buckets unless force is true, which also
+    /// deletes their file records and stored objects. Returns no content on success or 404 if the bucket is
+    /// unknown.
+    /// </remarks>
+    /// <param name="force">Whether to delete the bucket and all of its files. Defaults to false.</param>
+    /// <param name="name">Name of the bucket to delete.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
     [HttpDelete("buckets/{name}")]
     [HasPermission(PermissionType.StorageWrite)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -122,8 +140,20 @@ public sealed class StorageController(IMessageBus bus, ITenantContext tenantCont
     #region File Operations
 
     /// <summary>
-    /// Upload a file.
+    /// Upload and validate a file.
     /// </summary>
+    /// <remarks>
+    /// Requires StorageWrite and an authenticated user in the current tenant. Accepts multipart content for an
+    /// existing bucket, validates file signatures and paths, enforces bucket and tenant limits, and scans the
+    /// bytes before storage. Returns the saved file metadata only after the file becomes Available; no
+    /// completion request is needed. Empty, disallowed, oversized, or unsafe files are rejected, and an unknown
+    /// bucket returns 404.
+    /// </remarks>
+    /// <param name="bucket">Name of an existing bucket in the current tenant.</param>
+    /// <param name="path">Optional relative folder path, without traversal sequences or a leading slash.</param>
+    /// <param name="isPublic">Whether to mark the file public; defaults to false. Authenticated storage endpoints still require their declared permissions.</param>
+    /// <param name="file">File contents and filename supplied as multipart form data.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
     [HttpPost("upload")]
     [HasPermission(PermissionType.StorageWrite)]
     [EnableRateLimiting("upload")]
@@ -175,8 +205,13 @@ public sealed class StorageController(IMessageBus bus, ITenantContext tenantCont
     }
 
     /// <summary>
-    /// Get file metadata by ID.
+    /// Get file metadata.
     /// </summary>
+    /// <remarks>
+    /// Requires StorageRead in the current tenant. Returns metadata for an existing file, including pending or
+    /// rejected uploads, or 404 if the ID is unknown. This response does not contain validation status and does
+    /// not establish that the file is available for download.
+    /// </remarks>
     [HttpGet("files/{id:guid}")]
     [HasPermission(PermissionType.StorageRead)]
     [ProducesResponseType(typeof(FileMetadataResponse), StatusCodes.Status200OK)]
@@ -190,8 +225,13 @@ public sealed class StorageController(IMessageBus bus, ITenantContext tenantCont
     }
 
     /// <summary>
-    /// Download a file (redirects to presigned URL).
+    /// Redirect to a file download.
     /// </summary>
+    /// <remarks>
+    /// Requires StorageRead in the current tenant. Returns a 302 redirect to a temporary signed URL for the file
+    /// bytes, not a JSON response. Only Available files can be downloaded; pending or rejected files are
+    /// refused, and unknown IDs return 404.
+    /// </remarks>
     [HttpGet("files/{id:guid}/download")]
     [HasPermission(PermissionType.StorageRead)]
     [ProducesResponseType(StatusCodes.Status302Found)]
@@ -210,8 +250,13 @@ public sealed class StorageController(IMessageBus bus, ITenantContext tenantCont
     }
 
     /// <summary>
-    /// Delete a file.
+    /// Delete a stored file.
     /// </summary>
+    /// <remarks>
+    /// Requires StorageWrite in the current tenant. Removes the file record and its stored object, including for
+    /// pending or rejected uploads, releasing the reserved quota. Returns no content on success or 404 for an
+    /// unknown file ID.
+    /// </remarks>
     [HttpDelete("files/{id:guid}")]
     [HasPermission(PermissionType.StorageWrite)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -230,8 +275,19 @@ public sealed class StorageController(IMessageBus bus, ITenantContext tenantCont
     }
 
     /// <summary>
-    /// List files in a bucket.
+    /// List files in a storage bucket.
     /// </summary>
+    /// <remarks>
+    /// Requires StorageRead in the current tenant. Returns a page of file metadata ordered by upload time
+    /// descending, optionally filtered by a path prefix, with the total matching count. Includes pending and
+    /// rejected uploads; listed metadata does not confirm download availability. Returns 404 if the bucket does
+    /// not exist.
+    /// </remarks>
+    /// <param name="bucket">Name of an existing bucket in the current tenant.</param>
+    /// <param name="path">Optional prefix of the stored folder path, not an exact folder match; empty or whitespace applies no filter.</param>
+    /// <param name="page">One-based page number; defaults to 1.</param>
+    /// <param name="pageSize">Number of files per page; defaults to 20.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
     [HttpGet("files")]
     [HasPermission(PermissionType.StorageRead)]
     [ProducesResponseType(typeof(PagedResult<FileMetadataResponse>), StatusCodes.Status200OK)]
@@ -259,8 +315,15 @@ public sealed class StorageController(IMessageBus bus, ITenantContext tenantCont
     #region Presigned URLs
 
     /// <summary>
-    /// Get a presigned URL for direct upload to storage.
+    /// Reserve a file and get a direct upload URL.
     /// </summary>
+    /// <remarks>
+    /// Requires StorageWrite and an authenticated user in the current tenant. Validates the declared file
+    /// metadata against bucket and tenant limits, reserves quota, and returns a file ID plus a signed upload
+    /// URL. PUT the bytes to that URL, then call the file completion endpoint and check for Available before
+    /// downloading. Uncompleted uploads stay PendingValidation and reserve quota until deleted; URL expiry
+    /// defaults to 15 minutes and is capped by server configuration.
+    /// </remarks>
     [HttpPost("presigned-upload")]
     [HasPermission(PermissionType.StorageWrite)]
     [ProducesResponseType(typeof(PresignedUploadResponse), StatusCodes.Status200OK)]
@@ -292,9 +355,15 @@ public sealed class StorageController(IMessageBus bus, ITenantContext tenantCont
     }
 
     /// <summary>
-    /// Complete a presigned upload: verify the object exists, scan it, and promote the file
-    /// to Available (or Rejected). Idempotent once the file has left PendingValidation.
+    /// Complete a direct upload and get its validation status.
     /// </summary>
+    /// <remarks>
+    /// Requires StorageWrite in the current tenant after the bytes have been PUT to the signed upload URL.
+    /// Verifies that the object exists, scans it, and returns Available or Rejected; a successful HTTP response
+    /// alone does not mean the scan passed. Repeated calls after PendingValidation return the existing status
+    /// without another scan. Returns 404 for an unknown file and rejects completion when the object has not been
+    /// uploaded.
+    /// </remarks>
     [HttpPost("files/{id:guid}/complete")]
     [HasPermission(PermissionType.StorageWrite)]
     [ProducesResponseType(typeof(CompleteUploadResponse), StatusCodes.Status200OK)]
@@ -312,8 +381,16 @@ public sealed class StorageController(IMessageBus bus, ITenantContext tenantCont
     }
 
     /// <summary>
-    /// Get a presigned URL for downloading a file.
+    /// Get a temporary file download URL.
     /// </summary>
+    /// <remarks>
+    /// Requires StorageRead in the current tenant. Returns a signed URL and expiry for an Available file,
+    /// without redirecting or returning its bytes. Pending or rejected files are refused; unknown IDs return
+    /// 404. Treat the returned URL as an opaque temporary credential for the download.
+    /// </remarks>
+    /// <param name="expiryMinutes">Requested URL lifetime in minutes; defaults to 60 and is capped by the server's maximum download lifetime.</param>
+    /// <param name="id">Stored file identifier.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
     [HttpGet("files/{id:guid}/presigned-url")]
     [HasPermission(PermissionType.StorageRead)]
     [ProducesResponseType(typeof(PresignedUrlResponse), StatusCodes.Status200OK)]

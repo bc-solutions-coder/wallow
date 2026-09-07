@@ -39,8 +39,26 @@ const createQueryKey = <TOptions extends Options>(id: string, options?: TOptions
   return [params];
 };
 
+/**
+ * List all tenant announcements.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires AnnouncementManage in the current tenant. Returns an unpaginated list, newest first, including
+ * drafts, scheduled, expired, and archived announcements. User targeting and dismissals do not filter this
+ * administrative list.
+ */
 export const adminAnnouncementsGetAllAnnouncementsQueryKey = (options?: Options<AdminAnnouncementsGetAllAnnouncementsData>) => createQueryKey('adminAnnouncementsGetAllAnnouncements', options, false, ['Admin - Announcements']);
 
+/**
+ * List all tenant announcements.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires AnnouncementManage in the current tenant. Returns an unpaginated list, newest first, including
+ * drafts, scheduled, expired, and archived announcements. User targeting and dismissals do not filter this
+ * administrative list.
+ */
 export const adminAnnouncementsGetAllAnnouncementsOptions = (options?: Options<AdminAnnouncementsGetAllAnnouncementsData>) => queryOptions<AdminAnnouncementsGetAllAnnouncementsResponse, AdminAnnouncementsGetAllAnnouncementsError, AdminAnnouncementsGetAllAnnouncementsResponse, ReturnType<typeof adminAnnouncementsGetAllAnnouncementsQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await adminAnnouncementsGetAllAnnouncements({
     ...options,
@@ -51,6 +69,16 @@ export const adminAnnouncementsGetAllAnnouncementsOptions = (options?: Options<A
   queryKey: adminAnnouncementsGetAllAnnouncementsQueryKey(options)
 });
 
+/**
+ * Create an announcement.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires AnnouncementManage in the current tenant and returns the created announcement. Title and content
+ * are sanitized before storage. Supplying PublishAt creates a scheduled announcement; omitting it creates a
+ * draft. TargetValue is a tenant GUID for Tenant targeting or a case-insensitive role name for Role
+ * targeting.
+ */
 export const adminAnnouncementsCreateAnnouncementMutation = (options?: Partial<Options<AdminAnnouncementsCreateAnnouncementData>>): UseMutationOptions<AdminAnnouncementsCreateAnnouncementResponse, AdminAnnouncementsCreateAnnouncementError, Options<AdminAnnouncementsCreateAnnouncementData>> => {
   const mutationOptions: UseMutationOptions<AdminAnnouncementsCreateAnnouncementResponse, AdminAnnouncementsCreateAnnouncementError, Options<AdminAnnouncementsCreateAnnouncementData>> = {
     mutationFn: async (fnOptions) => await adminAnnouncementsCreateAnnouncement({
@@ -62,6 +90,15 @@ export const adminAnnouncementsCreateAnnouncementMutation = (options?: Partial<O
   return mutationOptions;
 };
 
+/**
+ * Archive an announcement.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires AnnouncementManage in the current tenant. Removes the announcement from the active user list
+ * while retaining it in the administrative list. Returns no content, or 404 when the announcement is not
+ * found.
+ */
 export const adminAnnouncementsArchiveAnnouncementMutation = (options?: Partial<Options<AdminAnnouncementsArchiveAnnouncementData>>): UseMutationOptions<unknown, AdminAnnouncementsArchiveAnnouncementError, Options<AdminAnnouncementsArchiveAnnouncementData>> => {
   const mutationOptions: UseMutationOptions<unknown, AdminAnnouncementsArchiveAnnouncementError, Options<AdminAnnouncementsArchiveAnnouncementData>> = {
     mutationFn: async (fnOptions) => await adminAnnouncementsArchiveAnnouncement({
@@ -73,6 +110,15 @@ export const adminAnnouncementsArchiveAnnouncementMutation = (options?: Partial<
   return mutationOptions;
 };
 
+/**
+ * Replace announcement content and targeting.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires AnnouncementManage in the current tenant. Replaces the supplied content, targeting, dates, and
+ * presentation options after sanitizing title and content, while preserving the publication status. Returns
+ * the updated announcement, or 404 when the ID is not found in the current tenant.
+ */
 export const adminAnnouncementsUpdateAnnouncementMutation = (options?: Partial<Options<AdminAnnouncementsUpdateAnnouncementData>>): UseMutationOptions<AdminAnnouncementsUpdateAnnouncementResponse, AdminAnnouncementsUpdateAnnouncementError, Options<AdminAnnouncementsUpdateAnnouncementData>> => {
   const mutationOptions: UseMutationOptions<AdminAnnouncementsUpdateAnnouncementResponse, AdminAnnouncementsUpdateAnnouncementError, Options<AdminAnnouncementsUpdateAnnouncementData>> = {
     mutationFn: async (fnOptions) => await adminAnnouncementsUpdateAnnouncement({
@@ -84,6 +130,15 @@ export const adminAnnouncementsUpdateAnnouncementMutation = (options?: Partial<O
   return mutationOptions;
 };
 
+/**
+ * Publish an announcement now.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires AnnouncementManage in the current tenant. Changes an unpublished announcement to Published and
+ * sets PublishAt to the current time, including when it was scheduled or archived. Returns no content, or
+ * 404 when the announcement is not found.
+ */
 export const adminAnnouncementsPublishAnnouncementMutation = (options?: Partial<Options<AdminAnnouncementsPublishAnnouncementData>>): UseMutationOptions<unknown, AdminAnnouncementsPublishAnnouncementError, Options<AdminAnnouncementsPublishAnnouncementData>> => {
   const mutationOptions: UseMutationOptions<unknown, AdminAnnouncementsPublishAnnouncementError, Options<AdminAnnouncementsPublishAnnouncementData>> = {
     mutationFn: async (fnOptions) => await adminAnnouncementsPublishAnnouncement({
@@ -95,6 +150,15 @@ export const adminAnnouncementsPublishAnnouncementMutation = (options?: Partial<
   return mutationOptions;
 };
 
+/**
+ * Create an unpublished changelog entry.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires ChangelogManage. Changelog entries are global and shared across tenants. Accepts a semantic
+ * version, release date, title, and content, sanitizes the title and content, and returns the unpublished
+ * entry. Publish the entry separately to make it visible anonymously.
+ */
 export const adminChangelogCreateChangelogEntryMutation = (options?: Partial<Options<AdminChangelogCreateChangelogEntryData>>): UseMutationOptions<AdminChangelogCreateChangelogEntryResponse, AdminChangelogCreateChangelogEntryError, Options<AdminChangelogCreateChangelogEntryData>> => {
   const mutationOptions: UseMutationOptions<AdminChangelogCreateChangelogEntryResponse, AdminChangelogCreateChangelogEntryError, Options<AdminChangelogCreateChangelogEntryData>> = {
     mutationFn: async (fnOptions) => await adminChangelogCreateChangelogEntry({
@@ -106,6 +170,15 @@ export const adminChangelogCreateChangelogEntryMutation = (options?: Partial<Opt
   return mutationOptions;
 };
 
+/**
+ * Publish a changelog entry.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires ChangelogManage and makes the global entry visible through the anonymous changelog endpoints.
+ * Preserves the supplied release date, which determines list order and the latest entry. Returns no
+ * content, including for an already published entry, or 404 if the ID is unknown.
+ */
 export const adminChangelogPublishChangelogEntryMutation = (options?: Partial<Options<AdminChangelogPublishChangelogEntryData>>): UseMutationOptions<unknown, AdminChangelogPublishChangelogEntryError, Options<AdminChangelogPublishChangelogEntryData>> => {
   const mutationOptions: UseMutationOptions<unknown, AdminChangelogPublishChangelogEntryError, Options<AdminChangelogPublishChangelogEntryData>> = {
     mutationFn: async (fnOptions) => await adminChangelogPublishChangelogEntry({
@@ -117,8 +190,28 @@ export const adminChangelogPublishChangelogEntryMutation = (options?: Partial<Op
   return mutationOptions;
 };
 
+/**
+ * List active announcements for the current user.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires an authenticated user with AnnouncementRead in the current tenant. Returns published
+ * announcements within their publication and expiry dates that match the user's tenant or roles, excluding
+ * dismissible announcements already dismissed by that user. Pinned announcements appear first, then newest
+ * first within each group.
+ */
 export const announcementsGetAnnouncementsQueryKey = (options?: Options<AnnouncementsGetAnnouncementsData>) => createQueryKey('announcementsGetAnnouncements', options, false, ['Announcements']);
 
+/**
+ * List active announcements for the current user.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires an authenticated user with AnnouncementRead in the current tenant. Returns published
+ * announcements within their publication and expiry dates that match the user's tenant or roles, excluding
+ * dismissible announcements already dismissed by that user. Pinned announcements appear first, then newest
+ * first within each group.
+ */
 export const announcementsGetAnnouncementsOptions = (options?: Options<AnnouncementsGetAnnouncementsData>) => queryOptions<AnnouncementsGetAnnouncementsResponse, AnnouncementsGetAnnouncementsError, AnnouncementsGetAnnouncementsResponse, ReturnType<typeof announcementsGetAnnouncementsQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await announcementsGetAnnouncements({
     ...options,
@@ -129,6 +222,15 @@ export const announcementsGetAnnouncementsOptions = (options?: Options<Announcem
   queryKey: announcementsGetAnnouncementsQueryKey(options)
 });
 
+/**
+ * Dismiss an announcement for the current user.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires an authenticated user with AnnouncementRead in the current tenant. Hides a dismissible
+ * announcement from this user's active list; repeating the dismissal succeeds without creating another
+ * dismissal. Returns 404 for an unknown announcement and rejects announcements that are not dismissible.
+ */
 export const announcementsDismissAnnouncementMutation = (options?: Partial<Options<AnnouncementsDismissAnnouncementData>>): UseMutationOptions<unknown, AnnouncementsDismissAnnouncementError, Options<AnnouncementsDismissAnnouncementData>> => {
   const mutationOptions: UseMutationOptions<unknown, AnnouncementsDismissAnnouncementError, Options<AnnouncementsDismissAnnouncementData>> = {
     mutationFn: async (fnOptions) => await announcementsDismissAnnouncement({
@@ -140,8 +242,24 @@ export const announcementsDismissAnnouncementMutation = (options?: Partial<Optio
   return mutationOptions;
 };
 
+/**
+ * List published changelog entries.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Available without authentication. Returns global entries shared across tenants, ordered by release date
+ * descending, up to the requested limit. Unpublished entries are excluded.
+ */
 export const changelogGetChangelogQueryKey = (options?: Options<ChangelogGetChangelogData>) => createQueryKey('changelogGetChangelog', options, false, ['Changelog']);
 
+/**
+ * List published changelog entries.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Available without authentication. Returns global entries shared across tenants, ordered by release date
+ * descending, up to the requested limit. Unpublished entries are excluded.
+ */
 export const changelogGetChangelogOptions = (options?: Options<ChangelogGetChangelogData>) => queryOptions<ChangelogGetChangelogResponse, ChangelogGetChangelogError, ChangelogGetChangelogResponse, ReturnType<typeof changelogGetChangelogQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await changelogGetChangelog({
     ...options,
@@ -152,8 +270,26 @@ export const changelogGetChangelogOptions = (options?: Options<ChangelogGetChang
   queryKey: changelogGetChangelogQueryKey(options)
 });
 
+/**
+ * Get a published changelog version.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Available without authentication and independent of the current tenant. Returns the published global
+ * entry with the exact version string, including its change items. Returns 404 when the version is unknown
+ * or unpublished.
+ */
 export const changelogGetChangelogByVersionQueryKey = (options: Options<ChangelogGetChangelogByVersionData>) => createQueryKey('changelogGetChangelogByVersion', options, false, ['Changelog']);
 
+/**
+ * Get a published changelog version.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Available without authentication and independent of the current tenant. Returns the published global
+ * entry with the exact version string, including its change items. Returns 404 when the version is unknown
+ * or unpublished.
+ */
 export const changelogGetChangelogByVersionOptions = (options: Options<ChangelogGetChangelogByVersionData>) => queryOptions<ChangelogGetChangelogByVersionResponse, ChangelogGetChangelogByVersionError, ChangelogGetChangelogByVersionResponse, ReturnType<typeof changelogGetChangelogByVersionQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await changelogGetChangelogByVersion({
     ...options,
@@ -164,8 +300,24 @@ export const changelogGetChangelogByVersionOptions = (options: Options<Changelog
   queryKey: changelogGetChangelogByVersionQueryKey(options)
 });
 
+/**
+ * Get the latest published changelog entry.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Available without authentication. Returns the global published entry with the greatest release date,
+ * including its change items. Returns 404 when no published entry exists.
+ */
 export const changelogGetLatestChangelogQueryKey = (options?: Options<ChangelogGetLatestChangelogData>) => createQueryKey('changelogGetLatestChangelog', options, false, ['Changelog']);
 
+/**
+ * Get the latest published changelog entry.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Available without authentication. Returns the global published entry with the greatest release date,
+ * including its change items. Returns 404 when no published entry exists.
+ */
 export const changelogGetLatestChangelogOptions = (options?: Options<ChangelogGetLatestChangelogData>) => queryOptions<ChangelogGetLatestChangelogResponse, ChangelogGetLatestChangelogError, ChangelogGetLatestChangelogResponse, ReturnType<typeof changelogGetLatestChangelogQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await changelogGetLatestChangelog({
     ...options,
@@ -176,12 +328,25 @@ export const changelogGetLatestChangelogOptions = (options?: Options<ChangelogGe
   queryKey: changelogGetLatestChangelogQueryKey(options)
 });
 
+/**
+ * List the current user's unrevoked API keys.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires ApiKeyManage. Returns keys owned by the current user in the current tenant, newest first,
+ * including expired keys that have not been revoked. The response contains metadata only and never returns
+ * plaintext keys.
+ */
 export const apiKeysListApiKeysQueryKey = (options?: Options<ApiKeysListApiKeysData>) => createQueryKey('apiKeysListApiKeys', options, false, ['ApiKeys']);
 
 /**
- * List unrevoked API keys for the current user and tenant.
+ * List the current user's unrevoked API keys.
  *
- * Returns metadata without plaintext key values.
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires ApiKeyManage. Returns keys owned by the current user in the current tenant, newest first,
+ * including expired keys that have not been revoked. The response contains metadata only and never returns
+ * plaintext keys.
  */
 export const apiKeysListApiKeysOptions = (options?: Options<ApiKeysListApiKeysData>) => queryOptions<ApiKeysListApiKeysResponse, ApiKeysListApiKeysError, ApiKeysListApiKeysResponse, ReturnType<typeof apiKeysListApiKeysQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await apiKeysListApiKeys({
@@ -194,19 +359,14 @@ export const apiKeysListApiKeysOptions = (options?: Options<ApiKeysListApiKeysDa
 });
 
 /**
- * Create a new API key for the current user.
+ * Create an API key for the current user.
  *
- * The key belongs to the current user and tenant. Store the full key securely;
- * this is the only response that returns it.
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
  *
- * Example request:
- * ```json
- * {
- *   "name": "Production Backend",
- *   "scopes": ["storage.read", "storage.write"],
- *   "expiresAt": "2027-01-01T00:00:00Z"
- * }
- * ```
+ * Requires ApiKeyManage and an organization tenant. Requested scopes must be recognized and covered by the
+ * caller's permissions; service accounts must also stay within their permitted scopes. Creation is subject
+ * to the configured per-user key limit. The response returns the full key once; retain it securely because
+ * subsequent reads return metadata only.
  */
 export const apiKeysCreateApiKeyMutation = (options?: Partial<Options<ApiKeysCreateApiKeyData>>): UseMutationOptions<ApiKeysCreateApiKeyResponse, ApiKeysCreateApiKeyError, Options<ApiKeysCreateApiKeyData>> => {
   const mutationOptions: UseMutationOptions<ApiKeysCreateApiKeyResponse, ApiKeysCreateApiKeyError, Options<ApiKeysCreateApiKeyData>> = {
@@ -222,8 +382,11 @@ export const apiKeysCreateApiKeyMutation = (options?: Partial<Options<ApiKeysCre
 /**
  * Revoke an API key.
  *
- * Revokes a key owned by the current user and removes its validation cache entries.
- * Revocation cannot be undone.
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires ApiKeyManage and ownership of the key in the current tenant. Revocation permanently prevents
+ * authentication with the key; repeating a successful revocation returns no content. Returns 404 for an
+ * invalid or unknown key ID or a key owned by another user.
  */
 export const apiKeysRevokeApiKeyMutation = (options?: Partial<Options<ApiKeysRevokeApiKeyData>>): UseMutationOptions<ApiKeysRevokeApiKeyResponse, ApiKeysRevokeApiKeyError, Options<ApiKeysRevokeApiKeyData>> => {
   const mutationOptions: UseMutationOptions<ApiKeysRevokeApiKeyResponse, ApiKeysRevokeApiKeyError, Options<ApiKeysRevokeApiKeyData>> = {
@@ -236,10 +399,27 @@ export const apiKeysRevokeApiKeyMutation = (options?: Partial<Options<ApiKeysRev
   return mutationOptions;
 };
 
+/**
+ * Get an application client's branding.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires OrganizationClientsManage and access to the owning organization through the current tenant,
+ * global administration, or client-management membership. Returns the display name, tagline, theme JSON,
+ * and a temporary logo URL when a logo exists. Returns 404 for inaccessible organizations, unknown clients,
+ * service accounts, or missing branding.
+ */
 export const organizationClientBrandingGetBrandingQueryKey = (options: Options<OrganizationClientBrandingGetBrandingData>) => createQueryKey('organizationClientBrandingGetBranding', options, false, ['Organization Client Branding']);
 
 /**
- * The client's branding as its organization sees it.
+ * Get an application client's branding.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires OrganizationClientsManage and access to the owning organization through the current tenant,
+ * global administration, or client-management membership. Returns the display name, tagline, theme JSON,
+ * and a temporary logo URL when a logo exists. Returns 404 for inaccessible organizations, unknown clients,
+ * service accounts, or missing branding.
  */
 export const organizationClientBrandingGetBrandingOptions = (options: Options<OrganizationClientBrandingGetBrandingData>) => queryOptions<OrganizationClientBrandingGetBrandingResponse, OrganizationClientBrandingGetBrandingError, OrganizationClientBrandingGetBrandingResponse, ReturnType<typeof organizationClientBrandingGetBrandingQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await organizationClientBrandingGetBranding({
@@ -252,10 +432,15 @@ export const organizationClientBrandingGetBrandingOptions = (options: Options<Or
 });
 
 /**
- * Replaces display name, tagline and theme. Omitting tagline or theme clears it; omitting
- * the logo preserves it. Use `DELETE branding/logo` to remove the logo.
- * Themes accept `primary` and `primaryForeground` in `light`/`dark` modes.
- * The display name cannot match the platform name.
+ * Replace an application client's branding.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires OrganizationClientsManage and access to the owning organization through the current tenant,
+ * global administration, or client-management membership. Returns the saved branding and updates the client
+ * display name used for authentication. Omitting tagline or theme clears it; omitting the logo preserves
+ * it. Invalid names, themes, or image content return a validation error; inaccessible clients and service
+ * accounts return 404.
  */
 export const organizationClientBrandingUpsertBrandingMutation = (options?: Partial<Options<OrganizationClientBrandingUpsertBrandingData>>): UseMutationOptions<OrganizationClientBrandingUpsertBrandingResponse, OrganizationClientBrandingUpsertBrandingError, Options<OrganizationClientBrandingUpsertBrandingData>> => {
   const mutationOptions: UseMutationOptions<OrganizationClientBrandingUpsertBrandingResponse, OrganizationClientBrandingUpsertBrandingError, Options<OrganizationClientBrandingUpsertBrandingData>> = {
@@ -269,7 +454,14 @@ export const organizationClientBrandingUpsertBrandingMutation = (options?: Parti
 };
 
 /**
- * Remove the client's logo. The rest of the branding stays.
+ * Remove an application client's logo.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires OrganizationClientsManage and access to the owning organization through the current tenant,
+ * global administration, or client-management membership. Deletes the stored logo and clears its URL while
+ * preserving the other branding fields. Returns no content if the branding already has no logo, or 404 for
+ * inaccessible clients, service accounts, or missing branding.
  */
 export const organizationClientBrandingDeleteLogoMutation = (options?: Partial<Options<OrganizationClientBrandingDeleteLogoData>>): UseMutationOptions<unknown, OrganizationClientBrandingDeleteLogoError, Options<OrganizationClientBrandingDeleteLogoData>> => {
   const mutationOptions: UseMutationOptions<unknown, OrganizationClientBrandingDeleteLogoError, Options<OrganizationClientBrandingDeleteLogoData>> = {
@@ -282,8 +474,24 @@ export const organizationClientBrandingDeleteLogoMutation = (options?: Partial<O
   return mutationOptions;
 };
 
+/**
+ * List external sign-in providers.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Available without authentication. Returns provider scheme names accepted by external-login for the browser
+ * sign-in flow.
+ */
 export const accountGetExternalProvidersQueryKey = (options?: Options<AccountGetExternalProvidersData>) => createQueryKey('accountGetExternalProviders', options, false, ['Identity']);
 
+/**
+ * List external sign-in providers.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Available without authentication. Returns provider scheme names accepted by external-login for the browser
+ * sign-in flow.
+ */
 export const accountGetExternalProvidersOptions = (options?: Options<AccountGetExternalProvidersData>) => queryOptions<AccountGetExternalProvidersResponse, AccountGetExternalProvidersError, AccountGetExternalProvidersResponse, ReturnType<typeof accountGetExternalProvidersQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await accountGetExternalProviders({
     ...options,
@@ -294,6 +502,16 @@ export const accountGetExternalProvidersOptions = (options?: Options<AccountGetE
   queryKey: accountGetExternalProvidersQueryKey(options)
 });
 
+/**
+ * Check a password and begin browser sign-in.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Available without authentication. Success returns a signInTicket valid for 60 seconds for browser navigation
+ * to exchange-ticket, rather than an access token. MFA challenge or enrollment requirements can instead set a
+ * five-minute partial-auth cookie and return the corresponding flags. RememberMe controls the eventual sign-in
+ * cookie persistence; failed password attempts count toward account lockout.
+ */
 export const accountLoginMutation = (options?: Partial<Options<AccountLoginData>>): UseMutationOptions<AccountLoginResponse2, AccountLoginError, Options<AccountLoginData>> => {
   const mutationOptions: UseMutationOptions<AccountLoginResponse2, AccountLoginError, Options<AccountLoginData>> = {
     mutationFn: async (fnOptions) => await accountLogin({
@@ -305,6 +523,15 @@ export const accountLoginMutation = (options?: Partial<Options<AccountLoginData>
   return mutationOptions;
 };
 
+/**
+ * Complete a pending MFA sign-in challenge.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires the five-minute MFA partial-auth cookie from the browser sign-in flow. Accepts a current TOTP code or
+ * a backup code, which is consumed on success. Success replaces partial authentication with a full sign-in
+ * cookie and returns a signInTicket; repeated invalid codes can lock MFA verification.
+ */
 export const accountVerifyMfaChallengeMutation = (options?: Partial<Options<AccountVerifyMfaChallengeData>>): UseMutationOptions<AccountVerifyMfaChallengeResponse, AccountVerifyMfaChallengeError, Options<AccountVerifyMfaChallengeData>> => {
   const mutationOptions: UseMutationOptions<AccountVerifyMfaChallengeResponse, AccountVerifyMfaChallengeError, Options<AccountVerifyMfaChallengeData>> = {
     mutationFn: async (fnOptions) => await accountVerifyMfaChallenge({
@@ -316,8 +543,26 @@ export const accountVerifyMfaChallengeMutation = (options?: Partial<Options<Acco
   return mutationOptions;
 };
 
+/**
+ * Redirect the browser to an external sign-in provider.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Available without authentication and intended for browser navigation. The provider must be a configured
+ * authentication scheme, and returnUrl must use an allowed origin. The challenge carries client context through
+ * the provider callback.
+ */
 export const accountExternalLoginQueryKey = (options?: Options<AccountExternalLoginData>) => createQueryKey('accountExternalLogin', options, false, ['Identity']);
 
+/**
+ * Redirect the browser to an external sign-in provider.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Available without authentication and intended for browser navigation. The provider must be a configured
+ * authentication scheme, and returnUrl must use an allowed origin. The challenge carries client context through
+ * the provider callback.
+ */
 export const accountExternalLoginOptions = (options?: Options<AccountExternalLoginData>) => queryOptions<unknown, AccountExternalLoginError, unknown, ReturnType<typeof accountExternalLoginQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await accountExternalLogin({
     ...options,
@@ -328,8 +573,28 @@ export const accountExternalLoginOptions = (options?: Options<AccountExternalLog
   queryKey: accountExternalLoginQueryKey(options)
 });
 
+/**
+ * Complete the external provider callback.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Consumes the external authentication state created by external-login and redirects the browser. An existing
+ * provider link can establish sign-in or require MFA; a verified provider email can link an existing account.
+ * New registrations receive a temporary ExternalLoginState cookie and continue to the terms page. Invalid return
+ * destinations fall back to the configured authentication app.
+ */
 export const accountExternalLoginCallbackQueryKey = (options?: Options<AccountExternalLoginCallbackData>) => createQueryKey('accountExternalLoginCallback', options, false, ['Identity']);
 
+/**
+ * Complete the external provider callback.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Consumes the external authentication state created by external-login and redirects the browser. An existing
+ * provider link can establish sign-in or require MFA; a verified provider email can link an existing account.
+ * New registrations receive a temporary ExternalLoginState cookie and continue to the terms page. Invalid return
+ * destinations fall back to the configured authentication app.
+ */
 export const accountExternalLoginCallbackOptions = (options?: Options<AccountExternalLoginCallbackData>) => queryOptions<unknown, AccountExternalLoginCallbackError, unknown, ReturnType<typeof accountExternalLoginCallbackQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await accountExternalLoginCallback({
     ...options,
@@ -340,8 +605,28 @@ export const accountExternalLoginCallbackOptions = (options?: Options<AccountExt
   queryKey: accountExternalLoginCallbackQueryKey(options)
 });
 
+/**
+ * Finish external registration after terms acceptance.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires the ExternalLoginState browser cookie from the external callback and acceptedTerms=true. Creates or
+ * links the account, signs in with a nonpersistent cookie, and clears the registration cookie. New accounts
+ * receive email verification when the provider email is unverified; the browser redirects to the validated
+ * return destination.
+ */
 export const accountCompleteExternalRegistrationQueryKey = (options?: Options<AccountCompleteExternalRegistrationData>) => createQueryKey('accountCompleteExternalRegistration', options, false, ['Identity']);
 
+/**
+ * Finish external registration after terms acceptance.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires the ExternalLoginState browser cookie from the external callback and acceptedTerms=true. Creates or
+ * links the account, signs in with a nonpersistent cookie, and clears the registration cookie. New accounts
+ * receive email verification when the provider email is unverified; the browser redirects to the validated
+ * return destination.
+ */
 export const accountCompleteExternalRegistrationOptions = (options?: Options<AccountCompleteExternalRegistrationData>) => queryOptions<unknown, AccountCompleteExternalRegistrationError, unknown, ReturnType<typeof accountCompleteExternalRegistrationQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await accountCompleteExternalRegistration({
     ...options,
@@ -352,8 +637,26 @@ export const accountCompleteExternalRegistrationOptions = (options?: Options<Acc
   queryKey: accountCompleteExternalRegistrationQueryKey(options)
 });
 
+/**
+ * Exchange a sign-in ticket for a browser cookie.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Available without authentication and intended for browser navigation. Accepts a signInTicket issued within 60
+ * seconds, consumes it once, and sets the Identity sign-in cookie with its requested persistence. Redirects to a
+ * local returnUrl or an allowed absolute origin, falling back to the authentication app.
+ */
 export const accountExchangeTicketQueryKey = (options?: Options<AccountExchangeTicketData>) => createQueryKey('accountExchangeTicket', options, false, ['Identity']);
 
+/**
+ * Exchange a sign-in ticket for a browser cookie.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Available without authentication and intended for browser navigation. Accepts a signInTicket issued within 60
+ * seconds, consumes it once, and sets the Identity sign-in cookie with its requested persistence. Redirects to a
+ * local returnUrl or an allowed absolute origin, falling back to the authentication app.
+ */
 export const accountExchangeTicketOptions = (options?: Options<AccountExchangeTicketData>) => queryOptions<unknown, AccountExchangeTicketError, unknown, ReturnType<typeof accountExchangeTicketQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await accountExchangeTicket({
     ...options,
@@ -364,8 +667,28 @@ export const accountExchangeTicketOptions = (options?: Options<AccountExchangeTi
   queryKey: accountExchangeTicketQueryKey(options)
 });
 
+/**
+ * Check whether a redirect origin is allowed.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Available without authentication. Checks the absolute URI origin against registered sign-in and post-logout
+ * origins plus the authentication app origin. A clientId limits registered origins to that client; omission
+ * checks all clients. Returns allowed=false for missing or invalid URIs; this does not validate an exact OIDC
+ * redirect URI.
+ */
 export const accountValidateRedirectUriQueryKey = (options?: Options<AccountValidateRedirectUriData>) => createQueryKey('accountValidateRedirectUri', options, false, ['Identity']);
 
+/**
+ * Check whether a redirect origin is allowed.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Available without authentication. Checks the absolute URI origin against registered sign-in and post-logout
+ * origins plus the authentication app origin. A clientId limits registered origins to that client; omission
+ * checks all clients. Returns allowed=false for missing or invalid URIs; this does not validate an exact OIDC
+ * redirect URI.
+ */
 export const accountValidateRedirectUriOptions = (options?: Options<AccountValidateRedirectUriData>) => queryOptions<AccountValidateRedirectUriResponse, AccountValidateRedirectUriError, AccountValidateRedirectUriResponse, ReturnType<typeof accountValidateRedirectUriQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await accountValidateRedirectUri({
     ...options,
@@ -376,6 +699,15 @@ export const accountValidateRedirectUriOptions = (options?: Options<AccountValid
   queryKey: accountValidateRedirectUriQueryKey(options)
 });
 
+/**
+ * Clear the browser sign-in cookie.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires authentication and a form submission in the browser sign-out flow. Clears the Identity cookies, then
+ * redirects to the authentication app logout page. An invalid post-logout origin redirects to the error page
+ * after sign-out.
+ */
 export const accountSignOutMutation = (options?: Partial<Options<AccountSignOutData>>): UseMutationOptions<unknown, AccountSignOutError, Options<AccountSignOutData>> => {
   const mutationOptions: UseMutationOptions<unknown, AccountSignOutError, Options<AccountSignOutData>> = {
     mutationFn: async (fnOptions) => await accountSignOut({
@@ -387,6 +719,16 @@ export const accountSignOutMutation = (options?: Partial<Options<AccountSignOutD
   return mutationOptions;
 };
 
+/**
+ * Register an account and request email verification.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Available without authentication and does not sign the user in or grant organization membership.
+ * LoginMethod=passwordless creates an account without a password; other values require matching password fields
+ * and the password policy. A supplied clientId must identify an existing client, and an allowed returnUrl is
+ * carried into the verification link. Returns succeeded=true after requesting the verification email.
+ */
 export const accountRegisterMutation = (options?: Partial<Options<AccountRegisterData>>): UseMutationOptions<AccountRegisterResponse, AccountRegisterError, Options<AccountRegisterData>> => {
   const mutationOptions: UseMutationOptions<AccountRegisterResponse, AccountRegisterError, Options<AccountRegisterData>> = {
     mutationFn: async (fnOptions) => await accountRegister({
@@ -398,8 +740,26 @@ export const accountRegisterMutation = (options?: Partial<Options<AccountRegiste
   return mutationOptions;
 };
 
+/**
+ * Look up the organization associated with an OIDC client.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Available without authentication. Returns the client tenantId and organization name, or a not-found problem
+ * for an unknown client. An existing client without a valid tenant binding returns the empty GUID and no
+ * organization name.
+ */
 export const accountGetClientTenantQueryKey = (options: Options<AccountGetClientTenantData>) => createQueryKey('accountGetClientTenant', options, false, ['Identity']);
 
+/**
+ * Look up the organization associated with an OIDC client.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Available without authentication. Returns the client tenantId and organization name, or a not-found problem
+ * for an unknown client. An existing client without a valid tenant binding returns the empty GUID and no
+ * organization name.
+ */
 export const accountGetClientTenantOptions = (options: Options<AccountGetClientTenantData>) => queryOptions<AccountGetClientTenantResponse, AccountGetClientTenantError, AccountGetClientTenantResponse, ReturnType<typeof accountGetClientTenantQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await accountGetClientTenant({
     ...options,
@@ -410,6 +770,14 @@ export const accountGetClientTenantOptions = (options: Options<AccountGetClientT
   queryKey: accountGetClientTenantQueryKey(options)
 });
 
+/**
+ * Request a password-reset email.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Available without authentication. Requests a reset email only for an existing account with a confirmed email
+ * address. Unknown and unconfirmed addresses receive the same succeeded=true response.
+ */
 export const accountForgotPasswordMutation = (options?: Partial<Options<AccountForgotPasswordData>>): UseMutationOptions<AccountForgotPasswordResponse, AccountForgotPasswordError, Options<AccountForgotPasswordData>> => {
   const mutationOptions: UseMutationOptions<AccountForgotPasswordResponse, AccountForgotPasswordError, Options<AccountForgotPasswordData>> = {
     mutationFn: async (fnOptions) => await accountForgotPassword({
@@ -421,6 +789,15 @@ export const accountForgotPasswordMutation = (options?: Partial<Options<AccountF
   return mutationOptions;
 };
 
+/**
+ * Reset a password using an emailed token.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Available without authentication. Uses the email and reset token from the recovery link to set NewPassword,
+ * subject to the password policy. Returns succeeded=true and publishes the password-change notification; an
+ * unknown account or invalid token returns a token problem.
+ */
 export const accountResetPasswordMutation = (options?: Partial<Options<AccountResetPasswordData>>): UseMutationOptions<AccountResetPasswordResponse, AccountResetPasswordError, Options<AccountResetPasswordData>> => {
   const mutationOptions: UseMutationOptions<AccountResetPasswordResponse, AccountResetPasswordError, Options<AccountResetPasswordData>> = {
     mutationFn: async (fnOptions) => await accountResetPassword({
@@ -432,8 +809,24 @@ export const accountResetPasswordMutation = (options?: Partial<Options<AccountRe
   return mutationOptions;
 };
 
+/**
+ * Confirm an account email address.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Available without authentication. Accepts the email and confirmation token from the verification link. Success
+ * confirms the address and publishes the email-verification event without signing the user in.
+ */
 export const accountVerifyEmailQueryKey = (options?: Options<AccountVerifyEmailData>) => createQueryKey('accountVerifyEmail', options, false, ['Identity']);
 
+/**
+ * Confirm an account email address.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Available without authentication. Accepts the email and confirmation token from the verification link. Success
+ * confirms the address and publishes the email-verification event without signing the user in.
+ */
 export const accountVerifyEmailOptions = (options?: Options<AccountVerifyEmailData>) => queryOptions<AccountVerifyEmailResponse, AccountVerifyEmailError, AccountVerifyEmailResponse, ReturnType<typeof accountVerifyEmailQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await accountVerifyEmail({
     ...options,
@@ -444,6 +837,15 @@ export const accountVerifyEmailOptions = (options?: Options<AccountVerifyEmailDa
   queryKey: accountVerifyEmailQueryKey(options)
 });
 
+/**
+ * Request a passwordless sign-in link.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Available without authentication. Requests an email for an existing account and carries ReturnUrl and ClientId
+ * into the link flow. Unknown addresses receive the same succeeded=true response. Magic-link and OTP sends share
+ * a per-address rate limit.
+ */
 export const accountSendMagicLinkMutation = (options?: Partial<Options<AccountSendMagicLinkData>>): UseMutationOptions<AccountSendMagicLinkResponse, AccountSendMagicLinkError, Options<AccountSendMagicLinkData>> => {
   const mutationOptions: UseMutationOptions<AccountSendMagicLinkResponse, AccountSendMagicLinkError, Options<AccountSendMagicLinkData>> = {
     mutationFn: async (fnOptions) => await accountSendMagicLink({
@@ -455,8 +857,26 @@ export const accountSendMagicLinkMutation = (options?: Partial<Options<AccountSe
   return mutationOptions;
 };
 
+/**
+ * Verify a passwordless sign-in link.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Available without authentication. Validates the emailed token and removes it after successful validation.
+ * Returns the email and a signInTicket valid for 60 seconds for browser navigation to exchange-ticket; it does
+ * not return an access token.
+ */
 export const accountVerifyMagicLinkQueryKey = (options?: Options<AccountVerifyMagicLinkData>) => createQueryKey('accountVerifyMagicLink', options, false, ['Identity']);
 
+/**
+ * Verify a passwordless sign-in link.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Available without authentication. Validates the emailed token and removes it after successful validation.
+ * Returns the email and a signInTicket valid for 60 seconds for browser navigation to exchange-ticket; it does
+ * not return an access token.
+ */
 export const accountVerifyMagicLinkOptions = (options?: Options<AccountVerifyMagicLinkData>) => queryOptions<AccountVerifyMagicLinkResponse, AccountVerifyMagicLinkError, AccountVerifyMagicLinkResponse, ReturnType<typeof accountVerifyMagicLinkQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await accountVerifyMagicLink({
     ...options,
@@ -467,6 +887,15 @@ export const accountVerifyMagicLinkOptions = (options?: Options<AccountVerifyMag
   queryKey: accountVerifyMagicLinkQueryKey(options)
 });
 
+/**
+ * Request an email sign-in code.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Available without authentication. Sends a six-digit code for an existing account, replacing any earlier code
+ * for that email address. Unknown addresses receive the same succeeded=true response. OTP and magic-link sends
+ * share a per-address rate limit.
+ */
 export const accountSendOtpMutation = (options?: Partial<Options<AccountSendOtpData>>): UseMutationOptions<AccountSendOtpResponse, AccountSendOtpError, Options<AccountSendOtpData>> => {
   const mutationOptions: UseMutationOptions<AccountSendOtpResponse, AccountSendOtpError, Options<AccountSendOtpData>> = {
     mutationFn: async (fnOptions) => await accountSendOtp({
@@ -478,6 +907,15 @@ export const accountSendOtpMutation = (options?: Partial<Options<AccountSendOtpD
   return mutationOptions;
 };
 
+/**
+ * Verify an email sign-in code.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Available without authentication. Accepts the email and six-digit code, then removes the stored code on
+ * success. Returns the email and a signInTicket valid for 60 seconds for browser navigation to exchange-ticket;
+ * RememberMe controls the eventual cookie persistence.
+ */
 export const accountVerifyOtpMutation = (options?: Partial<Options<AccountVerifyOtpData>>): UseMutationOptions<AccountVerifyOtpResponse, AccountVerifyOtpError, Options<AccountVerifyOtpData>> => {
   const mutationOptions: UseMutationOptions<AccountVerifyOtpResponse, AccountVerifyOtpError, Options<AccountVerifyOtpData>> = {
     mutationFn: async (fnOptions) => await accountVerifyOtp({
@@ -489,6 +927,15 @@ export const accountVerifyOtpMutation = (options?: Partial<Options<AccountVerify
   return mutationOptions;
 };
 
+/**
+ * Request a change to the current user email.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires an authenticated user. Records a pending email change with a 24-hour expiry and requests a
+ * confirmation email to NewEmail. The current address remains in use until confirmation; unchanged addresses and
+ * requests exceeding the per-user rate limit return problems.
+ */
 export const accountChangeEmailMutation = (options?: Partial<Options<AccountChangeEmailData>>): UseMutationOptions<AccountChangeEmailResponse, AccountChangeEmailError, Options<AccountChangeEmailData>> => {
   const mutationOptions: UseMutationOptions<AccountChangeEmailResponse, AccountChangeEmailError, Options<AccountChangeEmailData>> = {
     mutationFn: async (fnOptions) => await accountChangeEmail({
@@ -500,8 +947,26 @@ export const accountChangeEmailMutation = (options?: Partial<Options<AccountChan
   return mutationOptions;
 };
 
+/**
+ * Confirm a requested email change.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Available without authentication. Uses the userId, newEmail, and token from the confirmation link to update
+ * both email and username. Clears the pending change and publishes the email-change event on success; expired
+ * pending requests or invalid tokens return problems.
+ */
 export const accountConfirmEmailChangeQueryKey = (options?: Options<AccountConfirmEmailChangeData>) => createQueryKey('accountConfirmEmailChange', options, false, ['Identity']);
 
+/**
+ * Confirm a requested email change.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Available without authentication. Uses the userId, newEmail, and token from the confirmation link to update
+ * both email and username. Clears the pending change and publishes the email-change event on success; expired
+ * pending requests or invalid tokens return problems.
+ */
 export const accountConfirmEmailChangeOptions = (options?: Options<AccountConfirmEmailChangeData>) => queryOptions<AccountConfirmEmailChangeResponse, AccountConfirmEmailChangeError, AccountConfirmEmailChangeResponse, ReturnType<typeof accountConfirmEmailChangeQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await accountConfirmEmailChange({
     ...options,
@@ -512,8 +977,28 @@ export const accountConfirmEmailChangeOptions = (options?: Options<AccountConfir
   queryKey: accountConfirmEmailChangeQueryKey(options)
 });
 
+/**
+ * Get display context for a browser authorization request.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Available without authentication. Accepts a local returnUrl ending in /connect/authorize with client_id and a
+ * registered redirect_uri. Returns client branding, organization name, and requested scope descriptions, or 404
+ * for invalid context or a refused client. This display context does not authenticate or authorize the
+ * transaction.
+ */
 export const authorizeContextGetQueryKey = (options?: Options<AuthorizeContextGetData>) => createQueryKey('authorizeContextGet', options, false, ['Authorize Context']);
 
+/**
+ * Get display context for a browser authorization request.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Available without authentication. Accepts a local returnUrl ending in /connect/authorize with client_id and a
+ * registered redirect_uri. Returns client branding, organization name, and requested scope descriptions, or 404
+ * for invalid context or a refused client. This display context does not authenticate or authorize the
+ * transaction.
+ */
 export const authorizeContextGetOptions = (options?: Options<AuthorizeContextGetData>) => queryOptions<AuthorizeContextGetResponse, AuthorizeContextGetError, AuthorizeContextGetResponse, ReturnType<typeof authorizeContextGetQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await authorizeContextGet({
     ...options,
@@ -524,8 +1009,24 @@ export const authorizeContextGetOptions = (options?: Options<AuthorizeContextGet
   queryKey: authorizeContextGetQueryKey(options)
 });
 
+/**
+ * List OIDC application registrations.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires the AdminAccess permission. Returns all application registrations across organizations without
+ * pagination. Responses include redirect, scope, logout, and refresh-token settings but omit client secrets.
+ */
 export const clientsGetAllQueryKey = (options?: Options<ClientsGetAllData>) => createQueryKey('clientsGetAll', options, false, ['Clients']);
 
+/**
+ * List OIDC application registrations.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires the AdminAccess permission. Returns all application registrations across organizations without
+ * pagination. Responses include redirect, scope, logout, and refresh-token settings but omit client secrets.
+ */
 export const clientsGetAllOptions = (options?: Options<ClientsGetAllData>) => queryOptions<ClientsGetAllResponse, ClientsGetAllError, ClientsGetAllResponse, ReturnType<typeof clientsGetAllQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await clientsGetAll({
     ...options,
@@ -536,6 +1037,16 @@ export const clientsGetAllOptions = (options?: Options<ClientsGetAllData>) => qu
   queryKey: clientsGetAllQueryKey(options)
 });
 
+/**
+ * Register a confidential OIDC application.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires the AdminAccess permission. Creates an unbound confidential client for authorization-code and
+ * refresh-token flows, returning its generated clientId and plaintext secret once. Missing or empty Scopes
+ * defaults to openid, profile, email, roles, and offline_access; unknown scopes are rejected. Redirect URIs
+ * require HTTPS or loopback HTTP, and RefreshTokenLifetime is seconds from 60 to 31536000, defaulting to 86400.
+ */
 export const clientsCreateMutation = (options?: Partial<Options<ClientsCreateData>>): UseMutationOptions<ClientsCreateResponse, ClientsCreateError, Options<ClientsCreateData>> => {
   const mutationOptions: UseMutationOptions<ClientsCreateResponse, ClientsCreateError, Options<ClientsCreateData>> = {
     mutationFn: async (fnOptions) => await clientsCreate({
@@ -547,6 +1058,14 @@ export const clientsCreateMutation = (options?: Partial<Options<ClientsCreateDat
   return mutationOptions;
 };
 
+/**
+ * Delete an OIDC application registration.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires the AdminAccess permission. Deletes the application record across organizations and returns no
+ * content. Returns 404 when the record does not exist.
+ */
 export const clientsDeleteMutation = (options?: Partial<Options<ClientsDeleteData>>): UseMutationOptions<unknown, ClientsDeleteError, Options<ClientsDeleteData>> => {
   const mutationOptions: UseMutationOptions<unknown, ClientsDeleteError, Options<ClientsDeleteData>> = {
     mutationFn: async (fnOptions) => await clientsDelete({
@@ -558,8 +1077,24 @@ export const clientsDeleteMutation = (options?: Partial<Options<ClientsDeleteDat
   return mutationOptions;
 };
 
+/**
+ * Get an OIDC application registration.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires the AdminAccess permission. Looks up the application record across organizations and returns its
+ * configuration without the client secret. Returns 404 when the record does not exist.
+ */
 export const clientsGetByIdQueryKey = (options: Options<ClientsGetByIdData>) => createQueryKey('clientsGetById', options, false, ['Clients']);
 
+/**
+ * Get an OIDC application registration.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires the AdminAccess permission. Looks up the application record across organizations and returns its
+ * configuration without the client secret. Returns 404 when the record does not exist.
+ */
 export const clientsGetByIdOptions = (options: Options<ClientsGetByIdData>) => queryOptions<ClientsGetByIdResponse, ClientsGetByIdError, ClientsGetByIdResponse, ReturnType<typeof clientsGetByIdQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await clientsGetById({
     ...options,
@@ -570,6 +1105,16 @@ export const clientsGetByIdOptions = (options: Options<ClientsGetByIdData>) => q
   queryKey: clientsGetByIdQueryKey(options)
 });
 
+/**
+ * Update an OIDC application registration.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires the AdminAccess permission. Replaces the display name and redirect lists while preserving the client
+ * identifier, secret, and scope permissions. Omitted logout URLs remove those registrations; a null
+ * RefreshTokenLifetime preserves its current value, while an explicit value changes future refresh tokens.
+ * Returns the updated configuration or 404 for an unknown record.
+ */
 export const clientsUpdateMutation = (options?: Partial<Options<ClientsUpdateData>>): UseMutationOptions<ClientsUpdateResponse, ClientsUpdateError, Options<ClientsUpdateData>> => {
   const mutationOptions: UseMutationOptions<ClientsUpdateResponse, ClientsUpdateError, Options<ClientsUpdateData>> = {
     mutationFn: async (fnOptions) => await clientsUpdate({
@@ -581,6 +1126,15 @@ export const clientsUpdateMutation = (options?: Partial<Options<ClientsUpdateDat
   return mutationOptions;
 };
 
+/**
+ * Replace an OIDC client secret.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires the AdminAccess permission. Replaces the application secret immediately and returns the new plaintext
+ * secret with its configuration. The previous secret stops authenticating the client; subsequent reads do not
+ * return the new secret.
+ */
 export const clientsRotateSecretMutation = (options?: Partial<Options<ClientsRotateSecretData>>): UseMutationOptions<ClientsRotateSecretResponse, ClientsRotateSecretError, Options<ClientsRotateSecretData>> => {
   const mutationOptions: UseMutationOptions<ClientsRotateSecretResponse, ClientsRotateSecretError, Options<ClientsRotateSecretData>> = {
     mutationFn: async (fnOptions) => await clientsRotateSecret({
@@ -592,8 +1146,24 @@ export const clientsRotateSecretMutation = (options?: Partial<Options<ClientsRot
   return mutationOptions;
 };
 
+/**
+ * Get effective Identity configuration for the current user.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires an authenticated user and resolved tenant context. Returns a key-value map of Identity settings with
+ * user overrides taking precedence over tenant overrides and registered defaults.
+ */
 export const identitySettingsGetConfigQueryKey = (options?: Options<IdentitySettingsGetConfigData>) => createQueryKey('identitySettingsGetConfig', options, false, ['Identity Settings']);
 
+/**
+ * Get effective Identity configuration for the current user.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires an authenticated user and resolved tenant context. Returns a key-value map of Identity settings with
+ * user overrides taking precedence over tenant overrides and registered defaults.
+ */
 export const identitySettingsGetConfigOptions = (options?: Options<IdentitySettingsGetConfigData>) => queryOptions<IdentitySettingsGetConfigResponse, IdentitySettingsGetConfigError, IdentitySettingsGetConfigResponse, ReturnType<typeof identitySettingsGetConfigQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await identitySettingsGetConfig({
     ...options,
@@ -604,6 +1174,15 @@ export const identitySettingsGetConfigOptions = (options?: Options<IdentitySetti
   queryKey: identitySettingsGetConfigQueryKey(options)
 });
 
+/**
+ * Remove an Identity setting override for the tenant.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires an authenticated user, the SystemSettings permission, and resolved tenant context. Removes the tenant
+ * override so resolution falls back to the registered default. Registered Identity keys and custom. keys are
+ * accepted; system keys and unknown keys are rejected.
+ */
 export const identitySettingsDeleteTenantSettingMutation = (options?: Partial<Options<IdentitySettingsDeleteTenantSettingData>>): UseMutationOptions<unknown, IdentitySettingsDeleteTenantSettingError, Options<IdentitySettingsDeleteTenantSettingData>> => {
   const mutationOptions: UseMutationOptions<unknown, IdentitySettingsDeleteTenantSettingError, Options<IdentitySettingsDeleteTenantSettingData>> = {
     mutationFn: async (fnOptions) => await identitySettingsDeleteTenantSetting({
@@ -615,8 +1194,24 @@ export const identitySettingsDeleteTenantSettingMutation = (options?: Partial<Op
   return mutationOptions;
 };
 
+/**
+ * List resolved tenant Identity settings.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires the SystemSettings permission and resolved tenant context. Returns tenant overrides merged with
+ * registered defaults, including each setting source and available metadata.
+ */
 export const identitySettingsGetTenantSettingsQueryKey = (options?: Options<IdentitySettingsGetTenantSettingsData>) => createQueryKey('identitySettingsGetTenantSettings', options, false, ['Identity Settings']);
 
+/**
+ * List resolved tenant Identity settings.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires the SystemSettings permission and resolved tenant context. Returns tenant overrides merged with
+ * registered defaults, including each setting source and available metadata.
+ */
 export const identitySettingsGetTenantSettingsOptions = (options?: Options<IdentitySettingsGetTenantSettingsData>) => queryOptions<IdentitySettingsGetTenantSettingsResponse, IdentitySettingsGetTenantSettingsError, IdentitySettingsGetTenantSettingsResponse, ReturnType<typeof identitySettingsGetTenantSettingsQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await identitySettingsGetTenantSettings({
     ...options,
@@ -627,6 +1222,15 @@ export const identitySettingsGetTenantSettingsOptions = (options?: Options<Ident
   queryKey: identitySettingsGetTenantSettingsQueryKey(options)
 });
 
+/**
+ * Set an Identity setting override for the tenant.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires an authenticated user, the SystemSettings permission, and resolved tenant context. Creates or
+ * replaces one tenant override using a registered Identity key or a custom. key and a string value. System keys
+ * and unknown keys are rejected; success returns no content.
+ */
 export const identitySettingsUpsertTenantSettingMutation = (options?: Partial<Options<IdentitySettingsUpsertTenantSettingData>>): UseMutationOptions<unknown, IdentitySettingsUpsertTenantSettingError, Options<IdentitySettingsUpsertTenantSettingData>> => {
   const mutationOptions: UseMutationOptions<unknown, IdentitySettingsUpsertTenantSettingError, Options<IdentitySettingsUpsertTenantSettingData>> = {
     mutationFn: async (fnOptions) => await identitySettingsUpsertTenantSetting({
@@ -638,6 +1242,15 @@ export const identitySettingsUpsertTenantSettingMutation = (options?: Partial<Op
   return mutationOptions;
 };
 
+/**
+ * Remove an Identity setting override for the user.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires an authenticated user and resolved tenant context. Removes the user override so resolution falls back
+ * to the tenant value or registered default. Registered Identity keys and custom. keys are accepted; system keys
+ * and unknown keys are rejected.
+ */
 export const identitySettingsDeleteUserSettingMutation = (options?: Partial<Options<IdentitySettingsDeleteUserSettingData>>): UseMutationOptions<unknown, IdentitySettingsDeleteUserSettingError, Options<IdentitySettingsDeleteUserSettingData>> => {
   const mutationOptions: UseMutationOptions<unknown, IdentitySettingsDeleteUserSettingError, Options<IdentitySettingsDeleteUserSettingData>> = {
     mutationFn: async (fnOptions) => await identitySettingsDeleteUserSetting({
@@ -649,8 +1262,24 @@ export const identitySettingsDeleteUserSettingMutation = (options?: Partial<Opti
   return mutationOptions;
 };
 
+/**
+ * List resolved Identity settings for the current user.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires an authenticated user and resolved tenant context. Returns user overrides merged with tenant
+ * overrides and registered defaults, including each value source and available metadata.
+ */
 export const identitySettingsGetUserSettingsQueryKey = (options?: Options<IdentitySettingsGetUserSettingsData>) => createQueryKey('identitySettingsGetUserSettings', options, false, ['Identity Settings']);
 
+/**
+ * List resolved Identity settings for the current user.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires an authenticated user and resolved tenant context. Returns user overrides merged with tenant
+ * overrides and registered defaults, including each value source and available metadata.
+ */
 export const identitySettingsGetUserSettingsOptions = (options?: Options<IdentitySettingsGetUserSettingsData>) => queryOptions<IdentitySettingsGetUserSettingsResponse, IdentitySettingsGetUserSettingsError, IdentitySettingsGetUserSettingsResponse, ReturnType<typeof identitySettingsGetUserSettingsQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await identitySettingsGetUserSettings({
     ...options,
@@ -661,6 +1290,15 @@ export const identitySettingsGetUserSettingsOptions = (options?: Options<Identit
   queryKey: identitySettingsGetUserSettingsQueryKey(options)
 });
 
+/**
+ * Set an Identity setting override for the user.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires an authenticated user and resolved tenant context. Creates or replaces one user override using a
+ * registered Identity key or a custom. key and a string value. System keys and unknown keys are rejected;
+ * success returns no content.
+ */
 export const identitySettingsUpsertUserSettingMutation = (options?: Partial<Options<IdentitySettingsUpsertUserSettingData>>): UseMutationOptions<unknown, IdentitySettingsUpsertUserSettingError, Options<IdentitySettingsUpsertUserSettingData>> => {
   const mutationOptions: UseMutationOptions<unknown, IdentitySettingsUpsertUserSettingError, Options<IdentitySettingsUpsertUserSettingData>> = {
     mutationFn: async (fnOptions) => await identitySettingsUpsertUserSetting({
@@ -672,8 +1310,24 @@ export const identitySettingsUpsertUserSettingMutation = (options?: Partial<Opti
   return mutationOptions;
 };
 
+/**
+ * List organization invitations.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires OrganizationsManageMembers in the resolved tenant. Returns invitations of all statuses, newest first,
+ * without invitation tokens. skip is a zero-based offset and take is the maximum number of results.
+ */
 export const invitationsGetByTenantQueryKey = (options?: Options<InvitationsGetByTenantData>) => createQueryKey('invitationsGetByTenant', options, false, ['Invitations']);
 
+/**
+ * List organization invitations.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires OrganizationsManageMembers in the resolved tenant. Returns invitations of all statuses, newest first,
+ * without invitation tokens. skip is a zero-based offset and take is the maximum number of results.
+ */
 export const invitationsGetByTenantOptions = (options?: Options<InvitationsGetByTenantData>) => queryOptions<InvitationsGetByTenantResponse, InvitationsGetByTenantError, InvitationsGetByTenantResponse, ReturnType<typeof invitationsGetByTenantQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await invitationsGetByTenant({
     ...options,
@@ -684,6 +1338,15 @@ export const invitationsGetByTenantOptions = (options?: Options<InvitationsGetBy
   queryKey: invitationsGetByTenantQueryKey(options)
 });
 
+/**
+ * Invite a user to the resolved organization.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires OrganizationsManageMembers in the resolved tenant. Creates an email invitation valid for seven days,
+ * or renews an outstanding invitation with the same token, and requests delivery. Existing active members cannot
+ * be invited; the response includes invitation status and expiry.
+ */
 export const invitationsCreateMutation = (options?: Partial<Options<InvitationsCreateData>>): UseMutationOptions<InvitationsCreateResponse, InvitationsCreateError, Options<InvitationsCreateData>> => {
   const mutationOptions: UseMutationOptions<InvitationsCreateResponse, InvitationsCreateError, Options<InvitationsCreateData>> = {
     mutationFn: async (fnOptions) => await invitationsCreate({
@@ -695,6 +1358,14 @@ export const invitationsCreateMutation = (options?: Partial<Options<InvitationsC
   return mutationOptions;
 };
 
+/**
+ * Revoke an organization invitation.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires OrganizationsManageMembers in the resolved tenant. Revokes a pending invitation identified by its ID,
+ * preventing acceptance. An invitation outside the resolved tenant or a missing invitation returns 404.
+ */
 export const invitationsRevokeMutation = (options?: Partial<Options<InvitationsRevokeData>>): UseMutationOptions<unknown, InvitationsRevokeError, Options<InvitationsRevokeData>> => {
   const mutationOptions: UseMutationOptions<unknown, InvitationsRevokeError, Options<InvitationsRevokeData>> = {
     mutationFn: async (fnOptions) => await invitationsRevoke({
@@ -706,8 +1377,26 @@ export const invitationsRevokeMutation = (options?: Partial<Options<InvitationsR
   return mutationOptions;
 };
 
+/**
+ * Look up an invitation token.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Allows anonymous access without an organization context. Returns the matching invitation recipient, status,
+ * and expiry, including invitations that are no longer pending. A successful lookup does not guarantee that
+ * acceptance is allowed; unknown tokens return 404.
+ */
 export const invitationsVerifyQueryKey = (options: Options<InvitationsVerifyData>) => createQueryKey('invitationsVerify', options, false, ['Invitations']);
 
+/**
+ * Look up an invitation token.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Allows anonymous access without an organization context. Returns the matching invitation recipient, status,
+ * and expiry, including invitations that are no longer pending. A successful lookup does not guarantee that
+ * acceptance is allowed; unknown tokens return 404.
+ */
 export const invitationsVerifyOptions = (options: Options<InvitationsVerifyData>) => queryOptions<InvitationsVerifyResponse, InvitationsVerifyError, InvitationsVerifyResponse, ReturnType<typeof invitationsVerifyQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await invitationsVerify({
     ...options,
@@ -719,7 +1408,13 @@ export const invitationsVerifyOptions = (options: Options<InvitationsVerifyData>
 });
 
 /**
- * Accepts an invitation for the authenticated user, whose verified email must match the invitation.
+ * Accept an organization invitation.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires an authenticated user whose verified email matches the invitation, without an existing organization
+ * context. A valid pending invitation creates or approves membership using the invited organization default
+ * role. Expired invitations and suspended or denied memberships are rejected.
  */
 export const invitationsAcceptMutation = (options?: Partial<Options<InvitationsAcceptData>>): UseMutationOptions<unknown, InvitationsAcceptError, Options<InvitationsAcceptData>> => {
   const mutationOptions: UseMutationOptions<unknown, InvitationsAcceptError, Options<InvitationsAcceptData>> = {
@@ -732,10 +1427,25 @@ export const invitationsAcceptMutation = (options?: Partial<Options<InvitationsA
   return mutationOptions;
 };
 
+/**
+ * List your application consents.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires an authenticated user, without an organization context or management permission. Returns valid
+ * permanent consent records for existing applications, newest first, including authorization IDs and granted
+ * scopes.
+ */
 export const meAuthorizationsListConnectedApplicationsQueryKey = (options?: Options<MeAuthorizationsListConnectedApplicationsData>) => createQueryKey('meAuthorizationsListConnectedApplications', options, false, ['Me']);
 
 /**
- * Lists valid permanent consent records for the caller.
+ * List your application consents.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires an authenticated user, without an organization context or management permission. Returns valid
+ * permanent consent records for existing applications, newest first, including authorization IDs and granted
+ * scopes.
  */
 export const meAuthorizationsListConnectedApplicationsOptions = (options?: Options<MeAuthorizationsListConnectedApplicationsData>) => queryOptions<MeAuthorizationsListConnectedApplicationsResponse, MeAuthorizationsListConnectedApplicationsError, MeAuthorizationsListConnectedApplicationsResponse, ReturnType<typeof meAuthorizationsListConnectedApplicationsQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await meAuthorizationsListConnectedApplications({
@@ -748,8 +1458,13 @@ export const meAuthorizationsListConnectedApplicationsOptions = (options?: Optio
 });
 
 /**
- * Withdraws the caller consent and revokes associated user/client access.
- * Returns 404 when the consent cannot be found for the caller.
+ * Withdraw consent for an application.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires an authenticated user, without an organization context or management permission. Uses an
+ * authorization ID from your consent list to request revocation of that consent and your tokens for its
+ * application. A missing, invalid, or other user consent returns 404.
  */
 export const meAuthorizationsWithdrawConsentMutation = (options?: Partial<Options<MeAuthorizationsWithdrawConsentData>>): UseMutationOptions<unknown, MeAuthorizationsWithdrawConsentError, Options<MeAuthorizationsWithdrawConsentData>> => {
   const mutationOptions: UseMutationOptions<unknown, MeAuthorizationsWithdrawConsentError, Options<MeAuthorizationsWithdrawConsentData>> = {
@@ -762,10 +1477,25 @@ export const meAuthorizationsWithdrawConsentMutation = (options?: Partial<Option
   return mutationOptions;
 };
 
+/**
+ * List your active organizations.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires an authenticated user, without an organization context or management permission. Returns active
+ * organizations where the caller has an active membership, including organization IDs, slugs, and owner status,
+ * ordered by name.
+ */
 export const meGetOrganizationsQueryKey = (options?: Options<MeGetOrganizationsData>) => createQueryKey('meGetOrganizations', options, false, ['Me']);
 
 /**
- * Lists the caller active organization memberships without requiring a management permission.
+ * List your active organizations.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires an authenticated user, without an organization context or management permission. Returns active
+ * organizations where the caller has an active membership, including organization IDs, slugs, and owner status,
+ * ordered by name.
  */
 export const meGetOrganizationsOptions = (options?: Options<MeGetOrganizationsData>) => queryOptions<MeGetOrganizationsResponse, MeGetOrganizationsError, MeGetOrganizationsResponse, ReturnType<typeof meGetOrganizationsQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await meGetOrganizations({
@@ -777,8 +1507,24 @@ export const meGetOrganizationsOptions = (options?: Options<MeGetOrganizationsDa
   queryKey: meGetOrganizationsQueryKey(options)
 });
 
+/**
+ * Get the current user MFA status.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires an authenticated user. Returns whether MFA is enabled, the configured method, and the number of
+ * remaining backup codes. MFA belongs to the account across organizations.
+ */
 export const mfaGetStatusQueryKey = (options?: Options<MfaGetStatusData>) => createQueryKey('mfaGetStatus', options, false, ['Identity']);
 
+/**
+ * Get the current user MFA status.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires an authenticated user. Returns whether MFA is enabled, the configured method, and the number of
+ * remaining backup codes. MFA belongs to the account across organizations.
+ */
 export const mfaGetStatusOptions = (options?: Options<MfaGetStatusData>) => queryOptions<MfaGetStatusResponse, MfaGetStatusError, MfaGetStatusResponse, ReturnType<typeof mfaGetStatusQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await mfaGetStatus({
     ...options,
@@ -789,6 +1535,15 @@ export const mfaGetStatusOptions = (options?: Options<MfaGetStatusData>) => quer
   queryKey: mfaGetStatusQueryKey(options)
 });
 
+/**
+ * Generate a TOTP enrollment secret.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires an authenticated user or a valid MFA partial-auth browser cookie. Returns a base32 secret and an
+ * otpauth URI for an authenticator app. MFA is enabled only after enroll/confirm receives the secret and a valid
+ * code.
+ */
 export const mfaEnrollTotpMutation = (options?: Partial<Options<MfaEnrollTotpData>>): UseMutationOptions<MfaEnrollTotpResponse, MfaEnrollTotpError, Options<MfaEnrollTotpData>> => {
   const mutationOptions: UseMutationOptions<MfaEnrollTotpResponse, MfaEnrollTotpError, Options<MfaEnrollTotpData>> = {
     mutationFn: async (fnOptions) => await mfaEnrollTotp({
@@ -800,6 +1555,16 @@ export const mfaEnrollTotpMutation = (options?: Partial<Options<MfaEnrollTotpDat
   return mutationOptions;
 };
 
+/**
+ * Confirm TOTP enrollment and return backup codes.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires an authenticated user or a valid MFA partial-auth browser cookie. Accepts the enrollment Secret and a
+ * current authenticator Code, enables account MFA, and replaces backup codes with ten new codes. Returns the
+ * plaintext backup codes for storage by the user. A partial-auth enrollment also establishes the full browser
+ * sign-in cookie.
+ */
 export const mfaConfirmEnrollmentMutation = (options?: Partial<Options<MfaConfirmEnrollmentData>>): UseMutationOptions<MfaConfirmEnrollmentResponse, MfaConfirmEnrollmentError, Options<MfaConfirmEnrollmentData>> => {
   const mutationOptions: UseMutationOptions<MfaConfirmEnrollmentResponse, MfaConfirmEnrollmentError, Options<MfaConfirmEnrollmentData>> = {
     mutationFn: async (fnOptions) => await mfaConfirmEnrollment({
@@ -811,6 +1576,14 @@ export const mfaConfirmEnrollmentMutation = (options?: Partial<Options<MfaConfir
   return mutationOptions;
 };
 
+/**
+ * Disable MFA for the current user.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires an authenticated user and their current password. Disables account MFA and clears its secret and
+ * backup codes. Returns a problem when the password is invalid or MFA is already disabled.
+ */
 export const mfaDisableMutation = (options?: Partial<Options<MfaDisableData>>): UseMutationOptions<MfaDisableResponse, MfaDisableError, Options<MfaDisableData>> => {
   const mutationOptions: UseMutationOptions<MfaDisableResponse, MfaDisableError, Options<MfaDisableData>> = {
     mutationFn: async (fnOptions) => await mfaDisable({
@@ -822,6 +1595,14 @@ export const mfaDisableMutation = (options?: Partial<Options<MfaDisableData>>): 
   return mutationOptions;
 };
 
+/**
+ * Replace the current user MFA backup codes.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires an authenticated user and their current password. Replaces all stored backup codes with ten new codes
+ * and returns their plaintext values. Previously issued backup codes stop working.
+ */
 export const mfaRegenerateBackupCodesMutation = (options?: Partial<Options<MfaRegenerateBackupCodesData>>): UseMutationOptions<MfaRegenerateBackupCodesResponse, MfaRegenerateBackupCodesError, Options<MfaRegenerateBackupCodesData>> => {
   const mutationOptions: UseMutationOptions<MfaRegenerateBackupCodesResponse, MfaRegenerateBackupCodesError, Options<MfaRegenerateBackupCodesData>> = {
     mutationFn: async (fnOptions) => await mfaRegenerateBackupCodes({
@@ -833,6 +1614,15 @@ export const mfaRegenerateBackupCodesMutation = (options?: Partial<Options<MfaRe
   return mutationOptions;
 };
 
+/**
+ * Disable MFA for a specified account.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires authentication. Targets the account by userId and clears its MFA configuration and backup codes
+ * without asking for its password. Returns succeeded=true, or a user-not-found problem if the account does not
+ * exist.
+ */
 export const mfaAdminDisableMfaMutation = (options?: Partial<Options<MfaAdminDisableMfaData>>): UseMutationOptions<MfaAdminDisableMfaResponse, MfaAdminDisableMfaError, Options<MfaAdminDisableMfaData>> => {
   const mutationOptions: UseMutationOptions<MfaAdminDisableMfaResponse, MfaAdminDisableMfaError, Options<MfaAdminDisableMfaData>> = {
     mutationFn: async (fnOptions) => await mfaAdminDisableMfa({
@@ -844,6 +1634,14 @@ export const mfaAdminDisableMfaMutation = (options?: Partial<Options<MfaAdminDis
   return mutationOptions;
 };
 
+/**
+ * Clear password and MFA lockout for an account.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires authentication. Clears the target account password lockout, failed-password count, and MFA lockout
+ * state. Returns succeeded=true and records the current user as the actor in the lockout-cleared event.
+ */
 export const mfaAdminClearLockoutMutation = (options?: Partial<Options<MfaAdminClearLockoutData>>): UseMutationOptions<MfaAdminClearLockoutResponse, MfaAdminClearLockoutError, Options<MfaAdminClearLockoutData>> => {
   const mutationOptions: UseMutationOptions<MfaAdminClearLockoutResponse, MfaAdminClearLockoutError, Options<MfaAdminClearLockoutData>> = {
     mutationFn: async (fnOptions) => await mfaAdminClearLockout({
@@ -856,7 +1654,12 @@ export const mfaAdminClearLockoutMutation = (options?: Partial<Options<MfaAdminC
 };
 
 /**
- * Issues a sixty-second token that the enrollment exchange endpoint accepts for partial authentication.
+ * Issue a token for browser MFA enrollment.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires an authenticated user with an email claim. Returns a protected enrollment token valid for 60 seconds.
+ * The authentication app exchanges this token for an MFA partial-auth cookie to continue enrollment.
  */
 export const mfaIssueEnrollmentTokenMutation = (options?: Partial<Options<MfaIssueEnrollmentTokenData>>): UseMutationOptions<MfaIssueEnrollmentTokenResponse, MfaIssueEnrollmentTokenError, Options<MfaIssueEnrollmentTokenData>> => {
   const mutationOptions: UseMutationOptions<MfaIssueEnrollmentTokenResponse, MfaIssueEnrollmentTokenError, Options<MfaIssueEnrollmentTokenData>> = {
@@ -870,7 +1673,13 @@ export const mfaIssueEnrollmentTokenMutation = (options?: Partial<Options<MfaIss
 };
 
 /**
- * Exchanges an unexpired enrollment token for an MFA partial-auth cookie.
+ * Exchange an enrollment token for an MFA cookie.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Available without authentication and intended for the browser enrollment flow. Accepts an unexpired token from
+ * enroll/issue-token and sets a five-minute MFA partial-auth cookie. Returns succeeded=true so the browser can
+ * continue with TOTP enrollment.
  */
 export const mfaExchangeEnrollmentTokenMutation = (options?: Partial<Options<MfaExchangeEnrollmentTokenData>>): UseMutationOptions<MfaExchangeEnrollmentTokenResponse, MfaExchangeEnrollmentTokenError, Options<MfaExchangeEnrollmentTokenData>> => {
   const mutationOptions: UseMutationOptions<MfaExchangeEnrollmentTokenResponse, MfaExchangeEnrollmentTokenError, Options<MfaExchangeEnrollmentTokenData>> = {
@@ -883,10 +1692,25 @@ export const mfaExchangeEnrollmentTokenMutation = (options?: Partial<Options<Mfa
   return mutationOptions;
 };
 
+/**
+ * List organization clients.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Returns owned applications and
+ * service accounts with configuration and status, without secrets.
+ */
 export const organizationClientsListQueryKey = (options: Options<OrganizationClientsListData>) => createQueryKey('organizationClientsList', options, false, ['Organization Clients']);
 
 /**
- * List the clients the organization owns.
+ * List organization clients.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Returns owned applications and
+ * service accounts with configuration and status, without secrets.
  */
 export const organizationClientsListOptions = (options: Options<OrganizationClientsListData>) => queryOptions<OrganizationClientsListResponse, OrganizationClientsListError, OrganizationClientsListResponse, ReturnType<typeof organizationClientsListQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await organizationClientsList({
@@ -899,7 +1723,15 @@ export const organizationClientsListOptions = (options: Options<OrganizationClie
 });
 
 /**
- * Registers an organization client and reveals its secret. Service accounts ignore URI fields.
+ * Register an organization client.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Creates a confidential
+ * application for authorization code with PKCE and refresh tokens, or a service-account for client credentials.
+ * Applications require redirect URIs; both kinds require scopes and reject platform-only API scopes. Returns the
+ * client secret once, with issuer and API URLs.
  */
 export const organizationClientsRegisterMutation = (options?: Partial<Options<OrganizationClientsRegisterData>>): UseMutationOptions<OrganizationClientsRegisterResponse, OrganizationClientsRegisterError, Options<OrganizationClientsRegisterData>> => {
   const mutationOptions: UseMutationOptions<OrganizationClientsRegisterResponse, OrganizationClientsRegisterError, Options<OrganizationClientsRegisterData>> = {
@@ -913,7 +1745,14 @@ export const organizationClientsRegisterMutation = (options?: Partial<Options<Or
 };
 
 /**
- * Rotates and reveals the client secret. revokeActiveTokens also requests revocation of issued tokens.
+ * Rotate an organization client secret.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Replaces the secret for a
+ * client owned by the addressed organization and reveals the new secret once. Set revokeActiveTokens to revoke
+ * issued access as part of rotation.
  */
 export const organizationClientsRotateSecretMutation = (options?: Partial<Options<OrganizationClientsRotateSecretData>>): UseMutationOptions<OrganizationClientsRotateSecretResponse, OrganizationClientsRotateSecretError, Options<OrganizationClientsRotateSecretData>> => {
   const mutationOptions: UseMutationOptions<OrganizationClientsRotateSecretResponse, OrganizationClientsRotateSecretError, Options<OrganizationClientsRotateSecretData>> = {
@@ -927,7 +1766,14 @@ export const organizationClientsRotateSecretMutation = (options?: Partial<Option
 };
 
 /**
- * Deletes the client and its authorizations after access revocation; branding cleanup follows the deletion event.
+ * Delete an organization client.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Revokes access and deletes the
+ * client and its authorizations, then requests branding cleanup. A missing client or one owned by another
+ * organization returns 404.
  */
 export const organizationClientsDeleteMutation = (options?: Partial<Options<OrganizationClientsDeleteData>>): UseMutationOptions<unknown, OrganizationClientsDeleteError, Options<OrganizationClientsDeleteData>> => {
   const mutationOptions: UseMutationOptions<unknown, OrganizationClientsDeleteError, Options<OrganizationClientsDeleteData>> = {
@@ -940,10 +1786,25 @@ export const organizationClientsDeleteMutation = (options?: Partial<Options<Orga
   return mutationOptions;
 };
 
+/**
+ * Get an organization client.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Returns configuration and
+ * status without a secret. A missing client or one owned by another organization returns 404.
+ */
 export const organizationClientsGetByIdQueryKey = (options: Options<OrganizationClientsGetByIdData>) => createQueryKey('organizationClientsGetById', options, false, ['Organization Clients']);
 
 /**
- * Get one of the organization's clients.
+ * Get an organization client.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Returns configuration and
+ * status without a secret. A missing client or one owned by another organization returns 404.
  */
 export const organizationClientsGetByIdOptions = (options: Options<OrganizationClientsGetByIdData>) => queryOptions<OrganizationClientsGetByIdResponse, OrganizationClientsGetByIdError, OrganizationClientsGetByIdResponse, ReturnType<typeof organizationClientsGetByIdQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await organizationClientsGetById({
@@ -956,8 +1817,15 @@ export const organizationClientsGetByIdOptions = (options: Options<OrganizationC
 });
 
 /**
- * Replaces redirect URIs, back-channel logout settings, and scopes. Null lifetime preserves
- * the current value; service accounts ignore URI fields.
+ * Replace organization client configuration.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Replaces application redirect
+ * URIs, logout settings, and scopes; null refreshTokenLifetime preserves the current value, in seconds. Service
+ * accounts ignore URI and lifetime settings. Returns the updated client; unknown or platform-only scopes are
+ * rejected.
  */
 export const organizationClientsUpdateMutation = (options?: Partial<Options<OrganizationClientsUpdateData>>): UseMutationOptions<OrganizationClientsUpdateResponse, OrganizationClientsUpdateError, Options<OrganizationClientsUpdateData>> => {
   const mutationOptions: UseMutationOptions<OrganizationClientsUpdateResponse, OrganizationClientsUpdateError, Options<OrganizationClientsUpdateData>> = {
@@ -971,7 +1839,13 @@ export const organizationClientsUpdateMutation = (options?: Partial<Options<Orga
 };
 
 /**
- * Suspends a client and revokes its access while retaining registration, branding, and permanent consents.
+ * Suspend an organization client.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Revokes client access while
+ * retaining registration, branding, and permanent consents. Returns the updated client status.
  */
 export const organizationClientsSuspendMutation = (options?: Partial<Options<OrganizationClientsSuspendData>>): UseMutationOptions<OrganizationClientsSuspendResponse, OrganizationClientsSuspendError, Options<OrganizationClientsSuspendData>> => {
   const mutationOptions: UseMutationOptions<OrganizationClientsSuspendResponse, OrganizationClientsSuspendError, Options<OrganizationClientsSuspendData>> = {
@@ -985,7 +1859,14 @@ export const organizationClientsSuspendMutation = (options?: Partial<Options<Org
 };
 
 /**
- * Lifts the organization client suspension. Revoked tokens remain revoked.
+ * Reinstate an organization client.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Lifts the client suspension
+ * imposed by its organization and returns its status. Revoked tokens stay revoked, and platform or organization
+ * restrictions still apply.
  */
 export const organizationClientsReinstateMutation = (options?: Partial<Options<OrganizationClientsReinstateData>>): UseMutationOptions<OrganizationClientsReinstateResponse, OrganizationClientsReinstateError, Options<OrganizationClientsReinstateData>> => {
   const mutationOptions: UseMutationOptions<OrganizationClientsReinstateResponse, OrganizationClientsReinstateError, Options<OrganizationClientsReinstateData>> = {
@@ -999,7 +1880,13 @@ export const organizationClientsReinstateMutation = (options?: Partial<Options<O
 };
 
 /**
- * Lifts the client platform suspension. Other client and organization restrictions still apply.
+ * Lift a client platform suspension.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires a global administrator and a client owned by the addressed organization. Clears the platform
+ * suspension and returns the updated client. Revoked tokens and other client or organization restrictions remain
+ * unchanged.
  */
 export const organizationClientsLiftPlatformSuspensionMutation = (options?: Partial<Options<OrganizationClientsLiftPlatformSuspensionData>>): UseMutationOptions<OrganizationClientsLiftPlatformSuspensionResponse, OrganizationClientsLiftPlatformSuspensionError, Options<OrganizationClientsLiftPlatformSuspensionData>> => {
   const mutationOptions: UseMutationOptions<OrganizationClientsLiftPlatformSuspensionResponse, OrganizationClientsLiftPlatformSuspensionError, Options<OrganizationClientsLiftPlatformSuspensionData>> = {
@@ -1013,7 +1900,13 @@ export const organizationClientsLiftPlatformSuspensionMutation = (options?: Part
 };
 
 /**
- * Applies a client platform suspension with a reason. Requires global administrator authority.
+ * Suspend a client at platform level.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires a global administrator and a client owned by the addressed organization. Records the supplied reason,
+ * revokes client access, and returns the updated client. A missing client or organization ownership mismatch
+ * returns 404.
  */
 export const organizationClientsPlacePlatformSuspensionMutation = (options?: Partial<Options<OrganizationClientsPlacePlatformSuspensionData>>): UseMutationOptions<OrganizationClientsPlacePlatformSuspensionResponse, OrganizationClientsPlacePlatformSuspensionError, Options<OrganizationClientsPlacePlatformSuspensionData>> => {
   const mutationOptions: UseMutationOptions<OrganizationClientsPlacePlatformSuspensionResponse, OrganizationClientsPlacePlatformSuspensionError, Options<OrganizationClientsPlacePlatformSuspensionData>> = {
@@ -1026,10 +1919,25 @@ export const organizationClientsPlacePlatformSuspensionMutation = (options?: Par
   return mutationOptions;
 };
 
+/**
+ * Find the resolved tenant organization.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires OrganizationsRead. Searches organization names and pages results in name order before retaining only
+ * the resolved tenant, so the response contains at most one organization and can be empty. first is the
+ * zero-based offset and max is the result limit before this tenant filter.
+ */
 export const organizationsGetAllQueryKey = (options?: Options<OrganizationsGetAllData>) => createQueryKey('organizationsGetAll', options, false, ['Organizations']);
 
 /**
- * Returns the resolved tenant organization if present in the requested search-result page.
+ * Find the resolved tenant organization.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires OrganizationsRead. Searches organization names and pages results in name order before retaining only
+ * the resolved tenant, so the response contains at most one organization and can be empty. first is the
+ * zero-based offset and max is the result limit before this tenant filter.
  */
 export const organizationsGetAllOptions = (options?: Options<OrganizationsGetAllData>) => queryOptions<OrganizationsGetAllResponse, OrganizationsGetAllError, OrganizationsGetAllResponse, ReturnType<typeof organizationsGetAllQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await organizationsGetAll({
@@ -1042,7 +1950,12 @@ export const organizationsGetAllOptions = (options?: Options<OrganizationsGetAll
 });
 
 /**
- * Creates an organization for the authenticated caller. No existing organization or tenant permission is required.
+ * Create an organization.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires an authenticated user, without an existing organization or tenant permission. Creates a tenant and
+ * enrolls the caller as an owner with the admin role, then returns the organization ID.
  */
 export const organizationsCreateMutation = (options?: Partial<Options<OrganizationsCreateData>>): UseMutationOptions<OrganizationsCreateResponse, OrganizationsCreateError, Options<OrganizationsCreateData>> => {
   const mutationOptions: UseMutationOptions<OrganizationsCreateResponse, OrganizationsCreateError, Options<OrganizationsCreateData>> = {
@@ -1056,7 +1969,14 @@ export const organizationsCreateMutation = (options?: Partial<Options<Organizati
 };
 
 /**
- * Permanently delete an organization. Requires name confirmation.
+ * Permanently delete an organization.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires OrganizationsDelete. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. confirmName must exactly match
+ * the organization name. Revokes access and deletes the organization, memberships, clients, invitations, and
+ * identity settings, then requests cleanup in other modules.
  */
 export const organizationsDeleteMutation = (options?: Partial<Options<OrganizationsDeleteData>>): UseMutationOptions<unknown, OrganizationsDeleteError, Options<OrganizationsDeleteData>> => {
   const mutationOptions: UseMutationOptions<unknown, OrganizationsDeleteError, Options<OrganizationsDeleteData>> = {
@@ -1069,10 +1989,25 @@ export const organizationsDeleteMutation = (options?: Partial<Options<Organizati
   return mutationOptions;
 };
 
+/**
+ * Get an organization.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires OrganizationsRead. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Returns organization details,
+ * or 404 when the organization is missing or inaccessible.
+ */
 export const organizationsGetByIdQueryKey = (options: Options<OrganizationsGetByIdData>) => createQueryKey('organizationsGetById', options, false, ['Organizations']);
 
 /**
- * Get a specific organization by ID.
+ * Get an organization.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires OrganizationsRead. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Returns organization details,
+ * or 404 when the organization is missing or inaccessible.
  */
 export const organizationsGetByIdOptions = (options: Options<OrganizationsGetByIdData>) => queryOptions<OrganizationsGetByIdResponse, OrganizationsGetByIdError, OrganizationsGetByIdResponse, ReturnType<typeof organizationsGetByIdQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await organizationsGetById({
@@ -1084,10 +2019,25 @@ export const organizationsGetByIdOptions = (options: Options<OrganizationsGetByI
   queryKey: organizationsGetByIdQueryKey(options)
 });
 
+/**
+ * List active organization members.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires OrganizationsRead. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Returns user profiles and roles
+ * for active memberships in the addressed organization.
+ */
 export const organizationsGetMembersQueryKey = (options: Options<OrganizationsGetMembersData>) => createQueryKey('organizationsGetMembers', options, false, ['Organizations']);
 
 /**
- * Get all members of a specific organization.
+ * List active organization members.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires OrganizationsRead. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Returns user profiles and roles
+ * for active memberships in the addressed organization.
  */
 export const organizationsGetMembersOptions = (options: Options<OrganizationsGetMembersData>) => queryOptions<OrganizationsGetMembersResponse, OrganizationsGetMembersError, OrganizationsGetMembersResponse, ReturnType<typeof organizationsGetMembersQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await organizationsGetMembers({
@@ -1100,7 +2050,14 @@ export const organizationsGetMembersOptions = (options: Options<OrganizationsGet
 });
 
 /**
- * Add a user to an organization.
+ * Grant organization membership.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Supply an existing user ID and
+ * role name. Creates or activates the membership and adds the role, including when the existing membership is
+ * pending, denied, or suspended.
  */
 export const organizationsAddMemberMutation = (options?: Partial<Options<OrganizationsAddMemberData>>): UseMutationOptions<unknown, OrganizationsAddMemberError, Options<OrganizationsAddMemberData>> => {
   const mutationOptions: UseMutationOptions<unknown, OrganizationsAddMemberError, Options<OrganizationsAddMemberData>> = {
@@ -1114,7 +2071,13 @@ export const organizationsAddMemberMutation = (options?: Partial<Options<Organiz
 };
 
 /**
- * Remove a user from an organization.
+ * Remove an organization member.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Deletes the membership and
+ * revokes its access. Removing the last active owner is rejected.
  */
 export const organizationsRemoveMemberMutation = (options?: Partial<Options<OrganizationsRemoveMemberData>>): UseMutationOptions<unknown, OrganizationsRemoveMemberError, Options<OrganizationsRemoveMemberData>> => {
   const mutationOptions: UseMutationOptions<unknown, OrganizationsRemoveMemberError, Options<OrganizationsRemoveMemberData>> = {
@@ -1127,10 +2090,25 @@ export const organizationsRemoveMemberMutation = (options?: Partial<Options<Orga
   return mutationOptions;
 };
 
+/**
+ * List pending membership requests.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Returns requester profiles and
+ * request times, oldest first.
+ */
 export const organizationsGetPendingMembersQueryKey = (options: Options<OrganizationsGetPendingMembersData>) => createQueryKey('organizationsGetPendingMembers', options, false, ['Organizations']);
 
 /**
- * List the organization's outstanding access requests, oldest first.
+ * List pending membership requests.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Returns requester profiles and
+ * request times, oldest first.
  */
 export const organizationsGetPendingMembersOptions = (options: Options<OrganizationsGetPendingMembersData>) => queryOptions<unknown, OrganizationsGetPendingMembersError, unknown, ReturnType<typeof organizationsGetPendingMembersQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await organizationsGetPendingMembers({
@@ -1142,10 +2120,25 @@ export const organizationsGetPendingMembersOptions = (options: Options<Organizat
   queryKey: organizationsGetPendingMembersQueryKey(options)
 });
 
+/**
+ * List suspended organization members.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Returns suspended memberships
+ * with user profiles, ordered by most recent membership update.
+ */
 export const organizationsGetSuspendedMembersQueryKey = (options: Options<OrganizationsGetSuspendedMembersData>) => createQueryKey('organizationsGetSuspendedMembers', options, false, ['Organizations']);
 
 /**
- * Lists suspended memberships by most recent update.
+ * List suspended organization members.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Returns suspended memberships
+ * with user profiles, ordered by most recent membership update.
  */
 export const organizationsGetSuspendedMembersOptions = (options: Options<OrganizationsGetSuspendedMembersData>) => queryOptions<unknown, OrganizationsGetSuspendedMembersError, unknown, ReturnType<typeof organizationsGetSuspendedMembersQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await organizationsGetSuspendedMembers({
@@ -1157,10 +2150,25 @@ export const organizationsGetSuspendedMembersOptions = (options: Options<Organiz
   queryKey: organizationsGetSuspendedMembersQueryKey(options)
 });
 
+/**
+ * List denied membership requests.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Returns denied memberships with
+ * requester profiles, ordered by most recent review.
+ */
 export const organizationsGetDeniedMembersQueryKey = (options: Options<OrganizationsGetDeniedMembersData>) => createQueryKey('organizationsGetDeniedMembers', options, false, ['Organizations']);
 
 /**
- * Lists denied memberships by most recent update.
+ * List denied membership requests.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Returns denied memberships with
+ * requester profiles, ordered by most recent review.
  */
 export const organizationsGetDeniedMembersOptions = (options: Options<OrganizationsGetDeniedMembersData>) => queryOptions<unknown, OrganizationsGetDeniedMembersError, unknown, ReturnType<typeof organizationsGetDeniedMembersQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await organizationsGetDeniedMembers({
@@ -1173,7 +2181,13 @@ export const organizationsGetDeniedMembersOptions = (options: Options<Organizati
 });
 
 /**
- * Admit a pending requester, granting them the organization's default role.
+ * Approve a membership request.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Activates a pending membership
+ * and grants the organization default role. A membership that is not pending is rejected.
  */
 export const organizationsApproveMemberMutation = (options?: Partial<Options<OrganizationsApproveMemberData>>): UseMutationOptions<unknown, OrganizationsApproveMemberError, Options<OrganizationsApproveMemberData>> => {
   const mutationOptions: UseMutationOptions<unknown, OrganizationsApproveMemberError, Options<OrganizationsApproveMemberData>> = {
@@ -1187,7 +2201,13 @@ export const organizationsApproveMemberMutation = (options?: Partial<Options<Org
 };
 
 /**
- * Turn a pending requester away.
+ * Deny a membership request.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Marks a pending membership as
+ * denied. A membership that is not pending is rejected.
  */
 export const organizationsDenyMemberMutation = (options?: Partial<Options<OrganizationsDenyMemberData>>): UseMutationOptions<unknown, OrganizationsDenyMemberError, Options<OrganizationsDenyMemberData>> => {
   const mutationOptions: UseMutationOptions<unknown, OrganizationsDenyMemberError, Options<OrganizationsDenyMemberData>> = {
@@ -1201,7 +2221,13 @@ export const organizationsDenyMemberMutation = (options?: Partial<Options<Organi
 };
 
 /**
- * Let a denied requester ask again now, instead of waiting out the denial.
+ * Clear a membership denial.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Removes a denied membership so
+ * the user can request access again immediately. This does not grant access.
  */
 export const organizationsClearDenialMutation = (options?: Partial<Options<OrganizationsClearDenialData>>): UseMutationOptions<unknown, OrganizationsClearDenialError, Options<OrganizationsClearDenialData>> => {
   const mutationOptions: UseMutationOptions<unknown, OrganizationsClearDenialError, Options<OrganizationsClearDenialData>> = {
@@ -1215,8 +2241,13 @@ export const organizationsClearDenialMutation = (options?: Partial<Options<Organ
 };
 
 /**
- * Take an active member's access to this organization away, keeping the membership so it can
- * be reinstated.
+ * Suspend an organization member.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Suspends an active membership
+ * and revokes its access while retaining its roles. Suspending the last active owner is rejected.
  */
 export const organizationsSuspendMemberMutation = (options?: Partial<Options<OrganizationsSuspendMemberData>>): UseMutationOptions<unknown, OrganizationsSuspendMemberError, Options<OrganizationsSuspendMemberData>> => {
   const mutationOptions: UseMutationOptions<unknown, OrganizationsSuspendMemberError, Options<OrganizationsSuspendMemberData>> = {
@@ -1230,7 +2261,13 @@ export const organizationsSuspendMemberMutation = (options?: Partial<Options<Org
 };
 
 /**
- * Reinstates membership using the current default role. Revoked tokens remain revoked.
+ * Reinstate a suspended member.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Reactivates a suspended
+ * membership with its retained roles. Revoked tokens remain revoked.
  */
 export const organizationsReinstateMemberMutation = (options?: Partial<Options<OrganizationsReinstateMemberData>>): UseMutationOptions<unknown, OrganizationsReinstateMemberError, Options<OrganizationsReinstateMemberData>> => {
   const mutationOptions: UseMutationOptions<unknown, OrganizationsReinstateMemberError, Options<OrganizationsReinstateMemberData>> = {
@@ -1244,8 +2281,13 @@ export const organizationsReinstateMemberMutation = (options?: Partial<Options<O
 };
 
 /**
- * Removes the caller membership without requiring a management permission.
- * The service still enforces membership and last-owner rules.
+ * Leave an organization.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires an authenticated member, without a management permission. Removes the caller membership and revokes
+ * access to that organization. Leaving as the last active owner is rejected, and platform suspension prevents
+ * this action for non-global administrators.
  */
 export const organizationsLeaveMutation = (options?: Partial<Options<OrganizationsLeaveData>>): UseMutationOptions<unknown, OrganizationsLeaveError, Options<OrganizationsLeaveData>> => {
   const mutationOptions: UseMutationOptions<unknown, OrganizationsLeaveError, Options<OrganizationsLeaveData>> = {
@@ -1260,6 +2302,12 @@ export const organizationsLeaveMutation = (options?: Partial<Options<Organizatio
 
 /**
  * Archive an organization.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires OrganizationsUpdate. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Archives the organization and
+ * revokes organization access. Registration and membership records remain available for reactivation.
  */
 export const organizationsArchiveMutation = (options?: Partial<Options<OrganizationsArchiveData>>): UseMutationOptions<unknown, OrganizationsArchiveError, Options<OrganizationsArchiveData>> => {
   const mutationOptions: UseMutationOptions<unknown, OrganizationsArchiveError, Options<OrganizationsArchiveData>> = {
@@ -1274,6 +2322,12 @@ export const organizationsArchiveMutation = (options?: Partial<Options<Organizat
 
 /**
  * Reactivate an archived organization.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires OrganizationsUpdate. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Restores the organization to
+ * active status. Revoked credentials and separate client suspensions are not restored.
  */
 export const organizationsReactivateMutation = (options?: Partial<Options<OrganizationsReactivateData>>): UseMutationOptions<unknown, OrganizationsReactivateError, Options<OrganizationsReactivateData>> => {
   const mutationOptions: UseMutationOptions<unknown, OrganizationsReactivateError, Options<OrganizationsReactivateData>> = {
@@ -1287,7 +2341,12 @@ export const organizationsReactivateMutation = (options?: Partial<Options<Organi
 };
 
 /**
- * Lifts the organization platform suspension. Revoked tokens and separate client suspensions remain unchanged.
+ * Lift an organization platform suspension.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires a global administrator. Clears the addressed organization platform suspension. Revoked tokens,
+ * archive status, and separate client suspensions remain unchanged.
  */
 export const organizationsLiftPlatformSuspensionMutation = (options?: Partial<Options<OrganizationsLiftPlatformSuspensionData>>): UseMutationOptions<unknown, OrganizationsLiftPlatformSuspensionError, Options<OrganizationsLiftPlatformSuspensionData>> => {
   const mutationOptions: UseMutationOptions<unknown, OrganizationsLiftPlatformSuspensionError, Options<OrganizationsLiftPlatformSuspensionData>> = {
@@ -1301,8 +2360,12 @@ export const organizationsLiftPlatformSuspensionMutation = (options?: Partial<Op
 };
 
 /**
- * Applies an organization platform suspension and revokes associated access.
- * Requires global administrator authority; global administrators may still make changes.
+ * Suspend an organization at platform level.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires a global administrator. Records the supplied reason and revokes organization access. Non-global
+ * administrators cannot mutate the organization while the platform suspension remains in effect.
  */
 export const organizationsPlacePlatformSuspensionMutation = (options?: Partial<Options<OrganizationsPlacePlatformSuspensionData>>): UseMutationOptions<unknown, OrganizationsPlacePlatformSuspensionError, Options<OrganizationsPlacePlatformSuspensionData>> => {
   const mutationOptions: UseMutationOptions<unknown, OrganizationsPlacePlatformSuspensionError, Options<OrganizationsPlacePlatformSuspensionData>> = {
@@ -1315,10 +2378,27 @@ export const organizationsPlacePlatformSuspensionMutation = (options?: Partial<O
   return mutationOptions;
 };
 
+/**
+ * Get organization branding.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires OrganizationsRead. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Returns stored logo and colors,
+ * or 404 when no branding exists in the resolved tenant. displayName is not stored by this endpoint and is
+ * returned as null.
+ */
 export const organizationsGetBrandingQueryKey = (options: Options<OrganizationsGetBrandingData>) => createQueryKey('organizationsGetBranding', options, false, ['Organizations']);
 
 /**
  * Get organization branding.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires OrganizationsRead. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Returns stored logo and colors,
+ * or 404 when no branding exists in the resolved tenant. displayName is not stored by this endpoint and is
+ * returned as null.
  */
 export const organizationsGetBrandingOptions = (options: Options<OrganizationsGetBrandingData>) => queryOptions<OrganizationsGetBrandingResponse, OrganizationsGetBrandingError, OrganizationsGetBrandingResponse, ReturnType<typeof organizationsGetBrandingQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await organizationsGetBranding({
@@ -1332,6 +2412,12 @@ export const organizationsGetBrandingOptions = (options: Options<OrganizationsGe
 
 /**
  * Update organization branding.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires OrganizationsUpdate. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Replaces the logo URL and
+ * primary color, preserving the accent color. displayName is echoed in this response but is not persisted.
  */
 export const organizationsUpdateBrandingMutation = (options?: Partial<Options<OrganizationsUpdateBrandingData>>): UseMutationOptions<OrganizationsUpdateBrandingResponse, OrganizationsUpdateBrandingError, Options<OrganizationsUpdateBrandingData>> => {
   const mutationOptions: UseMutationOptions<OrganizationsUpdateBrandingResponse, OrganizationsUpdateBrandingError, Options<OrganizationsUpdateBrandingData>> = {
@@ -1345,7 +2431,14 @@ export const organizationsUpdateBrandingMutation = (options?: Partial<Options<Or
 };
 
 /**
- * Upload organization branding logo.
+ * Get a proposed organization logo URL.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires OrganizationsUpdate. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Accepts a multipart file and
+ * returns a URL based on its filename. This endpoint currently does not store the file or update the
+ * organization branding.
  */
 export const organizationsUploadBrandingLogoMutation = (options?: Partial<Options<OrganizationsUploadBrandingLogoData>>): UseMutationOptions<OrganizationsUploadBrandingLogoResponse, OrganizationsUploadBrandingLogoError, Options<OrganizationsUploadBrandingLogoData>> => {
   const mutationOptions: UseMutationOptions<OrganizationsUploadBrandingLogoResponse, OrganizationsUploadBrandingLogoError, Options<OrganizationsUploadBrandingLogoData>> = {
@@ -1358,10 +2451,25 @@ export const organizationsUploadBrandingLogoMutation = (options?: Partial<Option
   return mutationOptions;
 };
 
+/**
+ * Get organization security and enrollment settings.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires OrganizationsRead. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Returns MFA, passwordless
+ * login, and enrollment settings, or 404 when settings are absent from the resolved tenant.
+ */
 export const organizationsGetSettingsQueryKey = (options: Options<OrganizationsGetSettingsData>) => createQueryKey('organizationsGetSettings', options, false, ['Organizations']);
 
 /**
- * Get organization settings.
+ * Get organization security and enrollment settings.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires OrganizationsRead. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Returns MFA, passwordless
+ * login, and enrollment settings, or 404 when settings are absent from the resolved tenant.
  */
 export const organizationsGetSettingsOptions = (options: Options<OrganizationsGetSettingsData>) => queryOptions<OrganizationsGetSettingsResponse, OrganizationsGetSettingsError, OrganizationsGetSettingsResponse, ReturnType<typeof organizationsGetSettingsQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await organizationsGetSettings({
@@ -1374,7 +2482,15 @@ export const organizationsGetSettingsOptions = (options: Options<OrganizationsGe
 });
 
 /**
- * Update organization settings.
+ * Replace organization MFA settings.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires OrganizationsUpdate. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Omitted requireMfa and
+ * mfaGracePeriodDays become false and zero; passwordless login is disabled. A positive grace period with
+ * required MFA sets a new deadline for active members without MFA; allowedLoginMethods and defaultMemberRole are
+ * currently ignored.
  */
 export const organizationsUpdateSettingsMutation = (options?: Partial<Options<OrganizationsUpdateSettingsData>>): UseMutationOptions<unknown, OrganizationsUpdateSettingsError, Options<OrganizationsUpdateSettingsData>> => {
   const mutationOptions: UseMutationOptions<unknown, OrganizationsUpdateSettingsError, Options<OrganizationsUpdateSettingsData>> = {
@@ -1388,8 +2504,14 @@ export const organizationsUpdateSettingsMutation = (options?: Partial<Options<Or
 };
 
 /**
- * Replaces the enrollment policy, request-email address, and default role.
- * Requires permission to manage members.
+ * Replace organization enrollment settings.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Replaces the enrollment policy,
+ * access-request email, and default role ID. A supplied role ID must exist; null selects the user role for
+ * future enrollments.
  */
 export const organizationsUpdateEnrollmentMutation = (options?: Partial<Options<OrganizationsUpdateEnrollmentData>>): UseMutationOptions<unknown, OrganizationsUpdateEnrollmentError, Options<OrganizationsUpdateEnrollmentData>> => {
   const mutationOptions: UseMutationOptions<unknown, OrganizationsUpdateEnrollmentError, Options<OrganizationsUpdateEnrollmentData>> = {
@@ -1402,10 +2524,23 @@ export const organizationsUpdateEnrollmentMutation = (options?: Partial<Options<
   return mutationOptions;
 };
 
+/**
+ * List available roles.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires RolesRead in the resolved tenant. Returns names from the global role catalog, rather than the caller
+ * role assignments.
+ */
 export const rolesGetRolesQueryKey = (options?: Options<RolesGetRolesData>) => createQueryKey('rolesGetRoles', options, false, ['Roles']);
 
 /**
- * Get all available roles in the system.
+ * List available roles.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires RolesRead in the resolved tenant. Returns names from the global role catalog, rather than the caller
+ * role assignments.
  */
 export const rolesGetRolesOptions = (options?: Options<RolesGetRolesData>) => queryOptions<RolesGetRolesResponse, RolesGetRolesError, RolesGetRolesResponse, ReturnType<typeof rolesGetRolesQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await rolesGetRoles({
@@ -1417,10 +2552,23 @@ export const rolesGetRolesOptions = (options?: Options<RolesGetRolesData>) => qu
   queryKey: rolesGetRolesQueryKey(options)
 });
 
+/**
+ * Get permissions for a role.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires RolesRead in the resolved tenant. Returns permission names from the platform role mapping for
+ * roleName. An unknown role returns an empty list.
+ */
 export const rolesGetRolePermissionsQueryKey = (options: Options<RolesGetRolePermissionsData>) => createQueryKey('rolesGetRolePermissions', options, false, ['Roles']);
 
 /**
- * Get the permissions associated with a specific role.
+ * Get permissions for a role.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires RolesRead in the resolved tenant. Returns permission names from the platform role mapping for
+ * roleName. An unknown role returns an empty list.
  */
 export const rolesGetRolePermissionsOptions = (options: Options<RolesGetRolePermissionsData>) => queryOptions<RolesGetRolePermissionsResponse, RolesGetRolePermissionsError, RolesGetRolePermissionsResponse, ReturnType<typeof rolesGetRolePermissionsQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await rolesGetRolePermissions({
@@ -1432,10 +2580,25 @@ export const rolesGetRolePermissionsOptions = (options: Options<RolesGetRolePerm
   queryKey: rolesGetRolePermissionsQueryKey(options)
 });
 
+/**
+ * List API scopes.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires ScopeRead in the resolved tenant. Returns the global scope catalog ordered by category and code,
+ * optionally filtered by an exact category. Includes platform-only scopes as metadata; their presence does not
+ * permit granting them to organization clients.
+ */
 export const scopesListQueryKey = (options?: Options<ScopesListData>) => createQueryKey('scopesList', options, false, ['API Scopes']);
 
 /**
- * List available API scopes with optional category filter.
+ * List API scopes.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires ScopeRead in the resolved tenant. Returns the global scope catalog ordered by category and code,
+ * optionally filtered by an exact category. Includes platform-only scopes as metadata; their presence does not
+ * permit granting them to organization clients.
  */
 export const scopesListOptions = (options?: Options<ScopesListData>) => queryOptions<ScopesListResponse, ScopesListError, ScopesListResponse, ReturnType<typeof scopesListQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await scopesList({
@@ -1447,8 +2610,24 @@ export const scopesListOptions = (options?: Options<ScopesListData>) => queryOpt
   queryKey: scopesListQueryKey(options)
 });
 
+/**
+ * List the current user active sign-in sessions.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires an authenticated user. Returns unrevoked, unexpired account sessions across organizations, ordered
+ * newest first, with creation, activity, and expiry timestamps.
+ */
 export const sessionListSessionsQueryKey = (options?: Options<SessionListSessionsData>) => createQueryKey('sessionListSessions', options, false, ['Identity']);
 
+/**
+ * List the current user active sign-in sessions.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires an authenticated user. Returns unrevoked, unexpired account sessions across organizations, ordered
+ * newest first, with creation, activity, and expiry timestamps.
+ */
 export const sessionListSessionsOptions = (options?: Options<SessionListSessionsData>) => queryOptions<SessionListSessionsResponse, SessionListSessionsError, SessionListSessionsResponse, ReturnType<typeof sessionListSessionsQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await sessionListSessions({
     ...options,
@@ -1459,6 +2638,14 @@ export const sessionListSessionsOptions = (options?: Options<SessionListSessions
   queryKey: sessionListSessionsQueryKey(options)
 });
 
+/**
+ * Revoke one of the current user sign-in sessions.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires an authenticated user. Marks the owned session revoked and revokes credentials associated with its
+ * OIDC session identifier. Returns no content after revocation; the session must belong to the caller.
+ */
 export const sessionRevokeSessionMutation = (options?: Partial<Options<SessionRevokeSessionData>>): UseMutationOptions<SessionRevokeSessionResponse, SessionRevokeSessionError, Options<SessionRevokeSessionData>> => {
   const mutationOptions: UseMutationOptions<SessionRevokeSessionResponse, SessionRevokeSessionError, Options<SessionRevokeSessionData>> = {
     mutationFn: async (fnOptions) => await sessionRevokeSession({
@@ -1470,8 +2657,26 @@ export const sessionRevokeSessionMutation = (options?: Partial<Options<SessionRe
   return mutationOptions;
 };
 
+/**
+ * Check whether administrator setup is required.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Available without authentication. Setup remains open until an active organization membership has a role
+ * granting AdminAccess. While setup is open, the response includes an organization name only when exactly one
+ * organization exists.
+ */
 export const setupGetStatusQueryKey = (options?: Options<SetupGetStatusData>) => createQueryKey('setupGetStatus', options, false, ['Setup']);
 
+/**
+ * Check whether administrator setup is required.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Available without authentication. Setup remains open until an active organization membership has a role
+ * granting AdminAccess. While setup is open, the response includes an organization name only when exactly one
+ * organization exists.
+ */
 export const setupGetStatusOptions = (options?: Options<SetupGetStatusData>) => queryOptions<SetupGetStatusResponse, SetupGetStatusError, SetupGetStatusResponse, ReturnType<typeof setupGetStatusQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await setupGetStatus({
     ...options,
@@ -1482,6 +2687,16 @@ export const setupGetStatusOptions = (options?: Options<SetupGetStatusData>) => 
   queryKey: setupGetStatusQueryKey(options)
 });
 
+/**
+ * Create the initial organization administrator.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Available without authentication while setup is required. Creates the account and enrolls it as owner of an
+ * organization with a matching name, or creates that organization. Returns no content on success and 409 if
+ * setup is already complete or the bootstrap result fails. An existing account with the supplied email leaves
+ * bootstrap unchanged.
+ */
 export const setupCreateAdminMutation = (options?: Partial<Options<SetupCreateAdminData>>): UseMutationOptions<unknown, SetupCreateAdminError, Options<SetupCreateAdminData>> => {
   const mutationOptions: UseMutationOptions<unknown, SetupCreateAdminError, Options<SetupCreateAdminData>> = {
     mutationFn: async (fnOptions) => await setupCreateAdmin({
@@ -1493,10 +2708,25 @@ export const setupCreateAdminMutation = (options?: Partial<Options<SetupCreateAd
   return mutationOptions;
 };
 
+/**
+ * Search user accounts.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires UsersRead in the resolved tenant. Searches the global user directory by email, first name, or last
+ * name, ordered by email; displayed roles come only from active memberships in the resolved tenant. first is a
+ * zero-based offset and max is the page size; the response includes total count and page metadata.
+ */
 export const usersGetUsersQueryKey = (options?: Options<UsersGetUsersData>) => createQueryKey('usersGetUsers', options, false, ['Users']);
 
 /**
- * Searches users in the resolved tenant with pagination.
+ * Search user accounts.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires UsersRead in the resolved tenant. Searches the global user directory by email, first name, or last
+ * name, ordered by email; displayed roles come only from active memberships in the resolved tenant. first is a
+ * zero-based offset and max is the page size; the response includes total count and page metadata.
  */
 export const usersGetUsersOptions = (options?: Options<UsersGetUsersData>) => queryOptions<UsersGetUsersResponse, UsersGetUsersError, UsersGetUsersResponse, ReturnType<typeof usersGetUsersQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await usersGetUsers({
@@ -1509,7 +2739,12 @@ export const usersGetUsersOptions = (options?: Options<UsersGetUsersData>) => qu
 });
 
 /**
- * Creates a user account and adds it to the resolved tenant with the user role.
+ * Create a user and organization membership.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires UsersCreate in the resolved tenant. Creates an account with the supplied email and profile,
+ * optionally sets a password, and enrolls the user with the user role. Returns the created account and its URL.
  */
 export const usersCreateUserMutation = (options?: Partial<Options<UsersCreateUserData>>): UseMutationOptions<UsersCreateUserResponse, UsersCreateUserError, Options<UsersCreateUserData>> => {
   const mutationOptions: UseMutationOptions<UsersCreateUserResponse, UsersCreateUserError, Options<UsersCreateUserData>> = {
@@ -1522,10 +2757,23 @@ export const usersCreateUserMutation = (options?: Partial<Options<UsersCreateUse
   return mutationOptions;
 };
 
+/**
+ * Get an organization member account.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires UsersRead and an active membership for the target user in the resolved tenant. Returns the account
+ * profile and roles in that tenant, or 404 when the user is missing or is not a member.
+ */
 export const usersGetUserByIdQueryKey = (options: Options<UsersGetUserByIdData>) => createQueryKey('usersGetUserById', options, false, ['Users']);
 
 /**
- * Gets a user who belongs to the resolved tenant.
+ * Get an organization member account.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires UsersRead and an active membership for the target user in the resolved tenant. Returns the account
+ * profile and roles in that tenant, or 404 when the user is missing or is not a member.
  */
 export const usersGetUserByIdOptions = (options: Options<UsersGetUserByIdData>) => queryOptions<UsersGetUserByIdResponse, UsersGetUserByIdError, UsersGetUserByIdResponse, ReturnType<typeof usersGetUserByIdQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await usersGetUserById({
@@ -1537,10 +2785,23 @@ export const usersGetUserByIdOptions = (options: Options<UsersGetUserByIdData>) 
   queryKey: usersGetUserByIdQueryKey(options)
 });
 
+/**
+ * Get the authenticated user profile.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires authentication without an organization context or management permission. Returns profile fields,
+ * roles, permissions, and global administrator status from the current authentication claims.
+ */
 export const usersGetCurrentUserQueryKey = (options?: Options<UsersGetCurrentUserData>) => createQueryKey('usersGetCurrentUser', options, false, ['Users']);
 
 /**
- * Get the currently authenticated user's profile, roles, and permissions.
+ * Get the authenticated user profile.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires authentication without an organization context or management permission. Returns profile fields,
+ * roles, permissions, and global administrator status from the current authentication claims.
  */
 export const usersGetCurrentUserOptions = (options?: Options<UsersGetCurrentUserData>) => queryOptions<UsersGetCurrentUserResponse, UsersGetCurrentUserError, UsersGetCurrentUserResponse, ReturnType<typeof usersGetCurrentUserQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await usersGetCurrentUser({
@@ -1553,7 +2814,12 @@ export const usersGetCurrentUserOptions = (options?: Options<UsersGetCurrentUser
 });
 
 /**
- * Deactivate a user account.
+ * Lock a member user account.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires UsersUpdate and an active membership for the target user in the resolved tenant. Locks the account
+ * indefinitely and revokes the user access across organizations. A missing membership returns 404.
  */
 export const usersDeactivateUserMutation = (options?: Partial<Options<UsersDeactivateUserData>>): UseMutationOptions<unknown, UsersDeactivateUserError, Options<UsersDeactivateUserData>> => {
   const mutationOptions: UseMutationOptions<unknown, UsersDeactivateUserError, Options<UsersDeactivateUserData>> = {
@@ -1567,7 +2833,12 @@ export const usersDeactivateUserMutation = (options?: Partial<Options<UsersDeact
 };
 
 /**
- * Activate a previously deactivated user account.
+ * Unlock a member user account.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires UsersUpdate and an active membership for the target user in the resolved tenant. Clears the account
+ * lockout across organizations. Previously revoked tokens remain revoked; a missing membership returns 404.
  */
 export const usersActivateUserMutation = (options?: Partial<Options<UsersActivateUserData>>): UseMutationOptions<unknown, UsersActivateUserError, Options<UsersActivateUserData>> => {
   const mutationOptions: UseMutationOptions<unknown, UsersActivateUserError, Options<UsersActivateUserData>> = {
@@ -1581,7 +2852,13 @@ export const usersActivateUserMutation = (options?: Partial<Options<UsersActivat
 };
 
 /**
- * Assigns a role within the resolved tenant. Reserved global-administrator names are rejected.
+ * Assign a role to an organization member.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires RolesUpdate and an active membership for the target user in the resolved tenant. Adds an existing
+ * named role to that membership without replacing other roles. Reserved global-administrator role names are
+ * rejected.
  */
 export const usersAssignRoleMutation = (options?: Partial<Options<UsersAssignRoleData>>): UseMutationOptions<unknown, UsersAssignRoleError, Options<UsersAssignRoleData>> => {
   const mutationOptions: UseMutationOptions<unknown, UsersAssignRoleError, Options<UsersAssignRoleData>> = {
@@ -1595,7 +2872,12 @@ export const usersAssignRoleMutation = (options?: Partial<Options<UsersAssignRol
 };
 
 /**
- * Removes the named role within the resolved tenant.
+ * Remove a role from an organization member.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires RolesUpdate and an active membership for the target user in the resolved tenant. Removes the named
+ * role from that membership while retaining other roles. A missing membership returns 404.
  */
 export const usersRemoveRoleMutation = (options?: Partial<Options<UsersRemoveRoleData>>): UseMutationOptions<unknown, UsersRemoveRoleError, Options<UsersRemoveRoleData>> => {
   const mutationOptions: UseMutationOptions<unknown, UsersRemoveRoleError, Options<UsersRemoveRoleData>> = {
@@ -1608,8 +2890,24 @@ export const usersRemoveRoleMutation = (options?: Partial<Options<UsersRemoveRol
   return mutationOptions;
 };
 
+/**
+ * List tenant inquiries.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires InquiriesRead in the current tenant. Returns an unpaginated list ordered newest first,
+ * optionally filtered by status. An empty or unrecognized status string applies no filter.
+ */
 export const inquiriesGetAllQueryKey = (options?: Options<InquiriesGetAllData>) => createQueryKey('inquiriesGetAll', options, false, ['Inquiries']);
 
+/**
+ * List tenant inquiries.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires InquiriesRead in the current tenant. Returns an unpaginated list ordered newest first,
+ * optionally filtered by status. An empty or unrecognized status string applies no filter.
+ */
 export const inquiriesGetAllOptions = (options?: Options<InquiriesGetAllData>) => queryOptions<InquiriesGetAllResponse, InquiriesGetAllError, InquiriesGetAllResponse, ReturnType<typeof inquiriesGetAllQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await inquiriesGetAll({
     ...options,
@@ -1620,6 +2918,15 @@ export const inquiriesGetAllOptions = (options?: Options<InquiriesGetAllData>) =
   queryKey: inquiriesGetAllQueryKey(options)
 });
 
+/**
+ * Submit an inquiry.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires InquiriesWrite and creates an inquiry with status New in the current tenant. Human callers are
+ * recorded as the submitter; service-account submissions have no submitter association. Returns the saved
+ * inquiry after validating the contact details and required project information.
+ */
 export const inquiriesSubmitMutation = (options?: Partial<Options<InquiriesSubmitData>>): UseMutationOptions<InquiriesSubmitResponse, InquiriesSubmitError, Options<InquiriesSubmitData>> => {
   const mutationOptions: UseMutationOptions<InquiriesSubmitResponse, InquiriesSubmitError, Options<InquiriesSubmitData>> = {
     mutationFn: async (fnOptions) => await inquiriesSubmit({
@@ -1631,8 +2938,26 @@ export const inquiriesSubmitMutation = (options?: Partial<Options<InquiriesSubmi
   return mutationOptions;
 };
 
+/**
+ * List inquiries submitted by the current user.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires authentication and returns the current user's inquiries in the current tenant, newest first.
+ * Does not require InquiriesRead. Service accounts and callers without a user identifier receive an empty
+ * list.
+ */
 export const inquiriesGetSubmittedQueryKey = (options?: Options<InquiriesGetSubmittedData>) => createQueryKey('inquiriesGetSubmitted', options, false, ['Inquiries']);
 
+/**
+ * List inquiries submitted by the current user.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires authentication and returns the current user's inquiries in the current tenant, newest first.
+ * Does not require InquiriesRead. Service accounts and callers without a user identifier receive an empty
+ * list.
+ */
 export const inquiriesGetSubmittedOptions = (options?: Options<InquiriesGetSubmittedData>) => queryOptions<InquiriesGetSubmittedResponse, InquiriesGetSubmittedError, InquiriesGetSubmittedResponse, ReturnType<typeof inquiriesGetSubmittedQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await inquiriesGetSubmitted({
     ...options,
@@ -1643,8 +2968,26 @@ export const inquiriesGetSubmittedOptions = (options?: Options<InquiriesGetSubmi
   queryKey: inquiriesGetSubmittedQueryKey(options)
 });
 
+/**
+ * Get an inquiry.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires authentication in the current tenant. Callers with InquiriesRead can read any inquiry in that
+ * tenant; other callers can read only inquiries associated with them as submitter. Returns 404 for an
+ * unknown or inaccessible inquiry.
+ */
 export const inquiriesGetByIdQueryKey = (options: Options<InquiriesGetByIdData>) => createQueryKey('inquiriesGetById', options, false, ['Inquiries']);
 
+/**
+ * Get an inquiry.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires authentication in the current tenant. Callers with InquiriesRead can read any inquiry in that
+ * tenant; other callers can read only inquiries associated with them as submitter. Returns 404 for an
+ * unknown or inaccessible inquiry.
+ */
 export const inquiriesGetByIdOptions = (options: Options<InquiriesGetByIdData>) => queryOptions<InquiriesGetByIdResponse, InquiriesGetByIdError, InquiriesGetByIdResponse, ReturnType<typeof inquiriesGetByIdQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await inquiriesGetById({
     ...options,
@@ -1655,6 +2998,16 @@ export const inquiriesGetByIdOptions = (options: Options<InquiriesGetByIdData>) 
   queryKey: inquiriesGetByIdQueryKey(options)
 });
 
+/**
+ * Advance an inquiry's status.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires InquiriesWrite in the current tenant and returns the updated inquiry. Status names are
+ * case-insensitive, and only New to Reviewed, Reviewed to Contacted, and Contacted to Closed transitions
+ * are allowed. Invalid transitions are rejected, including repeated or backward transitions; an unknown
+ * inquiry returns 404.
+ */
 export const inquiriesUpdateStatusMutation = (options?: Partial<Options<InquiriesUpdateStatusData>>): UseMutationOptions<InquiriesUpdateStatusResponse, InquiriesUpdateStatusError, Options<InquiriesUpdateStatusData>> => {
   const mutationOptions: UseMutationOptions<InquiriesUpdateStatusResponse, InquiriesUpdateStatusError, Options<InquiriesUpdateStatusData>> = {
     mutationFn: async (fnOptions) => await inquiriesUpdateStatus({
@@ -1666,8 +3019,28 @@ export const inquiriesUpdateStatusMutation = (options?: Partial<Options<Inquirie
   return mutationOptions;
 };
 
+/**
+ * List an inquiry's comments.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires authentication in the current tenant and returns comments oldest first. Callers with
+ * InquiriesRead receive internal and public comments; other callers must be the inquiry's submitter and
+ * receive public comments only. Submitters receive 404 for unknown or inaccessible inquiries; readers
+ * receive an empty list when no comments match.
+ */
 export const inquiriesGetCommentsQueryKey = (options: Options<InquiriesGetCommentsData>) => createQueryKey('inquiriesGetComments', options, false, ['Inquiries']);
 
+/**
+ * List an inquiry's comments.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires authentication in the current tenant and returns comments oldest first. Callers with
+ * InquiriesRead receive internal and public comments; other callers must be the inquiry's submitter and
+ * receive public comments only. Submitters receive 404 for unknown or inaccessible inquiries; readers
+ * receive an empty list when no comments match.
+ */
 export const inquiriesGetCommentsOptions = (options: Options<InquiriesGetCommentsData>) => queryOptions<InquiriesGetCommentsResponse, InquiriesGetCommentsError, InquiriesGetCommentsResponse, ReturnType<typeof inquiriesGetCommentsQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await inquiriesGetComments({
     ...options,
@@ -1678,6 +3051,15 @@ export const inquiriesGetCommentsOptions = (options: Options<InquiriesGetComment
   queryKey: inquiriesGetCommentsQueryKey(options)
 });
 
+/**
+ * Add a comment to an inquiry.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires InquiriesWrite in the current tenant. Records the caller as author and returns the new comment
+ * identifier. Content must be nonempty and at most 5,000 characters; internal comments are hidden from
+ * submitters without InquiriesRead.
+ */
 export const inquiriesAddCommentMutation = (options?: Partial<Options<InquiriesAddCommentData>>): UseMutationOptions<InquiriesAddCommentResponse, InquiriesAddCommentError, Options<InquiriesAddCommentData>> => {
   const mutationOptions: UseMutationOptions<InquiriesAddCommentResponse, InquiriesAddCommentError, Options<InquiriesAddCommentData>> = {
     mutationFn: async (fnOptions) => await inquiriesAddComment({
@@ -1689,10 +3071,25 @@ export const inquiriesAddCommentMutation = (options?: Partial<Options<InquiriesA
   return mutationOptions;
 };
 
+/**
+ * List the current user's notification history.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires NotificationRead and an authenticated user in the current tenant. Returns a page ordered newest
+ * first, excluding archived and expired notifications. Pagination metadata includes the total matching
+ * count and whether adjacent pages exist.
+ */
 export const notificationsGetNotificationsQueryKey = (options?: Options<NotificationsGetNotificationsData>) => createQueryKey('notificationsGetNotifications', options, false, ['Notifications']);
 
 /**
- * Get the current user's notification history.
+ * List the current user's notification history.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires NotificationRead and an authenticated user in the current tenant. Returns a page ordered newest
+ * first, excluding archived and expired notifications. Pagination metadata includes the total matching
+ * count and whether adjacent pages exist.
  */
 export const notificationsGetNotificationsOptions = (options?: Options<NotificationsGetNotificationsData>) => queryOptions<NotificationsGetNotificationsResponse, NotificationsGetNotificationsError, NotificationsGetNotificationsResponse, ReturnType<typeof notificationsGetNotificationsQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await notificationsGetNotifications({
@@ -1704,10 +3101,25 @@ export const notificationsGetNotificationsOptions = (options?: Options<Notificat
   queryKey: notificationsGetNotificationsQueryKey(options)
 });
 
+/**
+ * Count the current user's unread notifications.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires NotificationRead and an authenticated user in the current tenant. Counts all unread
+ * notifications for that user, including archived or expired notifications that the history endpoint omits.
+ * Returns a count without changing read state.
+ */
 export const notificationsGetUnreadCountQueryKey = (options?: Options<NotificationsGetUnreadCountData>) => createQueryKey('notificationsGetUnreadCount', options, false, ['Notifications']);
 
 /**
- * Get the current user's unread notification count.
+ * Count the current user's unread notifications.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires NotificationRead and an authenticated user in the current tenant. Counts all unread
+ * notifications for that user, including archived or expired notifications that the history endpoint omits.
+ * Returns a count without changing read state.
  */
 export const notificationsGetUnreadCountOptions = (options?: Options<NotificationsGetUnreadCountData>) => queryOptions<NotificationsGetUnreadCountResponse, NotificationsGetUnreadCountError, NotificationsGetUnreadCountResponse, ReturnType<typeof notificationsGetUnreadCountQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await notificationsGetUnreadCount({
@@ -1720,7 +3132,13 @@ export const notificationsGetUnreadCountOptions = (options?: Options<Notificatio
 });
 
 /**
- * Mark a single notification as read.
+ * Mark a notification as read.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires NotificationRead and ownership of the notification in the current tenant. Records the current
+ * read time and returns no content, updating the timestamp even for an already read notification. Returns
+ * 404 for an unknown notification and an access-denied error for another user's notification.
  */
 export const notificationsMarkAsReadMutation = (options?: Partial<Options<NotificationsMarkAsReadData>>): UseMutationOptions<unknown, NotificationsMarkAsReadError, Options<NotificationsMarkAsReadData>> => {
   const mutationOptions: UseMutationOptions<unknown, NotificationsMarkAsReadError, Options<NotificationsMarkAsReadData>> = {
@@ -1734,7 +3152,13 @@ export const notificationsMarkAsReadMutation = (options?: Partial<Options<Notifi
 };
 
 /**
- * Mark all notifications as read for the current user.
+ * Mark all of the current user's notifications as read.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires NotificationRead and an authenticated user in the current tenant. Marks every unread
+ * notification for that user as read, including archived or expired notifications and notifications outside
+ * the current history page. Returns no content, including when there are no unread notifications.
  */
 export const notificationsMarkAllAsReadMutation = (options?: Partial<Options<NotificationsMarkAllAsReadData>>): UseMutationOptions<unknown, NotificationsMarkAllAsReadError, Options<NotificationsMarkAllAsReadData>> => {
   const mutationOptions: UseMutationOptions<unknown, NotificationsMarkAllAsReadError, Options<NotificationsMarkAllAsReadData>> = {
@@ -1747,8 +3171,26 @@ export const notificationsMarkAllAsReadMutation = (options?: Partial<Options<Not
   return mutationOptions;
 };
 
+/**
+ * List tenant Web Push signing key versions.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires PushConfigWrite in the current tenant. Returns key IDs, public keys, and current or retired
+ * flags without private keys or credentials. Returns an empty list when no valid Web Push configuration
+ * exists.
+ */
 export const pushConfigurationGetWebPushKeysQueryKey = (options?: Options<PushConfigurationGetWebPushKeysData>) => createQueryKey('pushConfigurationGetWebPushKeys', options, false, ['Admin - Push Configuration']);
 
+/**
+ * List tenant Web Push signing key versions.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires PushConfigWrite in the current tenant. Returns key IDs, public keys, and current or retired
+ * flags without private keys or credentials. Returns an empty list when no valid Web Push configuration
+ * exists.
+ */
 export const pushConfigurationGetWebPushKeysOptions = (options?: Options<PushConfigurationGetWebPushKeysData>) => queryOptions<PushConfigurationGetWebPushKeysResponse, PushConfigurationGetWebPushKeysError, PushConfigurationGetWebPushKeysResponse, ReturnType<typeof pushConfigurationGetWebPushKeysQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await pushConfigurationGetWebPushKeys({
     ...options,
@@ -1759,6 +3201,15 @@ export const pushConfigurationGetWebPushKeysOptions = (options?: Options<PushCon
   queryKey: pushConfigurationGetWebPushKeysQueryKey(options)
 });
 
+/**
+ * Create a new current Web Push signing key.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires PushConfigWrite in the current tenant and a valid VAPID contact subject. Returns the new key ID
+ * and public key, retaining previous nonretired keys for existing subscriptions. Rotation preserves the
+ * configuration's enabled state; private keys are never returned.
+ */
 export const pushConfigurationRotateWebPushKeyMutation = (options?: Partial<Options<PushConfigurationRotateWebPushKeyData>>): UseMutationOptions<PushConfigurationRotateWebPushKeyResponse, PushConfigurationRotateWebPushKeyError, Options<PushConfigurationRotateWebPushKeyData>> => {
   const mutationOptions: UseMutationOptions<PushConfigurationRotateWebPushKeyResponse, PushConfigurationRotateWebPushKeyError, Options<PushConfigurationRotateWebPushKeyData>> = {
     mutationFn: async (fnOptions) => await pushConfigurationRotateWebPushKey({
@@ -1770,6 +3221,15 @@ export const pushConfigurationRotateWebPushKeyMutation = (options?: Partial<Opti
   return mutationOptions;
 };
 
+/**
+ * Retire a tenant Web Push signing key.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires PushConfigWrite in the current tenant. Removes the private key and disables delivery for
+ * subscriptions bound to this key. Retiring the current key also leaves no current key for new
+ * subscriptions until another rotation. Returns 404 if the key or a valid configuration cannot be found.
+ */
 export const pushConfigurationRetireWebPushKeyMutation = (options?: Partial<Options<PushConfigurationRetireWebPushKeyData>>): UseMutationOptions<unknown, PushConfigurationRetireWebPushKeyError, Options<PushConfigurationRetireWebPushKeyData>> => {
   const mutationOptions: UseMutationOptions<unknown, PushConfigurationRetireWebPushKeyError, Options<PushConfigurationRetireWebPushKeyData>> = {
     mutationFn: async (fnOptions) => await pushConfigurationRetireWebPushKey({
@@ -1781,8 +3241,28 @@ export const pushConfigurationRetireWebPushKeyMutation = (options?: Partial<Opti
   return mutationOptions;
 };
 
+/**
+ * Get a tenant push configuration.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires PushRead in the current tenant. Returns one stored platform configuration and its enabled state,
+ * or no content when none exists. The credentials field always contains [redacted]; neither plaintext nor
+ * encrypted credentials are returned. When multiple platforms are configured, the selected platform is
+ * unspecified.
+ */
 export const pushConfigurationGetTenantPushConfigQueryKey = (options?: Options<PushConfigurationGetTenantPushConfigData>) => createQueryKey('pushConfigurationGetTenantPushConfig', options, false, ['Admin - Push Configuration']);
 
+/**
+ * Get a tenant push configuration.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires PushRead in the current tenant. Returns one stored platform configuration and its enabled state,
+ * or no content when none exists. The credentials field always contains [redacted]; neither plaintext nor
+ * encrypted credentials are returned. When multiple platforms are configured, the selected platform is
+ * unspecified.
+ */
 export const pushConfigurationGetTenantPushConfigOptions = (options?: Options<PushConfigurationGetTenantPushConfigData>) => queryOptions<PushConfigurationGetTenantPushConfigResponse, PushConfigurationGetTenantPushConfigError, PushConfigurationGetTenantPushConfigResponse, ReturnType<typeof pushConfigurationGetTenantPushConfigQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await pushConfigurationGetTenantPushConfig({
     ...options,
@@ -1793,6 +3273,16 @@ export const pushConfigurationGetTenantPushConfigOptions = (options?: Options<Pu
   queryKey: pushConfigurationGetTenantPushConfigQueryKey(options)
 });
 
+/**
+ * Set tenant push provider credentials.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires PushConfigWrite in the current tenant. Creates a configuration for the specified platform or
+ * replaces its credentials while preserving an existing enabled state. Credentials are encrypted for
+ * storage and are not returned. Web Push replacements must preserve signing key history and cannot remove
+ * or reactivate retired keys.
+ */
 export const pushConfigurationUpsertTenantPushConfigMutation = (options?: Partial<Options<PushConfigurationUpsertTenantPushConfigData>>): UseMutationOptions<unknown, PushConfigurationUpsertTenantPushConfigError, Options<PushConfigurationUpsertTenantPushConfigData>> => {
   const mutationOptions: UseMutationOptions<unknown, PushConfigurationUpsertTenantPushConfigError, Options<PushConfigurationUpsertTenantPushConfigData>> = {
     mutationFn: async (fnOptions) => await pushConfigurationUpsertTenantPushConfig({
@@ -1804,6 +3294,15 @@ export const pushConfigurationUpsertTenantPushConfigMutation = (options?: Partia
   return mutationOptions;
 };
 
+/**
+ * Enable or disable a tenant push platform.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires PushConfigWrite in the current tenant. Changes the specified platform's enabled state while
+ * retaining its credentials and registered devices. Returns no content, or 404 when that platform has no
+ * configuration.
+ */
 export const pushConfigurationSetTenantPushEnabledMutation = (options?: Partial<Options<PushConfigurationSetTenantPushEnabledData>>): UseMutationOptions<unknown, PushConfigurationSetTenantPushEnabledError, Options<PushConfigurationSetTenantPushEnabledData>> => {
   const mutationOptions: UseMutationOptions<unknown, PushConfigurationSetTenantPushEnabledError, Options<PushConfigurationSetTenantPushEnabledData>> = {
     mutationFn: async (fnOptions) => await pushConfigurationSetTenantPushEnabled({
@@ -1815,6 +3314,15 @@ export const pushConfigurationSetTenantPushEnabledMutation = (options?: Partial<
   return mutationOptions;
 };
 
+/**
+ * Remove a tenant push platform configuration.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires PushConfigWrite in the current tenant. Deletes the specified platform's credentials and
+ * configuration, returning no content even when no matching configuration exists. Web Push configuration
+ * cannot be removed this way; disable it or retire its signing keys instead.
+ */
 export const pushConfigurationRemoveTenantPushConfigMutation = (options?: Partial<Options<PushConfigurationRemoveTenantPushConfigData>>): UseMutationOptions<unknown, PushConfigurationRemoveTenantPushConfigError, Options<PushConfigurationRemoveTenantPushConfigData>> => {
   const mutationOptions: UseMutationOptions<unknown, PushConfigurationRemoveTenantPushConfigError, Options<PushConfigurationRemoveTenantPushConfigData>> = {
     mutationFn: async (fnOptions) => await pushConfigurationRemoveTenantPushConfig({
@@ -1826,8 +3334,26 @@ export const pushConfigurationRemoveTenantPushConfigMutation = (options?: Partia
   return mutationOptions;
 };
 
+/**
+ * Get the current Web Push public key.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires an authenticated user and an organization tenant. Returns the current signing key ID and public
+ * key for browser subscription creation; private keys are never returned. Returns 409 when Web Push is
+ * disabled, unconfigured, or has no usable current key.
+ */
 export const pushDevicesGetWebPushPublicKeyQueryKey = (options?: Options<PushDevicesGetWebPushPublicKeyData>) => createQueryKey('pushDevicesGetWebPushPublicKey', options, false, ['Push Devices']);
 
+/**
+ * Get the current Web Push public key.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires an authenticated user and an organization tenant. Returns the current signing key ID and public
+ * key for browser subscription creation; private keys are never returned. Returns 409 when Web Push is
+ * disabled, unconfigured, or has no usable current key.
+ */
 export const pushDevicesGetWebPushPublicKeyOptions = (options?: Options<PushDevicesGetWebPushPublicKeyData>) => queryOptions<PushDevicesGetWebPushPublicKeyResponse, PushDevicesGetWebPushPublicKeyError, PushDevicesGetWebPushPublicKeyResponse, ReturnType<typeof pushDevicesGetWebPushPublicKeyQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await pushDevicesGetWebPushPublicKey({
     ...options,
@@ -1838,8 +3364,26 @@ export const pushDevicesGetWebPushPublicKeyOptions = (options?: Options<PushDevi
   queryKey: pushDevicesGetWebPushPublicKeyQueryKey(options)
 });
 
+/**
+ * List the current user's active push devices.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires an authenticated user in the current tenant. Returns active registrations owned by that user,
+ * including platform, token, registration ID, and Web Push signing key ID where applicable. Inactive
+ * registrations are excluded.
+ */
 export const pushDevicesGetUserDevicesQueryKey = (options?: Options<PushDevicesGetUserDevicesData>) => createQueryKey('pushDevicesGetUserDevices', options, false, ['Push Devices']);
 
+/**
+ * List the current user's active push devices.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires an authenticated user in the current tenant. Returns active registrations owned by that user,
+ * including platform, token, registration ID, and Web Push signing key ID where applicable. Inactive
+ * registrations are excluded.
+ */
 export const pushDevicesGetUserDevicesOptions = (options?: Options<PushDevicesGetUserDevicesData>) => queryOptions<PushDevicesGetUserDevicesResponse, PushDevicesGetUserDevicesError, PushDevicesGetUserDevicesResponse, ReturnType<typeof pushDevicesGetUserDevicesQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await pushDevicesGetUserDevices({
     ...options,
@@ -1850,6 +3394,16 @@ export const pushDevicesGetUserDevicesOptions = (options?: Options<PushDevicesGe
   queryKey: pushDevicesGetUserDevicesQueryKey(options)
 });
 
+/**
+ * Register a push device for the current user.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires an authenticated user in the current tenant. Web Push registrations require a browser
+ * subscription and signing key ID with no token; other platforms require a token and no subscription or
+ * signing key ID. An active token owned by another user or registered for another platform returns 409.
+ * Re-registering an owned device updates it, while an inactive registration can be claimed by a new owner.
+ */
 export const pushDevicesRegisterDeviceMutation = (options?: Partial<Options<PushDevicesRegisterDeviceData>>): UseMutationOptions<unknown, PushDevicesRegisterDeviceError, Options<PushDevicesRegisterDeviceData>> => {
   const mutationOptions: UseMutationOptions<unknown, PushDevicesRegisterDeviceError, Options<PushDevicesRegisterDeviceData>> = {
     mutationFn: async (fnOptions) => await pushDevicesRegisterDevice({
@@ -1861,6 +3415,15 @@ export const pushDevicesRegisterDeviceMutation = (options?: Partial<Options<Push
   return mutationOptions;
 };
 
+/**
+ * Deactivate a push device.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires an authenticated user who owns the registration in the current tenant. Stops future delivery to
+ * that registration and removes it from the active device list. Returns no content for an owned
+ * registration, including one already inactive, or 404 for an unknown or foreign registration.
+ */
 export const pushDevicesDeregisterDeviceMutation = (options?: Partial<Options<PushDevicesDeregisterDeviceData>>): UseMutationOptions<unknown, PushDevicesDeregisterDeviceError, Options<PushDevicesDeregisterDeviceData>> => {
   const mutationOptions: UseMutationOptions<unknown, PushDevicesDeregisterDeviceError, Options<PushDevicesDeregisterDeviceData>> = {
     mutationFn: async (fnOptions) => await pushDevicesDeregisterDevice({
@@ -1872,6 +3435,16 @@ export const pushDevicesDeregisterDeviceMutation = (options?: Partial<Options<Pu
   return mutationOptions;
 };
 
+/**
+ * Send a push notification to the current user.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires an authenticated user in the current tenant and targets only that user's eligible active
+ * devices. Delivery is queued; a successful response does not confirm device receipt and also covers
+ * disabled preferences or no registered devices. Returns 409 when registered devices exist but none has an
+ * available Web Push key. ClickPath, when supplied, must be a local absolute path such as /notifications.
+ */
 export const pushDevicesSendPushMutation = (options?: Partial<Options<PushDevicesSendPushData>>): UseMutationOptions<unknown, PushDevicesSendPushError, Options<PushDevicesSendPushData>> => {
   const mutationOptions: UseMutationOptions<unknown, PushDevicesSendPushError, Options<PushDevicesSendPushData>> = {
     mutationFn: async (fnOptions) => await pushDevicesSendPush({
@@ -1883,8 +3456,28 @@ export const pushDevicesSendPushMutation = (options?: Partial<Options<PushDevice
   return mutationOptions;
 };
 
+/**
+ * Get the current user's notification preferences.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires EmailPreferenceManage and an authenticated user in the current tenant. Returns stored
+ * preferences grouped by channel, with each channel's overall enabled state and per-type overrides.
+ * Channels without stored preferences are omitted; delivery defaults to enabled when no preference disables
+ * it.
+ */
 export const userNotificationSettingsGetUserNotificationSettingsQueryKey = (options?: Options<UserNotificationSettingsGetUserNotificationSettingsData>) => createQueryKey('userNotificationSettingsGetUserNotificationSettings', options, false, ['Notification Settings']);
 
+/**
+ * Get the current user's notification preferences.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires EmailPreferenceManage and an authenticated user in the current tenant. Returns stored
+ * preferences grouped by channel, with each channel's overall enabled state and per-type overrides.
+ * Channels without stored preferences are omitted; delivery defaults to enabled when no preference disables
+ * it.
+ */
 export const userNotificationSettingsGetUserNotificationSettingsOptions = (options?: Options<UserNotificationSettingsGetUserNotificationSettingsData>) => queryOptions<UserNotificationSettingsGetUserNotificationSettingsResponse, UserNotificationSettingsGetUserNotificationSettingsError, UserNotificationSettingsGetUserNotificationSettingsResponse, ReturnType<typeof userNotificationSettingsGetUserNotificationSettingsQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await userNotificationSettingsGetUserNotificationSettings({
     ...options,
@@ -1895,6 +3488,15 @@ export const userNotificationSettingsGetUserNotificationSettingsOptions = (optio
   queryKey: userNotificationSettingsGetUserNotificationSettingsQueryKey(options)
 });
 
+/**
+ * Enable or disable a notification channel.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires EmailPreferenceManage and applies to the authenticated user in the current tenant. Creates or
+ * replaces the channel-wide preference without removing per-type preferences. Disabling the channel
+ * overrides all of its per-type settings; enabling it leaves individually disabled types disabled.
+ */
 export const userNotificationSettingsSetChannelEnabledMutation = (options?: Partial<Options<UserNotificationSettingsSetChannelEnabledData>>): UseMutationOptions<unknown, UserNotificationSettingsSetChannelEnabledError, Options<UserNotificationSettingsSetChannelEnabledData>> => {
   const mutationOptions: UseMutationOptions<unknown, UserNotificationSettingsSetChannelEnabledError, Options<UserNotificationSettingsSetChannelEnabledData>> = {
     mutationFn: async (fnOptions) => await userNotificationSettingsSetChannelEnabled({
@@ -1906,6 +3508,15 @@ export const userNotificationSettingsSetChannelEnabledMutation = (options?: Part
   return mutationOptions;
 };
 
+/**
+ * Enable or disable a notification type on a channel.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires EmailPreferenceManage and applies to the authenticated user in the current tenant. Creates or
+ * replaces the preference for the specified channel and notification type. Enabling a type does not
+ * override a disabled channel; the notification type * addresses the channel-wide preference.
+ */
 export const userNotificationSettingsSetNotificationTypeEnabledMutation = (options?: Partial<Options<UserNotificationSettingsSetNotificationTypeEnabledData>>): UseMutationOptions<unknown, UserNotificationSettingsSetNotificationTypeEnabledError, Options<UserNotificationSettingsSetNotificationTypeEnabledData>> => {
   const mutationOptions: UseMutationOptions<unknown, UserNotificationSettingsSetNotificationTypeEnabledError, Options<UserNotificationSettingsSetNotificationTypeEnabledData>> = {
     mutationFn: async (fnOptions) => await userNotificationSettingsSetNotificationTypeEnabled({
@@ -1918,7 +3529,14 @@ export const userNotificationSettingsSetNotificationTypeEnabledMutation = (optio
 };
 
 /**
- * Create a new storage bucket.
+ * Create a tenant storage bucket.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires StorageWrite in the current tenant and returns the created bucket configuration. Names must be
+ * lowercase letters or digits with optional internal hyphens and must be unique within the tenant;
+ * duplicates return 409. Unrecognized access values default to Private, and retention days require a valid
+ * retention action.
  */
 export const storageCreateBucketMutation = (options?: Partial<Options<StorageCreateBucketData>>): UseMutationOptions<StorageCreateBucketResponse, StorageCreateBucketError, Options<StorageCreateBucketData>> => {
   const mutationOptions: UseMutationOptions<StorageCreateBucketResponse, StorageCreateBucketError, Options<StorageCreateBucketData>> = {
@@ -1932,7 +3550,13 @@ export const storageCreateBucketMutation = (options?: Partial<Options<StorageCre
 };
 
 /**
- * Delete a bucket.
+ * Delete a storage bucket.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires StorageWrite in the current tenant. Rejects nonempty buckets unless force is true, which also
+ * deletes their file records and stored objects. Returns no content on success or 404 if the bucket is
+ * unknown.
  */
 export const storageDeleteBucketMutation = (options?: Partial<Options<StorageDeleteBucketData>>): UseMutationOptions<unknown, StorageDeleteBucketError, Options<StorageDeleteBucketData>> => {
   const mutationOptions: UseMutationOptions<unknown, StorageDeleteBucketError, Options<StorageDeleteBucketData>> = {
@@ -1945,10 +3569,23 @@ export const storageDeleteBucketMutation = (options?: Partial<Options<StorageDel
   return mutationOptions;
 };
 
+/**
+ * Get a storage bucket by name.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires StorageRead in the current tenant. Returns the bucket's access level, upload restrictions,
+ * retention policy, and versioning setting. Returns 404 when no bucket with this name exists in the tenant.
+ */
 export const storageGetBucketQueryKey = (options: Options<StorageGetBucketData>) => createQueryKey('storageGetBucket', options, false, ['Storage']);
 
 /**
- * Get bucket by name.
+ * Get a storage bucket by name.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires StorageRead in the current tenant. Returns the bucket's access level, upload restrictions,
+ * retention policy, and versioning setting. Returns 404 when no bucket with this name exists in the tenant.
  */
 export const storageGetBucketOptions = (options: Options<StorageGetBucketData>) => queryOptions<StorageGetBucketResponse, StorageGetBucketError, StorageGetBucketResponse, ReturnType<typeof storageGetBucketQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await storageGetBucket({
@@ -1961,7 +3598,15 @@ export const storageGetBucketOptions = (options: Options<StorageGetBucketData>) 
 });
 
 /**
- * Upload a file.
+ * Upload and validate a file.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires StorageWrite and an authenticated user in the current tenant. Accepts multipart content for an
+ * existing bucket, validates file signatures and paths, enforces bucket and tenant limits, and scans the
+ * bytes before storage. Returns the saved file metadata only after the file becomes Available; no
+ * completion request is needed. Empty, disallowed, oversized, or unsafe files are rejected, and an unknown
+ * bucket returns 404.
  */
 export const storageUploadMutation = (options?: Partial<Options<StorageUploadData>>): UseMutationOptions<StorageUploadResponse, StorageUploadError, Options<StorageUploadData>> => {
   const mutationOptions: UseMutationOptions<StorageUploadResponse, StorageUploadError, Options<StorageUploadData>> = {
@@ -1975,7 +3620,13 @@ export const storageUploadMutation = (options?: Partial<Options<StorageUploadDat
 };
 
 /**
- * Delete a file.
+ * Delete a stored file.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires StorageWrite in the current tenant. Removes the file record and its stored object, including for
+ * pending or rejected uploads, releasing the reserved quota. Returns no content on success or 404 for an
+ * unknown file ID.
  */
 export const storageDeleteMutation = (options?: Partial<Options<StorageDeleteData>>): UseMutationOptions<unknown, StorageDeleteError, Options<StorageDeleteData>> => {
   const mutationOptions: UseMutationOptions<unknown, StorageDeleteError, Options<StorageDeleteData>> = {
@@ -1988,10 +3639,25 @@ export const storageDeleteMutation = (options?: Partial<Options<StorageDeleteDat
   return mutationOptions;
 };
 
+/**
+ * Get file metadata.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires StorageRead in the current tenant. Returns metadata for an existing file, including pending or
+ * rejected uploads, or 404 if the ID is unknown. This response does not contain validation status and does
+ * not establish that the file is available for download.
+ */
 export const storageGetFileQueryKey = (options: Options<StorageGetFileData>) => createQueryKey('storageGetFile', options, false, ['Storage']);
 
 /**
- * Get file metadata by ID.
+ * Get file metadata.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires StorageRead in the current tenant. Returns metadata for an existing file, including pending or
+ * rejected uploads, or 404 if the ID is unknown. This response does not contain validation status and does
+ * not establish that the file is available for download.
  */
 export const storageGetFileOptions = (options: Options<StorageGetFileData>) => queryOptions<StorageGetFileResponse, StorageGetFileError, StorageGetFileResponse, ReturnType<typeof storageGetFileQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await storageGetFile({
@@ -2003,10 +3669,25 @@ export const storageGetFileOptions = (options: Options<StorageGetFileData>) => q
   queryKey: storageGetFileQueryKey(options)
 });
 
+/**
+ * Redirect to a file download.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires StorageRead in the current tenant. Returns a 302 redirect to a temporary signed URL for the file
+ * bytes, not a JSON response. Only Available files can be downloaded; pending or rejected files are
+ * refused, and unknown IDs return 404.
+ */
 export const storageDownloadQueryKey = (options: Options<StorageDownloadData>) => createQueryKey('storageDownload', options, false, ['Storage']);
 
 /**
- * Download a file (redirects to presigned URL).
+ * Redirect to a file download.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires StorageRead in the current tenant. Returns a 302 redirect to a temporary signed URL for the file
+ * bytes, not a JSON response. Only Available files can be downloaded; pending or rejected files are
+ * refused, and unknown IDs return 404.
  */
 export const storageDownloadOptions = (options: Options<StorageDownloadData>) => queryOptions<unknown, StorageDownloadError, unknown, ReturnType<typeof storageDownloadQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await storageDownload({
@@ -2018,10 +3699,27 @@ export const storageDownloadOptions = (options: Options<StorageDownloadData>) =>
   queryKey: storageDownloadQueryKey(options)
 });
 
+/**
+ * List files in a storage bucket.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires StorageRead in the current tenant. Returns a page of file metadata ordered by upload time
+ * descending, optionally filtered by a path prefix, with the total matching count. Includes pending and
+ * rejected uploads; listed metadata does not confirm download availability. Returns 404 if the bucket does
+ * not exist.
+ */
 export const storageListFilesQueryKey = (options?: Options<StorageListFilesData>) => createQueryKey('storageListFiles', options, false, ['Storage']);
 
 /**
- * List files in a bucket.
+ * List files in a storage bucket.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires StorageRead in the current tenant. Returns a page of file metadata ordered by upload time
+ * descending, optionally filtered by a path prefix, with the total matching count. Includes pending and
+ * rejected uploads; listed metadata does not confirm download availability. Returns 404 if the bucket does
+ * not exist.
  */
 export const storageListFilesOptions = (options?: Options<StorageListFilesData>) => queryOptions<StorageListFilesResponse, StorageListFilesError, StorageListFilesResponse, ReturnType<typeof storageListFilesQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await storageListFiles({
@@ -2062,10 +3760,27 @@ const createInfiniteParams = <K extends Pick<QueryKey<Options>[0], 'body' | 'hea
   return params as unknown as typeof page;
 };
 
+/**
+ * List files in a storage bucket.
+ *
+ * Builds the cache key for this infinite query without sending a request.
+ *
+ * Requires StorageRead in the current tenant. Returns a page of file metadata ordered by upload time
+ * descending, optionally filtered by a path prefix, with the total matching count. Includes pending and
+ * rejected uploads; listed metadata does not confirm download availability. Returns 404 if the bucket does
+ * not exist.
+ */
 export const storageListFilesInfiniteQueryKey = (options?: Options<StorageListFilesData>): QueryKey<Options<StorageListFilesData>> => createQueryKey('storageListFiles', options, true);
 
 /**
- * List files in a bucket.
+ * List files in a storage bucket.
+ *
+ * Builds TanStack Query options for fetching and caching successive pages.
+ *
+ * Requires StorageRead in the current tenant. Returns a page of file metadata ordered by upload time
+ * descending, optionally filtered by a path prefix, with the total matching count. Includes pending and
+ * rejected uploads; listed metadata does not confirm download availability. Returns 404 if the bucket does
+ * not exist.
  */
 export const storageListFilesInfiniteOptions = (options?: Options<StorageListFilesData>) => {
   const opts = infiniteQueryOptions<StorageListFilesResponse, StorageListFilesError, InfiniteData<StorageListFilesResponse>, QueryKey<Options<StorageListFilesData>>, number | string | Pick<QueryKey<Options<StorageListFilesData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
@@ -2092,7 +3807,15 @@ export const storageListFilesInfiniteOptions = (options?: Options<StorageListFil
 };
 
 /**
- * Get a presigned URL for direct upload to storage.
+ * Reserve a file and get a direct upload URL.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires StorageWrite and an authenticated user in the current tenant. Validates the declared file
+ * metadata against bucket and tenant limits, reserves quota, and returns a file ID plus a signed upload
+ * URL. PUT the bytes to that URL, then call the file completion endpoint and check for Available before
+ * downloading. Uncompleted uploads stay PendingValidation and reserve quota until deleted; URL expiry
+ * defaults to 15 minutes and is capped by server configuration.
  */
 export const storageGetPresignedUploadUrlMutation = (options?: Partial<Options<StorageGetPresignedUploadUrlData>>): UseMutationOptions<StorageGetPresignedUploadUrlResponse, StorageGetPresignedUploadUrlError, Options<StorageGetPresignedUploadUrlData>> => {
   const mutationOptions: UseMutationOptions<StorageGetPresignedUploadUrlResponse, StorageGetPresignedUploadUrlError, Options<StorageGetPresignedUploadUrlData>> = {
@@ -2106,8 +3829,15 @@ export const storageGetPresignedUploadUrlMutation = (options?: Partial<Options<S
 };
 
 /**
- * Complete a presigned upload: verify the object exists, scan it, and promote the file
- * to Available (or Rejected). Idempotent once the file has left PendingValidation.
+ * Complete a direct upload and get its validation status.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires StorageWrite in the current tenant after the bytes have been PUT to the signed upload URL.
+ * Verifies that the object exists, scans it, and returns Available or Rejected; a successful HTTP response
+ * alone does not mean the scan passed. Repeated calls after PendingValidation return the existing status
+ * without another scan. Returns 404 for an unknown file and rejects completion when the object has not been
+ * uploaded.
  */
 export const storageCompletePresignedUploadMutation = (options?: Partial<Options<StorageCompletePresignedUploadData>>): UseMutationOptions<StorageCompletePresignedUploadResponse, StorageCompletePresignedUploadError, Options<StorageCompletePresignedUploadData>> => {
   const mutationOptions: UseMutationOptions<StorageCompletePresignedUploadResponse, StorageCompletePresignedUploadError, Options<StorageCompletePresignedUploadData>> = {
@@ -2120,10 +3850,25 @@ export const storageCompletePresignedUploadMutation = (options?: Partial<Options
   return mutationOptions;
 };
 
+/**
+ * Get a temporary file download URL.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires StorageRead in the current tenant. Returns a signed URL and expiry for an Available file,
+ * without redirecting or returning its bytes. Pending or rejected files are refused; unknown IDs return
+ * 404. Treat the returned URL as an opaque temporary credential for the download.
+ */
 export const storageGetPresignedDownloadUrlQueryKey = (options: Options<StorageGetPresignedDownloadUrlData>) => createQueryKey('storageGetPresignedDownloadUrl', options, false, ['Storage']);
 
 /**
- * Get a presigned URL for downloading a file.
+ * Get a temporary file download URL.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires StorageRead in the current tenant. Returns a signed URL and expiry for an Available file,
+ * without redirecting or returning its bytes. Pending or rejected files are refused; unknown IDs return
+ * 404. Treat the returned URL as an opaque temporary credential for the download.
  */
 export const storageGetPresignedDownloadUrlOptions = (options: Options<StorageGetPresignedDownloadUrlData>) => queryOptions<StorageGetPresignedDownloadUrlResponse, StorageGetPresignedDownloadUrlError, StorageGetPresignedDownloadUrlResponse, ReturnType<typeof storageGetPresignedDownloadUrlQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await storageGetPresignedDownloadUrl({
@@ -2135,8 +3880,26 @@ export const storageGetPresignedDownloadUrlOptions = (options: Options<StorageGe
   queryKey: storageGetPresignedDownloadUrlQueryKey(options)
 });
 
+/**
+ * Get resolved storage configuration.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires an authenticated user in the current tenant. Returns a key-value map using user overrides first,
+ * then tenant overrides, then registered defaults. Upload enforcement ignores user overrides and uses
+ * tenant limits, so this map can differ from the limits enforced for uploads.
+ */
 export const storageSettingsGetConfigQueryKey = (options?: Options<StorageSettingsGetConfigData>) => createQueryKey('storageSettingsGetConfig', options, false, ['Storage Settings']);
 
+/**
+ * Get resolved storage configuration.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires an authenticated user in the current tenant. Returns a key-value map using user overrides first,
+ * then tenant overrides, then registered defaults. Upload enforcement ignores user overrides and uses
+ * tenant limits, so this map can differ from the limits enforced for uploads.
+ */
 export const storageSettingsGetConfigOptions = (options?: Options<StorageSettingsGetConfigData>) => queryOptions<StorageSettingsGetConfigResponse, StorageSettingsGetConfigError, StorageSettingsGetConfigResponse, ReturnType<typeof storageSettingsGetConfigQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await storageSettingsGetConfig({
     ...options,
@@ -2147,6 +3910,15 @@ export const storageSettingsGetConfigOptions = (options?: Options<StorageSetting
   queryKey: storageSettingsGetConfigQueryKey(options)
 });
 
+/**
+ * Remove a tenant storage setting override.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires StorageWrite and an authenticated user in the current tenant. Removes the named override so the
+ * registered default applies where one exists; user overrides remain in place. Returns no content even when
+ * no override exists, but rejects system. keys and unknown keys.
+ */
 export const storageSettingsDeleteTenantSettingMutation = (options?: Partial<Options<StorageSettingsDeleteTenantSettingData>>): UseMutationOptions<unknown, StorageSettingsDeleteTenantSettingError, Options<StorageSettingsDeleteTenantSettingData>> => {
   const mutationOptions: UseMutationOptions<unknown, StorageSettingsDeleteTenantSettingError, Options<StorageSettingsDeleteTenantSettingData>> = {
     mutationFn: async (fnOptions) => await storageSettingsDeleteTenantSetting({
@@ -2158,8 +3930,24 @@ export const storageSettingsDeleteTenantSettingMutation = (options?: Partial<Opt
   return mutationOptions;
 };
 
+/**
+ * Get resolved tenant storage settings.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires StorageWrite in the current tenant. Returns tenant overrides merged with registered defaults,
+ * including each value's source and descriptive metadata. User overrides are excluded.
+ */
 export const storageSettingsGetTenantSettingsQueryKey = (options?: Options<StorageSettingsGetTenantSettingsData>) => createQueryKey('storageSettingsGetTenantSettings', options, false, ['Storage Settings']);
 
+/**
+ * Get resolved tenant storage settings.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires StorageWrite in the current tenant. Returns tenant overrides merged with registered defaults,
+ * including each value's source and descriptive metadata. User overrides are excluded.
+ */
 export const storageSettingsGetTenantSettingsOptions = (options?: Options<StorageSettingsGetTenantSettingsData>) => queryOptions<StorageSettingsGetTenantSettingsResponse, StorageSettingsGetTenantSettingsError, StorageSettingsGetTenantSettingsResponse, ReturnType<typeof storageSettingsGetTenantSettingsQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await storageSettingsGetTenantSettings({
     ...options,
@@ -2170,6 +3958,15 @@ export const storageSettingsGetTenantSettingsOptions = (options?: Options<Storag
   queryKey: storageSettingsGetTenantSettingsQueryKey(options)
 });
 
+/**
+ * Set a tenant storage setting.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires StorageWrite and an authenticated user in the current tenant. Creates or replaces one
+ * string-valued tenant override and returns no content. Accepts registered storage keys and custom. keys;
+ * system. keys and unknown keys are rejected.
+ */
 export const storageSettingsUpsertTenantSettingMutation = (options?: Partial<Options<StorageSettingsUpsertTenantSettingData>>): UseMutationOptions<unknown, StorageSettingsUpsertTenantSettingError, Options<StorageSettingsUpsertTenantSettingData>> => {
   const mutationOptions: UseMutationOptions<unknown, StorageSettingsUpsertTenantSettingError, Options<StorageSettingsUpsertTenantSettingData>> = {
     mutationFn: async (fnOptions) => await storageSettingsUpsertTenantSetting({
@@ -2181,6 +3978,15 @@ export const storageSettingsUpsertTenantSettingMutation = (options?: Partial<Opt
   return mutationOptions;
 };
 
+/**
+ * Remove a user storage setting override.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires an authenticated user in the current tenant. Removes the named user override so the tenant value
+ * or registered default applies where one exists. Returns no content even when no override exists, but
+ * rejects system. keys and unknown keys.
+ */
 export const storageSettingsDeleteUserSettingMutation = (options?: Partial<Options<StorageSettingsDeleteUserSettingData>>): UseMutationOptions<unknown, StorageSettingsDeleteUserSettingError, Options<StorageSettingsDeleteUserSettingData>> => {
   const mutationOptions: UseMutationOptions<unknown, StorageSettingsDeleteUserSettingError, Options<StorageSettingsDeleteUserSettingData>> = {
     mutationFn: async (fnOptions) => await storageSettingsDeleteUserSetting({
@@ -2192,8 +3998,26 @@ export const storageSettingsDeleteUserSettingMutation = (options?: Partial<Optio
   return mutationOptions;
 };
 
+/**
+ * Get resolved storage settings for the current user.
+ *
+ * Builds the cache key for this query without sending a request.
+ *
+ * Requires an authenticated user in the current tenant. Returns user overrides merged with tenant overrides
+ * and registered defaults, including each value's source and descriptive metadata. User overrides do not
+ * change the tenant limits enforced during upload.
+ */
 export const storageSettingsGetUserSettingsQueryKey = (options?: Options<StorageSettingsGetUserSettingsData>) => createQueryKey('storageSettingsGetUserSettings', options, false, ['Storage Settings']);
 
+/**
+ * Get resolved storage settings for the current user.
+ *
+ * Builds TanStack Query options with the request function and cache key.
+ *
+ * Requires an authenticated user in the current tenant. Returns user overrides merged with tenant overrides
+ * and registered defaults, including each value's source and descriptive metadata. User overrides do not
+ * change the tenant limits enforced during upload.
+ */
 export const storageSettingsGetUserSettingsOptions = (options?: Options<StorageSettingsGetUserSettingsData>) => queryOptions<StorageSettingsGetUserSettingsResponse, StorageSettingsGetUserSettingsError, StorageSettingsGetUserSettingsResponse, ReturnType<typeof storageSettingsGetUserSettingsQueryKey>>({
   queryFn: async ({ queryKey, signal }) => await storageSettingsGetUserSettings({
     ...options,
@@ -2204,6 +4028,16 @@ export const storageSettingsGetUserSettingsOptions = (options?: Options<StorageS
   queryKey: storageSettingsGetUserSettingsQueryKey(options)
 });
 
+/**
+ * Set a storage setting for the current user.
+ *
+ * Builds TanStack Query mutation options. Calling the mutation sends the request; this factory does not.
+ *
+ * Requires an authenticated user in the current tenant. Creates or replaces one string-valued user override
+ * used by resolved configuration responses. Accepts registered storage keys and custom. keys; system. keys
+ * and unknown keys are rejected. This override does not raise or otherwise change enforced tenant upload
+ * limits.
+ */
 export const storageSettingsUpsertUserSettingMutation = (options?: Partial<Options<StorageSettingsUpsertUserSettingData>>): UseMutationOptions<unknown, StorageSettingsUpsertUserSettingError, Options<StorageSettingsUpsertUserSettingData>> => {
   const mutationOptions: UseMutationOptions<unknown, StorageSettingsUpsertUserSettingError, Options<StorageSettingsUpsertUserSettingData>> = {
     mutationFn: async (fnOptions) => await storageSettingsUpsertUserSetting({

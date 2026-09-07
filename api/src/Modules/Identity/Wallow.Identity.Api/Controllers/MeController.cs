@@ -22,8 +22,13 @@ namespace Wallow.Identity.Api.Controllers;
 public class MeController(IOrganizationService orgService) : ControllerBase
 {
     /// <summary>
-    /// Lists the caller active organization memberships without requiring a management permission.
+    /// List your active organizations.
     /// </summary>
+    /// <remarks>
+    /// Requires an authenticated user, without an organization context or management permission. Returns active
+    /// organizations where the caller has an active membership, including organization IDs, slugs, and owner status,
+    /// ordered by name.
+    /// </remarks>
     [HttpGet("organizations")]
     [ProducesResponseType(typeof(IReadOnlyList<MyOrganizationDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<MyOrganizationDto>>> GetOrganizations(CancellationToken ct)

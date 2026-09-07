@@ -44,8 +44,12 @@ public class OrganizationsController(
     private Guid ActorId() => Guid.Parse(User.GetUserId()!);
 
     /// <summary>
-    /// Creates an organization for the authenticated caller. No existing organization or tenant permission is required.
+    /// Create an organization.
     /// </summary>
+    /// <remarks>
+    /// Requires an authenticated user, without an existing organization or tenant permission. Creates a tenant and
+    /// enrolls the caller as an owner with the admin role, then returns the organization ID.
+    /// </remarks>
     [HttpPost]
     [Authorize]
     [AllowWithoutOrganization]
@@ -61,8 +65,13 @@ public class OrganizationsController(
     }
 
     /// <summary>
-    /// Returns the resolved tenant organization if present in the requested search-result page.
+    /// Find the resolved tenant organization.
     /// </summary>
+    /// <remarks>
+    /// Requires OrganizationsRead. Searches organization names and pages results in name order before retaining only
+    /// the resolved tenant, so the response contains at most one organization and can be empty. first is the
+    /// zero-based offset and max is the result limit before this tenant filter.
+    /// </remarks>
     [HttpGet]
     [HasPermission(PermissionType.OrganizationsRead)]
     public async Task<ActionResult<IReadOnlyList<OrganizationDto>>> GetAll(
@@ -76,8 +85,13 @@ public class OrganizationsController(
     }
 
     /// <summary>
-    /// Get a specific organization by ID.
+    /// Get an organization.
     /// </summary>
+    /// <remarks>
+    /// Requires OrganizationsRead. The organization must be the resolved tenant, or you must be a global
+    /// administrator or hold this permission through membership in that organization. Returns organization details,
+    /// or 404 when the organization is missing or inaccessible.
+    /// </remarks>
     [HttpGet("{id:guid}")]
     [HasPermission(PermissionType.OrganizationsRead)]
     public async Task<ActionResult<OrganizationDto>> GetById(Guid id, CancellationToken ct)
@@ -92,8 +106,13 @@ public class OrganizationsController(
     }
 
     /// <summary>
-    /// Get all members of a specific organization.
+    /// List active organization members.
     /// </summary>
+    /// <remarks>
+    /// Requires OrganizationsRead. The organization must be the resolved tenant, or you must be a global
+    /// administrator or hold this permission through membership in that organization. Returns user profiles and roles
+    /// for active memberships in the addressed organization.
+    /// </remarks>
     [HttpGet("{id:guid}/members")]
     [HasPermission(PermissionType.OrganizationsRead)]
     public async Task<ActionResult<IReadOnlyList<UserDto>>> GetMembers(Guid id, CancellationToken ct)
@@ -107,8 +126,14 @@ public class OrganizationsController(
     }
 
     /// <summary>
-    /// Add a user to an organization.
+    /// Grant organization membership.
     /// </summary>
+    /// <remarks>
+    /// Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+    /// administrator or hold this permission through membership in that organization. Supply an existing user ID and
+    /// role name. Creates or activates the membership and adds the role, including when the existing membership is
+    /// pending, denied, or suspended.
+    /// </remarks>
     [HttpPost("{id:guid}/members")]
     [HasPermission(PermissionType.OrganizationsManageMembers)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -125,8 +150,13 @@ public class OrganizationsController(
     }
 
     /// <summary>
-    /// Remove a user from an organization.
+    /// Remove an organization member.
     /// </summary>
+    /// <remarks>
+    /// Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+    /// administrator or hold this permission through membership in that organization. Deletes the membership and
+    /// revokes its access. Removing the last active owner is rejected.
+    /// </remarks>
     [HttpDelete("{id:guid}/members/{userId:guid}")]
     [HasPermission(PermissionType.OrganizationsManageMembers)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -143,8 +173,13 @@ public class OrganizationsController(
     }
 
     /// <summary>
-    /// List the organization's outstanding access requests, oldest first.
+    /// List pending membership requests.
     /// </summary>
+    /// <remarks>
+    /// Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+    /// administrator or hold this permission through membership in that organization. Returns requester profiles and
+    /// request times, oldest first.
+    /// </remarks>
     [HttpGet("{id:guid}/members/pending")]
     [HasPermission(PermissionType.OrganizationsManageMembers)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -160,8 +195,13 @@ public class OrganizationsController(
     }
 
     /// <summary>
-    /// Lists suspended memberships by most recent update.
+    /// List suspended organization members.
     /// </summary>
+    /// <remarks>
+    /// Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+    /// administrator or hold this permission through membership in that organization. Returns suspended memberships
+    /// with user profiles, ordered by most recent membership update.
+    /// </remarks>
     [HttpGet("{id:guid}/members/suspended")]
     [HasPermission(PermissionType.OrganizationsManageMembers)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -177,8 +217,13 @@ public class OrganizationsController(
     }
 
     /// <summary>
-    /// Lists denied memberships by most recent update.
+    /// List denied membership requests.
     /// </summary>
+    /// <remarks>
+    /// Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+    /// administrator or hold this permission through membership in that organization. Returns denied memberships with
+    /// requester profiles, ordered by most recent review.
+    /// </remarks>
     [HttpGet("{id:guid}/members/denied")]
     [HasPermission(PermissionType.OrganizationsManageMembers)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -194,8 +239,13 @@ public class OrganizationsController(
     }
 
     /// <summary>
-    /// Admit a pending requester, granting them the organization's default role.
+    /// Approve a membership request.
     /// </summary>
+    /// <remarks>
+    /// Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+    /// administrator or hold this permission through membership in that organization. Activates a pending membership
+    /// and grants the organization default role. A membership that is not pending is rejected.
+    /// </remarks>
     [HttpPost("{id:guid}/members/{userId:guid}/approve")]
     [HasPermission(PermissionType.OrganizationsManageMembers)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -213,8 +263,13 @@ public class OrganizationsController(
     }
 
     /// <summary>
-    /// Turn a pending requester away.
+    /// Deny a membership request.
     /// </summary>
+    /// <remarks>
+    /// Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+    /// administrator or hold this permission through membership in that organization. Marks a pending membership as
+    /// denied. A membership that is not pending is rejected.
+    /// </remarks>
     [HttpPost("{id:guid}/members/{userId:guid}/deny")]
     [HasPermission(PermissionType.OrganizationsManageMembers)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -232,8 +287,13 @@ public class OrganizationsController(
     }
 
     /// <summary>
-    /// Let a denied requester ask again now, instead of waiting out the denial.
+    /// Clear a membership denial.
     /// </summary>
+    /// <remarks>
+    /// Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+    /// administrator or hold this permission through membership in that organization. Removes a denied membership so
+    /// the user can request access again immediately. This does not grant access.
+    /// </remarks>
     [HttpDelete("{id:guid}/members/{userId:guid}/denial")]
     [HasPermission(PermissionType.OrganizationsManageMembers)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -251,9 +311,13 @@ public class OrganizationsController(
     }
 
     /// <summary>
-    /// Take an active member's access to this organization away, keeping the membership so it can
-    /// be reinstated.
+    /// Suspend an organization member.
     /// </summary>
+    /// <remarks>
+    /// Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+    /// administrator or hold this permission through membership in that organization. Suspends an active membership
+    /// and revokes its access while retaining its roles. Suspending the last active owner is rejected.
+    /// </remarks>
     [HttpPost("{id:guid}/members/{userId:guid}/suspend")]
     [HasPermission(PermissionType.OrganizationsManageMembers)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -271,8 +335,13 @@ public class OrganizationsController(
     }
 
     /// <summary>
-    /// Reinstates membership using the current default role. Revoked tokens remain revoked.
+    /// Reinstate a suspended member.
     /// </summary>
+    /// <remarks>
+    /// Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+    /// administrator or hold this permission through membership in that organization. Reactivates a suspended
+    /// membership with its retained roles. Revoked tokens remain revoked.
+    /// </remarks>
     [HttpPost("{id:guid}/members/{userId:guid}/reinstate")]
     [HasPermission(PermissionType.OrganizationsManageMembers)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -290,9 +359,13 @@ public class OrganizationsController(
     }
 
     /// <summary>
-    /// Removes the caller membership without requiring a management permission.
-    /// The service still enforces membership and last-owner rules.
+    /// Leave an organization.
     /// </summary>
+    /// <remarks>
+    /// Requires an authenticated member, without a management permission. Removes the caller membership and revokes
+    /// access to that organization. Leaving as the last active owner is rejected, and platform suspension prevents
+    /// this action for non-global administrators.
+    /// </remarks>
     [HttpPost("{id:guid}/leave")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
@@ -305,6 +378,11 @@ public class OrganizationsController(
     /// <summary>
     /// Archive an organization.
     /// </summary>
+    /// <remarks>
+    /// Requires OrganizationsUpdate. The organization must be the resolved tenant, or you must be a global
+    /// administrator or hold this permission through membership in that organization. Archives the organization and
+    /// revokes organization access. Registration and membership records remain available for reactivation.
+    /// </remarks>
     [HttpPost("{id:guid}/archive")]
     [HasPermission(PermissionType.OrganizationsUpdate)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -324,6 +402,11 @@ public class OrganizationsController(
     /// <summary>
     /// Reactivate an archived organization.
     /// </summary>
+    /// <remarks>
+    /// Requires OrganizationsUpdate. The organization must be the resolved tenant, or you must be a global
+    /// administrator or hold this permission through membership in that organization. Restores the organization to
+    /// active status. Revoked credentials and separate client suspensions are not restored.
+    /// </remarks>
     [HttpPost("{id:guid}/reactivate")]
     [HasPermission(PermissionType.OrganizationsUpdate)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -341,9 +424,12 @@ public class OrganizationsController(
     }
 
     /// <summary>
-    /// Applies an organization platform suspension and revokes associated access.
-    /// Requires global administrator authority; global administrators may still make changes.
+    /// Suspend an organization at platform level.
     /// </summary>
+    /// <remarks>
+    /// Requires a global administrator. Records the supplied reason and revokes organization access. Non-global
+    /// administrators cannot mutate the organization while the platform suspension remains in effect.
+    /// </remarks>
     [HttpPost("{id:guid}/platform-suspension")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -361,8 +447,12 @@ public class OrganizationsController(
     }
 
     /// <summary>
-    /// Lifts the organization platform suspension. Revoked tokens and separate client suspensions remain unchanged.
+    /// Lift an organization platform suspension.
     /// </summary>
+    /// <remarks>
+    /// Requires a global administrator. Clears the addressed organization platform suspension. Revoked tokens,
+    /// archive status, and separate client suspensions remain unchanged.
+    /// </remarks>
     [HttpDelete("{id:guid}/platform-suspension")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -379,8 +469,14 @@ public class OrganizationsController(
     }
 
     /// <summary>
-    /// Permanently delete an organization. Requires name confirmation.
+    /// Permanently delete an organization.
     /// </summary>
+    /// <remarks>
+    /// Requires OrganizationsDelete. The organization must be the resolved tenant, or you must be a global
+    /// administrator or hold this permission through membership in that organization. confirmName must exactly match
+    /// the organization name. Revokes access and deletes the organization, memberships, clients, invitations, and
+    /// identity settings, then requests cleanup in other modules.
+    /// </remarks>
     [HttpDelete("{id:guid}")]
     [HasPermission(PermissionType.OrganizationsDelete)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -399,6 +495,12 @@ public class OrganizationsController(
     /// <summary>
     /// Get organization branding.
     /// </summary>
+    /// <remarks>
+    /// Requires OrganizationsRead. The organization must be the resolved tenant, or you must be a global
+    /// administrator or hold this permission through membership in that organization. Returns stored logo and colors,
+    /// or 404 when no branding exists in the resolved tenant. displayName is not stored by this endpoint and is
+    /// returned as null.
+    /// </remarks>
     [HttpGet("{id:guid}/branding")]
     [HasPermission(PermissionType.OrganizationsRead)]
     public async Task<ActionResult<OrganizationBrandingResponse>> GetBranding(Guid id, CancellationToken ct)
@@ -424,6 +526,11 @@ public class OrganizationsController(
     /// <summary>
     /// Update organization branding.
     /// </summary>
+    /// <remarks>
+    /// Requires OrganizationsUpdate. The organization must be the resolved tenant, or you must be a global
+    /// administrator or hold this permission through membership in that organization. Replaces the logo URL and
+    /// primary color, preserving the accent color. displayName is echoed in this response but is not persisted.
+    /// </remarks>
     [HttpPut("{id:guid}/branding")]
     [HasPermission(PermissionType.OrganizationsUpdate)]
     public async Task<ActionResult<OrganizationBrandingResponse>> UpdateBranding(
@@ -446,8 +553,14 @@ public class OrganizationsController(
     }
 
     /// <summary>
-    /// Upload organization branding logo.
+    /// Get a proposed organization logo URL.
     /// </summary>
+    /// <remarks>
+    /// Requires OrganizationsUpdate. The organization must be the resolved tenant, or you must be a global
+    /// administrator or hold this permission through membership in that organization. Accepts a multipart file and
+    /// returns a URL based on its filename. This endpoint currently does not store the file or update the
+    /// organization branding.
+    /// </remarks>
     [HttpPost("{id:guid}/branding/logo")]
     [HasPermission(PermissionType.OrganizationsUpdate)]
     [Consumes("multipart/form-data")]
@@ -470,8 +583,13 @@ public class OrganizationsController(
     }
 
     /// <summary>
-    /// Get organization settings.
+    /// Get organization security and enrollment settings.
     /// </summary>
+    /// <remarks>
+    /// Requires OrganizationsRead. The organization must be the resolved tenant, or you must be a global
+    /// administrator or hold this permission through membership in that organization. Returns MFA, passwordless
+    /// login, and enrollment settings, or 404 when settings are absent from the resolved tenant.
+    /// </remarks>
     [HttpGet("{id:guid}/settings")]
     [HasPermission(PermissionType.OrganizationsRead)]
     public async Task<ActionResult<OrganizationSettingsDto>> GetSettings(Guid id, CancellationToken ct)
@@ -486,8 +604,15 @@ public class OrganizationsController(
     }
 
     /// <summary>
-    /// Update organization settings.
+    /// Replace organization MFA settings.
     /// </summary>
+    /// <remarks>
+    /// Requires OrganizationsUpdate. The organization must be the resolved tenant, or you must be a global
+    /// administrator or hold this permission through membership in that organization. Omitted requireMfa and
+    /// mfaGracePeriodDays become false and zero; passwordless login is disabled. A positive grace period with
+    /// required MFA sets a new deadline for active members without MFA; allowedLoginMethods and defaultMemberRole are
+    /// currently ignored.
+    /// </remarks>
     [HttpPut("{id:guid}/settings")]
     [HasPermission(PermissionType.OrganizationsUpdate)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -505,9 +630,14 @@ public class OrganizationsController(
     }
 
     /// <summary>
-    /// Replaces the enrollment policy, request-email address, and default role.
-    /// Requires permission to manage members.
+    /// Replace organization enrollment settings.
     /// </summary>
+    /// <remarks>
+    /// Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+    /// administrator or hold this permission through membership in that organization. Replaces the enrollment policy,
+    /// access-request email, and default role ID. A supplied role ID must exist; null selects the user role for
+    /// future enrollments.
+    /// </remarks>
     [HttpPut("{id:guid}/enrollment")]
     [HasPermission(PermissionType.OrganizationsManageMembers)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

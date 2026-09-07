@@ -25,6 +25,14 @@ public class InvitationsController(
     IInvitationRepository invitationRepository,
     ITenantContext tenantContext) : ControllerBase
 {
+    /// <summary>
+    /// Invite a user to the resolved organization.
+    /// </summary>
+    /// <remarks>
+    /// Requires OrganizationsManageMembers in the resolved tenant. Creates an email invitation valid for seven days,
+    /// or renews an outstanding invitation with the same token, and requests delivery. Existing active members cannot
+    /// be invited; the response includes invitation status and expiry.
+    /// </remarks>
     [HttpPost]
     [Authorize]
     [HasPermission(PermissionType.OrganizationsManageMembers)]
@@ -40,6 +48,13 @@ public class InvitationsController(
         return CreatedAtAction(nameof(Verify), new { token = invitation.Token }, response);
     }
 
+    /// <summary>
+    /// List organization invitations.
+    /// </summary>
+    /// <remarks>
+    /// Requires OrganizationsManageMembers in the resolved tenant. Returns invitations of all statuses, newest first,
+    /// without invitation tokens. skip is a zero-based offset and take is the maximum number of results.
+    /// </remarks>
     [HttpGet]
     [Authorize]
     [HasPermission(PermissionType.OrganizationsManageMembers)]
@@ -53,6 +68,13 @@ public class InvitationsController(
         return Ok(responses);
     }
 
+    /// <summary>
+    /// Revoke an organization invitation.
+    /// </summary>
+    /// <remarks>
+    /// Requires OrganizationsManageMembers in the resolved tenant. Revokes a pending invitation identified by its ID,
+    /// preventing acceptance. An invitation outside the resolved tenant or a missing invitation returns 404.
+    /// </remarks>
     [HttpDelete("{id:guid}")]
     [Authorize]
     [HasPermission(PermissionType.OrganizationsManageMembers)]
@@ -65,6 +87,14 @@ public class InvitationsController(
         return NoContent();
     }
 
+    /// <summary>
+    /// Look up an invitation token.
+    /// </summary>
+    /// <remarks>
+    /// Allows anonymous access without an organization context. Returns the matching invitation recipient, status,
+    /// and expiry, including invitations that are no longer pending. A successful lookup does not guarantee that
+    /// acceptance is allowed; unknown tokens return 404.
+    /// </remarks>
     [HttpGet("verify/{token}")]
     [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -81,8 +111,13 @@ public class InvitationsController(
     }
 
     /// <summary>
-    /// Accepts an invitation for the authenticated user, whose verified email must match the invitation.
+    /// Accept an organization invitation.
     /// </summary>
+    /// <remarks>
+    /// Requires an authenticated user whose verified email matches the invitation, without an existing organization
+    /// context. A valid pending invitation creates or approves membership using the invited organization default
+    /// role. Expired invitations and suspended or denied memberships are rejected.
+    /// </remarks>
     [HttpPost("{token}/accept")]
     [Authorize]
     [AllowWithoutOrganization]

@@ -1,14 +1,4 @@
-/**
- * The browser half of the BFF logout contract, plus the `WallowUser` shape the
- * `/bff/user` endpoint resolves.
- *
- * `logout()` is deliberately the ONLY imperative navigation helper left here:
- * login is a plain link built with `loginRedirect()` (route-context.ts), and the
- * current user is read through `getCurrentUser`/`currentUserQuery`. Logout alone
- * cannot be a link — `/bff/logout` is CSRF-gated and answers 405 to a GET — so
- * the SDK ships the client call matching its own handler, pinned together by
- * `auth-logout.contract.test.ts`.
- */
+/** Browser BFF logout and the user-claims shape returned by `/bff/user`. */
 
 import { readCsrfCookie } from "./csrf";
 
@@ -70,16 +60,13 @@ export interface LogoutOptions {
 }
 
 /**
- * End the BFF session and send the browser on to the IdP's end-session URL.
+ * End the browser's BFF session and navigate through identity-provider logout.
  *
- * `/bff/logout` is a state-changing endpoint: it answers `405` to anything but
- * a `POST` carrying a valid `x-csrf-token`, so this cannot be a plain
- * navigation. The session-clearing request is issued with `fetch`, and the
- * browser is then navigated to the end-session URL the handler answers with.
+ * Posts to `/bff/logout` with the CSRF cookie echoed in `x-csrf-token`, then navigates
+ * to the returned logout URL (or `/` when no URL is returned).
  *
- * @param options Optional {@link LogoutOptions}.
- * @throws Error synchronously when called outside a browser context; rejects
- *         when the BFF refuses the logout.
+ * @throws Error when called outside a browser. The promise rejects if the
+ * logout request fails.
  */
 export function logout(options?: LogoutOptions): Promise<void> {
   // Not an `async function`: the SSR guard must throw synchronously (see

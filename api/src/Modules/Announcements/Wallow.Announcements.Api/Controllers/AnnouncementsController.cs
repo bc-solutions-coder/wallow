@@ -27,6 +27,15 @@ namespace Wallow.Announcements.Api.Controllers;
 public class AnnouncementsController(IMessageBus bus, ITenantContext tenantContext, ICurrentUserService currentUserService) : ControllerBase
 {
 
+    /// <summary>
+    /// List active announcements for the current user.
+    /// </summary>
+    /// <remarks>
+    /// Requires an authenticated user with AnnouncementRead in the current tenant. Returns published
+    /// announcements within their publication and expiry dates that match the user's tenant or roles, excluding
+    /// dismissible announcements already dismissed by that user. Pinned announcements appear first, then newest
+    /// first within each group.
+    /// </remarks>
     [HttpGet]
     [HasPermission(PermissionType.AnnouncementRead)]
     [ProducesResponseType(typeof(IReadOnlyList<AnnouncementResponse>), StatusCodes.Status200OK)]
@@ -53,6 +62,14 @@ public class AnnouncementsController(IMessageBus bus, ITenantContext tenantConte
             .ToActionResult();
     }
 
+    /// <summary>
+    /// Dismiss an announcement for the current user.
+    /// </summary>
+    /// <remarks>
+    /// Requires an authenticated user with AnnouncementRead in the current tenant. Hides a dismissible
+    /// announcement from this user's active list; repeating the dismissal succeeds without creating another
+    /// dismissal. Returns 404 for an unknown announcement and rejects announcements that are not dismissible.
+    /// </remarks>
     [HttpPost("{id:guid}/dismiss")]
     [HasPermission(PermissionType.AnnouncementRead)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

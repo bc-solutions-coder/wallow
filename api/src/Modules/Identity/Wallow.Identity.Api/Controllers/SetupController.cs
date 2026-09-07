@@ -22,6 +22,14 @@ namespace Wallow.Identity.Api.Controllers;
 [Consumes("application/json")]
 public class SetupController(IMessageBus messageBus, IOrganizationService organizationService) : ControllerBase
 {
+    /// <summary>
+    /// Check whether administrator setup is required.
+    /// </summary>
+    /// <remarks>
+    /// Available without authentication. Setup remains open until an active organization membership has a role
+    /// granting AdminAccess. While setup is open, the response includes an organization name only when exactly one
+    /// organization exists.
+    /// </remarks>
     [HttpGet("status")]
     [ProducesResponseType(typeof(SetupStatusResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<SetupStatusResponse>> GetStatus(CancellationToken ct)
@@ -39,6 +47,15 @@ public class SetupController(IMessageBus messageBus, IOrganizationService organi
         return Ok(new SetupStatusResponse(SetupRequired: true, organizationName));
     }
 
+    /// <summary>
+    /// Create the initial organization administrator.
+    /// </summary>
+    /// <remarks>
+    /// Available without authentication while setup is required. Creates the account and enrolls it as owner of an
+    /// organization with a matching name, or creates that organization. Returns no content on success and 409 if
+    /// setup is already complete or the bootstrap result fails. An existing account with the supplied email leaves
+    /// bootstrap unchanged.
+    /// </remarks>
     [HttpPost("admin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]

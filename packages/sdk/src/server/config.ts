@@ -88,23 +88,14 @@ export interface BffConfig {
    */
   appId?: string;
   /**
-   * The ACTIVE password used to seal the session and transaction cookies —
-   * unchanged in shape and meaning, and still the whole story when no rotation
-   * is in progress. Prefer {@link cookiePasswords} when unsealing, so cookies
-   * sealed under a retired key are still accepted.
+   * Active secret used to seal new session and transaction cookies. When cookiePasswords is
+   * supplied, it also provides older keys for unsealing existing cookies.
    */
   cookiePassword: string;
   /**
-   * Every cookie secret currently accepted, and which one seals new cookies.
-   * Built from `COOKIE_PASSWORDS` when set, otherwise a single entry wrapping
-   * {@link cookiePassword}.
-   *
-   * {@link loadBffConfigFromEnv} always populates it. It stays OPTIONAL because
-   * `BffConfig` is public API a fork may build by hand, and requiring a new
-   * field would break every such caller; those callers keep working on
-   * {@link cookiePassword} alone. Seal/unseal sites therefore pass
-   * `config.cookiePasswords ?? config.cookiePassword`, which is exactly a
-   * {@link CookieSecret}.
+   * Accepted cookie secrets and the active key used for new cookies. loadBffConfigFromEnv
+   * always populates this field. Manually constructed configuration can omit it to use
+   * cookiePassword alone.
    */
   cookiePasswords?: CookiePasswordSet;
   /**
@@ -297,43 +288,18 @@ function defaultCookieName(
 }
 
 /**
- * Build a {@link BffConfig} from environment variables.
+ * Load server-only OIDC, API, and cookie configuration.
  *
- * Required keys (throws when missing): `OIDC_ISSUER`, `OIDC_CLIENT_ID`,
- * `OIDC_CLIENT_SECRET`, `OIDC_REDIRECT_URI`, `OIDC_POST_LOGOUT_REDIRECT_URI`,
- * `BFF_API_BASE_URL`, `COOKIE_PASSWORD`. `OIDC_SCOPES` (space-separated),
- * `COOKIE_NAME`, `OIDC_METADATA_URL`, `SESSION_TTL_SECONDS`, `COOKIE_SECURE`,
- * `COOKIE_SAMESITE`, `COOKIE_HOST_PREFIX`, and `BFF_APP_ID` are optional with
- * defaults.
+ * Requires OIDC_ISSUER, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET, OIDC_REDIRECT_URI,
+ * OIDC_POST_LOGOUT_REDIRECT_URI, BFF_API_BASE_URL, and COOKIE_PASSWORD or COOKIE_PASSWORDS.
+ * Cookie secrets must contain at least 32 characters. Optional settings include OIDC_SCOPES,
+ * OIDC_METADATA_URL, SESSION_TTL_SECONDS, BFF_APP_ID, and cookie attributes.
  *
- * `COOKIE_PASSWORD` must also be at least 32 characters — the minimum
- * iron-webcrypto seals a session with — so a too-short secret fails here at
- * boot instead of inside the first OIDC callback.
+ * @param env Environment source, defaulting to process.env.
  *
- * `COOKIE_PASSWORDS` is the optional rotation form: a JSON object of key ID to
- * secret, e.g. `{"v2":"<32+ chars>","v1":"<32+ chars>"}`. The FIRST key seals new
- * cookies and every key stays valid for unsealing, which is what lets a secret be
- * replaced without 401ing every live session. It makes `COOKIE_PASSWORD`
- * unnecessary (and overrides it when both are set), and each of its secrets is
- * held to the same 32-character minimum. When it is unset the single password is
- * wrapped under {@link DEFAULT_COOKIE_KEY_ID}, so both paths produce the same
- * shape.
+ * @returns Configuration containing secrets; keep it on the server.
  *
- * A malformed `SESSION_TTL_SECONDS` or `COOKIE_SAMESITE` throws rather than
- * silently falling back to the default, so a startup misconfiguration fails
- * loudly. `COOKIE_SECURE` and
- * `COOKIE_HOST_PREFIX` instead fail secure: only the literal `false` clears
- * the flag. A non-empty `COOKIE_NAME` is taken verbatim and never prefixed; an
- * empty or whitespace-only one counts as unset, so passing the variable through
- * unconditionally cannot name the session cookie "".
- *
- * The whole contract is validated before anything throws, and every problem is
- * reported in ONE error (Wallow-pu6a.3.7). Throwing on the first missing name
- * costs a fork one restart per variable when bringing up a new environment, and
- * a loader that runs lazily turns a boot-time misconfiguration into a 500 on the
- * first request instead.
- *
- * @param env Environment source. Defaults to `process.env`.
+ * @throws {Error} Reports all detected missing or invalid settings in one error.
  */
 export function loadBffConfigFromEnv(env: NodeJS.ProcessEnv = process.env): BffConfig {
   const problems: string[] = [];

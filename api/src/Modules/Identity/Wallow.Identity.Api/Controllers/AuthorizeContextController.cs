@@ -26,6 +26,18 @@ public class AuthorizeContextController(IAuthorizeContextService authorizeContex
 {
     private const string AuthorizePathSuffix = "/connect/authorize";
 
+    /// <summary>
+    /// Get display context for a browser authorization request.
+    /// </summary>
+    /// <remarks>
+    /// Available without authentication. Accepts a local returnUrl ending in /connect/authorize with client_id and a
+    /// registered redirect_uri. Returns client branding, organization name, and requested scope descriptions, or 404
+    /// for invalid context or a refused client. This display context does not authenticate or authorize the
+    /// transaction.
+    /// </remarks>
+    /// <param name="returnUrl">Local authorization return URL containing client_id and redirect_uri.</param>
+    /// <param name="scope">Optional space-separated scope names; a nonblank value overrides scope in returnUrl.</param>
+    /// <param name="ct">Cancels the request.</param>
     [HttpGet]
     [AllowAnonymous]
     [ProducesResponseType(typeof(AuthorizeContextResponse), StatusCodes.Status200OK)]

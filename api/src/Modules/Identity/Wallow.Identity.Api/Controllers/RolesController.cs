@@ -22,8 +22,12 @@ public class RolesController(RoleManager<WallowRole> roleManager, IRolePermissio
 {
 
     /// <summary>
-    /// Get all available roles in the system.
+    /// List available roles.
     /// </summary>
+    /// <remarks>
+    /// Requires RolesRead in the resolved tenant. Returns names from the global role catalog, rather than the caller
+    /// role assignments.
+    /// </remarks>
     [HttpGet]
     [HasPermission(PermissionType.RolesRead)]
     [ProducesResponseType(typeof(IReadOnlyList<RoleResponse>), StatusCodes.Status200OK)]
@@ -35,8 +39,12 @@ public class RolesController(RoleManager<WallowRole> roleManager, IRolePermissio
     }
 
     /// <summary>
-    /// Get the permissions associated with a specific role.
+    /// Get permissions for a role.
     /// </summary>
+    /// <remarks>
+    /// Requires RolesRead in the resolved tenant. Returns permission names from the platform role mapping for
+    /// roleName. An unknown role returns an empty list.
+    /// </remarks>
     [HttpGet("{roleName}/permissions")]
     [HasPermission(PermissionType.RolesRead)]
     [ProducesResponseType(typeof(IReadOnlyList<string>), StatusCodes.Status200OK)]

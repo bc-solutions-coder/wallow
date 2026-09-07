@@ -29,8 +29,13 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
     private Guid ActorId() => Guid.Parse(User.GetUserId()!);
 
     /// <summary>
-    /// Searches users in the resolved tenant with pagination.
+    /// Search user accounts.
     /// </summary>
+    /// <remarks>
+    /// Requires UsersRead in the resolved tenant. Searches the global user directory by email, first name, or last
+    /// name, ordered by email; displayed roles come only from active memberships in the resolved tenant. first is a
+    /// zero-based offset and max is the page size; the response includes total count and page metadata.
+    /// </remarks>
     [HttpGet]
     [HasPermission(PermissionType.UsersRead)]
     public async Task<ActionResult<PagedResult<UserDto>>> GetUsers(
@@ -50,8 +55,12 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
     }
 
     /// <summary>
-    /// Gets a user who belongs to the resolved tenant.
+    /// Get an organization member account.
     /// </summary>
+    /// <remarks>
+    /// Requires UsersRead and an active membership for the target user in the resolved tenant. Returns the account
+    /// profile and roles in that tenant, or 404 when the user is missing or is not a member.
+    /// </remarks>
     [HttpGet("{id:guid}")]
     [HasPermission(PermissionType.UsersRead)]
     public async Task<ActionResult<UserDto>> GetUserById(Guid id, CancellationToken ct)
@@ -71,8 +80,12 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
     }
 
     /// <summary>
-    /// Get the currently authenticated user's profile, roles, and permissions.
+    /// Get the authenticated user profile.
     /// </summary>
+    /// <remarks>
+    /// Requires authentication without an organization context or management permission. Returns profile fields,
+    /// roles, permissions, and global administrator status from the current authentication claims.
+    /// </remarks>
     [HttpGet("me")]
     [AllowWithoutOrganization]
     public ActionResult<CurrentUserResponse> GetCurrentUser()
@@ -90,8 +103,12 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
     }
 
     /// <summary>
-    /// Creates a user account and adds it to the resolved tenant with the user role.
+    /// Create a user and organization membership.
     /// </summary>
+    /// <remarks>
+    /// Requires UsersCreate in the resolved tenant. Creates an account with the supplied email and profile,
+    /// optionally sets a password, and enrolls the user with the user role. Returns the created account and its URL.
+    /// </remarks>
     [HttpPost]
     [HasPermission(PermissionType.UsersCreate)]
     [ProducesResponseType(typeof(UserDto), StatusCodes.Status201Created)]
@@ -112,8 +129,12 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
     }
 
     /// <summary>
-    /// Deactivate a user account.
+    /// Lock a member user account.
     /// </summary>
+    /// <remarks>
+    /// Requires UsersUpdate and an active membership for the target user in the resolved tenant. Locks the account
+    /// indefinitely and revokes the user access across organizations. A missing membership returns 404.
+    /// </remarks>
     [HttpPost("{id:guid}/deactivate")]
     [HasPermission(PermissionType.UsersUpdate)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -130,8 +151,12 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
     }
 
     /// <summary>
-    /// Activate a previously deactivated user account.
+    /// Unlock a member user account.
     /// </summary>
+    /// <remarks>
+    /// Requires UsersUpdate and an active membership for the target user in the resolved tenant. Clears the account
+    /// lockout across organizations. Previously revoked tokens remain revoked; a missing membership returns 404.
+    /// </remarks>
     [HttpPost("{id:guid}/activate")]
     [HasPermission(PermissionType.UsersUpdate)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -148,8 +173,13 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
     }
 
     /// <summary>
-    /// Assigns a role within the resolved tenant. Reserved global-administrator names are rejected.
+    /// Assign a role to an organization member.
     /// </summary>
+    /// <remarks>
+    /// Requires RolesUpdate and an active membership for the target user in the resolved tenant. Adds an existing
+    /// named role to that membership without replacing other roles. Reserved global-administrator role names are
+    /// rejected.
+    /// </remarks>
     [HttpPost("{userId:guid}/roles")]
     [HasPermission(PermissionType.RolesUpdate)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -173,8 +203,12 @@ public class UsersController(IUserManagementService userManagement, IOrganizatio
     }
 
     /// <summary>
-    /// Removes the named role within the resolved tenant.
+    /// Remove a role from an organization member.
     /// </summary>
+    /// <remarks>
+    /// Requires RolesUpdate and an active membership for the target user in the resolved tenant. Removes the named
+    /// role from that membership while retaining other roles. A missing membership returns 404.
+    /// </remarks>
     [HttpDelete("{userId:guid}/roles/{roleName}")]
     [HasPermission(PermissionType.RolesUpdate)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

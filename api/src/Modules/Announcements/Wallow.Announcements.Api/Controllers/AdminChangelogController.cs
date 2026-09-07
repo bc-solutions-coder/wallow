@@ -22,6 +22,14 @@ namespace Wallow.Announcements.Api.Controllers;
 public class AdminChangelogController(IMessageBus bus, IHtmlSanitizationService sanitizer) : ControllerBase
 {
 
+    /// <summary>
+    /// Create an unpublished changelog entry.
+    /// </summary>
+    /// <remarks>
+    /// Requires ChangelogManage. Changelog entries are global and shared across tenants. Accepts a semantic
+    /// version, release date, title, and content, sanitizes the title and content, and returns the unpublished
+    /// entry. Publish the entry separately to make it visible anonymously.
+    /// </remarks>
     [HttpPost]
     [ProducesResponseType(typeof(ChangelogEntryResponse), StatusCodes.Status201Created)]
     public async Task<IActionResult> CreateChangelogEntry(
@@ -40,6 +48,14 @@ public class AdminChangelogController(IMessageBus bus, IHtmlSanitizationService 
             .ToCreatedResult("/v1/admin/changelog");
     }
 
+    /// <summary>
+    /// Publish a changelog entry.
+    /// </summary>
+    /// <remarks>
+    /// Requires ChangelogManage and makes the global entry visible through the anonymous changelog endpoints.
+    /// Preserves the supplied release date, which determines list order and the latest entry. Returns no
+    /// content, including for an already published entry, or 404 if the ID is unknown.
+    /// </remarks>
     [HttpPost("{id:guid}/publish")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]

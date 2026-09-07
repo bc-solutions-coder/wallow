@@ -1,20 +1,4 @@
-/**
- * Per-request SDK factory (Wallow-pu6a.3.5).
- *
- * The SDK's original model was a module-global client singleton: `client.ts`
- * constructs ONE generated `@hey-api` client at import time and every generated
- * operation calls through it, so `configureBffClient()`/`configureSsrClient()`
- * mutate shared state. That is safe in a browser (one document, one session) and
- * WRONG on a server, where concurrent renders for different users share the
- * module graph — the last request to configure the singleton wins, its cookie
- * leaks into another render, and interceptors accumulate on every re-configure.
- *
- * `createWallowSdk()` replaces that with an instance built per request: its own
- * generated client, its own `baseUrl`, its own interceptor list, its own
- * forwarded cookie. Generated operations bind to it through the standard
- * `{ client }` call option, e.g.
- * `usersGetCurrentUser({ client: sdk.client })`.
- */
+/** Create isolated browser or server-request clients for generated API operations. */
 import { wireCsrfInterceptor } from "./csrf";
 import { type Client, createClient, createConfig } from "./generated/client";
 import type { ClientOptions } from "./generated/types.gen";
@@ -22,38 +6,21 @@ import { wireApiFailureInterceptor } from "./runtime-config";
 
 /** Options for {@link createWallowSdk}. */
 export interface CreateWallowSdkOptions {
-  /**
-   * Base URL every generated operation resolves against. REQUIRED — the factory
-   * bakes in no `/api` default, because the correct value differs per caller
-   * (the browser wants the same-origin relative BFF path, an SSR render wants an
-   * absolute origin Node's `fetch` can parse).
-   */
+  /** API base URL: `/api` for a browser BFF, or an absolute URL for server calls. */
   baseUrl: string;
   /**
-   * Origin the SSR host can reach ITSELF on, when that differs from the
-   * browser-facing origin embedded in {@link baseUrl} (Wallow-spb5). Applied
-   * ONLY inside the instance's `fetch` — it rewrites the outgoing request's
-   * origin and leaves the client's configured `baseUrl` (and therefore every
-   * request identity derived from it) untouched, so a server instance and a
-   * browser instance built with the same `baseUrl` stay hydration-compatible.
+   * Reachable server origin used for SSR transport while retaining `baseUrl`
+   * in query-cache identities. Replaces only the outgoing request's origin.
    */
   internalOrigin?: string | undefined;
   /** Transport to send through. Defaults to `globalThis.fetch`. */
   fetch?: typeof globalThis.fetch | undefined;
-  /**
-   * The incoming request's `Cookie` header, forwarded on every outgoing request.
-   * Node's `fetch` has no cookie jar, so an SSR render must carry the session
-   * cookie explicitly. Captured per instance, never read from module scope.
-   */
+  /** Incoming SSR `Cookie` header, forwarded on every request from this instance. */
   cookieHeader?: string | undefined;
   /**
-   * Whether to wire the CSRF request interceptor onto the instance. Defaults to
-   * `true` — the BFF topology, where the `/api` proxy rejects a state-changing
-   * request that does not echo the double-submit cookie. Pass `false` in a
-   * passthrough topology (wallow-auth): there is no BFF session and no CSRF
-   * cookie of its own, and behind a shared-hostname ingress the jar can hold
-   * ANOTHER app's `-csrf` cookie, which the interceptor would happily stamp onto
-   * requests whose upstream never asked for it.
+   * Echo the browser BFF CSRF cookie on state-changing requests. Defaults to
+   * `true`; use `false` for an API passthrough without a BFF session. During SSR,
+   * forward any required CSRF header explicitly: the interceptor reads `document`.
    */
   csrf?: boolean | undefined;
 }
@@ -68,12 +35,18 @@ export interface WallowSdk {
 }
 
 /**
- * Build a request-scoped SDK instance over the generated client factory.
+ * Create an isolated client for calling Wallow API operations.
  *
- * Every call constructs a FRESH generated client — no module-global state is
- * read or written — wires the CSRF interceptor onto it exactly once (unless
- * `csrf: false` opts the topology out), and applies `internalOrigin` inside the
- * instance's `fetch` only.
+ * Pass the returned `client` to generated functions as `{ client: sdk.client }`.
+ * Use `/api` for a browser BFF, or an absolute BFF URL and the incoming
+ * `cookieHeader` for SSR. Create a new instance for each server request.
+ * Requests include credentials and use the SDK's `ApiFailure` error handling.
+ *
+ * @example
+ * const sdk = createWallowSdk({ baseUrl: "/api" });
+ * const user = await usersGetCurrentUser({ client: sdk.client });
+ *
+ * @throws Error when `baseUrl` is empty or whitespace.
  */
 export function createWallowSdk(options: CreateWallowSdkOptions): WallowSdk {
   if (options.baseUrl.trim() === "") {

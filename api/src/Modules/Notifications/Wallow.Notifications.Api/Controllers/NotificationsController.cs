@@ -30,8 +30,16 @@ public class NotificationsController(IMessageBus bus, ICurrentUserService curren
 {
 
     /// <summary>
-    /// Get the current user's notification history.
+    /// List the current user's notification history.
     /// </summary>
+    /// <remarks>
+    /// Requires NotificationRead and an authenticated user in the current tenant. Returns a page ordered newest
+    /// first, excluding archived and expired notifications. Pagination metadata includes the total matching
+    /// count and whether adjacent pages exist.
+    /// </remarks>
+    /// <param name="pageNumber">One-based page number; defaults to 1.</param>
+    /// <param name="pageSize">Number of notifications per page; defaults to 20.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
     [HttpGet]
     [HasPermission(PermissionType.NotificationRead)]
     [ProducesResponseType(typeof(PagedNotificationResponse), StatusCodes.Status200OK)]
@@ -62,8 +70,13 @@ public class NotificationsController(IMessageBus bus, ICurrentUserService curren
     }
 
     /// <summary>
-    /// Get the current user's unread notification count.
+    /// Count the current user's unread notifications.
     /// </summary>
+    /// <remarks>
+    /// Requires NotificationRead and an authenticated user in the current tenant. Counts all unread
+    /// notifications for that user, including archived or expired notifications that the history endpoint omits.
+    /// Returns a count without changing read state.
+    /// </remarks>
     [HttpGet("unread-count")]
     [HasPermission(PermissionType.NotificationRead)]
     [ProducesResponseType(typeof(UnreadCountResponse), StatusCodes.Status200OK)]
@@ -83,8 +96,13 @@ public class NotificationsController(IMessageBus bus, ICurrentUserService curren
     }
 
     /// <summary>
-    /// Mark a single notification as read.
+    /// Mark a notification as read.
     /// </summary>
+    /// <remarks>
+    /// Requires NotificationRead and ownership of the notification in the current tenant. Records the current
+    /// read time and returns no content, updating the timestamp even for an already read notification. Returns
+    /// 404 for an unknown notification and an access-denied error for another user's notification.
+    /// </remarks>
     [HttpPost("{id:guid}/read")]
     [HasPermission(PermissionType.NotificationRead)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -110,8 +128,13 @@ public class NotificationsController(IMessageBus bus, ICurrentUserService curren
     }
 
     /// <summary>
-    /// Mark all notifications as read for the current user.
+    /// Mark all of the current user's notifications as read.
     /// </summary>
+    /// <remarks>
+    /// Requires NotificationRead and an authenticated user in the current tenant. Marks every unread
+    /// notification for that user as read, including archived or expired notifications and notifications outside
+    /// the current history page. Returns no content, including when there are no unread notifications.
+    /// </remarks>
     [HttpPost("read-all")]
     [HasPermission(PermissionType.NotificationRead)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

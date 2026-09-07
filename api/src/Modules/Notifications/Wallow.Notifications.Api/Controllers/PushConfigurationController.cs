@@ -26,11 +26,29 @@ namespace Wallow.Notifications.Api.Controllers;
 [Produces("application/json")]
 public class PushConfigurationController(IMessageBus bus, ITenantContext tenantContext, Application.Channels.Push.Interfaces.IWebPushConfiguration webPushConfiguration) : ControllerBase
 {
+    /// <summary>
+    /// List tenant Web Push signing key versions.
+    /// </summary>
+    /// <remarks>
+    /// Requires PushConfigWrite in the current tenant. Returns key IDs, public keys, and current or retired
+    /// flags without private keys or credentials. Returns an empty list when no valid Web Push configuration
+    /// exists.
+    /// </remarks>
     [HttpGet("web-push/keys")]
     [HasPermission(PermissionType.PushConfigWrite)]
     [ProducesResponseType(typeof(IReadOnlyList<Application.Channels.Push.Interfaces.WebPushKeyVersion>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetWebPushKeys(CancellationToken ct) => Ok(await webPushConfiguration.GetVersionsAsync(ct));
 
+    /// <summary>
+    /// Create a new current Web Push signing key.
+    /// </summary>
+    /// <remarks>
+    /// Requires PushConfigWrite in the current tenant and a valid VAPID contact subject. Returns the new key ID
+    /// and public key, retaining previous nonretired keys for existing subscriptions. Rotation preserves the
+    /// configuration's enabled state; private keys are never returned.
+    /// </remarks>
+    /// <param name="request">VAPID subject as a mailto address or an HTTPS URI.</param>
+    /// <param name="ct">Cancels the request.</param>
     [HttpPost("web-push/keys")]
     [HasPermission(PermissionType.PushConfigWrite)]
     [ProducesResponseType(typeof(Application.Channels.Push.Interfaces.WebPushPublicKey), StatusCodes.Status200OK)]
@@ -40,6 +58,14 @@ public class PushConfigurationController(IMessageBus bus, ITenantContext tenantC
         return key is null ? Result.Failure(Domain.Errors.NotificationsErrors.WebPushInvalidConfiguration).ToActionResult() : Ok(key);
     }
 
+    /// <summary>
+    /// Retire a tenant Web Push signing key.
+    /// </summary>
+    /// <remarks>
+    /// Requires PushConfigWrite in the current tenant. Removes the private key and disables delivery for
+    /// subscriptions bound to this key. Retiring the current key also leaves no current key for new
+    /// subscriptions until another rotation. Returns 404 if the key or a valid configuration cannot be found.
+    /// </remarks>
     [HttpDelete("web-push/keys/{keyId}")]
     [HasPermission(PermissionType.PushConfigWrite)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -50,6 +76,15 @@ public class PushConfigurationController(IMessageBus bus, ITenantContext tenantC
         return retired ? NoContent() : Result.Failure(Domain.Errors.NotificationsErrors.TenantPushConfigurationNotFound).ToActionResult();
     }
 
+    /// <summary>
+    /// Get a tenant push configuration.
+    /// </summary>
+    /// <remarks>
+    /// Requires PushRead in the current tenant. Returns one stored platform configuration and its enabled state,
+    /// or no content when none exists. The credentials field always contains [redacted]; neither plaintext nor
+    /// encrypted credentials are returned. When multiple platforms are configured, the selected platform is
+    /// unspecified.
+    /// </remarks>
     [HttpGet]
     [HasPermission(PermissionType.PushRead)]
     [ProducesResponseType(typeof(TenantPushConfigResponse), StatusCodes.Status200OK)]
@@ -76,6 +111,15 @@ public class PushConfigurationController(IMessageBus bus, ITenantContext tenantC
         return Ok(response);
     }
 
+    /// <summary>
+    /// Set tenant push provider credentials.
+    /// </summary>
+    /// <remarks>
+    /// Requires PushConfigWrite in the current tenant. Creates a configuration for the specified platform or
+    /// replaces its credentials while preserving an existing enabled state. Credentials are encrypted for
+    /// storage and are not returned. Web Push replacements must preserve signing key history and cannot remove
+    /// or reactivate retired keys.
+    /// </remarks>
     [HttpPut]
     [HasPermission(PermissionType.PushConfigWrite)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -91,6 +135,14 @@ public class PushConfigurationController(IMessageBus bus, ITenantContext tenantC
         return result.ToNoContentResult();
     }
 
+    /// <summary>
+    /// Enable or disable a tenant push platform.
+    /// </summary>
+    /// <remarks>
+    /// Requires PushConfigWrite in the current tenant. Changes the specified platform's enabled state while
+    /// retaining its credentials and registered devices. Returns no content, or 404 when that platform has no
+    /// configuration.
+    /// </remarks>
     [HttpPatch("enabled")]
     [HasPermission(PermissionType.PushConfigWrite)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -107,6 +159,14 @@ public class PushConfigurationController(IMessageBus bus, ITenantContext tenantC
         return result.ToNoContentResult();
     }
 
+    /// <summary>
+    /// Remove a tenant push platform configuration.
+    /// </summary>
+    /// <remarks>
+    /// Requires PushConfigWrite in the current tenant. Deletes the specified platform's credentials and
+    /// configuration, returning no content even when no matching configuration exists. Web Push configuration
+    /// cannot be removed this way; disable it or retire its signing keys instead.
+    /// </remarks>
     [HttpDelete("{platform}")]
     [HasPermission(PermissionType.PushConfigWrite)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

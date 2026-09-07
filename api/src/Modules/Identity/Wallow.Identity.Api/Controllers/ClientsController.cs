@@ -38,6 +38,13 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
             [.. ApiScopes.LoginScopes, .. ApiScopes.ValidScopes, Scopes.Roles],
             StringComparer.Ordinal);
 
+    /// <summary>
+    /// List OIDC application registrations.
+    /// </summary>
+    /// <remarks>
+    /// Requires the AdminAccess permission. Returns all application registrations across organizations without
+    /// pagination. Responses include redirect, scope, logout, and refresh-token settings but omit client secrets.
+    /// </remarks>
     [HttpGet]
     [HasPermission(PermissionType.AdminAccess)]
     [ProducesResponseType(typeof(IReadOnlyList<ClientResponse>), StatusCodes.Status200OK)]
@@ -71,6 +78,15 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
         return Ok(clients);
     }
 
+    /// <summary>
+    /// Get an OIDC application registration.
+    /// </summary>
+    /// <remarks>
+    /// Requires the AdminAccess permission. Looks up the application record across organizations and returns its
+    /// configuration without the client secret. Returns 404 when the record does not exist.
+    /// </remarks>
+    /// <param name="id">Application record ID returned by client administration, not the public OIDC clientId.</param>
+    /// <param name="ct">Cancels the request.</param>
     [HttpGet("{id}")]
     [HasPermission(PermissionType.AdminAccess)]
     [ProducesResponseType(typeof(ClientResponse), StatusCodes.Status200OK)]
@@ -103,6 +119,15 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
         });
     }
 
+    /// <summary>
+    /// Register a confidential OIDC application.
+    /// </summary>
+    /// <remarks>
+    /// Requires the AdminAccess permission. Creates an unbound confidential client for authorization-code and
+    /// refresh-token flows, returning its generated clientId and plaintext secret once. Missing or empty Scopes
+    /// defaults to openid, profile, email, roles, and offline_access; unknown scopes are rejected. Redirect URIs
+    /// require HTTPS or loopback HTTP, and RefreshTokenLifetime is seconds from 60 to 31536000, defaulting to 86400.
+    /// </remarks>
     [HttpPost]
     [HasPermission(PermissionType.AdminAccess)]
     [ProducesResponseType(typeof(ClientResponse), StatusCodes.Status201Created)]
@@ -213,6 +238,18 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
         return CreatedAtAction(nameof(GetById), new { id }, response);
     }
 
+    /// <summary>
+    /// Update an OIDC application registration.
+    /// </summary>
+    /// <remarks>
+    /// Requires the AdminAccess permission. Replaces the display name and redirect lists while preserving the client
+    /// identifier, secret, and scope permissions. Omitted logout URLs remove those registrations; a null
+    /// RefreshTokenLifetime preserves its current value, while an explicit value changes future refresh tokens.
+    /// Returns the updated configuration or 404 for an unknown record.
+    /// </remarks>
+    /// <param name="id">Application record ID returned by client administration, not the public OIDC clientId.</param>
+    /// <param name="request">Client configuration fields to update.</param>
+    /// <param name="ct">Cancels the request.</param>
     [HttpPut("{id}")]
     [HasPermission(PermissionType.AdminAccess)]
     [ProducesResponseType(typeof(ClientResponse), StatusCodes.Status200OK)]
@@ -301,6 +338,15 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
         });
     }
 
+    /// <summary>
+    /// Delete an OIDC application registration.
+    /// </summary>
+    /// <remarks>
+    /// Requires the AdminAccess permission. Deletes the application record across organizations and returns no
+    /// content. Returns 404 when the record does not exist.
+    /// </remarks>
+    /// <param name="id">Application record ID returned by client administration, not the public OIDC clientId.</param>
+    /// <param name="ct">Cancels the request.</param>
     [HttpDelete("{id}")]
     [HasPermission(PermissionType.AdminAccess)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -317,6 +363,16 @@ public class ClientsController(IOpenIddictApplicationManager applicationManager)
         return NoContent();
     }
 
+    /// <summary>
+    /// Replace an OIDC client secret.
+    /// </summary>
+    /// <remarks>
+    /// Requires the AdminAccess permission. Replaces the application secret immediately and returns the new plaintext
+    /// secret with its configuration. The previous secret stops authenticating the client; subsequent reads do not
+    /// return the new secret.
+    /// </remarks>
+    /// <param name="id">Application record ID returned by client administration, not the public OIDC clientId.</param>
+    /// <param name="ct">Cancels the request.</param>
     [HttpPost("{id}/rotate-secret")]
     [HasPermission(PermissionType.AdminAccess)]
     [ProducesResponseType(typeof(ClientResponse), StatusCodes.Status200OK)]

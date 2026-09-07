@@ -1,17 +1,5 @@
 /**
- * BFF server preset (Wallow-pu6a.3.7).
- *
- * Absorbs the wiring every fork currently hand-assembles in its own host file
- * (`apps/wallow-web/src/lib/bff-server.ts`): load {@link BffConfig} from the
- * environment, pick a {@link SessionStore}, build the OIDC tunnel handlers and
- * the `/api` proxy over that ONE shared store, and dispatch by path. What comes
- * back is three web-standard entry points a host can mount anywhere:
- * {@link WallowBffServer.handleBff}, {@link WallowBffServer.handleApi}, and
- * {@link WallowBffServer.handleHealth}.
- *
- * The mount points are exported as {@link WALLOW_BFF_MOUNT} and
- * {@link WALLOW_API_MOUNT} so a host and the SDK agree on the prefixes by
- * import rather than by repeating string literals that can drift apart.
+ * Same-origin BFF routing, shared session storage, and OIDC authentication handlers.
  */
 
 import { ErrorCode } from "@bc-solutions-coder/api-errors";
@@ -32,7 +20,7 @@ import { DEFAULT_KEY_PREFIX, ValkeySessionStore } from "./store/valkey";
 /** Mount point of the reverse `/api` proxy: everything below it is forwarded. */
 export const WALLOW_API_MOUNT: string = "/api";
 
-/** Mount point of the OIDC tunnel handlers (`login`, `callback`, `user`, `logout`). */
+/** Mount point of the six OIDC authentication and logout handlers. */
 export const WALLOW_BFF_MOUNT: string = "/bff";
 
 /** Options for {@link createWallowBffServer}. */
@@ -85,16 +73,22 @@ export interface WallowBffServerOptions {
 
 /** The BFF surface a host mounts. */
 export interface WallowBffServer {
-  /** Handle a request under {@link WALLOW_BFF_MOUNT}; unknown sub-paths answer 404. */
+  /**
+   * Dispatch /bff/login, /bff/callback, /bff/user, /bff/logout, /bff/frontchannel-logout,
+   * and /bff/backchannel-logout. Unknown paths return a 404 problem. Preserve the returned
+   * response cookies when mounting this handler.
+   */
   handleBff: (request: Request) => Promise<Response>;
   /**
-   * Handle a request under {@link WALLOW_API_MOUNT}; anything else answers 404.
-   * Pass the request as srvx hands it over — its `ip` is the peer address the
-   * proxy forwards to the API, resolved through the trusted-proxy list and never
-   * read from a header the caller could have written.
+   * Proxy /api requests using the BFF session and CSRF checks. Pass request.ip from the
+   * server runtime for trusted client-address resolution. Paths outside /api return a 404
+   * problem.
    */
   handleApi: (request: PeerRequest) => Promise<Response>;
-  /** Liveness probe: 200 with a small JSON body. */
+  /**
+   * Return 200 with { status: "ok" }. This checks process liveness only and does not query
+   * Redis, the API, or the issuer.
+   */
   handleHealth: () => Response;
   /** The resolved configuration. */
   readonly config: BffConfig;
@@ -241,10 +235,18 @@ function bffSubPath(pathname: string): string | null {
 }
 
 /**
- * Build the BFF server preset.
+ * Create the server handlers for a same-origin browser app.
  *
- * @param options Config, store, and Redis-client overrides. Everything omitted
- *   is resolved from the environment.
+ * Mount handleBff under /bff and handleApi under /api, preserving all response Set-Cookie
+ * headers. Both use one session store, selected from options.store, options.redisClient,
+ * REDIS_URL, or the cookie-only fallback, in that order. The returned health handler reports
+ * process liveness without checking dependencies.
+ *
+ * @param options Explicit configuration and store overrides, with remaining values read from
+ * options.env or process.env.
+ *
+ * @throws {Error} When environment configuration is incomplete or invalid. Redis connection and
+ * OIDC discovery failures can occur when handlers run.
  */
 export function createWallowBffServer(options: WallowBffServerOptions = {}): WallowBffServer {
   const env: NodeJS.ProcessEnv = options.env ?? process.env;

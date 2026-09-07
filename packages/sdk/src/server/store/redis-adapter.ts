@@ -49,9 +49,14 @@ export interface NodeRedisClient {
 }
 
 /**
- * Wrap a node-redis client as a {@link RedisLike}, translating the store's
- * lowercase `{ex, nx}` set options to node-redis's `{EX, NX}` and narrowing the
- * replies to the port's `string | null` / `"OK" | null` / `number`.
+ * Adapt a connected node-redis client to the RedisLike session-store interface.
+ *
+ * Translates lowercase ex and nx options to node-redis options and normalizes get and set
+ * replies. Does not open or close the connection; the host owns its lifecycle and error
+ * listeners.
+ *
+ * @param client Connected client with string replies enabled; non-string get replies become
+ * null.
  */
 export function createRedisAdapter(client: NodeRedisClient): RedisLike {
   return {

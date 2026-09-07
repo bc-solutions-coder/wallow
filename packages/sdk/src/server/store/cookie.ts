@@ -36,31 +36,12 @@ export interface CookieSessionStoreOptions {
 }
 
 /**
- * Stores the entire {@link BffSession} inside the session cookie.
+ * Store a complete BFF session in a sealed browser-cookie reference.
  *
- * The reference returned by {@link write} is the sealed session string, which
- * {@link read} unseals back into a session. There is no out-of-band state, so
- * {@link destroy} is a no-op (cookie clearing is the module's job), while
- * {@link withRefreshLock} coalesces concurrent refreshes for one reference onto
- * a single in-memory promise.
- *
- * SINGLE-REPLICA / DEV-ONLY. Two limits follow from having no server-side
- * record, and both matter in production:
- *
- * - **Revocation ceiling = the access-token lifetime.** With nothing to destroy
- *   server-side, "ending" a session only clears the cookie in the browser that
- *   made the request. Any other copy of the sealed cookie keeps working until
- *   its access token expires; only then does the forced refresh hit the auth
- *   host, get refused for the revoked grant, and tear the session down. A
- *   server-side store (`ValkeySessionStore`) shrinks that window to one
- *   request: destroying the record invalidates every copy of the reference at
- *   once.
- * - **The refresh lock is per-process.** See {@link withRefreshLock}; multiple
- *   replicas can double-spend a one-time refresh token.
- *
- * Deployments beyond a single replica — or that need logout/deactivation to
- * take effect faster than the access-token lifetime — use the Valkey-backed
- * store instead.
+ * No server record exists, so destroy cannot invalidate copied cookies and back-channel
+ * revocation is unavailable. Refresh calls sharing the same reference join one promise within
+ * this store instance. Use ValkeySessionStore when sessions must be revoked server-side or
+ * refresh coordination must span replicas.
  */
 export class CookieSessionStore implements SessionStore {
   private readonly password: CookieSecret;
@@ -75,44 +56,43 @@ export class CookieSessionStore implements SessionStore {
    */
   private readonly refreshLocks = new Map<string, Promise<unknown>>();
 
+  /**
+   * Create a cookie store with the sealing secret and optional session TTL in seconds.
+   * Defaults to a one-day TTL. Construction does not read or write browser cookies.
+   */
   constructor(options: CookieSessionStoreOptions) {
     this.password = options.password;
     this.ttlMs = (options.ttlSeconds ?? DEFAULT_SESSION_TTL_SECONDS) * MS_PER_SECOND;
   }
 
+  /**
+   * Unseal a cookie reference into its session, or return null for an invalid or expired
+   * seal. Does not refresh an expired access token.
+   */
   read(ref: string): Promise<BffSession | null> {
     return unsealSession(ref, this.password, this.ttlMs);
   }
 
+  /**
+   * Seal the full session with the configured password and TTL, returning the cookie
+   * reference. The caller must write the reference to response cookies.
+   */
   write(session: BffSession): Promise<string> {
     return sealSession(session, this.password, this.ttlMs);
   }
 
+  /**
+   * Resolve without changing state. Cookie-only storage has no server record to revoke; the
+   * caller clears browser cookies separately.
+   */
   destroy(_ref: string): Promise<void> {
     return Promise.resolve();
   }
 
   /**
-   * Run `fn` as the refresh for `ref`, or join the refresh already in flight.
-   *
-   * This COALESCES rather than merely serializing: while a refresh for `ref` is
-   * outstanding, a second caller does not run its own callback at all — it
-   * receives the first call's promise and observes that result (or failure).
-   * Serializing alone would not fix the double-spend this guards against,
-   * because `refreshUnderLock` in `proxy.ts` reads `session.refreshToken` before
-   * taking the lock, so a callback that merely runs *later* still presents the
-   * one-time token the first callback just spent. Exactly one exchange must
-   * happen, and every caller must adopt its outcome.
-   *
-   * For this store `ref` is the sealed cookie string itself, so concurrent
-   * requests carrying the same browser session present an identical `ref` and
-   * coalesce, while distinct sessions never interact.
-   *
-   * LIMITATION — this mutex is per-PROCESS. It makes no guarantee across
-   * instances, so a multi-instance deployment still needs the Valkey-backed
-   * `ValkeySessionStore` for cross-process refresh safety. That tradeoff is
-   * inherent to a cookie-only store (there is no shared substrate to lock on)
-   * and is unchanged by the coalescing added here.
+   * Run fn once for concurrent refreshes sharing this cookie reference and store instance.
+   * Other callers join the same promise and receive its result or rejection. Coordination
+   * does not span store instances or server replicas.
    */
   withRefreshLock<T>(ref: string, fn: () => Promise<T>): Promise<T | undefined> {
     const inFlight: Promise<unknown> | undefined = this.refreshLocks.get(ref);

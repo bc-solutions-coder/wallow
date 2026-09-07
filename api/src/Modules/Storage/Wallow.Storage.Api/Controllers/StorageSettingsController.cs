@@ -27,6 +27,14 @@ public class StorageSettingsController(
     ITenantContext tenantContext,
     ICurrentUserService currentUserService) : ControllerBase
 {
+    /// <summary>
+    /// Get resolved storage configuration.
+    /// </summary>
+    /// <remarks>
+    /// Requires an authenticated user in the current tenant. Returns a key-value map using user overrides first,
+    /// then tenant overrides, then registered defaults. Upload enforcement ignores user overrides and uses
+    /// tenant limits, so this map can differ from the limits enforced for uploads.
+    /// </remarks>
     [HttpGet("config")]
     [ProducesResponseType(typeof(ResolvedSettingsConfig), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetConfig(CancellationToken cancellationToken)
@@ -42,6 +50,13 @@ public class StorageSettingsController(
         return Result<ResolvedSettingsConfig>.Success(config).ToActionResult();
     }
 
+    /// <summary>
+    /// Get resolved tenant storage settings.
+    /// </summary>
+    /// <remarks>
+    /// Requires StorageWrite in the current tenant. Returns tenant overrides merged with registered defaults,
+    /// including each value's source and descriptive metadata. User overrides are excluded.
+    /// </remarks>
     [HttpGet("settings/tenant")]
     [HasPermission(PermissionType.StorageWrite)]
     [ProducesResponseType(typeof(IReadOnlyList<ResolvedSetting>), StatusCodes.Status200OK)]
@@ -53,6 +68,14 @@ public class StorageSettingsController(
         return Result<IReadOnlyList<ResolvedSetting>>.Success(settings).ToActionResult();
     }
 
+    /// <summary>
+    /// Get resolved storage settings for the current user.
+    /// </summary>
+    /// <remarks>
+    /// Requires an authenticated user in the current tenant. Returns user overrides merged with tenant overrides
+    /// and registered defaults, including each value's source and descriptive metadata. User overrides do not
+    /// change the tenant limits enforced during upload.
+    /// </remarks>
     [HttpGet("settings/user")]
     [ProducesResponseType(typeof(IReadOnlyList<ResolvedSetting>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetUserSettings(CancellationToken cancellationToken)
@@ -68,6 +91,14 @@ public class StorageSettingsController(
         return Result<IReadOnlyList<ResolvedSetting>>.Success(settings).ToActionResult();
     }
 
+    /// <summary>
+    /// Set a tenant storage setting.
+    /// </summary>
+    /// <remarks>
+    /// Requires StorageWrite and an authenticated user in the current tenant. Creates or replaces one
+    /// string-valued tenant override and returns no content. Accepts registered storage keys and custom. keys;
+    /// system. keys and unknown keys are rejected.
+    /// </remarks>
     [HttpPut("settings/tenant")]
     [HasPermission(PermissionType.StorageWrite)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -93,6 +124,16 @@ public class StorageSettingsController(
         return NoContent();
     }
 
+    /// <summary>
+    /// Remove a tenant storage setting override.
+    /// </summary>
+    /// <remarks>
+    /// Requires StorageWrite and an authenticated user in the current tenant. Removes the named override so the
+    /// registered default applies where one exists; user overrides remain in place. Returns no content even when
+    /// no override exists, but rejects system. keys and unknown keys.
+    /// </remarks>
+    /// <param name="key">Registered storage key or a key beginning with custom.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
     [HttpDelete("settings/tenant")]
     [HasPermission(PermissionType.StorageWrite)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -118,6 +159,15 @@ public class StorageSettingsController(
         return NoContent();
     }
 
+    /// <summary>
+    /// Set a storage setting for the current user.
+    /// </summary>
+    /// <remarks>
+    /// Requires an authenticated user in the current tenant. Creates or replaces one string-valued user override
+    /// used by resolved configuration responses. Accepts registered storage keys and custom. keys; system. keys
+    /// and unknown keys are rejected. This override does not raise or otherwise change enforced tenant upload
+    /// limits.
+    /// </remarks>
     [HttpPut("settings/user")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> UpsertUserSetting(
@@ -142,6 +192,16 @@ public class StorageSettingsController(
         return NoContent();
     }
 
+    /// <summary>
+    /// Remove a user storage setting override.
+    /// </summary>
+    /// <remarks>
+    /// Requires an authenticated user in the current tenant. Removes the named user override so the tenant value
+    /// or registered default applies where one exists. Returns no content even when no override exists, but
+    /// rejects system. keys and unknown keys.
+    /// </remarks>
+    /// <param name="key">Registered storage key or a key beginning with custom.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
     [HttpDelete("settings/user")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteUserSetting(

@@ -51,12 +51,10 @@ function tagsOf(queryKey: QueryKey): readonly string[] {
 }
 
 /**
- * Every cached query whose generated key carries `tag` — the closest thing to a
- * feature-wide sweep, since a tag groups exactly the operations one backend
- * controller exposes.
+ * Match cached queries carrying an OpenAPI tag, for use with `invalidateQueries`.
  *
- * Keys the generator did not build (and generated keys from a build without
- * `queryKeys: { tags: true }`) carry no tags and are never matched.
+ * Matches every operation and argument combination with that tag, including
+ * queries for different client base URLs. Tags may cover several controllers.
  */
 export function queriesWithTag(tag: string): QueryFilters {
   return {
@@ -65,14 +63,11 @@ export function queriesWithTag(tag: string): QueryFilters {
 }
 
 /**
- * Every cached query for the SAME operation as `queryKey`, whatever arguments it
- * was called with — `queriesForOperation(detailKeyForOrgA)` also sweeps org B's
- * detail entry.
+ * Match cached queries for the same operation as a generated query key.
  *
- * Takes an EXEMPLAR key rather than an id string so callers stay off hey-api's
- * internal `_id` spelling: build one with the operation's generated
- * `{op}QueryKey(...)` and hand it in. A key with no `_id` (i.e. not a generated
- * one) matches nothing rather than matching everything.
+ * Pass a key from a generated `...QueryKey()` helper. The predicate matches
+ * all argument combinations and client base URLs for that operation. A key
+ * without an operation identifier matches nothing.
  */
 export function queriesForOperation(queryKey: readonly unknown[]): QueryFilters {
   const id: string | undefined = operationId(queryKey as QueryKey);

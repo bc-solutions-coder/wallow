@@ -23,8 +23,13 @@ public sealed class MeAuthorizationsController(
     IConnectedApplicationService connectedApplications) : ControllerBase
 {
     /// <summary>
-    /// Lists valid permanent consent records for the caller.
+    /// List your application consents.
     /// </summary>
+    /// <remarks>
+    /// Requires an authenticated user, without an organization context or management permission. Returns valid
+    /// permanent consent records for existing applications, newest first, including authorization IDs and granted
+    /// scopes.
+    /// </remarks>
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<ConnectedApplicationDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<ConnectedApplicationDto>>> ListConnectedApplications(
@@ -35,9 +40,13 @@ public sealed class MeAuthorizationsController(
     }
 
     /// <summary>
-    /// Withdraws the caller consent and revokes associated user/client access.
-    /// Returns 404 when the consent cannot be found for the caller.
+    /// Withdraw consent for an application.
     /// </summary>
+    /// <remarks>
+    /// Requires an authenticated user, without an organization context or management permission. Uses an
+    /// authorization ID from your consent list to request revocation of that consent and your tokens for its
+    /// application. A missing, invalid, or other user consent returns 404.
+    /// </remarks>
     [HttpDelete("{authorizationId}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

@@ -1384,6 +1384,9 @@ export type ChangelogGetChangelogData = {
   body?: never;
   path?: never;
   query?: {
+    /**
+     * Maximum number of entries to return; defaults to 50.
+     */
     limit?: number | string;
   };
   url: '/v1/changelog';
@@ -1430,6 +1433,9 @@ export type ChangelogGetChangelogResponse = ChangelogGetChangelogResponses[keyof
 export type ChangelogGetChangelogByVersionData = {
   body?: never;
   path: {
+    /**
+     * Exact version string recorded on the entry, including any prerelease or build suffix.
+     */
     changelogVersion: string;
   };
   query?: never;
@@ -1616,6 +1622,9 @@ export type ApiKeysCreateApiKeyResponse = ApiKeysCreateApiKeyResponses[keyof Api
 export type ApiKeysRevokeApiKeyData = {
   body?: never;
   path: {
+    /**
+     * Key identifier returned by key creation or listing, not the plaintext API key.
+     */
     keyId: string;
   };
   query?: never;
@@ -1709,6 +1718,9 @@ export type OrganizationClientBrandingGetBrandingResponses = {
 export type OrganizationClientBrandingGetBrandingResponse = OrganizationClientBrandingGetBrandingResponses[keyof OrganizationClientBrandingGetBrandingResponses];
 
 export type OrganizationClientBrandingUpsertBrandingData = {
+  /**
+   * Cancels the request.
+   */
   body: {
     DisplayName?: string;
     Tagline?: string;
@@ -1717,7 +1729,13 @@ export type OrganizationClientBrandingUpsertBrandingData = {
     logo?: IFormFile;
   };
   path: {
+    /**
+     * Organization that owns the client.
+     */
     orgId: string;
+    /**
+     * Client identifier within the organization.
+     */
     clientId: string;
   };
   query?: never;
@@ -1947,8 +1965,17 @@ export type AccountExternalLoginData = {
   body?: never;
   path?: never;
   query?: {
+    /**
+     * A scheme name returned by external-providers.
+     */
     provider?: string;
+    /**
+     * Absolute destination on an allowed redirect origin.
+     */
     returnUrl?: string;
+    /**
+     * Optional OIDC client identifier used to restrict allowed redirect origins.
+     */
     clientId?: string;
   };
   url: '/v1/identity/auth/external-login';
@@ -1987,7 +2014,13 @@ export type AccountExternalLoginCallbackData = {
   body?: never;
   path?: never;
   query?: {
+    /**
+     * Destination carried through the external sign-in flow.
+     */
     returnUrl?: string;
+    /**
+     * Optional client identifier; falls back to the value stored in external authentication state.
+     */
     clientId?: string;
   };
   url: '/v1/identity/auth/external-login-callback';
@@ -2026,8 +2059,17 @@ export type AccountCompleteExternalRegistrationData = {
   body?: never;
   path?: never;
   query?: {
+    /**
+     * Whether the user accepted the terms.
+     */
     acceptedTerms?: boolean;
+    /**
+     * Allowed absolute return destination; otherwise the authentication app is used.
+     */
     returnUrl?: string;
+    /**
+     * Optional client identifier for redirect-origin validation.
+     */
     clientId?: string;
   };
   url: '/v1/identity/auth/complete-external-registration';
@@ -2066,8 +2108,17 @@ export type AccountExchangeTicketData = {
   body?: never;
   path?: never;
   query?: {
+    /**
+     * The signInTicket returned by login, MFA verification, or passwordless verification.
+     */
     ticket?: string;
+    /**
+     * Optional local route or allowed absolute return destination.
+     */
     returnUrl?: string;
+    /**
+     * Optional OIDC client identifier used to restrict allowed redirect origins.
+     */
     clientId?: string;
   };
   url: '/v1/identity/auth/exchange-ticket';
@@ -2106,7 +2157,13 @@ export type AccountValidateRedirectUriData = {
   body?: never;
   path?: never;
   query?: {
+    /**
+     * Absolute URI whose origin is checked.
+     */
     uri?: string;
+    /**
+     * Optional OIDC client identifier that limits the registered origins.
+     */
     clientId?: string;
   };
   url: '/v1/identity/auth/redirect-uri/validate';
@@ -2151,6 +2208,9 @@ export type AccountValidateRedirectUriResponses = {
 export type AccountValidateRedirectUriResponse = AccountValidateRedirectUriResponses[keyof AccountValidateRedirectUriResponses];
 
 export type AccountSignOutData = {
+  /**
+   * Optional OIDC client identifier used to restrict allowed redirect origins.
+   */
   body: {
     postLogoutRedirectUri?: string;
   } & {
@@ -2238,6 +2298,9 @@ export type AccountRegisterResponse = AccountRegisterResponses[keyof AccountRegi
 export type AccountGetClientTenantData = {
   body?: never;
   path: {
+    /**
+     * The public OIDC client identifier, not the application record ID.
+     */
     clientId: string;
   };
   query?: never;
@@ -2376,7 +2439,13 @@ export type AccountVerifyEmailData = {
   body?: never;
   path?: never;
   query?: {
+    /**
+     * Email address from the verification link.
+     */
     email?: string;
+    /**
+     * Email-confirmation token from the verification link.
+     */
     token?: string;
   };
   url: '/v1/identity/auth/verify-email';
@@ -2469,7 +2538,13 @@ export type AccountVerifyMagicLinkData = {
   body?: never;
   path?: never;
   query?: {
+    /**
+     * Complete token from the emailed magic link.
+     */
     token?: string;
+    /**
+     * Whether the eventual browser sign-in cookie persists across browser sessions.
+     */
     rememberMe?: boolean;
   };
   url: '/v1/identity/auth/passwordless/magic-link/verify';
@@ -2652,8 +2727,17 @@ export type AccountConfirmEmailChangeData = {
   body?: never;
   path?: never;
   query?: {
+    /**
+     * Email-change confirmation token from the emailed link.
+     */
     token?: string;
+    /**
+     * User identifier from the confirmation link.
+     */
     userId?: string;
+    /**
+     * New email address bound to the confirmation token.
+     */
     newEmail?: string;
   };
   url: '/v1/identity/auth/confirm-email-change';
@@ -2701,7 +2785,13 @@ export type AuthorizeContextGetData = {
   body?: never;
   path?: never;
   query?: {
+    /**
+     * Local authorization return URL containing client_id and redirect_uri.
+     */
     returnUrl?: string;
+    /**
+     * Optional space-separated scope names; a nonblank value overrides scope in returnUrl.
+     */
     scope?: string;
   };
   url: '/v1/identity/auth/authorize-context';
@@ -2838,6 +2928,9 @@ export type ClientsCreateResponse = ClientsCreateResponses[keyof ClientsCreateRe
 export type ClientsDeleteData = {
   body?: never;
   path: {
+    /**
+     * Application record ID returned by client administration, not the public OIDC clientId.
+     */
     id: string;
   };
   query?: never;
@@ -2883,6 +2976,9 @@ export type ClientsDeleteResponses = {
 export type ClientsGetByIdData = {
   body?: never;
   path: {
+    /**
+     * Application record ID returned by client administration, not the public OIDC clientId.
+     */
     id: string;
   };
   query?: never;
@@ -2928,8 +3024,14 @@ export type ClientsGetByIdResponses = {
 export type ClientsGetByIdResponse = ClientsGetByIdResponses[keyof ClientsGetByIdResponses];
 
 export type ClientsUpdateData = {
+  /**
+   * Cancels the request.
+   */
   body: UpdateClientRequest;
   path: {
+    /**
+     * Application record ID returned by client administration, not the public OIDC clientId.
+     */
     id: string;
   };
   query?: never;
@@ -2977,6 +3079,9 @@ export type ClientsUpdateResponse = ClientsUpdateResponses[keyof ClientsUpdateRe
 export type ClientsRotateSecretData = {
   body?: never;
   path: {
+    /**
+     * Application record ID returned by client administration, not the public OIDC clientId.
+     */
     id: string;
   };
   query?: never;
@@ -3070,6 +3175,9 @@ export type IdentitySettingsDeleteTenantSettingData = {
   body?: never;
   path?: never;
   query?: {
+    /**
+     * Registered Identity setting key or custom. key whose override is removed.
+     */
     key?: string;
   };
   url: '/v1/identity/settings/tenant';
@@ -3203,6 +3311,9 @@ export type IdentitySettingsDeleteUserSettingData = {
   body?: never;
   path?: never;
   query?: {
+    /**
+     * Registered Identity setting key or custom. key whose override is removed.
+     */
     key?: string;
   };
   url: '/v1/identity/settings/user';
@@ -3929,6 +4040,9 @@ export type MfaRegenerateBackupCodesResponse = MfaRegenerateBackupCodesResponses
 export type MfaAdminDisableMfaData = {
   body?: never;
   path: {
+    /**
+     * Account user identifier whose MFA configuration is cleared.
+     */
     userId: string;
   };
   query?: never;
@@ -3976,6 +4090,9 @@ export type MfaAdminDisableMfaResponse = MfaAdminDisableMfaResponses[keyof MfaAd
 export type MfaAdminClearLockoutData = {
   body?: never;
   path: {
+    /**
+     * Account user identifier whose lockout state is cleared.
+     */
     userId: string;
   };
   query?: never;
@@ -4069,6 +4186,9 @@ export type MfaExchangeEnrollmentTokenData = {
   body?: never;
   path?: never;
   query?: {
+    /**
+     * Enrollment token returned by enroll/issue-token within the last 60 seconds.
+     */
     token?: string;
   };
   url: '/v1/identity/mfa/enroll/exchange-token';
@@ -6008,6 +6128,9 @@ export type SessionListSessionsResponse = SessionListSessionsResponses[keyof Ses
 export type SessionRevokeSessionData = {
   body?: never;
   path: {
+    /**
+     * Session ID returned by the session list, not an access token.
+     */
     sessionId: string;
   };
   query?: never;
@@ -6515,6 +6638,9 @@ export type InquiriesGetAllData = {
   body?: never;
   path?: never;
   query?: {
+    /**
+     * Optional status name, matched case-insensitively. Unrecognized text is ignored.
+     */
     status?: string;
   };
   url: '/v1/inquiries';
@@ -6840,7 +6966,13 @@ export type NotificationsGetNotificationsData = {
   body?: never;
   path?: never;
   query?: {
+    /**
+     * One-based page number; defaults to 1.
+     */
     pageNumber?: number | string;
+    /**
+     * Number of notifications per page; defaults to 20.
+     */
     pageSize?: number | string;
   };
   url: '/v1/notifications';
@@ -7063,6 +7195,9 @@ export type PushConfigurationGetWebPushKeysResponses = {
 export type PushConfigurationGetWebPushKeysResponse = PushConfigurationGetWebPushKeysResponses[keyof PushConfigurationGetWebPushKeysResponses];
 
 export type PushConfigurationRotateWebPushKeyData = {
+  /**
+   * Cancels the request.
+   */
   body: RotateWebPushKeyRequest;
   path?: never;
   query?: never;
@@ -7748,9 +7883,15 @@ export type StorageCreateBucketResponse = StorageCreateBucketResponses[keyof Sto
 export type StorageDeleteBucketData = {
   body?: never;
   path: {
+    /**
+     * Name of the bucket to delete.
+     */
     name: string;
   };
   query?: {
+    /**
+     * Whether to delete the bucket and all of its files. Defaults to false.
+     */
     force?: boolean;
   };
   url: '/v1/storage/buckets/{name}';
@@ -7840,6 +7981,9 @@ export type StorageGetBucketResponses = {
 export type StorageGetBucketResponse = StorageGetBucketResponses[keyof StorageGetBucketResponses];
 
 export type StorageUploadData = {
+  /**
+   * Cancels the request.
+   */
   body: {
     file?: IFormFile;
   } & {
@@ -8026,9 +8170,21 @@ export type StorageListFilesData = {
   body?: never;
   path?: never;
   query?: {
+    /**
+     * Name of an existing bucket in the current tenant.
+     */
     bucket?: string;
+    /**
+     * Optional prefix of the stored folder path, not an exact folder match; empty or whitespace applies no filter.
+     */
     path?: string;
+    /**
+     * One-based page number; defaults to 1.
+     */
     page?: number | string;
+    /**
+     * Number of files per page; defaults to 20.
+     */
     pageSize?: number | string;
   };
   url: '/v1/storage/files';
@@ -8167,9 +8323,15 @@ export type StorageCompletePresignedUploadResponse = StorageCompletePresignedUpl
 export type StorageGetPresignedDownloadUrlData = {
   body?: never;
   path: {
+    /**
+     * Stored file identifier.
+     */
     id: string;
   };
   query?: {
+    /**
+     * Requested URL lifetime in minutes; defaults to 60 and is capped by the server's maximum download lifetime.
+     */
     expiryMinutes?: number | string;
   };
   url: '/v1/storage/files/{id}/presigned-url';
@@ -8262,6 +8424,9 @@ export type StorageSettingsDeleteTenantSettingData = {
   body?: never;
   path?: never;
   query?: {
+    /**
+     * Registered storage key or a key beginning with custom.
+     */
     key?: string;
   };
   url: '/v1/storage/settings/tenant';
@@ -8395,6 +8560,9 @@ export type StorageSettingsDeleteUserSettingData = {
   body?: never;
   path?: never;
   query?: {
+    /**
+     * Registered storage key or a key beginning with custom.
+     */
     key?: string;
   };
   url: '/v1/storage/settings/user';

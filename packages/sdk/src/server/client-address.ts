@@ -361,14 +361,13 @@ const PRESETS: ReadonlyMap<string, readonly string[]> = new Map([
 ]);
 
 /**
- * Parse a `WALLOW_TRUSTED_PROXIES` value: a comma- or whitespace-separated list of CIDR
- * blocks, bare addresses and {@link PRESETS} names.
+ * Parse the proxy addresses allowed to supply forwarded headers.
  *
- * Unparseable entries are DROPPED rather than thrown on. This value is read
- * during server start-up on a deployment that is already serving, and a typo in
- * one range should narrow what is trusted — the safe direction — instead of
- * refusing to boot. An entry that silently means nothing is visible in the
- * behaviour it fails to produce; a server that will not start is an outage.
+ * Accepts comma- or whitespace-separated IP addresses, CIDRs, and the loopback, linklocal,
+ * uniquelocal, or private presets. Invalid entries are ignored; an omitted or empty value trusts
+ * no proxies.
+ *
+ * @param spec The WALLOW_TRUSTED_PROXIES value or an explicit trust list.
  */
 export function parseTrustedProxies(spec: string | undefined): TrustedProxies {
   if (spec === undefined) {
@@ -400,13 +399,14 @@ function isTrusted(address: Address, trusted: TrustedProxies): boolean {
 }
 
 /**
- * Whether `peer` is one of the proxies a forwarded header may be believed from.
+ * Check whether the immediate socket peer belongs to a trusted proxy range.
  *
- * This is the trust gate {@link resolveClientAddress} applies to
- * `x-forwarded-for`, exported so `resolveRequestOrigin` can put the SAME gate on
- * `x-forwarded-proto` — one trust policy for both forwarded headers. A peer that
- * is absent, blank, or unparseable is never trusted, and an empty trusted set
- * (the default) trusts nothing.
+ * Missing, blank, or invalid addresses return false. Normalizes IPv4-mapped IPv6 addresses
+ * before matching.
+ *
+ * @param peer Address supplied by the server runtime, not an incoming HTTP header.
+ *
+ * @param trusted Ranges returned by parseTrustedProxies.
  */
 export function isTrustedPeer(peer: string | undefined, trusted: TrustedProxies): boolean {
   const raw: string = (peer ?? "").trim();
@@ -419,22 +419,20 @@ export function isTrustedPeer(peer: string | undefined, trusted: TrustedProxies)
 }
 
 /**
- * The caller's address for `request`, given the immediate `peer` and the proxies
- * whose chain may be believed.
+ * Resolve the caller address using the socket peer and trusted proxy ranges.
  *
- * Returns the peer whenever the chain cannot be trusted, so an untrusted caller
- * cannot choose its own answer by sending a header. When the peer IS trusted the
- * chain is walked from the RIGHT — the end a proxy appends to — and the first
- * entry that is not itself a trusted proxy is the caller. Walking leftwards is
- * what makes the result independent of how many proxies are stacked in front:
- * anything to the left of the last untrusted entry was written by a hop that
- * could have been lying, and is ignored.
+ * For a trusted peer, walks X-Forwarded-For from right to left and returns the first valid
+ * untrusted address. If all entries are trusted, returns the leftmost valid entry; if none are
+ * valid, returns the peer. Untrusted peers bypass the header, and an absent peer returns
+ * undefined.
  *
- * The answer is canonicalized (an IPv4-mapped form collapses to dotted-quad), so
- * one client keys to one bucket regardless of how the socket bound. An address
- * that parses as neither family is returned trimmed but otherwise verbatim when
- * it is the peer — dropping it would collapse every such caller into one bucket —
- * and skipped when it is a chain entry, where a valid alternative may follow.
+ * @param request Incoming request carrying the forwarded chain.
+ *
+ * @param peer Address supplied by the server runtime.
+ *
+ * @param trusted Parsed proxy trust ranges.
+ *
+ * @returns A normalized IP address, or the trimmed peer text if the peer is not a valid IP.
  */
 export function resolveClientAddress(
   request: Request,
@@ -477,9 +475,10 @@ export function resolveClientAddress(
 }
 
 /**
- * The trusted-proxy list a proxy preset runs with: an explicit `spec` wins
- * (an empty string deliberately trusts nothing), else `WALLOW_TRUSTED_PROXIES`
- * from `env`, else {@link TRUST_NO_PROXIES}.
+ * Resolve the trusted proxy list from an override or environment record.
+ *
+ * An explicit spec takes precedence over env.WALLOW_TRUSTED_PROXIES. An empty override trusts no
+ * proxies; missing values also trust none. Invalid entries are ignored by parseTrustedProxies.
  */
 export function resolveTrustedProxies(
   spec: string | undefined,
@@ -489,13 +488,11 @@ export function resolveTrustedProxies(
 }
 
 /**
- * Bind {@link resolveClientAddress} to a deployment's trusted-proxy list.
+ * Create a reusable caller-address resolver for one proxy configuration.
  *
- * The env record is a PARAMETER because this package must not read the
- * environment itself: every app's `start.ts` is aliased into the client module
- * graph as well as the server one, so a `process.env` read at module scope here
- * would either break the client build or leak a server value into it. Call this
- * once at module scope in a server-only file — the parse is not per-request work.
+ * Reads WALLOW_TRUSTED_PROXIES from the supplied environment once. The returned function uses
+ * request.ip as the immediate peer and returns the resolved caller address, or undefined when no
+ * peer is available. Construct it in server-only code with the deployment environment.
  */
 export function createClientAddressResolver(
   env: Readonly<Record<string, string | undefined>>,

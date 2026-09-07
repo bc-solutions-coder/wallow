@@ -18,6 +18,13 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
   meta?: keyof ClientMeta extends never ? Record<string, unknown> : ClientMeta;
 };
 
+/**
+ * List all tenant announcements.
+ *
+ * Requires AnnouncementManage in the current tenant. Returns an unpaginated list, newest first, including
+ * drafts, scheduled, expired, and archived announcements. User targeting and dismissals do not filter this
+ * administrative list.
+ */
 export const adminAnnouncementsGetAllAnnouncements = <ThrowOnError extends boolean = true>(options?: Options<AdminAnnouncementsGetAllAnnouncementsData, ThrowOnError>): RequestResult<AdminAnnouncementsGetAllAnnouncementsResponses, AdminAnnouncementsGetAllAnnouncementsErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<AdminAnnouncementsGetAllAnnouncementsResponses, AdminAnnouncementsGetAllAnnouncementsErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -25,6 +32,14 @@ export const adminAnnouncementsGetAllAnnouncements = <ThrowOnError extends boole
   ...options
 });
 
+/**
+ * Create an announcement.
+ *
+ * Requires AnnouncementManage in the current tenant and returns the created announcement. Title and content
+ * are sanitized before storage. Supplying PublishAt creates a scheduled announcement; omitting it creates a
+ * draft. TargetValue is a tenant GUID for Tenant targeting or a case-insensitive role name for Role
+ * targeting.
+ */
 export const adminAnnouncementsCreateAnnouncement = <ThrowOnError extends boolean = true>(options: Options<AdminAnnouncementsCreateAnnouncementData, ThrowOnError>): RequestResult<AdminAnnouncementsCreateAnnouncementResponses, AdminAnnouncementsCreateAnnouncementErrors, ThrowOnError, 'data'> => (options.client ?? client).post<AdminAnnouncementsCreateAnnouncementResponses, AdminAnnouncementsCreateAnnouncementErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -36,6 +51,13 @@ export const adminAnnouncementsCreateAnnouncement = <ThrowOnError extends boolea
   }
 });
 
+/**
+ * Archive an announcement.
+ *
+ * Requires AnnouncementManage in the current tenant. Removes the announcement from the active user list
+ * while retaining it in the administrative list. Returns no content, or 404 when the announcement is not
+ * found.
+ */
 export const adminAnnouncementsArchiveAnnouncement = <ThrowOnError extends boolean = true>(options: Options<AdminAnnouncementsArchiveAnnouncementData, ThrowOnError>): RequestResult<AdminAnnouncementsArchiveAnnouncementResponses, AdminAnnouncementsArchiveAnnouncementErrors, ThrowOnError, 'data'> => (options.client ?? client).delete<AdminAnnouncementsArchiveAnnouncementResponses, AdminAnnouncementsArchiveAnnouncementErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -43,6 +65,13 @@ export const adminAnnouncementsArchiveAnnouncement = <ThrowOnError extends boole
   ...options
 });
 
+/**
+ * Replace announcement content and targeting.
+ *
+ * Requires AnnouncementManage in the current tenant. Replaces the supplied content, targeting, dates, and
+ * presentation options after sanitizing title and content, while preserving the publication status. Returns
+ * the updated announcement, or 404 when the ID is not found in the current tenant.
+ */
 export const adminAnnouncementsUpdateAnnouncement = <ThrowOnError extends boolean = true>(options: Options<AdminAnnouncementsUpdateAnnouncementData, ThrowOnError>): RequestResult<AdminAnnouncementsUpdateAnnouncementResponses, AdminAnnouncementsUpdateAnnouncementErrors, ThrowOnError, 'data'> => (options.client ?? client).put<AdminAnnouncementsUpdateAnnouncementResponses, AdminAnnouncementsUpdateAnnouncementErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -54,6 +83,13 @@ export const adminAnnouncementsUpdateAnnouncement = <ThrowOnError extends boolea
   }
 });
 
+/**
+ * Publish an announcement now.
+ *
+ * Requires AnnouncementManage in the current tenant. Changes an unpublished announcement to Published and
+ * sets PublishAt to the current time, including when it was scheduled or archived. Returns no content, or
+ * 404 when the announcement is not found.
+ */
 export const adminAnnouncementsPublishAnnouncement = <ThrowOnError extends boolean = true>(options: Options<AdminAnnouncementsPublishAnnouncementData, ThrowOnError>): RequestResult<AdminAnnouncementsPublishAnnouncementResponses, AdminAnnouncementsPublishAnnouncementErrors, ThrowOnError, 'data'> => (options.client ?? client).post<AdminAnnouncementsPublishAnnouncementResponses, AdminAnnouncementsPublishAnnouncementErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -61,6 +97,13 @@ export const adminAnnouncementsPublishAnnouncement = <ThrowOnError extends boole
   ...options
 });
 
+/**
+ * Create an unpublished changelog entry.
+ *
+ * Requires ChangelogManage. Changelog entries are global and shared across tenants. Accepts a semantic
+ * version, release date, title, and content, sanitizes the title and content, and returns the unpublished
+ * entry. Publish the entry separately to make it visible anonymously.
+ */
 export const adminChangelogCreateChangelogEntry = <ThrowOnError extends boolean = true>(options: Options<AdminChangelogCreateChangelogEntryData, ThrowOnError>): RequestResult<AdminChangelogCreateChangelogEntryResponses, AdminChangelogCreateChangelogEntryErrors, ThrowOnError, 'data'> => (options.client ?? client).post<AdminChangelogCreateChangelogEntryResponses, AdminChangelogCreateChangelogEntryErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -72,6 +115,13 @@ export const adminChangelogCreateChangelogEntry = <ThrowOnError extends boolean 
   }
 });
 
+/**
+ * Publish a changelog entry.
+ *
+ * Requires ChangelogManage and makes the global entry visible through the anonymous changelog endpoints.
+ * Preserves the supplied release date, which determines list order and the latest entry. Returns no
+ * content, including for an already published entry, or 404 if the ID is unknown.
+ */
 export const adminChangelogPublishChangelogEntry = <ThrowOnError extends boolean = true>(options: Options<AdminChangelogPublishChangelogEntryData, ThrowOnError>): RequestResult<AdminChangelogPublishChangelogEntryResponses, AdminChangelogPublishChangelogEntryErrors, ThrowOnError, 'data'> => (options.client ?? client).post<AdminChangelogPublishChangelogEntryResponses, AdminChangelogPublishChangelogEntryErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -79,6 +129,14 @@ export const adminChangelogPublishChangelogEntry = <ThrowOnError extends boolean
   ...options
 });
 
+/**
+ * List active announcements for the current user.
+ *
+ * Requires an authenticated user with AnnouncementRead in the current tenant. Returns published
+ * announcements within their publication and expiry dates that match the user's tenant or roles, excluding
+ * dismissible announcements already dismissed by that user. Pinned announcements appear first, then newest
+ * first within each group.
+ */
 export const announcementsGetAnnouncements = <ThrowOnError extends boolean = true>(options?: Options<AnnouncementsGetAnnouncementsData, ThrowOnError>): RequestResult<AnnouncementsGetAnnouncementsResponses, AnnouncementsGetAnnouncementsErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<AnnouncementsGetAnnouncementsResponses, AnnouncementsGetAnnouncementsErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -86,6 +144,13 @@ export const announcementsGetAnnouncements = <ThrowOnError extends boolean = tru
   ...options
 });
 
+/**
+ * Dismiss an announcement for the current user.
+ *
+ * Requires an authenticated user with AnnouncementRead in the current tenant. Hides a dismissible
+ * announcement from this user's active list; repeating the dismissal succeeds without creating another
+ * dismissal. Returns 404 for an unknown announcement and rejects announcements that are not dismissible.
+ */
 export const announcementsDismissAnnouncement = <ThrowOnError extends boolean = true>(options: Options<AnnouncementsDismissAnnouncementData, ThrowOnError>): RequestResult<AnnouncementsDismissAnnouncementResponses, AnnouncementsDismissAnnouncementErrors, ThrowOnError, 'data'> => (options.client ?? client).post<AnnouncementsDismissAnnouncementResponses, AnnouncementsDismissAnnouncementErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -93,6 +158,12 @@ export const announcementsDismissAnnouncement = <ThrowOnError extends boolean = 
   ...options
 });
 
+/**
+ * List published changelog entries.
+ *
+ * Available without authentication. Returns global entries shared across tenants, ordered by release date
+ * descending, up to the requested limit. Unpublished entries are excluded.
+ */
 export const changelogGetChangelog = <ThrowOnError extends boolean = true>(options?: Options<ChangelogGetChangelogData, ThrowOnError>): RequestResult<ChangelogGetChangelogResponses, ChangelogGetChangelogErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<ChangelogGetChangelogResponses, ChangelogGetChangelogErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -100,6 +171,13 @@ export const changelogGetChangelog = <ThrowOnError extends boolean = true>(optio
   ...options
 });
 
+/**
+ * Get a published changelog version.
+ *
+ * Available without authentication and independent of the current tenant. Returns the published global
+ * entry with the exact version string, including its change items. Returns 404 when the version is unknown
+ * or unpublished.
+ */
 export const changelogGetChangelogByVersion = <ThrowOnError extends boolean = true>(options: Options<ChangelogGetChangelogByVersionData, ThrowOnError>): RequestResult<ChangelogGetChangelogByVersionResponses, ChangelogGetChangelogByVersionErrors, ThrowOnError, 'data'> => (options.client ?? client).get<ChangelogGetChangelogByVersionResponses, ChangelogGetChangelogByVersionErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -107,6 +185,12 @@ export const changelogGetChangelogByVersion = <ThrowOnError extends boolean = tr
   ...options
 });
 
+/**
+ * Get the latest published changelog entry.
+ *
+ * Available without authentication. Returns the global published entry with the greatest release date,
+ * including its change items. Returns 404 when no published entry exists.
+ */
 export const changelogGetLatestChangelog = <ThrowOnError extends boolean = true>(options?: Options<ChangelogGetLatestChangelogData, ThrowOnError>): RequestResult<ChangelogGetLatestChangelogResponses, ChangelogGetLatestChangelogErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<ChangelogGetLatestChangelogResponses, ChangelogGetLatestChangelogErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -115,9 +199,11 @@ export const changelogGetLatestChangelog = <ThrowOnError extends boolean = true>
 });
 
 /**
- * List unrevoked API keys for the current user and tenant.
+ * List the current user's unrevoked API keys.
  *
- * Returns metadata without plaintext key values.
+ * Requires ApiKeyManage. Returns keys owned by the current user in the current tenant, newest first,
+ * including expired keys that have not been revoked. The response contains metadata only and never returns
+ * plaintext keys.
  */
 export const apiKeysListApiKeys = <ThrowOnError extends boolean = true>(options?: Options<ApiKeysListApiKeysData, ThrowOnError>): RequestResult<ApiKeysListApiKeysResponses, ApiKeysListApiKeysErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<ApiKeysListApiKeysResponses, ApiKeysListApiKeysErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -127,19 +213,12 @@ export const apiKeysListApiKeys = <ThrowOnError extends boolean = true>(options?
 });
 
 /**
- * Create a new API key for the current user.
+ * Create an API key for the current user.
  *
- * The key belongs to the current user and tenant. Store the full key securely;
- * this is the only response that returns it.
- *
- * Example request:
- * ```json
- * {
- *   "name": "Production Backend",
- *   "scopes": ["storage.read", "storage.write"],
- *   "expiresAt": "2027-01-01T00:00:00Z"
- * }
- * ```
+ * Requires ApiKeyManage and an organization tenant. Requested scopes must be recognized and covered by the
+ * caller's permissions; service accounts must also stay within their permitted scopes. Creation is subject
+ * to the configured per-user key limit. The response returns the full key once; retain it securely because
+ * subsequent reads return metadata only.
  */
 export const apiKeysCreateApiKey = <ThrowOnError extends boolean = true>(options: Options<ApiKeysCreateApiKeyData, ThrowOnError>): RequestResult<ApiKeysCreateApiKeyResponses, ApiKeysCreateApiKeyErrors, ThrowOnError, 'data'> => (options.client ?? client).post<ApiKeysCreateApiKeyResponses, ApiKeysCreateApiKeyErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -155,8 +234,9 @@ export const apiKeysCreateApiKey = <ThrowOnError extends boolean = true>(options
 /**
  * Revoke an API key.
  *
- * Revokes a key owned by the current user and removes its validation cache entries.
- * Revocation cannot be undone.
+ * Requires ApiKeyManage and ownership of the key in the current tenant. Revocation permanently prevents
+ * authentication with the key; repeating a successful revocation returns no content. Returns 404 for an
+ * invalid or unknown key ID or a key owned by another user.
  */
 export const apiKeysRevokeApiKey = <ThrowOnError extends boolean = true>(options: Options<ApiKeysRevokeApiKeyData, ThrowOnError>): RequestResult<ApiKeysRevokeApiKeyResponses, ApiKeysRevokeApiKeyErrors, ThrowOnError, 'data'> => (options.client ?? client).delete<ApiKeysRevokeApiKeyResponses, ApiKeysRevokeApiKeyErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -166,7 +246,12 @@ export const apiKeysRevokeApiKey = <ThrowOnError extends boolean = true>(options
 });
 
 /**
- * The client's branding as its organization sees it.
+ * Get an application client's branding.
+ *
+ * Requires OrganizationClientsManage and access to the owning organization through the current tenant,
+ * global administration, or client-management membership. Returns the display name, tagline, theme JSON,
+ * and a temporary logo URL when a logo exists. Returns 404 for inaccessible organizations, unknown clients,
+ * service accounts, or missing branding.
  */
 export const organizationClientBrandingGetBranding = <ThrowOnError extends boolean = true>(options: Options<OrganizationClientBrandingGetBrandingData, ThrowOnError>): RequestResult<OrganizationClientBrandingGetBrandingResponses, OrganizationClientBrandingGetBrandingErrors, ThrowOnError, 'data'> => (options.client ?? client).get<OrganizationClientBrandingGetBrandingResponses, OrganizationClientBrandingGetBrandingErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -176,10 +261,13 @@ export const organizationClientBrandingGetBranding = <ThrowOnError extends boole
 });
 
 /**
- * Replaces display name, tagline and theme. Omitting tagline or theme clears it; omitting
- * the logo preserves it. Use `DELETE branding/logo` to remove the logo.
- * Themes accept `primary` and `primaryForeground` in `light`/`dark` modes.
- * The display name cannot match the platform name.
+ * Replace an application client's branding.
+ *
+ * Requires OrganizationClientsManage and access to the owning organization through the current tenant,
+ * global administration, or client-management membership. Returns the saved branding and updates the client
+ * display name used for authentication. Omitting tagline or theme clears it; omitting the logo preserves
+ * it. Invalid names, themes, or image content return a validation error; inaccessible clients and service
+ * accounts return 404.
  */
 export const organizationClientBrandingUpsertBranding = <ThrowOnError extends boolean = true>(options: Options<OrganizationClientBrandingUpsertBrandingData, ThrowOnError>): RequestResult<OrganizationClientBrandingUpsertBrandingResponses, OrganizationClientBrandingUpsertBrandingErrors, ThrowOnError, 'data'> => (options.client ?? client).put<OrganizationClientBrandingUpsertBrandingResponses, OrganizationClientBrandingUpsertBrandingErrors, ThrowOnError, 'data'>({
   ...formDataBodySerializer,
@@ -194,7 +282,12 @@ export const organizationClientBrandingUpsertBranding = <ThrowOnError extends bo
 });
 
 /**
- * Remove the client's logo. The rest of the branding stays.
+ * Remove an application client's logo.
+ *
+ * Requires OrganizationClientsManage and access to the owning organization through the current tenant,
+ * global administration, or client-management membership. Deletes the stored logo and clears its URL while
+ * preserving the other branding fields. Returns no content if the branding already has no logo, or 404 for
+ * inaccessible clients, service accounts, or missing branding.
  */
 export const organizationClientBrandingDeleteLogo = <ThrowOnError extends boolean = true>(options: Options<OrganizationClientBrandingDeleteLogoData, ThrowOnError>): RequestResult<OrganizationClientBrandingDeleteLogoResponses, OrganizationClientBrandingDeleteLogoErrors, ThrowOnError, 'data'> => (options.client ?? client).delete<OrganizationClientBrandingDeleteLogoResponses, OrganizationClientBrandingDeleteLogoErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -203,6 +296,12 @@ export const organizationClientBrandingDeleteLogo = <ThrowOnError extends boolea
   ...options
 });
 
+/**
+ * List external sign-in providers.
+ *
+ * Available without authentication. Returns provider scheme names accepted by external-login for the browser
+ * sign-in flow.
+ */
 export const accountGetExternalProviders = <ThrowOnError extends boolean = true>(options?: Options<AccountGetExternalProvidersData, ThrowOnError>): RequestResult<AccountGetExternalProvidersResponses, AccountGetExternalProvidersErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<AccountGetExternalProvidersResponses, AccountGetExternalProvidersErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -210,6 +309,14 @@ export const accountGetExternalProviders = <ThrowOnError extends boolean = true>
   ...options
 });
 
+/**
+ * Check a password and begin browser sign-in.
+ *
+ * Available without authentication. Success returns a signInTicket valid for 60 seconds for browser navigation
+ * to exchange-ticket, rather than an access token. MFA challenge or enrollment requirements can instead set a
+ * five-minute partial-auth cookie and return the corresponding flags. RememberMe controls the eventual sign-in
+ * cookie persistence; failed password attempts count toward account lockout.
+ */
 export const accountLogin = <ThrowOnError extends boolean = true>(options: Options<AccountLoginData, ThrowOnError>): RequestResult<AccountLoginResponses, AccountLoginErrors, ThrowOnError, 'data'> => (options.client ?? client).post<AccountLoginResponses, AccountLoginErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -221,6 +328,13 @@ export const accountLogin = <ThrowOnError extends boolean = true>(options: Optio
   }
 });
 
+/**
+ * Complete a pending MFA sign-in challenge.
+ *
+ * Requires the five-minute MFA partial-auth cookie from the browser sign-in flow. Accepts a current TOTP code or
+ * a backup code, which is consumed on success. Success replaces partial authentication with a full sign-in
+ * cookie and returns a signInTicket; repeated invalid codes can lock MFA verification.
+ */
 export const accountVerifyMfaChallenge = <ThrowOnError extends boolean = true>(options: Options<AccountVerifyMfaChallengeData, ThrowOnError>): RequestResult<AccountVerifyMfaChallengeResponses, AccountVerifyMfaChallengeErrors, ThrowOnError, 'data'> => (options.client ?? client).post<AccountVerifyMfaChallengeResponses, AccountVerifyMfaChallengeErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -232,6 +346,13 @@ export const accountVerifyMfaChallenge = <ThrowOnError extends boolean = true>(o
   }
 });
 
+/**
+ * Redirect the browser to an external sign-in provider.
+ *
+ * Available without authentication and intended for browser navigation. The provider must be a configured
+ * authentication scheme, and returnUrl must use an allowed origin. The challenge carries client context through
+ * the provider callback.
+ */
 export const accountExternalLogin = <ThrowOnError extends boolean = true>(options?: Options<AccountExternalLoginData, ThrowOnError>): RequestResult<unknown, AccountExternalLoginErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<unknown, AccountExternalLoginErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -239,6 +360,14 @@ export const accountExternalLogin = <ThrowOnError extends boolean = true>(option
   ...options
 });
 
+/**
+ * Complete the external provider callback.
+ *
+ * Consumes the external authentication state created by external-login and redirects the browser. An existing
+ * provider link can establish sign-in or require MFA; a verified provider email can link an existing account.
+ * New registrations receive a temporary ExternalLoginState cookie and continue to the terms page. Invalid return
+ * destinations fall back to the configured authentication app.
+ */
 export const accountExternalLoginCallback = <ThrowOnError extends boolean = true>(options?: Options<AccountExternalLoginCallbackData, ThrowOnError>): RequestResult<unknown, AccountExternalLoginCallbackErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<unknown, AccountExternalLoginCallbackErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -246,6 +375,14 @@ export const accountExternalLoginCallback = <ThrowOnError extends boolean = true
   ...options
 });
 
+/**
+ * Finish external registration after terms acceptance.
+ *
+ * Requires the ExternalLoginState browser cookie from the external callback and acceptedTerms=true. Creates or
+ * links the account, signs in with a nonpersistent cookie, and clears the registration cookie. New accounts
+ * receive email verification when the provider email is unverified; the browser redirects to the validated
+ * return destination.
+ */
 export const accountCompleteExternalRegistration = <ThrowOnError extends boolean = true>(options?: Options<AccountCompleteExternalRegistrationData, ThrowOnError>): RequestResult<unknown, AccountCompleteExternalRegistrationErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<unknown, AccountCompleteExternalRegistrationErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -253,6 +390,13 @@ export const accountCompleteExternalRegistration = <ThrowOnError extends boolean
   ...options
 });
 
+/**
+ * Exchange a sign-in ticket for a browser cookie.
+ *
+ * Available without authentication and intended for browser navigation. Accepts a signInTicket issued within 60
+ * seconds, consumes it once, and sets the Identity sign-in cookie with its requested persistence. Redirects to a
+ * local returnUrl or an allowed absolute origin, falling back to the authentication app.
+ */
 export const accountExchangeTicket = <ThrowOnError extends boolean = true>(options?: Options<AccountExchangeTicketData, ThrowOnError>): RequestResult<unknown, AccountExchangeTicketErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<unknown, AccountExchangeTicketErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -260,6 +404,14 @@ export const accountExchangeTicket = <ThrowOnError extends boolean = true>(optio
   ...options
 });
 
+/**
+ * Check whether a redirect origin is allowed.
+ *
+ * Available without authentication. Checks the absolute URI origin against registered sign-in and post-logout
+ * origins plus the authentication app origin. A clientId limits registered origins to that client; omission
+ * checks all clients. Returns allowed=false for missing or invalid URIs; this does not validate an exact OIDC
+ * redirect URI.
+ */
 export const accountValidateRedirectUri = <ThrowOnError extends boolean = true>(options?: Options<AccountValidateRedirectUriData, ThrowOnError>): RequestResult<AccountValidateRedirectUriResponses, AccountValidateRedirectUriErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<AccountValidateRedirectUriResponses, AccountValidateRedirectUriErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -267,6 +419,13 @@ export const accountValidateRedirectUri = <ThrowOnError extends boolean = true>(
   ...options
 });
 
+/**
+ * Clear the browser sign-in cookie.
+ *
+ * Requires authentication and a form submission in the browser sign-out flow. Clears the Identity cookies, then
+ * redirects to the authentication app logout page. An invalid post-logout origin redirects to the error page
+ * after sign-out.
+ */
 export const accountSignOut = <ThrowOnError extends boolean = true>(options: Options<AccountSignOutData, ThrowOnError>): RequestResult<unknown, AccountSignOutErrors, ThrowOnError, 'data'> => (options.client ?? client).post<unknown, AccountSignOutErrors, ThrowOnError, 'data'>({
   ...urlSearchParamsBodySerializer,
   responseStyle: 'data',
@@ -279,6 +438,14 @@ export const accountSignOut = <ThrowOnError extends boolean = true>(options: Opt
   }
 });
 
+/**
+ * Register an account and request email verification.
+ *
+ * Available without authentication and does not sign the user in or grant organization membership.
+ * LoginMethod=passwordless creates an account without a password; other values require matching password fields
+ * and the password policy. A supplied clientId must identify an existing client, and an allowed returnUrl is
+ * carried into the verification link. Returns succeeded=true after requesting the verification email.
+ */
 export const accountRegister = <ThrowOnError extends boolean = true>(options: Options<AccountRegisterData, ThrowOnError>): RequestResult<AccountRegisterResponses, AccountRegisterErrors, ThrowOnError, 'data'> => (options.client ?? client).post<AccountRegisterResponses, AccountRegisterErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -290,6 +457,13 @@ export const accountRegister = <ThrowOnError extends boolean = true>(options: Op
   }
 });
 
+/**
+ * Look up the organization associated with an OIDC client.
+ *
+ * Available without authentication. Returns the client tenantId and organization name, or a not-found problem
+ * for an unknown client. An existing client without a valid tenant binding returns the empty GUID and no
+ * organization name.
+ */
 export const accountGetClientTenant = <ThrowOnError extends boolean = true>(options: Options<AccountGetClientTenantData, ThrowOnError>): RequestResult<AccountGetClientTenantResponses, AccountGetClientTenantErrors, ThrowOnError, 'data'> => (options.client ?? client).get<AccountGetClientTenantResponses, AccountGetClientTenantErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -297,6 +471,12 @@ export const accountGetClientTenant = <ThrowOnError extends boolean = true>(opti
   ...options
 });
 
+/**
+ * Request a password-reset email.
+ *
+ * Available without authentication. Requests a reset email only for an existing account with a confirmed email
+ * address. Unknown and unconfirmed addresses receive the same succeeded=true response.
+ */
 export const accountForgotPassword = <ThrowOnError extends boolean = true>(options: Options<AccountForgotPasswordData, ThrowOnError>): RequestResult<AccountForgotPasswordResponses, AccountForgotPasswordErrors, ThrowOnError, 'data'> => (options.client ?? client).post<AccountForgotPasswordResponses, AccountForgotPasswordErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -308,6 +488,13 @@ export const accountForgotPassword = <ThrowOnError extends boolean = true>(optio
   }
 });
 
+/**
+ * Reset a password using an emailed token.
+ *
+ * Available without authentication. Uses the email and reset token from the recovery link to set NewPassword,
+ * subject to the password policy. Returns succeeded=true and publishes the password-change notification; an
+ * unknown account or invalid token returns a token problem.
+ */
 export const accountResetPassword = <ThrowOnError extends boolean = true>(options: Options<AccountResetPasswordData, ThrowOnError>): RequestResult<AccountResetPasswordResponses, AccountResetPasswordErrors, ThrowOnError, 'data'> => (options.client ?? client).post<AccountResetPasswordResponses, AccountResetPasswordErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -319,6 +506,12 @@ export const accountResetPassword = <ThrowOnError extends boolean = true>(option
   }
 });
 
+/**
+ * Confirm an account email address.
+ *
+ * Available without authentication. Accepts the email and confirmation token from the verification link. Success
+ * confirms the address and publishes the email-verification event without signing the user in.
+ */
 export const accountVerifyEmail = <ThrowOnError extends boolean = true>(options?: Options<AccountVerifyEmailData, ThrowOnError>): RequestResult<AccountVerifyEmailResponses, AccountVerifyEmailErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<AccountVerifyEmailResponses, AccountVerifyEmailErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -326,6 +519,13 @@ export const accountVerifyEmail = <ThrowOnError extends boolean = true>(options?
   ...options
 });
 
+/**
+ * Request a passwordless sign-in link.
+ *
+ * Available without authentication. Requests an email for an existing account and carries ReturnUrl and ClientId
+ * into the link flow. Unknown addresses receive the same succeeded=true response. Magic-link and OTP sends share
+ * a per-address rate limit.
+ */
 export const accountSendMagicLink = <ThrowOnError extends boolean = true>(options: Options<AccountSendMagicLinkData, ThrowOnError>): RequestResult<AccountSendMagicLinkResponses, AccountSendMagicLinkErrors, ThrowOnError, 'data'> => (options.client ?? client).post<AccountSendMagicLinkResponses, AccountSendMagicLinkErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -337,6 +537,13 @@ export const accountSendMagicLink = <ThrowOnError extends boolean = true>(option
   }
 });
 
+/**
+ * Verify a passwordless sign-in link.
+ *
+ * Available without authentication. Validates the emailed token and removes it after successful validation.
+ * Returns the email and a signInTicket valid for 60 seconds for browser navigation to exchange-ticket; it does
+ * not return an access token.
+ */
 export const accountVerifyMagicLink = <ThrowOnError extends boolean = true>(options?: Options<AccountVerifyMagicLinkData, ThrowOnError>): RequestResult<AccountVerifyMagicLinkResponses, AccountVerifyMagicLinkErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<AccountVerifyMagicLinkResponses, AccountVerifyMagicLinkErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -344,6 +551,13 @@ export const accountVerifyMagicLink = <ThrowOnError extends boolean = true>(opti
   ...options
 });
 
+/**
+ * Request an email sign-in code.
+ *
+ * Available without authentication. Sends a six-digit code for an existing account, replacing any earlier code
+ * for that email address. Unknown addresses receive the same succeeded=true response. OTP and magic-link sends
+ * share a per-address rate limit.
+ */
 export const accountSendOtp = <ThrowOnError extends boolean = true>(options: Options<AccountSendOtpData, ThrowOnError>): RequestResult<AccountSendOtpResponses, AccountSendOtpErrors, ThrowOnError, 'data'> => (options.client ?? client).post<AccountSendOtpResponses, AccountSendOtpErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -355,6 +569,13 @@ export const accountSendOtp = <ThrowOnError extends boolean = true>(options: Opt
   }
 });
 
+/**
+ * Verify an email sign-in code.
+ *
+ * Available without authentication. Accepts the email and six-digit code, then removes the stored code on
+ * success. Returns the email and a signInTicket valid for 60 seconds for browser navigation to exchange-ticket;
+ * RememberMe controls the eventual cookie persistence.
+ */
 export const accountVerifyOtp = <ThrowOnError extends boolean = true>(options: Options<AccountVerifyOtpData, ThrowOnError>): RequestResult<AccountVerifyOtpResponses, AccountVerifyOtpErrors, ThrowOnError, 'data'> => (options.client ?? client).post<AccountVerifyOtpResponses, AccountVerifyOtpErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -366,6 +587,13 @@ export const accountVerifyOtp = <ThrowOnError extends boolean = true>(options: O
   }
 });
 
+/**
+ * Request a change to the current user email.
+ *
+ * Requires an authenticated user. Records a pending email change with a 24-hour expiry and requests a
+ * confirmation email to NewEmail. The current address remains in use until confirmation; unchanged addresses and
+ * requests exceeding the per-user rate limit return problems.
+ */
 export const accountChangeEmail = <ThrowOnError extends boolean = true>(options: Options<AccountChangeEmailData, ThrowOnError>): RequestResult<AccountChangeEmailResponses, AccountChangeEmailErrors, ThrowOnError, 'data'> => (options.client ?? client).post<AccountChangeEmailResponses, AccountChangeEmailErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -377,6 +605,13 @@ export const accountChangeEmail = <ThrowOnError extends boolean = true>(options:
   }
 });
 
+/**
+ * Confirm a requested email change.
+ *
+ * Available without authentication. Uses the userId, newEmail, and token from the confirmation link to update
+ * both email and username. Clears the pending change and publishes the email-change event on success; expired
+ * pending requests or invalid tokens return problems.
+ */
 export const accountConfirmEmailChange = <ThrowOnError extends boolean = true>(options?: Options<AccountConfirmEmailChangeData, ThrowOnError>): RequestResult<AccountConfirmEmailChangeResponses, AccountConfirmEmailChangeErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<AccountConfirmEmailChangeResponses, AccountConfirmEmailChangeErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -384,6 +619,14 @@ export const accountConfirmEmailChange = <ThrowOnError extends boolean = true>(o
   ...options
 });
 
+/**
+ * Get display context for a browser authorization request.
+ *
+ * Available without authentication. Accepts a local returnUrl ending in /connect/authorize with client_id and a
+ * registered redirect_uri. Returns client branding, organization name, and requested scope descriptions, or 404
+ * for invalid context or a refused client. This display context does not authenticate or authorize the
+ * transaction.
+ */
 export const authorizeContextGet = <ThrowOnError extends boolean = true>(options?: Options<AuthorizeContextGetData, ThrowOnError>): RequestResult<AuthorizeContextGetResponses, AuthorizeContextGetErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<AuthorizeContextGetResponses, AuthorizeContextGetErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -391,6 +634,12 @@ export const authorizeContextGet = <ThrowOnError extends boolean = true>(options
   ...options
 });
 
+/**
+ * List OIDC application registrations.
+ *
+ * Requires the AdminAccess permission. Returns all application registrations across organizations without
+ * pagination. Responses include redirect, scope, logout, and refresh-token settings but omit client secrets.
+ */
 export const clientsGetAll = <ThrowOnError extends boolean = true>(options?: Options<ClientsGetAllData, ThrowOnError>): RequestResult<ClientsGetAllResponses, ClientsGetAllErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<ClientsGetAllResponses, ClientsGetAllErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -398,6 +647,14 @@ export const clientsGetAll = <ThrowOnError extends boolean = true>(options?: Opt
   ...options
 });
 
+/**
+ * Register a confidential OIDC application.
+ *
+ * Requires the AdminAccess permission. Creates an unbound confidential client for authorization-code and
+ * refresh-token flows, returning its generated clientId and plaintext secret once. Missing or empty Scopes
+ * defaults to openid, profile, email, roles, and offline_access; unknown scopes are rejected. Redirect URIs
+ * require HTTPS or loopback HTTP, and RefreshTokenLifetime is seconds from 60 to 31536000, defaulting to 86400.
+ */
 export const clientsCreate = <ThrowOnError extends boolean = true>(options: Options<ClientsCreateData, ThrowOnError>): RequestResult<ClientsCreateResponses, ClientsCreateErrors, ThrowOnError, 'data'> => (options.client ?? client).post<ClientsCreateResponses, ClientsCreateErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -409,6 +666,12 @@ export const clientsCreate = <ThrowOnError extends boolean = true>(options: Opti
   }
 });
 
+/**
+ * Delete an OIDC application registration.
+ *
+ * Requires the AdminAccess permission. Deletes the application record across organizations and returns no
+ * content. Returns 404 when the record does not exist.
+ */
 export const clientsDelete = <ThrowOnError extends boolean = true>(options: Options<ClientsDeleteData, ThrowOnError>): RequestResult<ClientsDeleteResponses, ClientsDeleteErrors, ThrowOnError, 'data'> => (options.client ?? client).delete<ClientsDeleteResponses, ClientsDeleteErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -416,6 +679,12 @@ export const clientsDelete = <ThrowOnError extends boolean = true>(options: Opti
   ...options
 });
 
+/**
+ * Get an OIDC application registration.
+ *
+ * Requires the AdminAccess permission. Looks up the application record across organizations and returns its
+ * configuration without the client secret. Returns 404 when the record does not exist.
+ */
 export const clientsGetById = <ThrowOnError extends boolean = true>(options: Options<ClientsGetByIdData, ThrowOnError>): RequestResult<ClientsGetByIdResponses, ClientsGetByIdErrors, ThrowOnError, 'data'> => (options.client ?? client).get<ClientsGetByIdResponses, ClientsGetByIdErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -423,6 +692,14 @@ export const clientsGetById = <ThrowOnError extends boolean = true>(options: Opt
   ...options
 });
 
+/**
+ * Update an OIDC application registration.
+ *
+ * Requires the AdminAccess permission. Replaces the display name and redirect lists while preserving the client
+ * identifier, secret, and scope permissions. Omitted logout URLs remove those registrations; a null
+ * RefreshTokenLifetime preserves its current value, while an explicit value changes future refresh tokens.
+ * Returns the updated configuration or 404 for an unknown record.
+ */
 export const clientsUpdate = <ThrowOnError extends boolean = true>(options: Options<ClientsUpdateData, ThrowOnError>): RequestResult<ClientsUpdateResponses, ClientsUpdateErrors, ThrowOnError, 'data'> => (options.client ?? client).put<ClientsUpdateResponses, ClientsUpdateErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -434,6 +711,13 @@ export const clientsUpdate = <ThrowOnError extends boolean = true>(options: Opti
   }
 });
 
+/**
+ * Replace an OIDC client secret.
+ *
+ * Requires the AdminAccess permission. Replaces the application secret immediately and returns the new plaintext
+ * secret with its configuration. The previous secret stops authenticating the client; subsequent reads do not
+ * return the new secret.
+ */
 export const clientsRotateSecret = <ThrowOnError extends boolean = true>(options: Options<ClientsRotateSecretData, ThrowOnError>): RequestResult<ClientsRotateSecretResponses, ClientsRotateSecretErrors, ThrowOnError, 'data'> => (options.client ?? client).post<ClientsRotateSecretResponses, ClientsRotateSecretErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -441,6 +725,12 @@ export const clientsRotateSecret = <ThrowOnError extends boolean = true>(options
   ...options
 });
 
+/**
+ * Get effective Identity configuration for the current user.
+ *
+ * Requires an authenticated user and resolved tenant context. Returns a key-value map of Identity settings with
+ * user overrides taking precedence over tenant overrides and registered defaults.
+ */
 export const identitySettingsGetConfig = <ThrowOnError extends boolean = true>(options?: Options<IdentitySettingsGetConfigData, ThrowOnError>): RequestResult<IdentitySettingsGetConfigResponses, IdentitySettingsGetConfigErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<IdentitySettingsGetConfigResponses, IdentitySettingsGetConfigErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -448,6 +738,13 @@ export const identitySettingsGetConfig = <ThrowOnError extends boolean = true>(o
   ...options
 });
 
+/**
+ * Remove an Identity setting override for the tenant.
+ *
+ * Requires an authenticated user, the SystemSettings permission, and resolved tenant context. Removes the tenant
+ * override so resolution falls back to the registered default. Registered Identity keys and custom. keys are
+ * accepted; system keys and unknown keys are rejected.
+ */
 export const identitySettingsDeleteTenantSetting = <ThrowOnError extends boolean = true>(options?: Options<IdentitySettingsDeleteTenantSettingData, ThrowOnError>): RequestResult<IdentitySettingsDeleteTenantSettingResponses, IdentitySettingsDeleteTenantSettingErrors, ThrowOnError, 'data'> => (options?.client ?? client).delete<IdentitySettingsDeleteTenantSettingResponses, IdentitySettingsDeleteTenantSettingErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -455,6 +752,12 @@ export const identitySettingsDeleteTenantSetting = <ThrowOnError extends boolean
   ...options
 });
 
+/**
+ * List resolved tenant Identity settings.
+ *
+ * Requires the SystemSettings permission and resolved tenant context. Returns tenant overrides merged with
+ * registered defaults, including each setting source and available metadata.
+ */
 export const identitySettingsGetTenantSettings = <ThrowOnError extends boolean = true>(options?: Options<IdentitySettingsGetTenantSettingsData, ThrowOnError>): RequestResult<IdentitySettingsGetTenantSettingsResponses, IdentitySettingsGetTenantSettingsErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<IdentitySettingsGetTenantSettingsResponses, IdentitySettingsGetTenantSettingsErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -462,6 +765,13 @@ export const identitySettingsGetTenantSettings = <ThrowOnError extends boolean =
   ...options
 });
 
+/**
+ * Set an Identity setting override for the tenant.
+ *
+ * Requires an authenticated user, the SystemSettings permission, and resolved tenant context. Creates or
+ * replaces one tenant override using a registered Identity key or a custom. key and a string value. System keys
+ * and unknown keys are rejected; success returns no content.
+ */
 export const identitySettingsUpsertTenantSetting = <ThrowOnError extends boolean = true>(options: Options<IdentitySettingsUpsertTenantSettingData, ThrowOnError>): RequestResult<IdentitySettingsUpsertTenantSettingResponses, IdentitySettingsUpsertTenantSettingErrors, ThrowOnError, 'data'> => (options.client ?? client).put<IdentitySettingsUpsertTenantSettingResponses, IdentitySettingsUpsertTenantSettingErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -473,6 +783,13 @@ export const identitySettingsUpsertTenantSetting = <ThrowOnError extends boolean
   }
 });
 
+/**
+ * Remove an Identity setting override for the user.
+ *
+ * Requires an authenticated user and resolved tenant context. Removes the user override so resolution falls back
+ * to the tenant value or registered default. Registered Identity keys and custom. keys are accepted; system keys
+ * and unknown keys are rejected.
+ */
 export const identitySettingsDeleteUserSetting = <ThrowOnError extends boolean = true>(options?: Options<IdentitySettingsDeleteUserSettingData, ThrowOnError>): RequestResult<IdentitySettingsDeleteUserSettingResponses, IdentitySettingsDeleteUserSettingErrors, ThrowOnError, 'data'> => (options?.client ?? client).delete<IdentitySettingsDeleteUserSettingResponses, IdentitySettingsDeleteUserSettingErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -480,6 +797,12 @@ export const identitySettingsDeleteUserSetting = <ThrowOnError extends boolean =
   ...options
 });
 
+/**
+ * List resolved Identity settings for the current user.
+ *
+ * Requires an authenticated user and resolved tenant context. Returns user overrides merged with tenant
+ * overrides and registered defaults, including each value source and available metadata.
+ */
 export const identitySettingsGetUserSettings = <ThrowOnError extends boolean = true>(options?: Options<IdentitySettingsGetUserSettingsData, ThrowOnError>): RequestResult<IdentitySettingsGetUserSettingsResponses, IdentitySettingsGetUserSettingsErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<IdentitySettingsGetUserSettingsResponses, IdentitySettingsGetUserSettingsErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -487,6 +810,13 @@ export const identitySettingsGetUserSettings = <ThrowOnError extends boolean = t
   ...options
 });
 
+/**
+ * Set an Identity setting override for the user.
+ *
+ * Requires an authenticated user and resolved tenant context. Creates or replaces one user override using a
+ * registered Identity key or a custom. key and a string value. System keys and unknown keys are rejected;
+ * success returns no content.
+ */
 export const identitySettingsUpsertUserSetting = <ThrowOnError extends boolean = true>(options: Options<IdentitySettingsUpsertUserSettingData, ThrowOnError>): RequestResult<IdentitySettingsUpsertUserSettingResponses, IdentitySettingsUpsertUserSettingErrors, ThrowOnError, 'data'> => (options.client ?? client).put<IdentitySettingsUpsertUserSettingResponses, IdentitySettingsUpsertUserSettingErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -498,6 +828,12 @@ export const identitySettingsUpsertUserSetting = <ThrowOnError extends boolean =
   }
 });
 
+/**
+ * List organization invitations.
+ *
+ * Requires OrganizationsManageMembers in the resolved tenant. Returns invitations of all statuses, newest first,
+ * without invitation tokens. skip is a zero-based offset and take is the maximum number of results.
+ */
 export const invitationsGetByTenant = <ThrowOnError extends boolean = true>(options?: Options<InvitationsGetByTenantData, ThrowOnError>): RequestResult<InvitationsGetByTenantResponses, InvitationsGetByTenantErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<InvitationsGetByTenantResponses, InvitationsGetByTenantErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -505,6 +841,13 @@ export const invitationsGetByTenant = <ThrowOnError extends boolean = true>(opti
   ...options
 });
 
+/**
+ * Invite a user to the resolved organization.
+ *
+ * Requires OrganizationsManageMembers in the resolved tenant. Creates an email invitation valid for seven days,
+ * or renews an outstanding invitation with the same token, and requests delivery. Existing active members cannot
+ * be invited; the response includes invitation status and expiry.
+ */
 export const invitationsCreate = <ThrowOnError extends boolean = true>(options: Options<InvitationsCreateData, ThrowOnError>): RequestResult<InvitationsCreateResponses, InvitationsCreateErrors, ThrowOnError, 'data'> => (options.client ?? client).post<InvitationsCreateResponses, InvitationsCreateErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -516,6 +859,12 @@ export const invitationsCreate = <ThrowOnError extends boolean = true>(options: 
   }
 });
 
+/**
+ * Revoke an organization invitation.
+ *
+ * Requires OrganizationsManageMembers in the resolved tenant. Revokes a pending invitation identified by its ID,
+ * preventing acceptance. An invitation outside the resolved tenant or a missing invitation returns 404.
+ */
 export const invitationsRevoke = <ThrowOnError extends boolean = true>(options: Options<InvitationsRevokeData, ThrowOnError>): RequestResult<InvitationsRevokeResponses, InvitationsRevokeErrors, ThrowOnError, 'data'> => (options.client ?? client).delete<InvitationsRevokeResponses, InvitationsRevokeErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -523,6 +872,13 @@ export const invitationsRevoke = <ThrowOnError extends boolean = true>(options: 
   ...options
 });
 
+/**
+ * Look up an invitation token.
+ *
+ * Allows anonymous access without an organization context. Returns the matching invitation recipient, status,
+ * and expiry, including invitations that are no longer pending. A successful lookup does not guarantee that
+ * acceptance is allowed; unknown tokens return 404.
+ */
 export const invitationsVerify = <ThrowOnError extends boolean = true>(options: Options<InvitationsVerifyData, ThrowOnError>): RequestResult<InvitationsVerifyResponses, InvitationsVerifyErrors, ThrowOnError, 'data'> => (options.client ?? client).get<InvitationsVerifyResponses, InvitationsVerifyErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -531,7 +887,11 @@ export const invitationsVerify = <ThrowOnError extends boolean = true>(options: 
 });
 
 /**
- * Accepts an invitation for the authenticated user, whose verified email must match the invitation.
+ * Accept an organization invitation.
+ *
+ * Requires an authenticated user whose verified email matches the invitation, without an existing organization
+ * context. A valid pending invitation creates or approves membership using the invited organization default
+ * role. Expired invitations and suspended or denied memberships are rejected.
  */
 export const invitationsAccept = <ThrowOnError extends boolean = true>(options: Options<InvitationsAcceptData, ThrowOnError>): RequestResult<InvitationsAcceptResponses, InvitationsAcceptErrors, ThrowOnError, 'data'> => (options.client ?? client).post<InvitationsAcceptResponses, InvitationsAcceptErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -541,7 +901,11 @@ export const invitationsAccept = <ThrowOnError extends boolean = true>(options: 
 });
 
 /**
- * Lists valid permanent consent records for the caller.
+ * List your application consents.
+ *
+ * Requires an authenticated user, without an organization context or management permission. Returns valid
+ * permanent consent records for existing applications, newest first, including authorization IDs and granted
+ * scopes.
  */
 export const meAuthorizationsListConnectedApplications = <ThrowOnError extends boolean = true>(options?: Options<MeAuthorizationsListConnectedApplicationsData, ThrowOnError>): RequestResult<MeAuthorizationsListConnectedApplicationsResponses, MeAuthorizationsListConnectedApplicationsErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<MeAuthorizationsListConnectedApplicationsResponses, MeAuthorizationsListConnectedApplicationsErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -551,8 +915,11 @@ export const meAuthorizationsListConnectedApplications = <ThrowOnError extends b
 });
 
 /**
- * Withdraws the caller consent and revokes associated user/client access.
- * Returns 404 when the consent cannot be found for the caller.
+ * Withdraw consent for an application.
+ *
+ * Requires an authenticated user, without an organization context or management permission. Uses an
+ * authorization ID from your consent list to request revocation of that consent and your tokens for its
+ * application. A missing, invalid, or other user consent returns 404.
  */
 export const meAuthorizationsWithdrawConsent = <ThrowOnError extends boolean = true>(options: Options<MeAuthorizationsWithdrawConsentData, ThrowOnError>): RequestResult<MeAuthorizationsWithdrawConsentResponses, MeAuthorizationsWithdrawConsentErrors, ThrowOnError, 'data'> => (options.client ?? client).delete<MeAuthorizationsWithdrawConsentResponses, MeAuthorizationsWithdrawConsentErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -562,7 +929,11 @@ export const meAuthorizationsWithdrawConsent = <ThrowOnError extends boolean = t
 });
 
 /**
- * Lists the caller active organization memberships without requiring a management permission.
+ * List your active organizations.
+ *
+ * Requires an authenticated user, without an organization context or management permission. Returns active
+ * organizations where the caller has an active membership, including organization IDs, slugs, and owner status,
+ * ordered by name.
  */
 export const meGetOrganizations = <ThrowOnError extends boolean = true>(options?: Options<MeGetOrganizationsData, ThrowOnError>): RequestResult<MeGetOrganizationsResponses, MeGetOrganizationsErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<MeGetOrganizationsResponses, MeGetOrganizationsErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -571,6 +942,12 @@ export const meGetOrganizations = <ThrowOnError extends boolean = true>(options?
   ...options
 });
 
+/**
+ * Get the current user MFA status.
+ *
+ * Requires an authenticated user. Returns whether MFA is enabled, the configured method, and the number of
+ * remaining backup codes. MFA belongs to the account across organizations.
+ */
 export const mfaGetStatus = <ThrowOnError extends boolean = true>(options?: Options<MfaGetStatusData, ThrowOnError>): RequestResult<MfaGetStatusResponses, MfaGetStatusErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<MfaGetStatusResponses, MfaGetStatusErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -578,6 +955,13 @@ export const mfaGetStatus = <ThrowOnError extends boolean = true>(options?: Opti
   ...options
 });
 
+/**
+ * Generate a TOTP enrollment secret.
+ *
+ * Requires an authenticated user or a valid MFA partial-auth browser cookie. Returns a base32 secret and an
+ * otpauth URI for an authenticator app. MFA is enabled only after enroll/confirm receives the secret and a valid
+ * code.
+ */
 export const mfaEnrollTotp = <ThrowOnError extends boolean = true>(options?: Options<MfaEnrollTotpData, ThrowOnError>): RequestResult<MfaEnrollTotpResponses, MfaEnrollTotpErrors, ThrowOnError, 'data'> => (options?.client ?? client).post<MfaEnrollTotpResponses, MfaEnrollTotpErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -585,6 +969,14 @@ export const mfaEnrollTotp = <ThrowOnError extends boolean = true>(options?: Opt
   ...options
 });
 
+/**
+ * Confirm TOTP enrollment and return backup codes.
+ *
+ * Requires an authenticated user or a valid MFA partial-auth browser cookie. Accepts the enrollment Secret and a
+ * current authenticator Code, enables account MFA, and replaces backup codes with ten new codes. Returns the
+ * plaintext backup codes for storage by the user. A partial-auth enrollment also establishes the full browser
+ * sign-in cookie.
+ */
 export const mfaConfirmEnrollment = <ThrowOnError extends boolean = true>(options: Options<MfaConfirmEnrollmentData, ThrowOnError>): RequestResult<MfaConfirmEnrollmentResponses, MfaConfirmEnrollmentErrors, ThrowOnError, 'data'> => (options.client ?? client).post<MfaConfirmEnrollmentResponses, MfaConfirmEnrollmentErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -596,6 +988,12 @@ export const mfaConfirmEnrollment = <ThrowOnError extends boolean = true>(option
   }
 });
 
+/**
+ * Disable MFA for the current user.
+ *
+ * Requires an authenticated user and their current password. Disables account MFA and clears its secret and
+ * backup codes. Returns a problem when the password is invalid or MFA is already disabled.
+ */
 export const mfaDisable = <ThrowOnError extends boolean = true>(options: Options<MfaDisableData, ThrowOnError>): RequestResult<MfaDisableResponses, MfaDisableErrors, ThrowOnError, 'data'> => (options.client ?? client).post<MfaDisableResponses, MfaDisableErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -607,6 +1005,12 @@ export const mfaDisable = <ThrowOnError extends boolean = true>(options: Options
   }
 });
 
+/**
+ * Replace the current user MFA backup codes.
+ *
+ * Requires an authenticated user and their current password. Replaces all stored backup codes with ten new codes
+ * and returns their plaintext values. Previously issued backup codes stop working.
+ */
 export const mfaRegenerateBackupCodes = <ThrowOnError extends boolean = true>(options: Options<MfaRegenerateBackupCodesData, ThrowOnError>): RequestResult<MfaRegenerateBackupCodesResponses, MfaRegenerateBackupCodesErrors, ThrowOnError, 'data'> => (options.client ?? client).post<MfaRegenerateBackupCodesResponses, MfaRegenerateBackupCodesErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -618,6 +1022,13 @@ export const mfaRegenerateBackupCodes = <ThrowOnError extends boolean = true>(op
   }
 });
 
+/**
+ * Disable MFA for a specified account.
+ *
+ * Requires authentication. Targets the account by userId and clears its MFA configuration and backup codes
+ * without asking for its password. Returns succeeded=true, or a user-not-found problem if the account does not
+ * exist.
+ */
 export const mfaAdminDisableMfa = <ThrowOnError extends boolean = true>(options: Options<MfaAdminDisableMfaData, ThrowOnError>): RequestResult<MfaAdminDisableMfaResponses, MfaAdminDisableMfaErrors, ThrowOnError, 'data'> => (options.client ?? client).post<MfaAdminDisableMfaResponses, MfaAdminDisableMfaErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -625,6 +1036,12 @@ export const mfaAdminDisableMfa = <ThrowOnError extends boolean = true>(options:
   ...options
 });
 
+/**
+ * Clear password and MFA lockout for an account.
+ *
+ * Requires authentication. Clears the target account password lockout, failed-password count, and MFA lockout
+ * state. Returns succeeded=true and records the current user as the actor in the lockout-cleared event.
+ */
 export const mfaAdminClearLockout = <ThrowOnError extends boolean = true>(options: Options<MfaAdminClearLockoutData, ThrowOnError>): RequestResult<MfaAdminClearLockoutResponses, MfaAdminClearLockoutErrors, ThrowOnError, 'data'> => (options.client ?? client).post<MfaAdminClearLockoutResponses, MfaAdminClearLockoutErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -633,7 +1050,10 @@ export const mfaAdminClearLockout = <ThrowOnError extends boolean = true>(option
 });
 
 /**
- * Issues a sixty-second token that the enrollment exchange endpoint accepts for partial authentication.
+ * Issue a token for browser MFA enrollment.
+ *
+ * Requires an authenticated user with an email claim. Returns a protected enrollment token valid for 60 seconds.
+ * The authentication app exchanges this token for an MFA partial-auth cookie to continue enrollment.
  */
 export const mfaIssueEnrollmentToken = <ThrowOnError extends boolean = true>(options?: Options<MfaIssueEnrollmentTokenData, ThrowOnError>): RequestResult<MfaIssueEnrollmentTokenResponses, MfaIssueEnrollmentTokenErrors, ThrowOnError, 'data'> => (options?.client ?? client).post<MfaIssueEnrollmentTokenResponses, MfaIssueEnrollmentTokenErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -643,7 +1063,11 @@ export const mfaIssueEnrollmentToken = <ThrowOnError extends boolean = true>(opt
 });
 
 /**
- * Exchanges an unexpired enrollment token for an MFA partial-auth cookie.
+ * Exchange an enrollment token for an MFA cookie.
+ *
+ * Available without authentication and intended for the browser enrollment flow. Accepts an unexpired token from
+ * enroll/issue-token and sets a five-minute MFA partial-auth cookie. Returns succeeded=true so the browser can
+ * continue with TOTP enrollment.
  */
 export const mfaExchangeEnrollmentToken = <ThrowOnError extends boolean = true>(options?: Options<MfaExchangeEnrollmentTokenData, ThrowOnError>): RequestResult<MfaExchangeEnrollmentTokenResponses, MfaExchangeEnrollmentTokenErrors, ThrowOnError, 'data'> => (options?.client ?? client).post<MfaExchangeEnrollmentTokenResponses, MfaExchangeEnrollmentTokenErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -653,7 +1077,11 @@ export const mfaExchangeEnrollmentToken = <ThrowOnError extends boolean = true>(
 });
 
 /**
- * List the clients the organization owns.
+ * List organization clients.
+ *
+ * Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Returns owned applications and
+ * service accounts with configuration and status, without secrets.
  */
 export const organizationClientsList = <ThrowOnError extends boolean = true>(options: Options<OrganizationClientsListData, ThrowOnError>): RequestResult<OrganizationClientsListResponses, OrganizationClientsListErrors, ThrowOnError, 'data'> => (options.client ?? client).get<OrganizationClientsListResponses, OrganizationClientsListErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -663,7 +1091,13 @@ export const organizationClientsList = <ThrowOnError extends boolean = true>(opt
 });
 
 /**
- * Registers an organization client and reveals its secret. Service accounts ignore URI fields.
+ * Register an organization client.
+ *
+ * Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Creates a confidential
+ * application for authorization code with PKCE and refresh tokens, or a service-account for client credentials.
+ * Applications require redirect URIs; both kinds require scopes and reject platform-only API scopes. Returns the
+ * client secret once, with issuer and API URLs.
  */
 export const organizationClientsRegister = <ThrowOnError extends boolean = true>(options: Options<OrganizationClientsRegisterData, ThrowOnError>): RequestResult<OrganizationClientsRegisterResponses, OrganizationClientsRegisterErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationClientsRegisterResponses, OrganizationClientsRegisterErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -677,7 +1111,12 @@ export const organizationClientsRegister = <ThrowOnError extends boolean = true>
 });
 
 /**
- * Rotates and reveals the client secret. revokeActiveTokens also requests revocation of issued tokens.
+ * Rotate an organization client secret.
+ *
+ * Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Replaces the secret for a
+ * client owned by the addressed organization and reveals the new secret once. Set revokeActiveTokens to revoke
+ * issued access as part of rotation.
  */
 export const organizationClientsRotateSecret = <ThrowOnError extends boolean = true>(options: Options<OrganizationClientsRotateSecretData, ThrowOnError>): RequestResult<OrganizationClientsRotateSecretResponses, OrganizationClientsRotateSecretErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationClientsRotateSecretResponses, OrganizationClientsRotateSecretErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -691,7 +1130,12 @@ export const organizationClientsRotateSecret = <ThrowOnError extends boolean = t
 });
 
 /**
- * Deletes the client and its authorizations after access revocation; branding cleanup follows the deletion event.
+ * Delete an organization client.
+ *
+ * Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Revokes access and deletes the
+ * client and its authorizations, then requests branding cleanup. A missing client or one owned by another
+ * organization returns 404.
  */
 export const organizationClientsDelete = <ThrowOnError extends boolean = true>(options: Options<OrganizationClientsDeleteData, ThrowOnError>): RequestResult<OrganizationClientsDeleteResponses, OrganizationClientsDeleteErrors, ThrowOnError, 'data'> => (options.client ?? client).delete<OrganizationClientsDeleteResponses, OrganizationClientsDeleteErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -701,7 +1145,11 @@ export const organizationClientsDelete = <ThrowOnError extends boolean = true>(o
 });
 
 /**
- * Get one of the organization's clients.
+ * Get an organization client.
+ *
+ * Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Returns configuration and
+ * status without a secret. A missing client or one owned by another organization returns 404.
  */
 export const organizationClientsGetById = <ThrowOnError extends boolean = true>(options: Options<OrganizationClientsGetByIdData, ThrowOnError>): RequestResult<OrganizationClientsGetByIdResponses, OrganizationClientsGetByIdErrors, ThrowOnError, 'data'> => (options.client ?? client).get<OrganizationClientsGetByIdResponses, OrganizationClientsGetByIdErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -711,8 +1159,13 @@ export const organizationClientsGetById = <ThrowOnError extends boolean = true>(
 });
 
 /**
- * Replaces redirect URIs, back-channel logout settings, and scopes. Null lifetime preserves
- * the current value; service accounts ignore URI fields.
+ * Replace organization client configuration.
+ *
+ * Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Replaces application redirect
+ * URIs, logout settings, and scopes; null refreshTokenLifetime preserves the current value, in seconds. Service
+ * accounts ignore URI and lifetime settings. Returns the updated client; unknown or platform-only scopes are
+ * rejected.
  */
 export const organizationClientsUpdate = <ThrowOnError extends boolean = true>(options: Options<OrganizationClientsUpdateData, ThrowOnError>): RequestResult<OrganizationClientsUpdateResponses, OrganizationClientsUpdateErrors, ThrowOnError, 'data'> => (options.client ?? client).patch<OrganizationClientsUpdateResponses, OrganizationClientsUpdateErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -726,7 +1179,11 @@ export const organizationClientsUpdate = <ThrowOnError extends boolean = true>(o
 });
 
 /**
- * Suspends a client and revokes its access while retaining registration, branding, and permanent consents.
+ * Suspend an organization client.
+ *
+ * Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Revokes client access while
+ * retaining registration, branding, and permanent consents. Returns the updated client status.
  */
 export const organizationClientsSuspend = <ThrowOnError extends boolean = true>(options: Options<OrganizationClientsSuspendData, ThrowOnError>): RequestResult<OrganizationClientsSuspendResponses, OrganizationClientsSuspendErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationClientsSuspendResponses, OrganizationClientsSuspendErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -736,7 +1193,12 @@ export const organizationClientsSuspend = <ThrowOnError extends boolean = true>(
 });
 
 /**
- * Lifts the organization client suspension. Revoked tokens remain revoked.
+ * Reinstate an organization client.
+ *
+ * Requires OrganizationClientsManage. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Lifts the client suspension
+ * imposed by its organization and returns its status. Revoked tokens stay revoked, and platform or organization
+ * restrictions still apply.
  */
 export const organizationClientsReinstate = <ThrowOnError extends boolean = true>(options: Options<OrganizationClientsReinstateData, ThrowOnError>): RequestResult<OrganizationClientsReinstateResponses, OrganizationClientsReinstateErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationClientsReinstateResponses, OrganizationClientsReinstateErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -746,7 +1208,11 @@ export const organizationClientsReinstate = <ThrowOnError extends boolean = true
 });
 
 /**
- * Lifts the client platform suspension. Other client and organization restrictions still apply.
+ * Lift a client platform suspension.
+ *
+ * Requires a global administrator and a client owned by the addressed organization. Clears the platform
+ * suspension and returns the updated client. Revoked tokens and other client or organization restrictions remain
+ * unchanged.
  */
 export const organizationClientsLiftPlatformSuspension = <ThrowOnError extends boolean = true>(options: Options<OrganizationClientsLiftPlatformSuspensionData, ThrowOnError>): RequestResult<OrganizationClientsLiftPlatformSuspensionResponses, OrganizationClientsLiftPlatformSuspensionErrors, ThrowOnError, 'data'> => (options.client ?? client).delete<OrganizationClientsLiftPlatformSuspensionResponses, OrganizationClientsLiftPlatformSuspensionErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -756,7 +1222,11 @@ export const organizationClientsLiftPlatformSuspension = <ThrowOnError extends b
 });
 
 /**
- * Applies a client platform suspension with a reason. Requires global administrator authority.
+ * Suspend a client at platform level.
+ *
+ * Requires a global administrator and a client owned by the addressed organization. Records the supplied reason,
+ * revokes client access, and returns the updated client. A missing client or organization ownership mismatch
+ * returns 404.
  */
 export const organizationClientsPlacePlatformSuspension = <ThrowOnError extends boolean = true>(options: Options<OrganizationClientsPlacePlatformSuspensionData, ThrowOnError>): RequestResult<OrganizationClientsPlacePlatformSuspensionResponses, OrganizationClientsPlacePlatformSuspensionErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationClientsPlacePlatformSuspensionResponses, OrganizationClientsPlacePlatformSuspensionErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -770,7 +1240,11 @@ export const organizationClientsPlacePlatformSuspension = <ThrowOnError extends 
 });
 
 /**
- * Returns the resolved tenant organization if present in the requested search-result page.
+ * Find the resolved tenant organization.
+ *
+ * Requires OrganizationsRead. Searches organization names and pages results in name order before retaining only
+ * the resolved tenant, so the response contains at most one organization and can be empty. first is the
+ * zero-based offset and max is the result limit before this tenant filter.
  */
 export const organizationsGetAll = <ThrowOnError extends boolean = true>(options?: Options<OrganizationsGetAllData, ThrowOnError>): RequestResult<OrganizationsGetAllResponses, OrganizationsGetAllErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<OrganizationsGetAllResponses, OrganizationsGetAllErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -780,7 +1254,10 @@ export const organizationsGetAll = <ThrowOnError extends boolean = true>(options
 });
 
 /**
- * Creates an organization for the authenticated caller. No existing organization or tenant permission is required.
+ * Create an organization.
+ *
+ * Requires an authenticated user, without an existing organization or tenant permission. Creates a tenant and
+ * enrolls the caller as an owner with the admin role, then returns the organization ID.
  */
 export const organizationsCreate = <ThrowOnError extends boolean = true>(options: Options<OrganizationsCreateData, ThrowOnError>): RequestResult<OrganizationsCreateResponses, OrganizationsCreateErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationsCreateResponses, OrganizationsCreateErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -794,7 +1271,12 @@ export const organizationsCreate = <ThrowOnError extends boolean = true>(options
 });
 
 /**
- * Permanently delete an organization. Requires name confirmation.
+ * Permanently delete an organization.
+ *
+ * Requires OrganizationsDelete. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. confirmName must exactly match
+ * the organization name. Revokes access and deletes the organization, memberships, clients, invitations, and
+ * identity settings, then requests cleanup in other modules.
  */
 export const organizationsDelete = <ThrowOnError extends boolean = true>(options: Options<OrganizationsDeleteData, ThrowOnError>): RequestResult<OrganizationsDeleteResponses, OrganizationsDeleteErrors, ThrowOnError, 'data'> => (options.client ?? client).delete<OrganizationsDeleteResponses, OrganizationsDeleteErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -808,7 +1290,11 @@ export const organizationsDelete = <ThrowOnError extends boolean = true>(options
 });
 
 /**
- * Get a specific organization by ID.
+ * Get an organization.
+ *
+ * Requires OrganizationsRead. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Returns organization details,
+ * or 404 when the organization is missing or inaccessible.
  */
 export const organizationsGetById = <ThrowOnError extends boolean = true>(options: Options<OrganizationsGetByIdData, ThrowOnError>): RequestResult<OrganizationsGetByIdResponses, OrganizationsGetByIdErrors, ThrowOnError, 'data'> => (options.client ?? client).get<OrganizationsGetByIdResponses, OrganizationsGetByIdErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -818,7 +1304,11 @@ export const organizationsGetById = <ThrowOnError extends boolean = true>(option
 });
 
 /**
- * Get all members of a specific organization.
+ * List active organization members.
+ *
+ * Requires OrganizationsRead. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Returns user profiles and roles
+ * for active memberships in the addressed organization.
  */
 export const organizationsGetMembers = <ThrowOnError extends boolean = true>(options: Options<OrganizationsGetMembersData, ThrowOnError>): RequestResult<OrganizationsGetMembersResponses, OrganizationsGetMembersErrors, ThrowOnError, 'data'> => (options.client ?? client).get<OrganizationsGetMembersResponses, OrganizationsGetMembersErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -828,7 +1318,12 @@ export const organizationsGetMembers = <ThrowOnError extends boolean = true>(opt
 });
 
 /**
- * Add a user to an organization.
+ * Grant organization membership.
+ *
+ * Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Supply an existing user ID and
+ * role name. Creates or activates the membership and adds the role, including when the existing membership is
+ * pending, denied, or suspended.
  */
 export const organizationsAddMember = <ThrowOnError extends boolean = true>(options: Options<OrganizationsAddMemberData, ThrowOnError>): RequestResult<OrganizationsAddMemberResponses, OrganizationsAddMemberErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationsAddMemberResponses, OrganizationsAddMemberErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -842,7 +1337,11 @@ export const organizationsAddMember = <ThrowOnError extends boolean = true>(opti
 });
 
 /**
- * Remove a user from an organization.
+ * Remove an organization member.
+ *
+ * Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Deletes the membership and
+ * revokes its access. Removing the last active owner is rejected.
  */
 export const organizationsRemoveMember = <ThrowOnError extends boolean = true>(options: Options<OrganizationsRemoveMemberData, ThrowOnError>): RequestResult<OrganizationsRemoveMemberResponses, OrganizationsRemoveMemberErrors, ThrowOnError, 'data'> => (options.client ?? client).delete<OrganizationsRemoveMemberResponses, OrganizationsRemoveMemberErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -852,7 +1351,11 @@ export const organizationsRemoveMember = <ThrowOnError extends boolean = true>(o
 });
 
 /**
- * List the organization's outstanding access requests, oldest first.
+ * List pending membership requests.
+ *
+ * Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Returns requester profiles and
+ * request times, oldest first.
  */
 export const organizationsGetPendingMembers = <ThrowOnError extends boolean = true>(options: Options<OrganizationsGetPendingMembersData, ThrowOnError>): RequestResult<unknown, OrganizationsGetPendingMembersErrors, ThrowOnError, 'data'> => (options.client ?? client).get<unknown, OrganizationsGetPendingMembersErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -862,7 +1365,11 @@ export const organizationsGetPendingMembers = <ThrowOnError extends boolean = tr
 });
 
 /**
- * Lists suspended memberships by most recent update.
+ * List suspended organization members.
+ *
+ * Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Returns suspended memberships
+ * with user profiles, ordered by most recent membership update.
  */
 export const organizationsGetSuspendedMembers = <ThrowOnError extends boolean = true>(options: Options<OrganizationsGetSuspendedMembersData, ThrowOnError>): RequestResult<unknown, OrganizationsGetSuspendedMembersErrors, ThrowOnError, 'data'> => (options.client ?? client).get<unknown, OrganizationsGetSuspendedMembersErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -872,7 +1379,11 @@ export const organizationsGetSuspendedMembers = <ThrowOnError extends boolean = 
 });
 
 /**
- * Lists denied memberships by most recent update.
+ * List denied membership requests.
+ *
+ * Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Returns denied memberships with
+ * requester profiles, ordered by most recent review.
  */
 export const organizationsGetDeniedMembers = <ThrowOnError extends boolean = true>(options: Options<OrganizationsGetDeniedMembersData, ThrowOnError>): RequestResult<unknown, OrganizationsGetDeniedMembersErrors, ThrowOnError, 'data'> => (options.client ?? client).get<unknown, OrganizationsGetDeniedMembersErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -882,7 +1393,11 @@ export const organizationsGetDeniedMembers = <ThrowOnError extends boolean = tru
 });
 
 /**
- * Admit a pending requester, granting them the organization's default role.
+ * Approve a membership request.
+ *
+ * Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Activates a pending membership
+ * and grants the organization default role. A membership that is not pending is rejected.
  */
 export const organizationsApproveMember = <ThrowOnError extends boolean = true>(options: Options<OrganizationsApproveMemberData, ThrowOnError>): RequestResult<OrganizationsApproveMemberResponses, OrganizationsApproveMemberErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationsApproveMemberResponses, OrganizationsApproveMemberErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -892,7 +1407,11 @@ export const organizationsApproveMember = <ThrowOnError extends boolean = true>(
 });
 
 /**
- * Turn a pending requester away.
+ * Deny a membership request.
+ *
+ * Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Marks a pending membership as
+ * denied. A membership that is not pending is rejected.
  */
 export const organizationsDenyMember = <ThrowOnError extends boolean = true>(options: Options<OrganizationsDenyMemberData, ThrowOnError>): RequestResult<OrganizationsDenyMemberResponses, OrganizationsDenyMemberErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationsDenyMemberResponses, OrganizationsDenyMemberErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -902,7 +1421,11 @@ export const organizationsDenyMember = <ThrowOnError extends boolean = true>(opt
 });
 
 /**
- * Let a denied requester ask again now, instead of waiting out the denial.
+ * Clear a membership denial.
+ *
+ * Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Removes a denied membership so
+ * the user can request access again immediately. This does not grant access.
  */
 export const organizationsClearDenial = <ThrowOnError extends boolean = true>(options: Options<OrganizationsClearDenialData, ThrowOnError>): RequestResult<OrganizationsClearDenialResponses, OrganizationsClearDenialErrors, ThrowOnError, 'data'> => (options.client ?? client).delete<OrganizationsClearDenialResponses, OrganizationsClearDenialErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -912,8 +1435,11 @@ export const organizationsClearDenial = <ThrowOnError extends boolean = true>(op
 });
 
 /**
- * Take an active member's access to this organization away, keeping the membership so it can
- * be reinstated.
+ * Suspend an organization member.
+ *
+ * Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Suspends an active membership
+ * and revokes its access while retaining its roles. Suspending the last active owner is rejected.
  */
 export const organizationsSuspendMember = <ThrowOnError extends boolean = true>(options: Options<OrganizationsSuspendMemberData, ThrowOnError>): RequestResult<OrganizationsSuspendMemberResponses, OrganizationsSuspendMemberErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationsSuspendMemberResponses, OrganizationsSuspendMemberErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -923,7 +1449,11 @@ export const organizationsSuspendMember = <ThrowOnError extends boolean = true>(
 });
 
 /**
- * Reinstates membership using the current default role. Revoked tokens remain revoked.
+ * Reinstate a suspended member.
+ *
+ * Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Reactivates a suspended
+ * membership with its retained roles. Revoked tokens remain revoked.
  */
 export const organizationsReinstateMember = <ThrowOnError extends boolean = true>(options: Options<OrganizationsReinstateMemberData, ThrowOnError>): RequestResult<OrganizationsReinstateMemberResponses, OrganizationsReinstateMemberErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationsReinstateMemberResponses, OrganizationsReinstateMemberErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -933,8 +1463,11 @@ export const organizationsReinstateMember = <ThrowOnError extends boolean = true
 });
 
 /**
- * Removes the caller membership without requiring a management permission.
- * The service still enforces membership and last-owner rules.
+ * Leave an organization.
+ *
+ * Requires an authenticated member, without a management permission. Removes the caller membership and revokes
+ * access to that organization. Leaving as the last active owner is rejected, and platform suspension prevents
+ * this action for non-global administrators.
  */
 export const organizationsLeave = <ThrowOnError extends boolean = true>(options: Options<OrganizationsLeaveData, ThrowOnError>): RequestResult<OrganizationsLeaveResponses, OrganizationsLeaveErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationsLeaveResponses, OrganizationsLeaveErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -945,6 +1478,10 @@ export const organizationsLeave = <ThrowOnError extends boolean = true>(options:
 
 /**
  * Archive an organization.
+ *
+ * Requires OrganizationsUpdate. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Archives the organization and
+ * revokes organization access. Registration and membership records remain available for reactivation.
  */
 export const organizationsArchive = <ThrowOnError extends boolean = true>(options: Options<OrganizationsArchiveData, ThrowOnError>): RequestResult<OrganizationsArchiveResponses, OrganizationsArchiveErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationsArchiveResponses, OrganizationsArchiveErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -955,6 +1492,10 @@ export const organizationsArchive = <ThrowOnError extends boolean = true>(option
 
 /**
  * Reactivate an archived organization.
+ *
+ * Requires OrganizationsUpdate. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Restores the organization to
+ * active status. Revoked credentials and separate client suspensions are not restored.
  */
 export const organizationsReactivate = <ThrowOnError extends boolean = true>(options: Options<OrganizationsReactivateData, ThrowOnError>): RequestResult<OrganizationsReactivateResponses, OrganizationsReactivateErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationsReactivateResponses, OrganizationsReactivateErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -964,7 +1505,10 @@ export const organizationsReactivate = <ThrowOnError extends boolean = true>(opt
 });
 
 /**
- * Lifts the organization platform suspension. Revoked tokens and separate client suspensions remain unchanged.
+ * Lift an organization platform suspension.
+ *
+ * Requires a global administrator. Clears the addressed organization platform suspension. Revoked tokens,
+ * archive status, and separate client suspensions remain unchanged.
  */
 export const organizationsLiftPlatformSuspension = <ThrowOnError extends boolean = true>(options: Options<OrganizationsLiftPlatformSuspensionData, ThrowOnError>): RequestResult<OrganizationsLiftPlatformSuspensionResponses, OrganizationsLiftPlatformSuspensionErrors, ThrowOnError, 'data'> => (options.client ?? client).delete<OrganizationsLiftPlatformSuspensionResponses, OrganizationsLiftPlatformSuspensionErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -974,8 +1518,10 @@ export const organizationsLiftPlatformSuspension = <ThrowOnError extends boolean
 });
 
 /**
- * Applies an organization platform suspension and revokes associated access.
- * Requires global administrator authority; global administrators may still make changes.
+ * Suspend an organization at platform level.
+ *
+ * Requires a global administrator. Records the supplied reason and revokes organization access. Non-global
+ * administrators cannot mutate the organization while the platform suspension remains in effect.
  */
 export const organizationsPlacePlatformSuspension = <ThrowOnError extends boolean = true>(options: Options<OrganizationsPlacePlatformSuspensionData, ThrowOnError>): RequestResult<OrganizationsPlacePlatformSuspensionResponses, OrganizationsPlacePlatformSuspensionErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationsPlacePlatformSuspensionResponses, OrganizationsPlacePlatformSuspensionErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -990,6 +1536,11 @@ export const organizationsPlacePlatformSuspension = <ThrowOnError extends boolea
 
 /**
  * Get organization branding.
+ *
+ * Requires OrganizationsRead. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Returns stored logo and colors,
+ * or 404 when no branding exists in the resolved tenant. displayName is not stored by this endpoint and is
+ * returned as null.
  */
 export const organizationsGetBranding = <ThrowOnError extends boolean = true>(options: Options<OrganizationsGetBrandingData, ThrowOnError>): RequestResult<OrganizationsGetBrandingResponses, OrganizationsGetBrandingErrors, ThrowOnError, 'data'> => (options.client ?? client).get<OrganizationsGetBrandingResponses, OrganizationsGetBrandingErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1000,6 +1551,10 @@ export const organizationsGetBranding = <ThrowOnError extends boolean = true>(op
 
 /**
  * Update organization branding.
+ *
+ * Requires OrganizationsUpdate. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Replaces the logo URL and
+ * primary color, preserving the accent color. displayName is echoed in this response but is not persisted.
  */
 export const organizationsUpdateBranding = <ThrowOnError extends boolean = true>(options: Options<OrganizationsUpdateBrandingData, ThrowOnError>): RequestResult<OrganizationsUpdateBrandingResponses, OrganizationsUpdateBrandingErrors, ThrowOnError, 'data'> => (options.client ?? client).put<OrganizationsUpdateBrandingResponses, OrganizationsUpdateBrandingErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1013,7 +1568,12 @@ export const organizationsUpdateBranding = <ThrowOnError extends boolean = true>
 });
 
 /**
- * Upload organization branding logo.
+ * Get a proposed organization logo URL.
+ *
+ * Requires OrganizationsUpdate. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Accepts a multipart file and
+ * returns a URL based on its filename. This endpoint currently does not store the file or update the
+ * organization branding.
  */
 export const organizationsUploadBrandingLogo = <ThrowOnError extends boolean = true>(options: Options<OrganizationsUploadBrandingLogoData, ThrowOnError>): RequestResult<OrganizationsUploadBrandingLogoResponses, OrganizationsUploadBrandingLogoErrors, ThrowOnError, 'data'> => (options.client ?? client).post<OrganizationsUploadBrandingLogoResponses, OrganizationsUploadBrandingLogoErrors, ThrowOnError, 'data'>({
   ...formDataBodySerializer,
@@ -1028,7 +1588,11 @@ export const organizationsUploadBrandingLogo = <ThrowOnError extends boolean = t
 });
 
 /**
- * Get organization settings.
+ * Get organization security and enrollment settings.
+ *
+ * Requires OrganizationsRead. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Returns MFA, passwordless
+ * login, and enrollment settings, or 404 when settings are absent from the resolved tenant.
  */
 export const organizationsGetSettings = <ThrowOnError extends boolean = true>(options: Options<OrganizationsGetSettingsData, ThrowOnError>): RequestResult<OrganizationsGetSettingsResponses, OrganizationsGetSettingsErrors, ThrowOnError, 'data'> => (options.client ?? client).get<OrganizationsGetSettingsResponses, OrganizationsGetSettingsErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1038,7 +1602,13 @@ export const organizationsGetSettings = <ThrowOnError extends boolean = true>(op
 });
 
 /**
- * Update organization settings.
+ * Replace organization MFA settings.
+ *
+ * Requires OrganizationsUpdate. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Omitted requireMfa and
+ * mfaGracePeriodDays become false and zero; passwordless login is disabled. A positive grace period with
+ * required MFA sets a new deadline for active members without MFA; allowedLoginMethods and defaultMemberRole are
+ * currently ignored.
  */
 export const organizationsUpdateSettings = <ThrowOnError extends boolean = true>(options: Options<OrganizationsUpdateSettingsData, ThrowOnError>): RequestResult<OrganizationsUpdateSettingsResponses, OrganizationsUpdateSettingsErrors, ThrowOnError, 'data'> => (options.client ?? client).put<OrganizationsUpdateSettingsResponses, OrganizationsUpdateSettingsErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1052,8 +1622,12 @@ export const organizationsUpdateSettings = <ThrowOnError extends boolean = true>
 });
 
 /**
- * Replaces the enrollment policy, request-email address, and default role.
- * Requires permission to manage members.
+ * Replace organization enrollment settings.
+ *
+ * Requires OrganizationsManageMembers. The organization must be the resolved tenant, or you must be a global
+ * administrator or hold this permission through membership in that organization. Replaces the enrollment policy,
+ * access-request email, and default role ID. A supplied role ID must exist; null selects the user role for
+ * future enrollments.
  */
 export const organizationsUpdateEnrollment = <ThrowOnError extends boolean = true>(options: Options<OrganizationsUpdateEnrollmentData, ThrowOnError>): RequestResult<OrganizationsUpdateEnrollmentResponses, OrganizationsUpdateEnrollmentErrors, ThrowOnError, 'data'> => (options.client ?? client).put<OrganizationsUpdateEnrollmentResponses, OrganizationsUpdateEnrollmentErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1067,7 +1641,10 @@ export const organizationsUpdateEnrollment = <ThrowOnError extends boolean = tru
 });
 
 /**
- * Get all available roles in the system.
+ * List available roles.
+ *
+ * Requires RolesRead in the resolved tenant. Returns names from the global role catalog, rather than the caller
+ * role assignments.
  */
 export const rolesGetRoles = <ThrowOnError extends boolean = true>(options?: Options<RolesGetRolesData, ThrowOnError>): RequestResult<RolesGetRolesResponses, RolesGetRolesErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<RolesGetRolesResponses, RolesGetRolesErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1077,7 +1654,10 @@ export const rolesGetRoles = <ThrowOnError extends boolean = true>(options?: Opt
 });
 
 /**
- * Get the permissions associated with a specific role.
+ * Get permissions for a role.
+ *
+ * Requires RolesRead in the resolved tenant. Returns permission names from the platform role mapping for
+ * roleName. An unknown role returns an empty list.
  */
 export const rolesGetRolePermissions = <ThrowOnError extends boolean = true>(options: Options<RolesGetRolePermissionsData, ThrowOnError>): RequestResult<RolesGetRolePermissionsResponses, RolesGetRolePermissionsErrors, ThrowOnError, 'data'> => (options.client ?? client).get<RolesGetRolePermissionsResponses, RolesGetRolePermissionsErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1087,7 +1667,11 @@ export const rolesGetRolePermissions = <ThrowOnError extends boolean = true>(opt
 });
 
 /**
- * List available API scopes with optional category filter.
+ * List API scopes.
+ *
+ * Requires ScopeRead in the resolved tenant. Returns the global scope catalog ordered by category and code,
+ * optionally filtered by an exact category. Includes platform-only scopes as metadata; their presence does not
+ * permit granting them to organization clients.
  */
 export const scopesList = <ThrowOnError extends boolean = true>(options?: Options<ScopesListData, ThrowOnError>): RequestResult<ScopesListResponses, ScopesListErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<ScopesListResponses, ScopesListErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1096,6 +1680,12 @@ export const scopesList = <ThrowOnError extends boolean = true>(options?: Option
   ...options
 });
 
+/**
+ * List the current user active sign-in sessions.
+ *
+ * Requires an authenticated user. Returns unrevoked, unexpired account sessions across organizations, ordered
+ * newest first, with creation, activity, and expiry timestamps.
+ */
 export const sessionListSessions = <ThrowOnError extends boolean = true>(options?: Options<SessionListSessionsData, ThrowOnError>): RequestResult<SessionListSessionsResponses, SessionListSessionsErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<SessionListSessionsResponses, SessionListSessionsErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1103,6 +1693,12 @@ export const sessionListSessions = <ThrowOnError extends boolean = true>(options
   ...options
 });
 
+/**
+ * Revoke one of the current user sign-in sessions.
+ *
+ * Requires an authenticated user. Marks the owned session revoked and revokes credentials associated with its
+ * OIDC session identifier. Returns no content after revocation; the session must belong to the caller.
+ */
 export const sessionRevokeSession = <ThrowOnError extends boolean = true>(options: Options<SessionRevokeSessionData, ThrowOnError>): RequestResult<SessionRevokeSessionResponses, SessionRevokeSessionErrors, ThrowOnError, 'data'> => (options.client ?? client).delete<SessionRevokeSessionResponses, SessionRevokeSessionErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1110,6 +1706,13 @@ export const sessionRevokeSession = <ThrowOnError extends boolean = true>(option
   ...options
 });
 
+/**
+ * Check whether administrator setup is required.
+ *
+ * Available without authentication. Setup remains open until an active organization membership has a role
+ * granting AdminAccess. While setup is open, the response includes an organization name only when exactly one
+ * organization exists.
+ */
 export const setupGetStatus = <ThrowOnError extends boolean = true>(options?: Options<SetupGetStatusData, ThrowOnError>): RequestResult<SetupGetStatusResponses, SetupGetStatusErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<SetupGetStatusResponses, SetupGetStatusErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1117,6 +1720,14 @@ export const setupGetStatus = <ThrowOnError extends boolean = true>(options?: Op
   ...options
 });
 
+/**
+ * Create the initial organization administrator.
+ *
+ * Available without authentication while setup is required. Creates the account and enrolls it as owner of an
+ * organization with a matching name, or creates that organization. Returns no content on success and 409 if
+ * setup is already complete or the bootstrap result fails. An existing account with the supplied email leaves
+ * bootstrap unchanged.
+ */
 export const setupCreateAdmin = <ThrowOnError extends boolean = true>(options: Options<SetupCreateAdminData, ThrowOnError>): RequestResult<SetupCreateAdminResponses, SetupCreateAdminErrors, ThrowOnError, 'data'> => (options.client ?? client).post<SetupCreateAdminResponses, SetupCreateAdminErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1129,7 +1740,11 @@ export const setupCreateAdmin = <ThrowOnError extends boolean = true>(options: O
 });
 
 /**
- * Searches users in the resolved tenant with pagination.
+ * Search user accounts.
+ *
+ * Requires UsersRead in the resolved tenant. Searches the global user directory by email, first name, or last
+ * name, ordered by email; displayed roles come only from active memberships in the resolved tenant. first is a
+ * zero-based offset and max is the page size; the response includes total count and page metadata.
  */
 export const usersGetUsers = <ThrowOnError extends boolean = true>(options?: Options<UsersGetUsersData, ThrowOnError>): RequestResult<UsersGetUsersResponses, UsersGetUsersErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<UsersGetUsersResponses, UsersGetUsersErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1139,7 +1754,10 @@ export const usersGetUsers = <ThrowOnError extends boolean = true>(options?: Opt
 });
 
 /**
- * Creates a user account and adds it to the resolved tenant with the user role.
+ * Create a user and organization membership.
+ *
+ * Requires UsersCreate in the resolved tenant. Creates an account with the supplied email and profile,
+ * optionally sets a password, and enrolls the user with the user role. Returns the created account and its URL.
  */
 export const usersCreateUser = <ThrowOnError extends boolean = true>(options: Options<UsersCreateUserData, ThrowOnError>): RequestResult<UsersCreateUserResponses, UsersCreateUserErrors, ThrowOnError, 'data'> => (options.client ?? client).post<UsersCreateUserResponses, UsersCreateUserErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1153,7 +1771,10 @@ export const usersCreateUser = <ThrowOnError extends boolean = true>(options: Op
 });
 
 /**
- * Gets a user who belongs to the resolved tenant.
+ * Get an organization member account.
+ *
+ * Requires UsersRead and an active membership for the target user in the resolved tenant. Returns the account
+ * profile and roles in that tenant, or 404 when the user is missing or is not a member.
  */
 export const usersGetUserById = <ThrowOnError extends boolean = true>(options: Options<UsersGetUserByIdData, ThrowOnError>): RequestResult<UsersGetUserByIdResponses, UsersGetUserByIdErrors, ThrowOnError, 'data'> => (options.client ?? client).get<UsersGetUserByIdResponses, UsersGetUserByIdErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1163,7 +1784,10 @@ export const usersGetUserById = <ThrowOnError extends boolean = true>(options: O
 });
 
 /**
- * Get the currently authenticated user's profile, roles, and permissions.
+ * Get the authenticated user profile.
+ *
+ * Requires authentication without an organization context or management permission. Returns profile fields,
+ * roles, permissions, and global administrator status from the current authentication claims.
  */
 export const usersGetCurrentUser = <ThrowOnError extends boolean = true>(options?: Options<UsersGetCurrentUserData, ThrowOnError>): RequestResult<UsersGetCurrentUserResponses, UsersGetCurrentUserErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<UsersGetCurrentUserResponses, UsersGetCurrentUserErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1173,7 +1797,10 @@ export const usersGetCurrentUser = <ThrowOnError extends boolean = true>(options
 });
 
 /**
- * Deactivate a user account.
+ * Lock a member user account.
+ *
+ * Requires UsersUpdate and an active membership for the target user in the resolved tenant. Locks the account
+ * indefinitely and revokes the user access across organizations. A missing membership returns 404.
  */
 export const usersDeactivateUser = <ThrowOnError extends boolean = true>(options: Options<UsersDeactivateUserData, ThrowOnError>): RequestResult<UsersDeactivateUserResponses, UsersDeactivateUserErrors, ThrowOnError, 'data'> => (options.client ?? client).post<UsersDeactivateUserResponses, UsersDeactivateUserErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1183,7 +1810,10 @@ export const usersDeactivateUser = <ThrowOnError extends boolean = true>(options
 });
 
 /**
- * Activate a previously deactivated user account.
+ * Unlock a member user account.
+ *
+ * Requires UsersUpdate and an active membership for the target user in the resolved tenant. Clears the account
+ * lockout across organizations. Previously revoked tokens remain revoked; a missing membership returns 404.
  */
 export const usersActivateUser = <ThrowOnError extends boolean = true>(options: Options<UsersActivateUserData, ThrowOnError>): RequestResult<UsersActivateUserResponses, UsersActivateUserErrors, ThrowOnError, 'data'> => (options.client ?? client).post<UsersActivateUserResponses, UsersActivateUserErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1193,7 +1823,11 @@ export const usersActivateUser = <ThrowOnError extends boolean = true>(options: 
 });
 
 /**
- * Assigns a role within the resolved tenant. Reserved global-administrator names are rejected.
+ * Assign a role to an organization member.
+ *
+ * Requires RolesUpdate and an active membership for the target user in the resolved tenant. Adds an existing
+ * named role to that membership without replacing other roles. Reserved global-administrator role names are
+ * rejected.
  */
 export const usersAssignRole = <ThrowOnError extends boolean = true>(options: Options<UsersAssignRoleData, ThrowOnError>): RequestResult<UsersAssignRoleResponses, UsersAssignRoleErrors, ThrowOnError, 'data'> => (options.client ?? client).post<UsersAssignRoleResponses, UsersAssignRoleErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1207,7 +1841,10 @@ export const usersAssignRole = <ThrowOnError extends boolean = true>(options: Op
 });
 
 /**
- * Removes the named role within the resolved tenant.
+ * Remove a role from an organization member.
+ *
+ * Requires RolesUpdate and an active membership for the target user in the resolved tenant. Removes the named
+ * role from that membership while retaining other roles. A missing membership returns 404.
  */
 export const usersRemoveRole = <ThrowOnError extends boolean = true>(options: Options<UsersRemoveRoleData, ThrowOnError>): RequestResult<UsersRemoveRoleResponses, UsersRemoveRoleErrors, ThrowOnError, 'data'> => (options.client ?? client).delete<UsersRemoveRoleResponses, UsersRemoveRoleErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1216,6 +1853,12 @@ export const usersRemoveRole = <ThrowOnError extends boolean = true>(options: Op
   ...options
 });
 
+/**
+ * List tenant inquiries.
+ *
+ * Requires InquiriesRead in the current tenant. Returns an unpaginated list ordered newest first,
+ * optionally filtered by status. An empty or unrecognized status string applies no filter.
+ */
 export const inquiriesGetAll = <ThrowOnError extends boolean = true>(options?: Options<InquiriesGetAllData, ThrowOnError>): RequestResult<InquiriesGetAllResponses, InquiriesGetAllErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<InquiriesGetAllResponses, InquiriesGetAllErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1223,6 +1866,13 @@ export const inquiriesGetAll = <ThrowOnError extends boolean = true>(options?: O
   ...options
 });
 
+/**
+ * Submit an inquiry.
+ *
+ * Requires InquiriesWrite and creates an inquiry with status New in the current tenant. Human callers are
+ * recorded as the submitter; service-account submissions have no submitter association. Returns the saved
+ * inquiry after validating the contact details and required project information.
+ */
 export const inquiriesSubmit = <ThrowOnError extends boolean = true>(options: Options<InquiriesSubmitData, ThrowOnError>): RequestResult<InquiriesSubmitResponses, InquiriesSubmitErrors, ThrowOnError, 'data'> => (options.client ?? client).post<InquiriesSubmitResponses, InquiriesSubmitErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1234,6 +1884,13 @@ export const inquiriesSubmit = <ThrowOnError extends boolean = true>(options: Op
   }
 });
 
+/**
+ * List inquiries submitted by the current user.
+ *
+ * Requires authentication and returns the current user's inquiries in the current tenant, newest first.
+ * Does not require InquiriesRead. Service accounts and callers without a user identifier receive an empty
+ * list.
+ */
 export const inquiriesGetSubmitted = <ThrowOnError extends boolean = true>(options?: Options<InquiriesGetSubmittedData, ThrowOnError>): RequestResult<InquiriesGetSubmittedResponses, InquiriesGetSubmittedErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<InquiriesGetSubmittedResponses, InquiriesGetSubmittedErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1241,6 +1898,13 @@ export const inquiriesGetSubmitted = <ThrowOnError extends boolean = true>(optio
   ...options
 });
 
+/**
+ * Get an inquiry.
+ *
+ * Requires authentication in the current tenant. Callers with InquiriesRead can read any inquiry in that
+ * tenant; other callers can read only inquiries associated with them as submitter. Returns 404 for an
+ * unknown or inaccessible inquiry.
+ */
 export const inquiriesGetById = <ThrowOnError extends boolean = true>(options: Options<InquiriesGetByIdData, ThrowOnError>): RequestResult<InquiriesGetByIdResponses, InquiriesGetByIdErrors, ThrowOnError, 'data'> => (options.client ?? client).get<InquiriesGetByIdResponses, InquiriesGetByIdErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1248,6 +1912,14 @@ export const inquiriesGetById = <ThrowOnError extends boolean = true>(options: O
   ...options
 });
 
+/**
+ * Advance an inquiry's status.
+ *
+ * Requires InquiriesWrite in the current tenant and returns the updated inquiry. Status names are
+ * case-insensitive, and only New to Reviewed, Reviewed to Contacted, and Contacted to Closed transitions
+ * are allowed. Invalid transitions are rejected, including repeated or backward transitions; an unknown
+ * inquiry returns 404.
+ */
 export const inquiriesUpdateStatus = <ThrowOnError extends boolean = true>(options: Options<InquiriesUpdateStatusData, ThrowOnError>): RequestResult<InquiriesUpdateStatusResponses, InquiriesUpdateStatusErrors, ThrowOnError, 'data'> => (options.client ?? client).patch<InquiriesUpdateStatusResponses, InquiriesUpdateStatusErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1259,6 +1931,14 @@ export const inquiriesUpdateStatus = <ThrowOnError extends boolean = true>(optio
   }
 });
 
+/**
+ * List an inquiry's comments.
+ *
+ * Requires authentication in the current tenant and returns comments oldest first. Callers with
+ * InquiriesRead receive internal and public comments; other callers must be the inquiry's submitter and
+ * receive public comments only. Submitters receive 404 for unknown or inaccessible inquiries; readers
+ * receive an empty list when no comments match.
+ */
 export const inquiriesGetComments = <ThrowOnError extends boolean = true>(options: Options<InquiriesGetCommentsData, ThrowOnError>): RequestResult<InquiriesGetCommentsResponses, InquiriesGetCommentsErrors, ThrowOnError, 'data'> => (options.client ?? client).get<InquiriesGetCommentsResponses, InquiriesGetCommentsErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1266,6 +1946,13 @@ export const inquiriesGetComments = <ThrowOnError extends boolean = true>(option
   ...options
 });
 
+/**
+ * Add a comment to an inquiry.
+ *
+ * Requires InquiriesWrite in the current tenant. Records the caller as author and returns the new comment
+ * identifier. Content must be nonempty and at most 5,000 characters; internal comments are hidden from
+ * submitters without InquiriesRead.
+ */
 export const inquiriesAddComment = <ThrowOnError extends boolean = true>(options: Options<InquiriesAddCommentData, ThrowOnError>): RequestResult<InquiriesAddCommentResponses, InquiriesAddCommentErrors, ThrowOnError, 'data'> => (options.client ?? client).post<InquiriesAddCommentResponses, InquiriesAddCommentErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1278,7 +1965,11 @@ export const inquiriesAddComment = <ThrowOnError extends boolean = true>(options
 });
 
 /**
- * Get the current user's notification history.
+ * List the current user's notification history.
+ *
+ * Requires NotificationRead and an authenticated user in the current tenant. Returns a page ordered newest
+ * first, excluding archived and expired notifications. Pagination metadata includes the total matching
+ * count and whether adjacent pages exist.
  */
 export const notificationsGetNotifications = <ThrowOnError extends boolean = true>(options?: Options<NotificationsGetNotificationsData, ThrowOnError>): RequestResult<NotificationsGetNotificationsResponses, NotificationsGetNotificationsErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<NotificationsGetNotificationsResponses, NotificationsGetNotificationsErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1288,7 +1979,11 @@ export const notificationsGetNotifications = <ThrowOnError extends boolean = tru
 });
 
 /**
- * Get the current user's unread notification count.
+ * Count the current user's unread notifications.
+ *
+ * Requires NotificationRead and an authenticated user in the current tenant. Counts all unread
+ * notifications for that user, including archived or expired notifications that the history endpoint omits.
+ * Returns a count without changing read state.
  */
 export const notificationsGetUnreadCount = <ThrowOnError extends boolean = true>(options?: Options<NotificationsGetUnreadCountData, ThrowOnError>): RequestResult<NotificationsGetUnreadCountResponses, NotificationsGetUnreadCountErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<NotificationsGetUnreadCountResponses, NotificationsGetUnreadCountErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1298,7 +1993,11 @@ export const notificationsGetUnreadCount = <ThrowOnError extends boolean = true>
 });
 
 /**
- * Mark a single notification as read.
+ * Mark a notification as read.
+ *
+ * Requires NotificationRead and ownership of the notification in the current tenant. Records the current
+ * read time and returns no content, updating the timestamp even for an already read notification. Returns
+ * 404 for an unknown notification and an access-denied error for another user's notification.
  */
 export const notificationsMarkAsRead = <ThrowOnError extends boolean = true>(options: Options<NotificationsMarkAsReadData, ThrowOnError>): RequestResult<NotificationsMarkAsReadResponses, NotificationsMarkAsReadErrors, ThrowOnError, 'data'> => (options.client ?? client).post<NotificationsMarkAsReadResponses, NotificationsMarkAsReadErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1308,7 +2007,11 @@ export const notificationsMarkAsRead = <ThrowOnError extends boolean = true>(opt
 });
 
 /**
- * Mark all notifications as read for the current user.
+ * Mark all of the current user's notifications as read.
+ *
+ * Requires NotificationRead and an authenticated user in the current tenant. Marks every unread
+ * notification for that user as read, including archived or expired notifications and notifications outside
+ * the current history page. Returns no content, including when there are no unread notifications.
  */
 export const notificationsMarkAllAsRead = <ThrowOnError extends boolean = true>(options?: Options<NotificationsMarkAllAsReadData, ThrowOnError>): RequestResult<NotificationsMarkAllAsReadResponses, NotificationsMarkAllAsReadErrors, ThrowOnError, 'data'> => (options?.client ?? client).post<NotificationsMarkAllAsReadResponses, NotificationsMarkAllAsReadErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1317,6 +2020,13 @@ export const notificationsMarkAllAsRead = <ThrowOnError extends boolean = true>(
   ...options
 });
 
+/**
+ * List tenant Web Push signing key versions.
+ *
+ * Requires PushConfigWrite in the current tenant. Returns key IDs, public keys, and current or retired
+ * flags without private keys or credentials. Returns an empty list when no valid Web Push configuration
+ * exists.
+ */
 export const pushConfigurationGetWebPushKeys = <ThrowOnError extends boolean = true>(options?: Options<PushConfigurationGetWebPushKeysData, ThrowOnError>): RequestResult<PushConfigurationGetWebPushKeysResponses, PushConfigurationGetWebPushKeysErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<PushConfigurationGetWebPushKeysResponses, PushConfigurationGetWebPushKeysErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1324,6 +2034,13 @@ export const pushConfigurationGetWebPushKeys = <ThrowOnError extends boolean = t
   ...options
 });
 
+/**
+ * Create a new current Web Push signing key.
+ *
+ * Requires PushConfigWrite in the current tenant and a valid VAPID contact subject. Returns the new key ID
+ * and public key, retaining previous nonretired keys for existing subscriptions. Rotation preserves the
+ * configuration's enabled state; private keys are never returned.
+ */
 export const pushConfigurationRotateWebPushKey = <ThrowOnError extends boolean = true>(options: Options<PushConfigurationRotateWebPushKeyData, ThrowOnError>): RequestResult<PushConfigurationRotateWebPushKeyResponses, PushConfigurationRotateWebPushKeyErrors, ThrowOnError, 'data'> => (options.client ?? client).post<PushConfigurationRotateWebPushKeyResponses, PushConfigurationRotateWebPushKeyErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1335,6 +2052,13 @@ export const pushConfigurationRotateWebPushKey = <ThrowOnError extends boolean =
   }
 });
 
+/**
+ * Retire a tenant Web Push signing key.
+ *
+ * Requires PushConfigWrite in the current tenant. Removes the private key and disables delivery for
+ * subscriptions bound to this key. Retiring the current key also leaves no current key for new
+ * subscriptions until another rotation. Returns 404 if the key or a valid configuration cannot be found.
+ */
 export const pushConfigurationRetireWebPushKey = <ThrowOnError extends boolean = true>(options: Options<PushConfigurationRetireWebPushKeyData, ThrowOnError>): RequestResult<PushConfigurationRetireWebPushKeyResponses, PushConfigurationRetireWebPushKeyErrors, ThrowOnError, 'data'> => (options.client ?? client).delete<PushConfigurationRetireWebPushKeyResponses, PushConfigurationRetireWebPushKeyErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1342,6 +2066,14 @@ export const pushConfigurationRetireWebPushKey = <ThrowOnError extends boolean =
   ...options
 });
 
+/**
+ * Get a tenant push configuration.
+ *
+ * Requires PushRead in the current tenant. Returns one stored platform configuration and its enabled state,
+ * or no content when none exists. The credentials field always contains [redacted]; neither plaintext nor
+ * encrypted credentials are returned. When multiple platforms are configured, the selected platform is
+ * unspecified.
+ */
 export const pushConfigurationGetTenantPushConfig = <ThrowOnError extends boolean = true>(options?: Options<PushConfigurationGetTenantPushConfigData, ThrowOnError>): RequestResult<PushConfigurationGetTenantPushConfigResponses, PushConfigurationGetTenantPushConfigErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<PushConfigurationGetTenantPushConfigResponses, PushConfigurationGetTenantPushConfigErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1349,6 +2081,14 @@ export const pushConfigurationGetTenantPushConfig = <ThrowOnError extends boolea
   ...options
 });
 
+/**
+ * Set tenant push provider credentials.
+ *
+ * Requires PushConfigWrite in the current tenant. Creates a configuration for the specified platform or
+ * replaces its credentials while preserving an existing enabled state. Credentials are encrypted for
+ * storage and are not returned. Web Push replacements must preserve signing key history and cannot remove
+ * or reactivate retired keys.
+ */
 export const pushConfigurationUpsertTenantPushConfig = <ThrowOnError extends boolean = true>(options: Options<PushConfigurationUpsertTenantPushConfigData, ThrowOnError>): RequestResult<PushConfigurationUpsertTenantPushConfigResponses, PushConfigurationUpsertTenantPushConfigErrors, ThrowOnError, 'data'> => (options.client ?? client).put<PushConfigurationUpsertTenantPushConfigResponses, PushConfigurationUpsertTenantPushConfigErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1360,6 +2100,13 @@ export const pushConfigurationUpsertTenantPushConfig = <ThrowOnError extends boo
   }
 });
 
+/**
+ * Enable or disable a tenant push platform.
+ *
+ * Requires PushConfigWrite in the current tenant. Changes the specified platform's enabled state while
+ * retaining its credentials and registered devices. Returns no content, or 404 when that platform has no
+ * configuration.
+ */
 export const pushConfigurationSetTenantPushEnabled = <ThrowOnError extends boolean = true>(options: Options<PushConfigurationSetTenantPushEnabledData, ThrowOnError>): RequestResult<PushConfigurationSetTenantPushEnabledResponses, PushConfigurationSetTenantPushEnabledErrors, ThrowOnError, 'data'> => (options.client ?? client).patch<PushConfigurationSetTenantPushEnabledResponses, PushConfigurationSetTenantPushEnabledErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1371,6 +2118,13 @@ export const pushConfigurationSetTenantPushEnabled = <ThrowOnError extends boole
   }
 });
 
+/**
+ * Remove a tenant push platform configuration.
+ *
+ * Requires PushConfigWrite in the current tenant. Deletes the specified platform's credentials and
+ * configuration, returning no content even when no matching configuration exists. Web Push configuration
+ * cannot be removed this way; disable it or retire its signing keys instead.
+ */
 export const pushConfigurationRemoveTenantPushConfig = <ThrowOnError extends boolean = true>(options: Options<PushConfigurationRemoveTenantPushConfigData, ThrowOnError>): RequestResult<PushConfigurationRemoveTenantPushConfigResponses, PushConfigurationRemoveTenantPushConfigErrors, ThrowOnError, 'data'> => (options.client ?? client).delete<PushConfigurationRemoveTenantPushConfigResponses, PushConfigurationRemoveTenantPushConfigErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1378,6 +2132,13 @@ export const pushConfigurationRemoveTenantPushConfig = <ThrowOnError extends boo
   ...options
 });
 
+/**
+ * Get the current Web Push public key.
+ *
+ * Requires an authenticated user and an organization tenant. Returns the current signing key ID and public
+ * key for browser subscription creation; private keys are never returned. Returns 409 when Web Push is
+ * disabled, unconfigured, or has no usable current key.
+ */
 export const pushDevicesGetWebPushPublicKey = <ThrowOnError extends boolean = true>(options?: Options<PushDevicesGetWebPushPublicKeyData, ThrowOnError>): RequestResult<PushDevicesGetWebPushPublicKeyResponses, PushDevicesGetWebPushPublicKeyErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<PushDevicesGetWebPushPublicKeyResponses, PushDevicesGetWebPushPublicKeyErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1385,6 +2146,13 @@ export const pushDevicesGetWebPushPublicKey = <ThrowOnError extends boolean = tr
   ...options
 });
 
+/**
+ * List the current user's active push devices.
+ *
+ * Requires an authenticated user in the current tenant. Returns active registrations owned by that user,
+ * including platform, token, registration ID, and Web Push signing key ID where applicable. Inactive
+ * registrations are excluded.
+ */
 export const pushDevicesGetUserDevices = <ThrowOnError extends boolean = true>(options?: Options<PushDevicesGetUserDevicesData, ThrowOnError>): RequestResult<PushDevicesGetUserDevicesResponses, PushDevicesGetUserDevicesErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<PushDevicesGetUserDevicesResponses, PushDevicesGetUserDevicesErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1392,6 +2160,14 @@ export const pushDevicesGetUserDevices = <ThrowOnError extends boolean = true>(o
   ...options
 });
 
+/**
+ * Register a push device for the current user.
+ *
+ * Requires an authenticated user in the current tenant. Web Push registrations require a browser
+ * subscription and signing key ID with no token; other platforms require a token and no subscription or
+ * signing key ID. An active token owned by another user or registered for another platform returns 409.
+ * Re-registering an owned device updates it, while an inactive registration can be claimed by a new owner.
+ */
 export const pushDevicesRegisterDevice = <ThrowOnError extends boolean = true>(options: Options<PushDevicesRegisterDeviceData, ThrowOnError>): RequestResult<PushDevicesRegisterDeviceResponses, PushDevicesRegisterDeviceErrors, ThrowOnError, 'data'> => (options.client ?? client).post<PushDevicesRegisterDeviceResponses, PushDevicesRegisterDeviceErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1403,6 +2179,13 @@ export const pushDevicesRegisterDevice = <ThrowOnError extends boolean = true>(o
   }
 });
 
+/**
+ * Deactivate a push device.
+ *
+ * Requires an authenticated user who owns the registration in the current tenant. Stops future delivery to
+ * that registration and removes it from the active device list. Returns no content for an owned
+ * registration, including one already inactive, or 404 for an unknown or foreign registration.
+ */
 export const pushDevicesDeregisterDevice = <ThrowOnError extends boolean = true>(options: Options<PushDevicesDeregisterDeviceData, ThrowOnError>): RequestResult<PushDevicesDeregisterDeviceResponses, PushDevicesDeregisterDeviceErrors, ThrowOnError, 'data'> => (options.client ?? client).delete<PushDevicesDeregisterDeviceResponses, PushDevicesDeregisterDeviceErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1410,6 +2193,14 @@ export const pushDevicesDeregisterDevice = <ThrowOnError extends boolean = true>
   ...options
 });
 
+/**
+ * Send a push notification to the current user.
+ *
+ * Requires an authenticated user in the current tenant and targets only that user's eligible active
+ * devices. Delivery is queued; a successful response does not confirm device receipt and also covers
+ * disabled preferences or no registered devices. Returns 409 when registered devices exist but none has an
+ * available Web Push key. ClickPath, when supplied, must be a local absolute path such as /notifications.
+ */
 export const pushDevicesSendPush = <ThrowOnError extends boolean = true>(options: Options<PushDevicesSendPushData, ThrowOnError>): RequestResult<PushDevicesSendPushResponses, PushDevicesSendPushErrors, ThrowOnError, 'data'> => (options.client ?? client).post<PushDevicesSendPushResponses, PushDevicesSendPushErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1421,6 +2212,14 @@ export const pushDevicesSendPush = <ThrowOnError extends boolean = true>(options
   }
 });
 
+/**
+ * Get the current user's notification preferences.
+ *
+ * Requires EmailPreferenceManage and an authenticated user in the current tenant. Returns stored
+ * preferences grouped by channel, with each channel's overall enabled state and per-type overrides.
+ * Channels without stored preferences are omitted; delivery defaults to enabled when no preference disables
+ * it.
+ */
 export const userNotificationSettingsGetUserNotificationSettings = <ThrowOnError extends boolean = true>(options?: Options<UserNotificationSettingsGetUserNotificationSettingsData, ThrowOnError>): RequestResult<UserNotificationSettingsGetUserNotificationSettingsResponses, UserNotificationSettingsGetUserNotificationSettingsErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<UserNotificationSettingsGetUserNotificationSettingsResponses, UserNotificationSettingsGetUserNotificationSettingsErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1428,6 +2227,13 @@ export const userNotificationSettingsGetUserNotificationSettings = <ThrowOnError
   ...options
 });
 
+/**
+ * Enable or disable a notification channel.
+ *
+ * Requires EmailPreferenceManage and applies to the authenticated user in the current tenant. Creates or
+ * replaces the channel-wide preference without removing per-type preferences. Disabling the channel
+ * overrides all of its per-type settings; enabling it leaves individually disabled types disabled.
+ */
 export const userNotificationSettingsSetChannelEnabled = <ThrowOnError extends boolean = true>(options: Options<UserNotificationSettingsSetChannelEnabledData, ThrowOnError>): RequestResult<UserNotificationSettingsSetChannelEnabledResponses, UserNotificationSettingsSetChannelEnabledErrors, ThrowOnError, 'data'> => (options.client ?? client).put<UserNotificationSettingsSetChannelEnabledResponses, UserNotificationSettingsSetChannelEnabledErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1439,6 +2245,13 @@ export const userNotificationSettingsSetChannelEnabled = <ThrowOnError extends b
   }
 });
 
+/**
+ * Enable or disable a notification type on a channel.
+ *
+ * Requires EmailPreferenceManage and applies to the authenticated user in the current tenant. Creates or
+ * replaces the preference for the specified channel and notification type. Enabling a type does not
+ * override a disabled channel; the notification type * addresses the channel-wide preference.
+ */
 export const userNotificationSettingsSetNotificationTypeEnabled = <ThrowOnError extends boolean = true>(options: Options<UserNotificationSettingsSetNotificationTypeEnabledData, ThrowOnError>): RequestResult<UserNotificationSettingsSetNotificationTypeEnabledResponses, UserNotificationSettingsSetNotificationTypeEnabledErrors, ThrowOnError, 'data'> => (options.client ?? client).put<UserNotificationSettingsSetNotificationTypeEnabledResponses, UserNotificationSettingsSetNotificationTypeEnabledErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1451,7 +2264,12 @@ export const userNotificationSettingsSetNotificationTypeEnabled = <ThrowOnError 
 });
 
 /**
- * Create a new storage bucket.
+ * Create a tenant storage bucket.
+ *
+ * Requires StorageWrite in the current tenant and returns the created bucket configuration. Names must be
+ * lowercase letters or digits with optional internal hyphens and must be unique within the tenant;
+ * duplicates return 409. Unrecognized access values default to Private, and retention days require a valid
+ * retention action.
  */
 export const storageCreateBucket = <ThrowOnError extends boolean = true>(options: Options<StorageCreateBucketData, ThrowOnError>): RequestResult<StorageCreateBucketResponses, StorageCreateBucketErrors, ThrowOnError, 'data'> => (options.client ?? client).post<StorageCreateBucketResponses, StorageCreateBucketErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1465,7 +2283,11 @@ export const storageCreateBucket = <ThrowOnError extends boolean = true>(options
 });
 
 /**
- * Delete a bucket.
+ * Delete a storage bucket.
+ *
+ * Requires StorageWrite in the current tenant. Rejects nonempty buckets unless force is true, which also
+ * deletes their file records and stored objects. Returns no content on success or 404 if the bucket is
+ * unknown.
  */
 export const storageDeleteBucket = <ThrowOnError extends boolean = true>(options: Options<StorageDeleteBucketData, ThrowOnError>): RequestResult<StorageDeleteBucketResponses, StorageDeleteBucketErrors, ThrowOnError, 'data'> => (options.client ?? client).delete<StorageDeleteBucketResponses, StorageDeleteBucketErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1475,7 +2297,10 @@ export const storageDeleteBucket = <ThrowOnError extends boolean = true>(options
 });
 
 /**
- * Get bucket by name.
+ * Get a storage bucket by name.
+ *
+ * Requires StorageRead in the current tenant. Returns the bucket's access level, upload restrictions,
+ * retention policy, and versioning setting. Returns 404 when no bucket with this name exists in the tenant.
  */
 export const storageGetBucket = <ThrowOnError extends boolean = true>(options: Options<StorageGetBucketData, ThrowOnError>): RequestResult<StorageGetBucketResponses, StorageGetBucketErrors, ThrowOnError, 'data'> => (options.client ?? client).get<StorageGetBucketResponses, StorageGetBucketErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1485,7 +2310,13 @@ export const storageGetBucket = <ThrowOnError extends boolean = true>(options: O
 });
 
 /**
- * Upload a file.
+ * Upload and validate a file.
+ *
+ * Requires StorageWrite and an authenticated user in the current tenant. Accepts multipart content for an
+ * existing bucket, validates file signatures and paths, enforces bucket and tenant limits, and scans the
+ * bytes before storage. Returns the saved file metadata only after the file becomes Available; no
+ * completion request is needed. Empty, disallowed, oversized, or unsafe files are rejected, and an unknown
+ * bucket returns 404.
  */
 export const storageUpload = <ThrowOnError extends boolean = true>(options: Options<StorageUploadData, ThrowOnError>): RequestResult<StorageUploadResponses, StorageUploadErrors, ThrowOnError, 'data'> => (options.client ?? client).post<StorageUploadResponses, StorageUploadErrors, ThrowOnError, 'data'>({
   ...formDataBodySerializer,
@@ -1500,7 +2331,11 @@ export const storageUpload = <ThrowOnError extends boolean = true>(options: Opti
 });
 
 /**
- * Delete a file.
+ * Delete a stored file.
+ *
+ * Requires StorageWrite in the current tenant. Removes the file record and its stored object, including for
+ * pending or rejected uploads, releasing the reserved quota. Returns no content on success or 404 for an
+ * unknown file ID.
  */
 export const storageDelete = <ThrowOnError extends boolean = true>(options: Options<StorageDeleteData, ThrowOnError>): RequestResult<StorageDeleteResponses, StorageDeleteErrors, ThrowOnError, 'data'> => (options.client ?? client).delete<StorageDeleteResponses, StorageDeleteErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1510,7 +2345,11 @@ export const storageDelete = <ThrowOnError extends boolean = true>(options: Opti
 });
 
 /**
- * Get file metadata by ID.
+ * Get file metadata.
+ *
+ * Requires StorageRead in the current tenant. Returns metadata for an existing file, including pending or
+ * rejected uploads, or 404 if the ID is unknown. This response does not contain validation status and does
+ * not establish that the file is available for download.
  */
 export const storageGetFile = <ThrowOnError extends boolean = true>(options: Options<StorageGetFileData, ThrowOnError>): RequestResult<StorageGetFileResponses, StorageGetFileErrors, ThrowOnError, 'data'> => (options.client ?? client).get<StorageGetFileResponses, StorageGetFileErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1520,7 +2359,11 @@ export const storageGetFile = <ThrowOnError extends boolean = true>(options: Opt
 });
 
 /**
- * Download a file (redirects to presigned URL).
+ * Redirect to a file download.
+ *
+ * Requires StorageRead in the current tenant. Returns a 302 redirect to a temporary signed URL for the file
+ * bytes, not a JSON response. Only Available files can be downloaded; pending or rejected files are
+ * refused, and unknown IDs return 404.
  */
 export const storageDownload = <ThrowOnError extends boolean = true>(options: Options<StorageDownloadData, ThrowOnError>): RequestResult<unknown, StorageDownloadErrors, ThrowOnError, 'data'> => (options.client ?? client).get<unknown, StorageDownloadErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1530,7 +2373,12 @@ export const storageDownload = <ThrowOnError extends boolean = true>(options: Op
 });
 
 /**
- * List files in a bucket.
+ * List files in a storage bucket.
+ *
+ * Requires StorageRead in the current tenant. Returns a page of file metadata ordered by upload time
+ * descending, optionally filtered by a path prefix, with the total matching count. Includes pending and
+ * rejected uploads; listed metadata does not confirm download availability. Returns 404 if the bucket does
+ * not exist.
  */
 export const storageListFiles = <ThrowOnError extends boolean = true>(options?: Options<StorageListFilesData, ThrowOnError>): RequestResult<StorageListFilesResponses, StorageListFilesErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<StorageListFilesResponses, StorageListFilesErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1540,7 +2388,13 @@ export const storageListFiles = <ThrowOnError extends boolean = true>(options?: 
 });
 
 /**
- * Get a presigned URL for direct upload to storage.
+ * Reserve a file and get a direct upload URL.
+ *
+ * Requires StorageWrite and an authenticated user in the current tenant. Validates the declared file
+ * metadata against bucket and tenant limits, reserves quota, and returns a file ID plus a signed upload
+ * URL. PUT the bytes to that URL, then call the file completion endpoint and check for Available before
+ * downloading. Uncompleted uploads stay PendingValidation and reserve quota until deleted; URL expiry
+ * defaults to 15 minutes and is capped by server configuration.
  */
 export const storageGetPresignedUploadUrl = <ThrowOnError extends boolean = true>(options: Options<StorageGetPresignedUploadUrlData, ThrowOnError>): RequestResult<StorageGetPresignedUploadUrlResponses, StorageGetPresignedUploadUrlErrors, ThrowOnError, 'data'> => (options.client ?? client).post<StorageGetPresignedUploadUrlResponses, StorageGetPresignedUploadUrlErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1554,8 +2408,13 @@ export const storageGetPresignedUploadUrl = <ThrowOnError extends boolean = true
 });
 
 /**
- * Complete a presigned upload: verify the object exists, scan it, and promote the file
- * to Available (or Rejected). Idempotent once the file has left PendingValidation.
+ * Complete a direct upload and get its validation status.
+ *
+ * Requires StorageWrite in the current tenant after the bytes have been PUT to the signed upload URL.
+ * Verifies that the object exists, scans it, and returns Available or Rejected; a successful HTTP response
+ * alone does not mean the scan passed. Repeated calls after PendingValidation return the existing status
+ * without another scan. Returns 404 for an unknown file and rejects completion when the object has not been
+ * uploaded.
  */
 export const storageCompletePresignedUpload = <ThrowOnError extends boolean = true>(options: Options<StorageCompletePresignedUploadData, ThrowOnError>): RequestResult<StorageCompletePresignedUploadResponses, StorageCompletePresignedUploadErrors, ThrowOnError, 'data'> => (options.client ?? client).post<StorageCompletePresignedUploadResponses, StorageCompletePresignedUploadErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1565,7 +2424,11 @@ export const storageCompletePresignedUpload = <ThrowOnError extends boolean = tr
 });
 
 /**
- * Get a presigned URL for downloading a file.
+ * Get a temporary file download URL.
+ *
+ * Requires StorageRead in the current tenant. Returns a signed URL and expiry for an Available file,
+ * without redirecting or returning its bytes. Pending or rejected files are refused; unknown IDs return
+ * 404. Treat the returned URL as an opaque temporary credential for the download.
  */
 export const storageGetPresignedDownloadUrl = <ThrowOnError extends boolean = true>(options: Options<StorageGetPresignedDownloadUrlData, ThrowOnError>): RequestResult<StorageGetPresignedDownloadUrlResponses, StorageGetPresignedDownloadUrlErrors, ThrowOnError, 'data'> => (options.client ?? client).get<StorageGetPresignedDownloadUrlResponses, StorageGetPresignedDownloadUrlErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
@@ -1574,6 +2437,13 @@ export const storageGetPresignedDownloadUrl = <ThrowOnError extends boolean = tr
   ...options
 });
 
+/**
+ * Get resolved storage configuration.
+ *
+ * Requires an authenticated user in the current tenant. Returns a key-value map using user overrides first,
+ * then tenant overrides, then registered defaults. Upload enforcement ignores user overrides and uses
+ * tenant limits, so this map can differ from the limits enforced for uploads.
+ */
 export const storageSettingsGetConfig = <ThrowOnError extends boolean = true>(options?: Options<StorageSettingsGetConfigData, ThrowOnError>): RequestResult<StorageSettingsGetConfigResponses, StorageSettingsGetConfigErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<StorageSettingsGetConfigResponses, StorageSettingsGetConfigErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1581,6 +2451,13 @@ export const storageSettingsGetConfig = <ThrowOnError extends boolean = true>(op
   ...options
 });
 
+/**
+ * Remove a tenant storage setting override.
+ *
+ * Requires StorageWrite and an authenticated user in the current tenant. Removes the named override so the
+ * registered default applies where one exists; user overrides remain in place. Returns no content even when
+ * no override exists, but rejects system. keys and unknown keys.
+ */
 export const storageSettingsDeleteTenantSetting = <ThrowOnError extends boolean = true>(options?: Options<StorageSettingsDeleteTenantSettingData, ThrowOnError>): RequestResult<StorageSettingsDeleteTenantSettingResponses, StorageSettingsDeleteTenantSettingErrors, ThrowOnError, 'data'> => (options?.client ?? client).delete<StorageSettingsDeleteTenantSettingResponses, StorageSettingsDeleteTenantSettingErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1588,6 +2465,12 @@ export const storageSettingsDeleteTenantSetting = <ThrowOnError extends boolean 
   ...options
 });
 
+/**
+ * Get resolved tenant storage settings.
+ *
+ * Requires StorageWrite in the current tenant. Returns tenant overrides merged with registered defaults,
+ * including each value's source and descriptive metadata. User overrides are excluded.
+ */
 export const storageSettingsGetTenantSettings = <ThrowOnError extends boolean = true>(options?: Options<StorageSettingsGetTenantSettingsData, ThrowOnError>): RequestResult<StorageSettingsGetTenantSettingsResponses, StorageSettingsGetTenantSettingsErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<StorageSettingsGetTenantSettingsResponses, StorageSettingsGetTenantSettingsErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1595,6 +2478,13 @@ export const storageSettingsGetTenantSettings = <ThrowOnError extends boolean = 
   ...options
 });
 
+/**
+ * Set a tenant storage setting.
+ *
+ * Requires StorageWrite and an authenticated user in the current tenant. Creates or replaces one
+ * string-valued tenant override and returns no content. Accepts registered storage keys and custom. keys;
+ * system. keys and unknown keys are rejected.
+ */
 export const storageSettingsUpsertTenantSetting = <ThrowOnError extends boolean = true>(options: Options<StorageSettingsUpsertTenantSettingData, ThrowOnError>): RequestResult<StorageSettingsUpsertTenantSettingResponses, StorageSettingsUpsertTenantSettingErrors, ThrowOnError, 'data'> => (options.client ?? client).put<StorageSettingsUpsertTenantSettingResponses, StorageSettingsUpsertTenantSettingErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1606,6 +2496,13 @@ export const storageSettingsUpsertTenantSetting = <ThrowOnError extends boolean 
   }
 });
 
+/**
+ * Remove a user storage setting override.
+ *
+ * Requires an authenticated user in the current tenant. Removes the named user override so the tenant value
+ * or registered default applies where one exists. Returns no content even when no override exists, but
+ * rejects system. keys and unknown keys.
+ */
 export const storageSettingsDeleteUserSetting = <ThrowOnError extends boolean = true>(options?: Options<StorageSettingsDeleteUserSettingData, ThrowOnError>): RequestResult<StorageSettingsDeleteUserSettingResponses, StorageSettingsDeleteUserSettingErrors, ThrowOnError, 'data'> => (options?.client ?? client).delete<StorageSettingsDeleteUserSettingResponses, StorageSettingsDeleteUserSettingErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1613,6 +2510,13 @@ export const storageSettingsDeleteUserSetting = <ThrowOnError extends boolean = 
   ...options
 });
 
+/**
+ * Get resolved storage settings for the current user.
+ *
+ * Requires an authenticated user in the current tenant. Returns user overrides merged with tenant overrides
+ * and registered defaults, including each value's source and descriptive metadata. User overrides do not
+ * change the tenant limits enforced during upload.
+ */
 export const storageSettingsGetUserSettings = <ThrowOnError extends boolean = true>(options?: Options<StorageSettingsGetUserSettingsData, ThrowOnError>): RequestResult<StorageSettingsGetUserSettingsResponses, StorageSettingsGetUserSettingsErrors, ThrowOnError, 'data'> => (options?.client ?? client).get<StorageSettingsGetUserSettingsResponses, StorageSettingsGetUserSettingsErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],
@@ -1620,6 +2524,14 @@ export const storageSettingsGetUserSettings = <ThrowOnError extends boolean = tr
   ...options
 });
 
+/**
+ * Set a storage setting for the current user.
+ *
+ * Requires an authenticated user in the current tenant. Creates or replaces one string-valued user override
+ * used by resolved configuration responses. Accepts registered storage keys and custom. keys; system. keys
+ * and unknown keys are rejected. This override does not raise or otherwise change enforced tenant upload
+ * limits.
+ */
 export const storageSettingsUpsertUserSetting = <ThrowOnError extends boolean = true>(options: Options<StorageSettingsUpsertUserSettingData, ThrowOnError>): RequestResult<StorageSettingsUpsertUserSettingResponses, StorageSettingsUpsertUserSettingErrors, ThrowOnError, 'data'> => (options.client ?? client).put<StorageSettingsUpsertUserSettingResponses, StorageSettingsUpsertUserSettingErrors, ThrowOnError, 'data'>({
   responseStyle: 'data',
   security: [{ scheme: 'bearer', type: 'http' }],

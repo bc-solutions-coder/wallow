@@ -27,6 +27,13 @@ public class IdentitySettingsController(
     ITenantContext tenantContext,
     ICurrentUserService currentUserService) : ControllerBase
 {
+    /// <summary>
+    /// Get effective Identity configuration for the current user.
+    /// </summary>
+    /// <remarks>
+    /// Requires an authenticated user and resolved tenant context. Returns a key-value map of Identity settings with
+    /// user overrides taking precedence over tenant overrides and registered defaults.
+    /// </remarks>
     [HttpGet("config")]
     [ProducesResponseType(typeof(ResolvedSettingsConfig), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetConfig(CancellationToken cancellationToken)
@@ -42,6 +49,13 @@ public class IdentitySettingsController(
         return Result<ResolvedSettingsConfig>.Success(config).ToActionResult();
     }
 
+    /// <summary>
+    /// List resolved tenant Identity settings.
+    /// </summary>
+    /// <remarks>
+    /// Requires the SystemSettings permission and resolved tenant context. Returns tenant overrides merged with
+    /// registered defaults, including each setting source and available metadata.
+    /// </remarks>
     [HttpGet("settings/tenant")]
     [HasPermission(PermissionType.SystemSettings)]
     [ProducesResponseType(typeof(IReadOnlyList<ResolvedSetting>), StatusCodes.Status200OK)]
@@ -53,6 +67,13 @@ public class IdentitySettingsController(
         return Result<IReadOnlyList<ResolvedSetting>>.Success(settings).ToActionResult();
     }
 
+    /// <summary>
+    /// List resolved Identity settings for the current user.
+    /// </summary>
+    /// <remarks>
+    /// Requires an authenticated user and resolved tenant context. Returns user overrides merged with tenant
+    /// overrides and registered defaults, including each value source and available metadata.
+    /// </remarks>
     [HttpGet("settings/user")]
     [ProducesResponseType(typeof(IReadOnlyList<ResolvedSetting>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetUserSettings(CancellationToken cancellationToken)
@@ -68,6 +89,14 @@ public class IdentitySettingsController(
         return Result<IReadOnlyList<ResolvedSetting>>.Success(settings).ToActionResult();
     }
 
+    /// <summary>
+    /// Set an Identity setting override for the tenant.
+    /// </summary>
+    /// <remarks>
+    /// Requires an authenticated user, the SystemSettings permission, and resolved tenant context. Creates or
+    /// replaces one tenant override using a registered Identity key or a custom. key and a string value. System keys
+    /// and unknown keys are rejected; success returns no content.
+    /// </remarks>
     [HttpPut("settings/tenant")]
     [HasPermission(PermissionType.SystemSettings)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -93,6 +122,16 @@ public class IdentitySettingsController(
         return NoContent();
     }
 
+    /// <summary>
+    /// Remove an Identity setting override for the tenant.
+    /// </summary>
+    /// <remarks>
+    /// Requires an authenticated user, the SystemSettings permission, and resolved tenant context. Removes the tenant
+    /// override so resolution falls back to the registered default. Registered Identity keys and custom. keys are
+    /// accepted; system keys and unknown keys are rejected.
+    /// </remarks>
+    /// <param name="key">Registered Identity setting key or custom. key whose override is removed.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
     [HttpDelete("settings/tenant")]
     [HasPermission(PermissionType.SystemSettings)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -118,6 +157,14 @@ public class IdentitySettingsController(
         return NoContent();
     }
 
+    /// <summary>
+    /// Set an Identity setting override for the user.
+    /// </summary>
+    /// <remarks>
+    /// Requires an authenticated user and resolved tenant context. Creates or replaces one user override using a
+    /// registered Identity key or a custom. key and a string value. System keys and unknown keys are rejected;
+    /// success returns no content.
+    /// </remarks>
     [HttpPut("settings/user")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> UpsertUserSetting(
@@ -142,6 +189,16 @@ public class IdentitySettingsController(
         return NoContent();
     }
 
+    /// <summary>
+    /// Remove an Identity setting override for the user.
+    /// </summary>
+    /// <remarks>
+    /// Requires an authenticated user and resolved tenant context. Removes the user override so resolution falls back
+    /// to the tenant value or registered default. Registered Identity keys and custom. keys are accepted; system keys
+    /// and unknown keys are rejected.
+    /// </remarks>
+    /// <param name="key">Registered Identity setting key or custom. key whose override is removed.</param>
+    /// <param name="cancellationToken">Cancels the request.</param>
     [HttpDelete("settings/user")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteUserSetting(
