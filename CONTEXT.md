@@ -4,6 +4,58 @@ A fork-first, multi-tenant base platform: a headless .NET API plus TypeScript fr
 teams fork, rebrand, and extend. This glossary is the canonical vocabulary; use these terms in
 issues, plans, tests, and code, and avoid the listed synonyms.
 
+## Target tenancy vocabulary
+
+The agreed target vocabulary below applies to the
+[tenant/product design](docs/plans/2026-09-07/1234-tenant-product-client-design.md).
+It has not been implemented. The existing glossary below this section describes the current
+organization-based model until that implementation is authorized and completed.
+
+**Instance**:
+An operated installation of a Wallow fork, under one platform administration authority.
+_Avoid_: tenant, fork (when referring to the running installation)
+
+**Tenant** (target):
+An independently governed company/customer boundary within an instance, owning products and
+tenant memberships.
+_Avoid_: organization, product, workspace (as synonyms for this boundary)
+
+**Product**:
+A named software offering owned by one tenant, grouping related clients and product-specific
+access assignments; it can use shared modules and external services.
+_Avoid_: organization, project, client, module (as synonyms)
+
+**Client** (target):
+A registered OAuth application identity; a runtime client belongs to one product and is either
+an application acting for a user or a service account acting for itself.
+
+**Application** (target):
+A user-facing client acting on behalf of a signed-in person, subject to both granted scopes
+and that person's permissions.
+_Avoid_: product, service account
+
+**Service account** (target):
+A non-human client with a stable identity and explicitly granted authority, independent of
+its creator's permissions and the credentials currently used to authenticate it.
+_Avoid_: user, deterministic account
+
+**Tenant membership**:
+A person's admission, status and tenant-scoped roles within one tenant.
+
+**Product access**:
+A person's admission and role assignments for one product, dependent on their tenant membership.
+_Avoid_: client membership (people receive product access, not membership in an OAuth client)
+
+**Data grant**:
+Explicit permission to access a defined source dataset or resource across product boundaries
+within a tenant, limited to specified operations.
+
+**Module** (target):
+A backend capability with its own data ownership and contracts, available to authorized products
+without requiring a separate implementation for each product.
+
+## Current implementation vocabulary
+
 ## Platform
 
 **Fork**:
