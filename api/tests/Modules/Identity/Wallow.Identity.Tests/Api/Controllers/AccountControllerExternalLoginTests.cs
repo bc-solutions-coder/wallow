@@ -380,14 +380,15 @@ public class AccountControllerExternalLoginTests
     public async Task CompleteExternalRegistration_WhenNewUserInMfaRequiredOrg_SetsMfaGraceDeadline()
     {
 
-        IDataProtector protector = Substitute.For<IDataProtector>();
+        IDataProtector protector = new EphemeralDataProtectionProvider().CreateProtector("ExternalLogin");
         _dataProtectionProvider.CreateProtector("ExternalLogin").Returns(protector);
-        string cookieData = "Google|provider-key-123|newuser@example.com|New|User|true";
-        protector.Unprotect(Arg.Any<byte[]>())
-            .Returns(System.Text.Encoding.UTF8.GetBytes(cookieData));
+        string cookieData = """
+            {"LoginProvider":"Google","ProviderKey":"provider-key-123","Email":"newuser@example.com","FirstName":"New","LastName":"User","EmailVerified":true}
+            """;
+        string cookieValue = protector.Protect(cookieData);
 
 
-        _controller.ControllerContext.HttpContext.Request.Headers.Append("Cookie", "ExternalLoginState=encrypted-value");
+        _controller.ControllerContext.HttpContext.Request.Headers.Append("Cookie", $"ExternalLoginState={cookieValue}");
 
 
         _userManager.FindByEmailAsync("newuser@example.com").Returns((WallowUser?)null);

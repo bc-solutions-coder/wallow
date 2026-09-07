@@ -449,9 +449,16 @@ public sealed partial class AccountController(
         (string firstName, string lastName) = ExternalLoginClaimsHelper.ExtractName(info.Principal.Claims, email);
 
         IDataProtector protector = dataProtectionProvider.CreateProtector("ExternalLogin");
-        byte[] plainBytes = System.Text.Encoding.UTF8.GetBytes(
-            $"{info.LoginProvider}|{info.ProviderKey}|{email}|{firstName}|{lastName}|{emailVerified}");
-        string cookieValue = System.Text.Encoding.UTF8.GetString(protector.Protect(plainBytes));
+        ExternalLoginStatePayload state = new()
+        {
+            LoginProvider = info.LoginProvider,
+            ProviderKey = info.ProviderKey,
+            Email = email,
+            FirstName = firstName,
+            LastName = lastName,
+            EmailVerified = emailVerified
+        };
+        string cookieValue = protector.Protect(JsonSerializer.Serialize(state));
 
         Response.Cookies.Append("ExternalLoginState", cookieValue, new CookieOptions
         {
@@ -511,21 +518,11 @@ public sealed partial class AccountController(
             return Redirect($"{authUrl}/login?error=session_expired");
         }
 
-        string decrypted;
+        ExternalLoginStatePayload? state;
         try
         {
             IDataProtector protector = dataProtectionProvider.CreateProtector("ExternalLogin");
-            // Accept both byte-protected and string-protected cookie formats.
-            try
-            {
-                byte[] decryptedBytes = protector.Unprotect(
-                    System.Text.Encoding.UTF8.GetBytes(cookieValue));
-                decrypted = System.Text.Encoding.UTF8.GetString(decryptedBytes);
-            }
-            catch (System.Security.Cryptography.CryptographicException)
-            {
-                decrypted = protector.Unprotect(cookieValue);
-            }
+            state = JsonSerializer.Deserialize<ExternalLoginStatePayload>(protector.Unprotect(cookieValue));
         }
         catch (Exception)
         {
@@ -533,19 +530,20 @@ public sealed partial class AccountController(
             return Redirect($"{authUrl}/login?error=session_expired");
         }
 
-        string[] parts = decrypted.Split('|');
-        if (parts.Length < 6)
+        if (state is null || string.IsNullOrEmpty(state.LoginProvider) ||
+            string.IsNullOrEmpty(state.ProviderKey) || string.IsNullOrEmpty(state.Email) ||
+            state.FirstName is null || state.LastName is null)
         {
             Response.Cookies.Delete("ExternalLoginState");
             return Redirect($"{authUrl}/login?error=session_expired");
         }
 
-        string loginProvider = parts[0];
-        string providerKey = parts[1];
-        string email = parts[2];
-        string firstName = parts[3];
-        string lastName = parts[4];
-        bool emailVerified = bool.TryParse(parts[5], out bool ev) && ev;
+        string loginProvider = state.LoginProvider;
+        string providerKey = state.ProviderKey;
+        string email = state.Email;
+        string firstName = state.FirstName;
+        string lastName = state.LastName;
+        bool emailVerified = state.EmailVerified;
 
         // The account may have been created while the terms page was open.
         WallowUser? existingUser = await signInManager.UserManager.FindByEmailAsync(email);
@@ -1262,6 +1260,16 @@ public sealed partial class AccountController(
         {
             return null;
         }
+    }
+
+    private sealed record ExternalLoginStatePayload
+    {
+        public required string LoginProvider { get; init; }
+        public required string ProviderKey { get; init; }
+        public required string Email { get; init; }
+        public required string FirstName { get; init; }
+        public required string LastName { get; init; }
+        public required bool EmailVerified { get; init; }
     }
 
     private sealed record SignInTicketPayload(string Email, bool RememberMe, Guid Jti);
