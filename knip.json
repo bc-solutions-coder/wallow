@@ -10,7 +10,7 @@
   "workspaces": {
     ".": {
       "ignoreDependencies": ["@arethetypeswrong/cli", "publint"],
-      "entry": ["scripts/external-consumer.mjs"]
+      "entry": ["scripts/external-consumer.mjs", "scripts/telemetry-consumer.mjs"]
     },
     "apps/*": {
       "entry": [

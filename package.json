@@ -25,6 +25,7 @@
     "check:generated": "./scripts/check-generated.sh",
     "check": "pnpm format:check && pnpm lint && pnpm lint:tests && pnpm lint:manifests && pnpm lint:deps && pnpm lint:env && pnpm check:generated && turbo run build typecheck && pnpm test && pnpm check:exports && pnpm check:external-consumer",
     "prepare": "husky",
+    "check:telemetry-consumer": "./scripts/check-telemetry-consumer.sh",
     "check:external-consumer": "./scripts/check-external-consumer.sh"
   },
   "devDependencies": {

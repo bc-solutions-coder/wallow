@@ -5,13 +5,13 @@
 Implement GitHub spec #245 and its approved slices on the current branch. The resolved
 Wayfinder decisions and #240 already approve design and public testing seams.
 
-1. #244: preserve Garage commits; add pinned storage/query services in
+1. Completed — #244: preserve Garage commits; add pinned storage/query services in
    `docker/observability`, automatic private configuration and repeatable setup. Exercise
    real ingestion, flush, recreation and object-store reads with disposable data. Record
    image digests and query evidence. Validate Compose and environment documentation.
-2. #246: standalone .NET gateway, SQLite registry and control/ingestion HTTP boundaries.
+2. Completed — #246: standalone .NET gateway, SQLite registry and control/ingestion HTTP boundaries.
    Test ordering, replay, persistence, authentication, attribution and limits through HTTP.
-3. #247: installable telemetry package with explicit Node initialization, bounded export
+3. Completed — #247: installable telemetry package with explicit Node initialization, bounded export
    and bundled maintained logger. Verify a packed external Node consumer.
 4. #248: transactional registration desired state and outbox, retries and one-time reveal.
    Exercise existing organization-client integration and rendered registration seams.
