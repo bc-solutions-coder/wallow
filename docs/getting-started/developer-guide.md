@@ -103,43 +103,39 @@ Both ports can be overridden with `PORT`. For running an app on its own, the sha
 
 The workspace's quality gate is `pnpm check`: format check, both lint passes, manifest/dependency/env checks, then `turbo run build typecheck test` and `check:exports`. It is what `js.yml` runs in CI, so run it before opening a PR that touches `apps/` or `packages/`. Turbo caches build, typecheck and test locally in `.turbo/`, so a warm run is far faster than the first.
 
-Workflow YAML has a separate gate: `pnpm lint:actions` runs actionlint over `.github/workflows`, preferring an `actionlint` on your PATH and falling back to a pinned docker image. It stays out of `pnpm check` so `check` remains runnable offline; CI covers it with `.github/workflows/actionlint.yml`, path-filtered to `.github/**`. Run it before pushing a workflow edit.
+Workflow YAML has a separate gate: `pnpm lint:actions` runs actionlint over `.github/workflows`, preferring an `actionlint` on your PATH and falling back to a pinned docker image. It stays out of `pnpm check` so `check` remains runnable offline; the shared CI policy job runs it on every PR and main push. Run it before pushing a workflow edit.
 
 #### Turbo remote cache
 
-Turbo can additionally share artifacts with a self-hosted remote cache, so a laptop build and a
-CI run reuse each other's work. It activates only when three environment variables are set —
-without them turbo is silently local-only, and a failing remote is a warning, never a red run:
+Main CI uses the private Turbo cache through the existing GitHub `production` environment.
+Developer machines use local Turbo caching. Every PR, including same-repository and fork PRs,
+uses local/GitHub caches without the production environment or Tailscale credentials.
 
-| Variable | Value |
-|----------|-------|
-| `TURBO_API` | The cache server's origin (turbo appends `/v8/artifacts/...` itself) |
-| `TURBO_TEAM` | The team slug that namespaces artifacts on the server |
-| `TURBO_TOKEN` | The bearer token the cache server checks |
+| Production secret                       | Purpose                                                                  |
+| --------------------------------------- | ------------------------------------------------------------------------ |
+| `TURBO_API`                             | Cache origin without a trailing slash; Turbo appends `/v8/artifacts/...` |
+| `TURBO_TEAM`                            | Artifact namespace, which does not enforce authorization                 |
+| `TURBO_TOKEN`                           | CI-only bearer credential checked by the cache server                    |
+| `TURBO_REMOTE_CACHE_SIGNATURE_KEY`      | Independent random signing key used only by trusted CI                   |
+| `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET` | Connect the main runner to the tailnet as `tag:ci`                       |
 
-CI reads all three from GitHub Actions **secrets** of the same names (the URL is a secret too —
-the hostname stays out of the repo). Fork PRs receive no secrets and run uncached, which is
-correct. Locally, export the three values in your shell; get them from the password manager or
-from whoever operates the cache server.
+The shared JS workflow selects remote caching only for a main push with complete configuration
+and a reachable cache. Missing configuration, network failure and cache misses allow a local
+build. Required validation and same-run artifacts still have to succeed.
 
-Three workflows are on the cache: `js.yml` (the `pnpm check` gate), `route-tree-drift.yml` (it
-builds the three apps through `turbo run build` rather than raw `pnpm --filter` builds) and
-`package-publish.yml` (its build and test run through turbo from the repo root, not from the
-package directory). All three use the same env block and Tailscale steps.
+Turbo signs remote uploads and verifies downloads. Missing or invalid signatures cause a cache
+miss and rebuild. The signing key stays in `production`; do not distribute it or the CI bearer
+token to developer machines. Local-only runs need neither secret.
 
-The cache server is not on the public internet: `TURBO_API` is its **tailnet** address. CI joins
-the tailnet as a tagged ephemeral node via the Tailscale GitHub Action (secrets
-`TS_OAUTH_CLIENT_ID`/`TS_OAUTH_SECRET`, tag `tag:ci`), and a laptop must be on the same tailnet
-for the address to resolve — off the tailnet, turbo simply warns and runs local-only.
+The cache server is pinned to version 2.12.0 by digest. In that version,
+`TURBO_REMOTE_CACHE_SIGNATURE_KEY=enabled` on the **server** only enables storage and return of
+signature metadata. It is not the client's signing key. The server never verifies or creates
+the HMAC; keeping the actual key off the server prevents it from signing altered entries.
+Repeat the signed-hit, tampering and cold-build acceptance checks before changing server
+versions. See [the cache deployment configuration](../../docker/turbo-cache/docker-compose.yml).
 
-Turbo authenticates with `Authorization: Bearer $TURBO_TOKEN` and nothing else — it cannot send
-custom headers or query parameters — so the cache server's own bearer check is the sole
-credential, and network reachability is governed by tailnet ACLs rather than by a proxy in front
-of the server.
-
-When the cache misbehaves: `turbo run <task> --force` re-executes everything while still writing
-results back, `TURBO_REMOTE_CACHE_READ_ONLY=true` stops uploads, and unsetting `TURBO_TOKEN`
-disconnects the remote entirely.
+Use `TURBO_CACHE=local:rw pnpm exec turbo run <task>` to explicitly select local caching.
+`pnpm exec turbo run <task> --force` re-executes the task and updates the selected caches.
 
 ### Local Services
 

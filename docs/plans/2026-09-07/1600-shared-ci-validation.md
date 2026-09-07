@@ -24,3 +24,18 @@ Record exact commit/run links and any failures. Test routing for docs/full, rena
 ## Integration notes
 
 Rebased onto main `7df0a560`. Main added independent telemetry publication to the retired package publisher; the publication pause takes precedence. Shared validation packs telemetry once and runs its isolated artifact consumer against that exact tarball. Unit three must restore telemetry alongside SDK/api-errors, including its browser tests and isolated artifact check.
+
+## Cache verification progress
+
+The owner confirms the bearer token is used only by CI; developer machines use local Turbo.
+Main now requires an independent signing key in production before selecting remote caching.
+The signing key was created without logging its value. The pinned cache server stores signature
+metadata but does not receive the signing key. Older GitHub Turbo caches use a retired prefix.
+
+Actual Turbo 2.10.8 against server 2.12.0 at digest
+`sha256:d5cd81fc2f289b6c37ad8f3361a9abab5c359577d7809981ece045cefc21756f`
+passed signed cold-build, verified remote-hit, tampered signature/body, unsigned artifact,
+wrong client key and unavailable-server cases using disposable credentials. The remote hit
+executed no build; every negative case rebuilt successfully. A local-only run without a signing
+key also passed. This does not prove hosted main or the deployed server configuration: live
+server setup, network grants and hosted signed-hit/cold evidence remain open.

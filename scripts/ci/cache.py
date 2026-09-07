@@ -9,7 +9,7 @@ def select_cache(env, probe):
         return 'local:rw', 'PR and non-push runs use local/GitHub caches'
     if env.get('MAIN_CACHE') != 'true' or env.get('TAILNET_RESULT') != 'success':
         return 'local:rw', 'private network unavailable; using local/GitHub caches'
-    if not all(env.get(key) for key in ['TURBO_API', 'TURBO_TEAM', 'TURBO_TOKEN']):
+    if not all(env.get(key) for key in ['TURBO_API', 'TURBO_TEAM', 'TURBO_TOKEN', 'TURBO_REMOTE_CACHE_SIGNATURE_KEY']):
         return 'local:rw', 'remote cache configuration absent; using local/GitHub caches'
     if not probe(env['TURBO_API']):
         return 'local:rw', 'remote cache unavailable; using local/GitHub caches'

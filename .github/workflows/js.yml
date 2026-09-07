@@ -25,8 +25,8 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: .turbo
-          key: turbo-${{ runner.os }}-${{ github.ref }}-${{ github.sha }}
-          restore-keys: turbo-${{ runner.os }}-${{ github.ref }}-
+          key: turbo-v2-${{ runner.os }}-${{ github.ref }}-${{ github.sha }}
+          restore-keys: turbo-v2-${{ runner.os }}-${{ github.ref }}-
       - name: Connect main runner to Tailscale
         id: tailnet
         if: env.MAIN_CACHE == 'true' && env.TAILNET_CONFIGURED == 'true'
@@ -140,6 +140,7 @@ jobs:
       TURBO_API: ${{ secrets.TURBO_API }}
       TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${{ secrets.TURBO_REMOTE_CACHE_SIGNATURE_KEY }}
       TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
       TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
       TAILNET_CONFIGURED: ${{ secrets.TS_OAUTH_CLIENT_ID != '' && secrets.TS_OAUTH_SECRET != '' }}

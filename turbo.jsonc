@@ -14,19 +14,13 @@
   // them would invalidate the whole workspace for a lint-rule tweak that cannot
   // change a single build output.
   "globalDependencies": ["tsconfig.base.json", "tsconfig.build.base.json", ".nvmrc"],
-  // Deliberately NOT including CI: hashing it would give CI runners and laptops
-  // different keys for identical inputs and defeat the shared remote cache. CI
-  // is in turbo's built-in passthrough set, so tasks still see it.
+  // CI does not change task outputs and is already passed through by Turbo.
   "globalEnv": ["NODE_ENV"],
-  // apiUrl deliberately stays out of the repo: the cache server's tailnet
-  // address arrives via the TURBO_API env var (a GitHub Actions secret in CI,
-  // a shell export on a laptop), alongside TURBO_TEAM and TURBO_TOKEN. With
-  // those unset the block is inert — verified on Wallow-m4u7 — so cloning
-  // without credentials costs nothing. The host is reachable only over the
-  // tailnet (CI joins via the Tailscale step in js.yml; laptops must be on
-  // it), and turbo sends only `Authorization: Bearer` — the server's own
-  // token check is the sole credential.
+  // Main CI supplies remote credentials and a separate signing key through
+  // production. PR jobs select local caching without private credentials.
+  // Invalid or unsigned remote entries are cache misses and rebuild normally.
   "remoteCache": {
+    "signature": true,
     "timeout": 60,
     "uploadTimeout": 120,
   },
