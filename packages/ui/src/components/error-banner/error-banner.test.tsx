@@ -4,18 +4,9 @@ import { describe, expect, it } from "vitest";
 import { ErrorBanner } from "./error-banner";
 
 /*
- * REFIT SPEC (Wallow-m5aq.2.13). Same two jobs as card.test.tsx: pin the
- * pre-refit contract (wrapper around a destructive-text paragraph, children,
- * app-owned data-testid on the WRAPPER) and require the refit's override
- * behaviour, which only `cn()` over a cva recipe can satisfy.
- *
  * The banner is two styled parts behind one component, so the split matters as
  * much as the classes: a caller can style the wrapper and must NOT be able to
  * reach the inner paragraph. That is asserted below in both directions.
- *
- * Class assertions are order-free sets, per the Button exemplar — tailwind-merge
- * may reorder, so the pre-refit exact-string `toBe` checks are restated as set
- * equality.
  */
 
 /** The banner surface — the outer `<div>`. */
@@ -61,7 +52,6 @@ describe("ErrorBanner", () => {
   });
 
   it("lets a caller className override a wrapper recipe utility", async () => {
-    // The refit requirement. Pre-refit the append kept `p-3` next to `p-6`.
     const { container } = await render(<ErrorBanner className="p-6">boom</ErrorBanner>);
 
     const wrapper = wrapperOf(container);

@@ -51,6 +51,7 @@ export type BffCookieSameSite = "lax" | "strict";
  */
 export const DEFAULT_COOKIE_KEY_ID: string = "default";
 
+/** Server-only OIDC, upstream API, session, and cookie settings for a BFF. */
 export interface BffConfig {
   /** OIDC issuer base URL, e.g. `https://auth.example.com`. */
   issuer: string;
@@ -343,8 +344,7 @@ export function loadBffConfigFromEnv(env: NodeJS.ProcessEnv = process.env): BffC
       );
     }
   } else if (cookiePasswords !== undefined) {
-    // Keep the back-compat field meaning exactly what it always did: the secret
-    // new cookies are sealed with. Seal-only call sites therefore need no change.
+    // cookiePassword always contains the active secret used to seal new cookies.
     cookiePassword = cookiePasswords.keys[cookiePasswords.activeKeyId] ?? "";
   }
 

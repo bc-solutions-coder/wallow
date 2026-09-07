@@ -4,13 +4,6 @@ import { Card, CardTitle } from "../card/card";
 import { MutedText } from "../muted-text/muted-text";
 import { CenteredCardLayout } from "./centered-card-layout";
 
-/*
- * The visual half of CenteredCardLayout's spec (Wallow-m5aq.2.13). The layout
- * has nothing to look at without something inside it, so the stories fill the
- * column with the auth-screen content it was generalized from. Not interactive,
- * so no `play`.
- */
-
 const meta = {
   title: "Components/CenteredCardLayout",
   component: CenteredCardLayout,

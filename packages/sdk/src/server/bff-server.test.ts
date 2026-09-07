@@ -18,15 +18,7 @@ import { type SessionStore } from "./store/types";
 import { ValkeySessionStore } from "./store/valkey";
 
 /**
- * Spec (Wallow-pu6a.3.7): `createWallowBffServer` is the preset that absorbs the
- * host wiring every fork copies today — env config load, session-store
- * selection, and handler + proxy construction over ONE shared store — behind
- * three web-standard entry points.
- *
- * Hermetic mock of openid-client, mirroring `handlers.test.ts`: discovery
- * reconstructs endpoints from the requested metadata URL's origin, so the login
- * redirect is exercised with no live network I/O. Every test uses a unique
- * issuer because the discovery cache in `oidc.ts` is keyed by metadata URL.
+ * Verify BFF configuration, session-store selection, and handler/proxy construction with one shared store.
  */
 const { discoveryMetadataByOrigin, discoveryFailures } = vi.hoisted(() => ({
   /** Extra serverMetadata a test wants its issuer's discovery stub to advertise. */
@@ -558,10 +550,8 @@ describe("createWallowBffServer — health", () => {
 });
 
 /**
- * The dispatcher replaces the h3 router each host wired by hand. It routes on
- * path ONLY: method policy belongs to the handlers themselves (a bare
- * `GET /bff/logout` must reach the logout handler so it can answer 405 with
- * `Allow: POST`, rather than being swallowed as a 404 by the router).
+ * Dispatch by path and leave method policy to each handler. GET /bff/logout must reach its
+ * handler to return 405 with Allow: POST.
  */
 describe("createWallowBffServer — BFF dispatch", () => {
   it("routes /bff/login to the login handler, which redirects to the authorize endpoint", async () => {
@@ -616,7 +606,7 @@ describe("createWallowBffServer — BFF dispatch", () => {
   /**
    * This request carries NO Cookie header, so it is the genuinely anonymous
    * case: the logout handler answers 204 and clears cookies without consulting
-   * the CSRF token at all (Wallow-vufu.5.1). It pins DISPATCH — that POST
+   * the CSRF token at all. It pins DISPATCH — that POST
    * reaches the logout handler rather than the 405 branch above. The CSRF gate
    * itself is exercised in `handlers.test.ts` against a real sealed session,
    * which is the only shape that can reach it.
@@ -707,9 +697,7 @@ describe("createWallowBffServer — BFF dispatch", () => {
 });
 
 /**
- * `handleApi` is the ported `createApiProxy` and keeps its contract: the `/api`
- * allowlist rejects anything outside the mount BEFORE a session is read, and a
- * request with no session cookie is unauthorized rather than forwarded.
+ * handleApi preserves createApiProxy routing and authentication behavior under the /api mount.
  */
 describe("createWallowBffServer — API dispatch", () => {
   it("answers 401 for an /api request that carries no session cookie", async () => {

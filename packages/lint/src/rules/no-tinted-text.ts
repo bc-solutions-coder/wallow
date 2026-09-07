@@ -1,19 +1,5 @@
 import { defineRule, type Node } from "@oxlint/plugins";
 
-/**
- * Tinted text.
- *
- * `text-foreground/60` is a colour this theme cannot name: a fork editing
- * `branding.json` cannot reach it, and two files reaching for the same `/70` have
- * agreed on a design meaning without ever writing it down. Muted body copy is
- * `text-muted-foreground` — `Text color="muted"` — which a fork CAN retheme.
- *
- * Only the `text-` family is judged. A translucent SURFACE is a different thing and
- * a legitimate one: `DashboardLayout`'s `bg-foreground/40` drawer scrim has no opaque
- * spelling, and the catalog's backdrops are alpha by construction. Drawing the line at
- * text is what lets this rule run with no per-file exemption list — the retired sweep
- * banned every family and then had to name two files back out again.
- */
 const TINTABLE_TOKENS: readonly string[] = [
   "foreground",
   "background",
@@ -46,6 +32,11 @@ const TINTED_TEXT = new RegExp(
   "gu",
 );
 
+/**
+ * Reject alpha modifiers on configured theme text colors in string literals.
+ * Variant prefixes and important markers are recognized. Background colors are
+ * outside this rule; use semantic text colors for muted or secondary content.
+ */
 export const noTintedText = defineRule({
   meta: {
     type: "problem",

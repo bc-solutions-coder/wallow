@@ -4,11 +4,6 @@ import { describe, expect, it } from "vitest";
 import { CardHeader } from "./card-header";
 
 /*
- * CardHeader is the title-and-description pair sourced from 11 hand-rolled
- * `CardHeading` functions across wallow-auth, each of which rebuilt the same
- * stack: a `space-y-1` wrapper, an h2 at the card-heading step, and an optional
- * muted paragraph beneath it.
- *
  * The load-bearing claim is that the h2 lives HERE rather than at the call site,
  * so the 20px card-heading standard is guaranteed by construction. `CardTitle`
  * already owns that step, so this file pins the COMPOSITION — the element, the

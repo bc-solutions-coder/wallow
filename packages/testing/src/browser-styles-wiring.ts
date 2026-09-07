@@ -1,12 +1,6 @@
 /**
- * On-disk guard for a consumer's browser-project STYLING wiring.
- *
- * The rendered-colour half is `./theme-wiring`, and it is the assertion that
- * matters. This one names the pieces that have to stay wired, so removing one
- * fails with a message saying WHICH, rather than as a pile of 15s actionability
- * timeouts (no utilities) or transparent colours (no theme).
- *
- * Node-project only: it reads files and renders nothing.
+ * Node-only checks for a consumer browser project's stylesheet and theme wiring.
+ * Pair these checks with the rendered assertions in the theme-wiring entrypoint.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";

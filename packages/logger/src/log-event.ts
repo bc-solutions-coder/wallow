@@ -1,11 +1,6 @@
 /**
- * The wire contract both entries speak, plus the two pure passes that operate on
- * it: redaction and batch validation.
- *
- * This module is imported by `./index` (the browser core, which produces a
- * batch) and by `./server` (the ingest handler, which consumes one), and both
- * entries re-export the types. Sender and receiver therefore drift into a type
- * error rather than into a silently discarded field.
+ * Shared browser-to-server event contract, attribute redaction, and validation of decoded log
+ * batches.
  */
 
 /** Severity, lowest to highest. The order of {@link LOG_LEVELS} is the ordering. */
@@ -21,8 +16,17 @@ export function isAtLeast(level: LogLevel, minimum: LogLevel): boolean {
 
 /** An error carried on a record: the three fields that survive JSON. */
 export interface LogEventError {
+  /**
+   * Error name recorded with the event.
+   */
   name: string;
+  /**
+   * Error text, not covered by attribute-key redaction.
+   */
   message: string;
+  /**
+   * Optional stack trace, not covered by attribute-key redaction.
+   */
   stack?: string;
 }
 
@@ -37,23 +41,40 @@ export interface LogEventError {
 export interface LogEvent {
   /** When the browser recorded it, ISO 8601. The server keeps its own receipt time. */
   ts: string;
+  /**
+   * Event severity used by filtering and OTLP encoding.
+   */
   level: LogLevel;
+  /**
+   * Stable event identifier, such as form.submitted.
+   */
   event: string;
+  /**
+   * Application attributes; keep values serializable and free of sensitive content.
+   */
   attrs: Record<string, unknown>;
+  /**
+   * Caller-supplied correlation identifier; the server preserves it when present.
+   */
   correlationId?: string;
+  /**
+   * Optional diagnostic error fields.
+   */
   error?: LogEventError;
 }
 
 /**
- * A flush: the events, plus — on the `sendBeacon` path only — the CSRF token
- * that could not ride on a header.
- *
- * `sendBeacon` cannot set headers, so an app whose ingest route is CSRF-gated
- * has exactly two choices: put the token in the body or lose every log a closing
- * tab was holding. The ingest handler accepts it from either place.
+ * Events sent in one request, with an optional CSRF token for beacon delivery. The app authorize
+ * callback decides how to validate the token.
  */
 export interface LogBatch {
+  /**
+   * Nonempty event batch subject to the ingest event-count limit.
+   */
   events: LogEvent[];
+  /**
+   * Optional token for the ingest authorize callback, used by beacon delivery.
+   */
   csrfToken?: string;
 }
 
@@ -100,16 +121,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * Key-based scrubbing over an attribute bag.
- *
- * Runs TWICE by design: client-side before an event leaves the browser, so PII
- * never sits in a buffer or a beacon body, and again server-side, which is the
- * authoritative pass because a fork cannot bypass it from a page it does not
- * control.
- *
- * Depth-limited rather than fully recursive: an attribute bag deep enough to
- * exhaust {@link MAX_REDACT_DEPTH} is a payload, not a log record, and a cyclic
- * one would otherwise hang the request that carries it.
+ * Copy an attribute object and replace keys matching a configured substring, ignoring case.
+ * Descends into object values through depth four; arrays and deeper object values are retained
+ * unchanged. Does not scrub scalar content or error fields, so callers must avoid placing secrets
+ * there.
  */
 export function redactAttrs(
   attrs: Record<string, unknown>,
@@ -132,16 +147,25 @@ export function redactAttrs(
 }
 
 /**
- * The caps the ingest handler enforces and the browser core respects.
- *
- * `maxBodyBytes` is 64 KiB because that is `sendBeacon`'s own quota — the
- * ceiling, not the budget. A batch that would exceed it is rejected rather than
- * truncated: a half-parsed record is a record whose meaning changed in transit.
+ * Server-side batch limits. The browser logger has separate buffer and serialized-body options; it
+ * does not automatically inherit these caps.
  */
 export interface IngestLimits {
+  /**
+   * Maximum UTF-8 request body size enforced by ingestion.
+   */
   maxBodyBytes: number;
+  /**
+   * Maximum records accepted in one decoded batch.
+   */
   maxEventsPerBatch: number;
+  /**
+   * Maximum event-name length in JavaScript string code units.
+   */
   maxEventNameLength: number;
+  /**
+   * Maximum number of top-level attribute keys per event.
+   */
   maxAttributesPerEvent: number;
 }
 
@@ -157,15 +181,15 @@ export const DEFAULT_INGEST_LIMITS: IngestLimits = {
 };
 
 /**
- * The shape an event name must have: dotted, lowercase-ish segments.
- *
- * Enforced on the wire, not merely documented, because the cardinality of this
- * field is what decides whether a Grafana query over a week of logs returns in a
- * second or not at all.
+ * Allowed event-name syntax: lowercase alphanumeric segments with dot, underscore, or hyphen separators.
  */
 const EVENT_NAME_PATTERN: RegExp = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/u;
 
-/** Whether `value` is a usable event name at the given cap. */
+/**
+ * Check a lowercase event name against the length cap. Names begin with a letter and contain
+ * lowercase letters or digits separated by single dots, underscores, or hyphens. This checks
+ * syntax, not cardinality.
+ */
 export function isValidEventName(value: string, maxLength: number): boolean {
   return value.length <= maxLength && EVENT_NAME_PATTERN.test(value);
 }
@@ -185,7 +209,9 @@ interface ValidBatch {
 /** The result of {@link parseLogBatch}. */
 export type BatchResult = ValidBatch | InvalidBatch;
 
-/** Whether `value` is an ISO-8601 instant a `Date` round-trips. */
+/**
+ * Whether value is a string accepted by Date.parse. This does not enforce ISO syntax.
+ */
 function isIsoTimestamp(value: unknown): value is string {
   return typeof value === "string" && !Number.isNaN(Date.parse(value));
 }
@@ -225,11 +251,10 @@ function eventReason(value: unknown, limits: IngestLimits): string | undefined {
 }
 
 /**
- * Validate a decoded request body as a {@link LogBatch}.
- *
- * Total: it never throws, and every rejection names a reason that describes the
- * SHAPE of the payload rather than anything the sender supplied — the reason
- * travels back to an unauthenticated caller.
+ * Validate an already decoded JSON batch and rebuild its event records. Checks nonempty batch
+ * size, level, event name, parseable timestamp, attribute object size, and optional CSRF token
+ * type. Unknown event fields are omitted; correlationId and error are carried through without
+ * further validation. Body byte limits are enforced by the ingest handler, not this function.
  */
 export function parseLogBatch(
   value: unknown,
@@ -262,9 +287,8 @@ export function parseLogBatch(
     return { ok: false, reason: "csrfToken is not a string" };
   }
 
-  // Rebuilt field by field rather than spread: the loop above proved these five
-  // are well-formed, and copying only them means a payload carrying an extra key
-  // — a `service`, a `userId` — cannot smuggle it past validation into a record.
+  // Copy the known event fields and omit extra top-level fields.
+  // The correlationId and error values are retained without additional validation.
   const normalized: LogEvent[] = [];
   for (const event of events as LogEvent[]) {
     normalized.push({
@@ -287,15 +311,7 @@ export function parseLogBatch(
 }
 
 /**
- * The correlation header this package reads, mirroring the SDK's
- * `REQUEST_ID_HEADER`.
- *
- * Declared here rather than imported: a logger that depended on
- * `@bc-solutions-coder/sdk` for one string would drag a published package with
- * an OIDC client into every consumer's graph. The two constants are pinned to
- * each other by an app-side spec, in the one place that already depends on both.
- *
- * It is the only header this package reads a value out of. The client address
- * deliberately is not one: see `clientAddress` on `LogIngestOptions`.
+ * Correlation header used as an ingest fallback when an event has no correlationId. Declared
+ * locally so the logger does not depend on the SDK.
  */
 export const REQUEST_ID_HEADER: string = "x-request-id";

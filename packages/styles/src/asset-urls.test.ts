@@ -4,15 +4,7 @@ import { toRootRelativeAssetUrl } from "./asset-urls";
 import { appIconUrl, forkBranding } from "./branding";
 
 /**
- * The bug these tests exist for: `packages/styles/branding.json` names the app icon by bare
- * filename, and rendering that value directly makes the browser resolve it
- * against the current page. On `/login` that happens to work; on
- * `/mfa/challenge` the browser asks for `/mfa/piggy-icon.svg` and the icon
- * disappears. The Blazor app never had the problem because Blazor normalised
- * asset paths against the app base — React has no equivalent, so the URL has to
- * be root-relative before it reaches the markup.
- *
- * Route depths used below are real wallow-auth routes.
+ * Asset URLs resolve against the app root rather than the current route. These cases cover nested routes, hosted assets, and deployment prefixes.
  */
 const routes: readonly string[] = [
   "http://localhost:3002/",
@@ -79,19 +71,8 @@ describe("toRootRelativeAssetUrl", () => {
 });
 
 /**
- * The second half of the same bug (Wallow-8via). "The site root" is only the
- * URL root when the app owns the origin. Served under a prefix — which
- * wallow-auth's `AUTH_BASE_PATH` knob exists to do — the brand assets are
- * copied under that prefix too (Vite's `base` plus nitro's `baseURL`), so a
- * root-relative `/piggy-icon.svg` points at the SITE root, which behind the
- * path-based ingress is a DIFFERENT app. The icon 404s.
- *
- * The base path is a build-time value the CONSUMING app bakes in, so it arrives
- * as an argument: this package ships a prebuilt bundle and would otherwise
- * freeze its own `import.meta.env.BASE_URL` (always "/") into every consumer.
- * It is normalized here rather than by each caller so an app can hand over
- * Vite's raw `import.meta.env.BASE_URL` ("/", "/auth/") or an already-normalized
- * prefix ("/auth") and get the same answer.
+ * Prefixed deployments keep local assets below their own base path.
+ * The caller passes its build-time prefix; the package does not read a library BASE_URL.
  */
 describe("toRootRelativeAssetUrl under a base path", () => {
   it("serves a bare filename from under the prefix, not from the site root", () => {

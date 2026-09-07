@@ -1,29 +1,5 @@
 /**
- * Pure reverse-proxy passthrough preset (Wallow-pu6a.3.7).
- *
- * The second of the two golden-path server topologies. Where
- * `createWallowBffServer` owns an OIDC session and attaches a bearer token,
- * {@link createApiPassthrough} owns nothing: it forwards the inbound method,
- * path, query, body, and `Cookie` header to the internal API and returns the
- * upstream `Response` unchanged, so every `Set-Cookie` reaches the browser
- * verbatim. No session store, no cookie jar, no relay.
- *
- * This absorbs the near-duplicate hand-rolled proxies the apps used to ship
- * (the deleted `apps/wallow-auth/src/lib/auth-server.ts` and
- * `apps/minimal-app/src/lib/proxy-server.ts`), generalizing their
- * hardcoded prefix list into {@link ApiPassthroughOptions.prefixes} and their
- * `X-Forwarded-For` stamping into
- * {@link ApiPassthroughOptions.forwardClientIp}.
- *
- * It ships from its OWN subpath (`@bc-solutions-coder/sdk/server/passthrough`)
- * so a passthrough-only app never pulls `openid-client` into its server bundle.
- * Nothing in this module may import the BFF handler/proxy graph.
- *
- * The two answers it writes itself — a path outside the allowlist, an upstream
- * it could not reach — are originated problems through the shared
- * {@link problemResponse}, so the browser reads them like any API failure.
- * There is deliberately no forward timeout here: the upstream's own timing is
- * the upstream's business, and a hung request is the host's to bound.
+ * Session-free reverse proxy for allowed API path prefixes. It forwards request cookies and bodies and preserves upstream responses, including Set-Cookie headers. The separate passthrough entrypoint avoids loading the BFF authentication dependencies; the host must bound upstream request time.
  */
 
 import { ClientErrorCode, ErrorCode } from "@bc-solutions-coder/api-errors";

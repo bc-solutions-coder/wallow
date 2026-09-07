@@ -1,26 +1,6 @@
 import { cva, type VariantProps } from "class-variance-authority";
 
-/*
- * One recipe per styled part of the popover. The class lists are not invented
- * here — popover.test.tsx declares each part's exact utility set as a top-of-file
- * `*_CLASSES` constant and asserts it as an order-free set through the rendered
- * component, so that spec is the source of truth for everything below.
- *
- * One recipe per part that renders a VISIBLE element, per the rule the Dialog
- * exemplar (Wallow-m5aq.3.1) established. `Root` renders no element, `Portal`
- * renders only the structural container Base UI appends to `<body>`, and
- * `Handle`/`createHandle` render no DOM at all, so none of them has a recipe
- * (see popover.tsx for why they are re-exported unwrapped).
- *
- * No recipe takes a cva VARIANT. A popover has no visual variant axis in this
- * catalog: open/closed, the entering/exiting transition phases and the resolved
- * side/alignment are all STATES, and Base UI publishes states as `data-*`
- * attributes, so they belong in the base string as `data-[starting-style]:` /
- * `data-[ending-style]:` / `data-[side=…]:` modifiers rather than as cva
- * variants nobody would pass by hand. The `VariantProps` types are still
- * exported so each part's props keep the catalog-wide shape and a later variant
- * axis stays a non-breaking addition.
- */
+/* Recipes style visible component parts. State transitions use Base UI data attributes; state-only roots and structural portals have no recipe. */
 
 /**
  * The button that opens the popover — Base UI's `Popover.Trigger`, a `<button>`.

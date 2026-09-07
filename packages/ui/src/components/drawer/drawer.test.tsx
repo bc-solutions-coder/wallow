@@ -7,10 +7,7 @@ import { Drawer } from "./drawer";
 import type { DrawerSide } from "./drawer.styles";
 
 /*
- * Drawer behavioural spec (Wallow-m5aq.3.10), shaped after the Wallow-m5aq.3.1
- * Dialog exemplar:
- *
- *   1. Runs in the vitest BROWSER project — real headless Chromium, real Base UI,
+ * 1. Runs in the vitest BROWSER project — real headless Chromium, real Base UI,
  *      real DOM. Nothing is mocked.
  *   2. Recipes are asserted THROUGH the component, never by importing
  *      `drawerPopupRecipe` and inspecting its return value: a recipe unit test
@@ -22,7 +19,7 @@ import type { DrawerSide } from "./drawer.styles";
  *   4. Stories carry the visual coverage (see drawer.stories.tsx); this file is
  *      only for the edges a screenshot cannot make.
  *
- * ANATOMY, measured against @base-ui/react 1.6.0 in this browser (not guessed).
+ * ANATOMY, measured against Base UI in this browser (not guessed).
  * Drawer publishes SEVENTEEN namespace members — Dialog's eleven plus Content,
  * Indent, IndentBackground, Provider, SwipeArea and VirtualKeyboardProvider.
  *
@@ -689,7 +686,7 @@ describe("Drawer", () => {
   });
 
   it("renders a drawer wrapped in the virtual keyboard provider", async () => {
-    // The part exists in Base UI 1.6.0 and is wired here, but it only takes
+    // The part exists in Base UI and is wired here, but it only takes
     // effect for a software keyboard, so what is assertable is the PLACEMENT:
     // inside the Root. Outside one it throws on the missing root store, and
     // Base UI's published anatomy does not show the part at all.

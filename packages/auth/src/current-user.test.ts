@@ -1,37 +1,6 @@
 /**
- * Spec for `currentUserQuery` — the canonical "who is signed in" contract for
- * every app in this workspace (Wallow-x4qn.3).
- *
- * This query used to live in `apps/wallow-web/src/lib/current-user.ts`, and
- * wallow-auth carried a SECOND, subtly different copy (no `staleTime`, no `sub`).
- * Moving it into a shared package is only worth doing if the semantics that made
- * the wallow-web copy the right one are pinned here, so the divergence cannot
- * quietly reappear:
- *
- *   1. the GENERATED query key, so an invalidation raised anywhere in the app —
- *      by `usersGetCurrentUserQueryKey` or by the SDK's `invalidations`
- *      predicates — reaches this query. A hand-rolled key would be invisible to
- *      both;
- *   2. a 401 is the ANSWER "anonymous", not a failure. Without the softening
- *      every signed-out visitor hits a route's error boundary instead of its
- *      login gate;
- *   3. `sub`, renamed from the API's `id`, so the resolved user satisfies the
- *      SDK's `WallowUser` and the shared `requireAuth` guard can read it;
- *   4. a 30-second `staleTime`, which is what keeps a `beforeLoad` that calls
- *      `ensureQueryData` on every navigation from re-reading the user on each
- *      route change;
- *   5. only 401 is soft. A 500 must reach the caller, or a backend outage would
- *      sign every real user out.
- *
- * NOTHING is mocked. The SDK is a real `createWallowSdk()` instance handed a stub
- * transport, so the assertions run through the real generated operation, the real
- * `ApiFailure` interceptor and the real 401-softening in the SDK's
- * `getCurrentUser` — the three pieces this query composes. A `vi.mock` of the SDK
- * would assert only that this file calls what this file calls.
- *
- * The query options are driven through a real `QueryClient` from the shared query
- * facade rather than by invoking `queryFn` directly: that is how react-query will
- * call them, and it needs no cast to fabricate a query-function context.
+ * Verify current-user query keys, a 30-second staleTime, profile mapping, and 401-only anonymous
+ * results through a real SDK client with a stub transport.
  */
 
 import { createQueryClient, type QueryClient } from "@bc-solutions-coder/query";
@@ -47,7 +16,7 @@ const BASE_URL: string = "https://api.test";
 /** The path `UsersController.GetCurrentUser` is generated at. */
 const CURRENT_USER_URL: string = `${BASE_URL}/v1/identity/users/me`;
 
-/** How long a resolved user must be held before `beforeLoad` re-reads it. */
+/** Freshness window for current-user query observers. */
 const EXPECTED_STALE_TIME_MS: number = 30_000;
 
 const SIGNED_IN_USER: CurrentUserResponse = {

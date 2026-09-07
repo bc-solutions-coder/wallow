@@ -9,20 +9,7 @@ import {
   type ReactNode,
 } from "react";
 
-/**
- * Theme activation for the fork (Wallow-lrlm.1.2).
- *
- * `packages/styles` already emits `.light` / `.dark` custom-property blocks from
- * `packages/styles/branding.json`; nothing in either app ever put those classes on the
- * document except the hardcoded `className={branding.defaultMode}` in each
- * `__root.tsx`. This folder is what makes the emitted CSS reachable: a pre-paint
- * inline script that stamps the class BEFORE React runs, plus a provider that
- * reads what the script stamped and keeps it in sync afterwards.
- *
- * Nothing here imports `@bc-solutions-coder/styles` — packages/ui takes branding
- * as props (the same rule `document-styles.tsx` and `fork-attribution.tsx`
- * follow), so `defaultMode` arrives from the app shell.
- */
+/** ThemeScript applies the initial document class before paint. ThemeProvider reads that class and handles later preference changes. */
 
 /** A resolved colour scheme — the class that lands on `<html>`. */
 export type ThemeMode = "light" | "dark";
@@ -58,13 +45,8 @@ export interface ThemeResolutionInput {
 }
 
 /**
- * The resolution order, lowest priority first: the fork's default, then the OS,
- * then the visitor's persisted choice. Pure, so the full precedence table is
- * provable without emulating a media query.
- *
- * Anything that is not literally `"light"` or `"dark"` — `null`, `"system"`, or
- * junk another app on this origin left behind — hands the decision one level
- * down rather than pinning a mode.
+ * Resolves a stored light or dark choice first, then the system mode, then defaultMode. Other
+ * stored values, including system, defer to the system preference.
  */
 export function resolveThemeMode(input: ThemeResolutionInput): ThemeMode {
   if (input.stored === "light" || input.stored === "dark") {
@@ -206,7 +188,10 @@ const ThemeContext = createContext<ThemeContextValue>({
   },
 });
 
-/** Reads the active theme from the nearest {@link ThemeProvider}. */
+/**
+ * Reads mode, preference, and setPreference from ThemeProvider. Without a provider, returns
+ * light mode, system preference, and an inert setter.
+ */
 export function useTheme(): ThemeContextValue {
   return useContext(ThemeContext);
 }
@@ -234,19 +219,9 @@ export interface ThemeProviderProps {
 }
 
 /**
- * Publishes the already-stamped theme to the tree and owns the setter the toggle
- * calls.
- *
- * It must NOT compute the initial class in an effect: the script has already
- * decided, and recomputing on mount is what produces a hydration flash. The
- * provider therefore renders nothing of its own and its SSR output is
- * byte-identical to its client output.
- *
- * Both values come from `useSyncExternalStore`, which is what keeps that true
- * through hydration as well: React renders the SERVER snapshot (the fork
- * default, exactly what the SSR markup carries) while hydrating and swaps to the
- * live one immediately after, so the visitor's real choice reaches the tree
- * without the server and client ever disagreeing about the first render.
+ * Shares the document's active theme and persists preference changes. Place ThemeScript in the
+ * document head first; the provider reads its class and follows system and cross-tab storage
+ * changes. defaultMode supplies the server snapshot during hydration.
  */
 export function ThemeProvider({ defaultMode, children }: ThemeProviderProps): ReactElement {
   const getMode = useCallback((): ThemeMode => readStampedMode(defaultMode), [defaultMode]);

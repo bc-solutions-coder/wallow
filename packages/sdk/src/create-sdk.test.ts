@@ -1,36 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createWallowSdk, type CreateWallowSdkOptions, type WallowSdk } from "./create-sdk";
-// The generator's own module-global instance. `src/client.ts` used to re-export it
-// as the package's public `client`; that re-export is deleted (Wallow-pu6a.5.5),
-// but the generated singleton still exists, so "the factory never touches it"
-// remains the assertion — it just has to be reached at its generated path now.
+// Use the generated singleton to verify that SDK factories leave its configuration untouched.
 import { client as generatedSingleton } from "./generated/client.gen";
 import { usersGetCurrentUser } from "./generated/sdk.gen";
 
 /**
- * Spec (Wallow-pu6a.3.5): `createWallowSdk()` is the per-request replacement for
- * the module-global client singleton.
- *
- * The singleton model (`src/client.ts` + `configureBffClient`/`configureSsrClient`)
- * is a server-side correctness bug waiting to happen: concurrent SSR renders share
- * one client, so the last render to configure it wins, its forwarded `Cookie` leaks
- * into another user's render, and every re-configure appends another interceptor to
- * the same list. This factory builds a fresh instance per request instead, and these
- * tests pin the six properties that make that safe:
- *
- *   (a) two instances do not bleed state into each other;
- *   (b) the CSRF interceptor registers exactly ONCE per instance, and never onto the
- *       module-global client;
- *   (c) an SSR instance forwards ITS OWN per-request cookie header;
- *   (d) `baseUrl` is required — no baked `/api` default sneaking in via the
- *       generated `createClientConfig()` runtime hook;
- *   (e) `internalOrigin` is applied ONLY inside the instance's `fetch`, so a server
- *       instance and a browser instance built with the same `baseUrl` are
- *       indistinguishable everywhere request identity is derived (the client's
- *       configured `baseUrl` and the URL the client builds before transport) — that
- *       is what keeps an SSR-primed cache hydration-compatible with the browser;
- *   (f) lives in `server/internal-origin.test.ts`.
+ * Verify independent SDK clients, per-request cookie forwarding, one CSRF interceptor, and internal API routing without changing generated query keys.
  */
 
 const BROWSER_BASE_URL = "https://app.test/api";
@@ -184,7 +160,7 @@ describe("(b) the CSRF interceptor registers exactly once per instance", () => {
       baseUrl: BROWSER_BASE_URL,
       fetch: transport.fetch,
     });
-    // The BFF's double-submit cookie is the ONE token source (Wallow-j7qk) —
+    // The BFF's double-submit cookie is the ONE token source —
     // there is no module-scope store for a test to arm any more.
     vi.stubGlobal("document", { cookie: "wallow_bff-csrf=token-abc" });
 

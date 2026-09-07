@@ -1,5 +1,7 @@
 import { applyNaming, type IR, type Plugin } from "@hey-api/openapi-ts";
 
+import { sharedTypeDocumentation } from "./type-documentation";
+
 type NamingOptions =
   Parameters<typeof applyNaming> extends [unknown, infer Naming, ...unknown[]] ? Naming : never;
 
@@ -61,6 +63,13 @@ export function createQueryDocumentationHooks(): NonNullable<Plugin.Hooks["$hook
         });
       },
       "node:set:before": ({ node }) => {
+        if (node?.exported && "~dsl" in node && node["~dsl"] === "TypeAliasTsDsl") {
+          const lines = sharedTypeDocumentation(node.name.toString());
+          if (lines && "doc" in node && typeof node.doc === "function") {
+            node.doc(lines);
+          }
+          return;
+        }
         if (!node?.exported || !("~dsl" in node) || node["~dsl"] !== "VarTsDsl") {
           return;
         }

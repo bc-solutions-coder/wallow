@@ -4,10 +4,7 @@ import { describe, expect, it } from "vitest";
 import { Separator, type SeparatorProps } from "./separator";
 
 /*
- * Separator behavioural spec (Wallow-m5aq.4.3), shaped after the Wallow-m5aq.2.1
- * Button exemplar:
- *
- *   1. Runs in the vitest BROWSER project — real headless Chromium, real Base UI,
+ * 1. Runs in the vitest BROWSER project — real headless Chromium, real Base UI,
  *      real DOM. Nothing is mocked.
  *   2. The recipe is asserted THROUGH the component, never by importing
  *      `separatorRecipe` and inspecting its return value: a recipe unit test
@@ -17,7 +14,7 @@ import { Separator, type SeparatorProps } from "./separator";
  *   4. Stories carry the visual coverage (see separator.stories.tsx); this file
  *      is only for the edges a screenshot cannot make.
  *
- * ANATOMY, measured against @base-ui/react 1.6.0 in this browser (not guessed):
+ * ANATOMY, measured against Base UI in this browser (not guessed):
  *
  *   <div data-orientation="horizontal" role="separator" aria-orientation="horizontal">
  *

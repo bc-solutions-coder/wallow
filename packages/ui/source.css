@@ -1,27 +1,4 @@
-/*
- * Tailwind v4 @source declaration for @bc-solutions-coder/ui.
- *
- * Tailwind v4 skips node_modules when scanning, and resolves @source paths
- * relative to the declaring stylesheet. So this package ships its own source.css
- * (at the package root, shipped via package.json "files") pointing at its ./src
- * component sources, and each consuming app imports it from its CSS entry
- * (@import "@bc-solutions-coder/ui/source.css";). That makes Tailwind scan ui's
- * component class names and emit the utilities they use.
- *
- * This file declares ONLY the source scan — it imports no Tailwind entry and no
- * theme, because the app already imports @bc-solutions-coder/styles. ui depends
- * on styles conceptually, never the reverse.
- *
- * The scan targets the per-component folders and excludes story and spec files:
- * their class names are demo-only, so letting Tailwind see them makes every
- * consuming app emit utilities no shipped component actually uses.
- *
- * Both halves of a component are scanned. Since the CVA rebuild, most class
- * names live in the *.styles.ts recipe beside the component rather than in its
- * JSX, and a scan that saw only .tsx emitted nothing for them — a component
- * whose classes are all in its recipe (Switch: h-6, w-11) then rendered
- * unstyled in the consuming app even though its class ATTRIBUTES were correct.
- */
+/* Tailwind source registration for component JSX and recipe files. Import this after the app's Tailwind and theme setup; it supplies no stylesheet or theme by itself. Stories and tests are excluded from the scan. */
 @source "./src/components/**/*.tsx";
 @source "./src/components/**/*.styles.ts";
 @source not "./src/components/**/*.stories.tsx";

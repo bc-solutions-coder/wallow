@@ -13,19 +13,7 @@ import {
 } from "./branding";
 
 /**
- * The package's two halves have to agree:
- *
- *  - `styles.css` is the shared Tailwind v4 entry, the sole owner of the
- *    `@theme` block. (It was lifted token-for-token from the deleted Blazor
- *    `Wallow.Auth` stylesheet — that migration gate lived here until the
- *    oracle was deleted with the app; the move is pinned in git history.)
- *  - `branding.ts` is the palette. `styles.css` maps Tailwind tokens onto plain
- *    custom properties (`--color-primary: var(--primary)`) but must never
- *    *define* them — `packages/styles/branding.json` is the only place a fork edits to
- *    rebrand, so the values are emitted at render time from the JSON instead.
- *
- * These tests read the files off disk rather than through a bundler because the
- * CSS ships as-authored: consumers `@import` it and run their own Tailwind pass.
+ * Verify that the authored Tailwind tokens reference the palette emitted by branding.ts. Consumers compile the stylesheet themselves, so these checks read its CSS declarations directly.
  */
 const packageRoot: URL = new URL("../", import.meta.url);
 
@@ -60,7 +48,7 @@ function themeTokens(css: string): Record<string, string> {
  * The custom properties a `@theme` block indirects through `var(...)` —
  * including the ones inside a fallback chain, `var(--sidebar, var(--foreground))`,
  * which names two: the palette property the token wants and the one it degrades
- * to when a fork's `packages/styles/branding.json` is too old to define it.
+ * to when a fork's `packages/styles/branding.json` omits it.
  */
 function themedVarNames(tokens: Record<string, string>): readonly string[] {
   const matches: RegExpStringIterator<RegExpExecArray> = Object.values(tokens)
@@ -89,8 +77,7 @@ describe("the shared Tailwind entry", () => {
   });
 
   it("hardcodes no palette, so packages/styles/branding.json stays the only place to rebrand", () => {
-    // The Blazor entry inlined a :root/.dark palette — Wallow.Auth's was a
-    // verbatim duplicate of branding.json's. It does not come along.
+    // The shared stylesheet maps tokens; palette values come from branding.json at render time.
     expect(sharedCss).not.toMatch(/oklch\(/u);
     expect(sharedCss).not.toMatch(/^\s*(?::root|\.dark)\s*\{/mu);
   });
@@ -142,23 +129,8 @@ describe("the branding palette", () => {
 });
 
 /**
- * The semantic colours the app surfaces need — the dashboard rail (which today
- * fakes a surface by inverting `bg-foreground`/`text-background`) and the state
- * chip that has no green to reach for — mapped to the exact chain each `@theme`
- * token must go through.
- *
- * `warning` fell back to `primary` by hand before it existed: `badgeRecipe`'s
- * warning arm spent `bg-primary` because this fork's primary IS an amber and the
- * palette carried nothing else warning-shaped. Making `--primary` the token's
- * FALLBACK rather than its value keeps that exact colour for a fork too old to
- * have the key, while a fork whose primary is (say) blue now gets a warning that
- * is not blue.
- *
- * The two-level `var(--sidebar, var(--foreground))` is not decoration:
- * `packages/styles/branding.json` is `merge=ours` in `.gitattributes`, so a fork's copy
- * never receives new theme keys from an upstream merge, and `toCssVars` emits
- * nothing for a key that is not there. Without the fallback the fork's build
- * resolves the token to nothing at all.
+ * Sidebar, success, and warning tokens retain explicit fallback chains.
+ * A fork palette can omit those keys, so the tokens must still resolve to existing colors.
  */
 const forkSafeTokens: Readonly<Record<string, string>> = {
   "--color-sidebar": "var(--sidebar, var(--foreground))",
@@ -204,9 +176,7 @@ describe("the sidebar, success and warning semantic tokens", () => {
   }
 
   it("leaves the pre-existing colour tokens on their plain, un-defaulted mapping", () => {
-    // Only the new tokens get the two-level indirection. Every existing token
-    // resolves through a property `packages/styles/branding.json` has always carried, so
-    // giving those a fallback would change well-tested behaviour for nothing.
+    // The optional semantic tokens use fallback chains; core palette tokens remain direct references.
     const untouched: readonly (readonly [string, string])[] = Object.entries(
       themeTokens(sharedCss),
     ).filter(
@@ -253,8 +223,7 @@ describe("a fork whose packages/styles/branding.json predates these tokens", () 
   });
 
   it("still resolves every new token, through a fallback its palette does define", () => {
-    // The point of the whole exercise: an old fork must land on a coherent
-    // colour, not on `currentcolor` or nothing.
+    // A palette with missing optional keys still resolves a fallback color.
     const tokens: Record<string, string> = themeTokens(sharedCss);
     const legacyVars: readonly string[] = Object.keys(toCssVars(legacyFork.theme.light));
 

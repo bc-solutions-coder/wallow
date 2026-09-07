@@ -1,25 +1,8 @@
 import { cva, type VariantProps } from "class-variance-authority";
 
 /**
- * The button's class recipe. Style decisions live here and nowhere else — this
- * file holds no JSX and imports no React, so a recipe can be read (and diffed)
- * without the component around it.
- *
- * Every utility is a semantic token class from `@bc-solutions-coder/styles`; no
- * raw colour values. The disabled treatment hangs off Base UI's `data-disabled`
- * state attribute rather than the `:disabled` pseudo-class, so it still applies
- * when the caller composes the button onto a non-button element via `render`.
- *
- * Four variant groups, and each one's DEFAULT reproduces the pre-upgrade button
- * exactly: `size="md"` owns the old base string's `px-3 py-2 text-sm`,
- * `width="full"` owns its `w-full`, `shape="rounded"` owns its `rounded-md`.
- * That is why those utilities left the base string — a non-full or pill button
- * must not have to fight a base class that tailwind-merge only sometimes wins.
- *
- * The focus indicator follows the catalog's existing form (`toolbar`,
- * `menubar`): `outline-none` plus a `focus-visible:` ring on the `ring` token.
- * The colour transition is `motion-safe:`-gated so a reader who asks for
- * reduced motion gets the state change without the animation.
+ * Button classes with variant, size, width, shape, and surface options. Defaults to primary,
+ * medium, full-width, rounded, and page; icon size uses automatic width.
  */
 export const buttonRecipe = cva(
   "inline-flex items-center justify-center font-medium outline-none motion-safe:transition-colors focus-visible:ring-2 focus-visible:ring-ring data-[disabled]:opacity-50",
@@ -88,7 +71,7 @@ export const buttonRecipe = cva(
       },
     },
     compoundVariants: [
-      // `width` defaults to `full` for the 11 pre-existing call sites' sake, so
+      // `width` defaults to `full` for the default layout, so
       // a bare `<Button size="icon">` would otherwise stretch its square box.
       // The pair collapses through tailwind-merge, leaving `w-auto`.
       { size: "icon", width: "full", class: "w-auto" },

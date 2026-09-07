@@ -6,33 +6,6 @@ import { describe, expect, it, vi } from "vitest";
 import { Field } from "../field/field";
 import { Form, type FormActions, type FormSubmitEventDetails } from "./form";
 
-/*
- * Follows the exemplar spec shape from button.test.tsx (Wallow-m5aq.2.1):
- * browser project, nothing mocked, the recipe asserted THROUGH the component,
- * and class assertions as an order-free SET because cn()/tailwind-merge is free
- * to reorder.
- *
- * Form is the wiring component of the wave, so most of what is pinned below is
- * the CONTRACT BETWEEN Form AND Field rather than markup. Every behaviour was
- * measured against the installed @base-ui/react 1.6.0 with a throwaway probe
- * before it was asserted, including the four a reader would otherwise guess
- * wrong:
- *
- *   - a `Field.Error` with NO `match` prop DOES render a message that arrived
- *     through the form's `errors` prop. Wallow-m5aq.2.3 measured that an
- *     `invalid` field alone renders no element at all; a form error is the
- *     exception, and it is the whole point of this task.
- *   - a server error also makes the field invalid, so it BLOCKS the next submit
- *     until the user edits that field (which clears the error).
- *   - `onSubmit` still fires, and the native default is prevented only when
- *     `onFormSubmit` is supplied. A spec that omits `onFormSubmit` and clicks
- *     submit navigates the browser-mode iframe, so every submit spec here
- *     supplies one.
- *   - an `errors` value that is an ARRAY renders as a `<ul>` of `<li>`, not as
- *     joined text.
- */
-
-/** The stacking rhythm every hand-written `<form>` in wallow-auth already uses. */
 const FORM_RECIPE = "space-y-4";
 
 /** A recipe as an order-free set, to compare against a rendered classList. */
@@ -239,9 +212,6 @@ describe("Form", () => {
 
   describe("server errors wired into Field.Error", () => {
     it("renders an error from the errors prop on the field of that name, with no match", async () => {
-      // The contract this task exists for. Wallow-m5aq.2.3 pinned that an
-      // `invalid` field with a bare <Field.Error> renders NO element; routed
-      // through the form's `errors`, the very same markup renders the message.
       const { container } = await render(
         <Form errors={{ email: "Email already registered" }}>
           <Field name="email">

@@ -9,13 +9,8 @@ function normalizeOrigin(origin: string): string {
 }
 
 /**
- * Throws unless `returnUrl` passes {@link isSafeReturnUrl}, naming the rejected
- * value so the caller can log what it refused.
- *
- * Ports `Login.razor` L533-540: an unsafe returnUrl is REFUSED, not sanitized.
- * `ReturnUrlValidator.Sanitize`'s silent "/" fallback is deliberately not used
- * here -- a builder that quietly swaps an attacker's returnUrl for "/" hands the
- * caller a URL it never asked for.
+ * Reject unsafe local return URLs with TypeError so callers never receive a silently substituted
+ * destination.
  */
 function assertSafeReturnUrl(returnUrl: string): void {
   if (!isSafeReturnUrl(returnUrl)) {
@@ -120,23 +115,9 @@ export function buildConsentSubmission(
 }
 
 /**
- * An ABSOLUTE return URL the API's own allow-list has already vouched for
- * (Wallow-a6jr).
- *
- * {@link isSafeReturnUrl} answers one question -- "can this value only ever
- * resolve against the current origin?" -- and every absolute URL fails it. But
- * the external-login MFA hand-off is absolute by construction: the redirect URL
- * `AccountController.ExternalLoginCallback` sends to `/mfa/challenge` either
- * passed `IsAllowedAsync` (which requires `Uri.TryCreate(UriKind.Absolute)`) or
- * is the `AuthUrl` fallback. A screen holding one of those has knowledge the
- * builder does not: it asked `/redirect-uri/validate` and the server said yes.
- *
- * This type is how that knowledge TRAVELS to the builder. A bare `string`
- * returnUrl still means "prove it is relative"; this wrapper means "the
- * server's allow-list already vouched for this absolute one, scoped to the
- * client the flow belongs to". A caller that never ran the probe cannot make
- * one accidentally -- {@link allowListedReturnUrl} demands the verdict as an
- * argument -- so the relative-only rule is never relaxed by default.
+ * An absolute HTTP(S) return URL approved by the server for the current client. Create it with
+ * allowListedReturnUrl after validating the destination with the API; bare strings remain
+ * restricted to local paths.
  */
 export interface AllowListedReturnUrl {
   /** The absolute URL the allow-list admitted. */
@@ -149,16 +130,8 @@ export interface AllowListedReturnUrl {
 const HAND_OFF_PROTOCOLS: ReadonlySet<string> = new Set(["http:", "https:"]);
 
 /**
- * Throws unless `url` is an absolute http(s) URL.
- *
- * The SDK cannot re-run the server's allow-list, but it can insist on the SHAPE
- * the allow-list can only ever have admitted: `IsAllowedAsync` matches the
- * ORIGIN of a `Uri.TryCreate(UriKind.Absolute)` value against registered
- * redirect URIs, so anything that does not parse absolute, and anything whose
- * scheme is not http(s), was never allow-listed however it got here. Enforced at
- * the builder as well as the factory because {@link AllowListedReturnUrl} is a
- * structural type: a hand-built object must not reach `location.href`
- * unexamined, which is the difference between this and a `javascript:` XSS.
+ * Require an absolute HTTP(S) destination even for manually constructed AllowListedReturnUrl
+ * objects. This checks URL shape; server approval remains the caller’s responsibility.
  */
 function assertHandOffUrl(url: string): void {
   let parsed: URL;

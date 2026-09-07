@@ -1,21 +1,7 @@
 /**
- * The generic fixture runner for Wallow's own oxlint rules.
- *
- * One spec drives every rule. `fixtures/<rule>/` holds `valid.tsx` (must report nothing) and
- * `invalid.tsx` (every expected diagnostic marked by an `// expect-error: wallow/<rule>` comment
- * on the line before it). The real oxlint binary runs once per fixture directory, and the
- * reported (file, line, rule) multiset must equal the annotated one EXACTLY — an unannotated
- * diagnostic and an annotation nothing fired on both fail.
- *
- * Measured facts this depends on (oxlint 1.74.0):
- *   - `--format=json` prints ONE JSON object on stdout, but prefixes it with the bare line
- *     `No files found to lint.` when nothing matched, which makes `JSON.parse(stdout)` throw.
- *     Parsing from the first `{` and then asserting `number_of_files` is the reliable read.
- *   - A diagnostic's rule id is `code`, spelled `wallow(no-tinted-text)`; its line is
- *     `labels[0].span.line`, 1-based. A SYNTAX error carries no `code` at all and suppresses
- *     every lint diagnostic in the file, so a missing `code` has to fail loudly.
- *   - `-c` replaces the root config outright, but oxlint's DEFAULT `correctness` category is
- *     still on unless the config turns it off, which the base fixture config does.
+ * Run the real oxlint binary against each rule's fixture directory.
+ * Expected diagnostics are annotated on the preceding line and matched by file,
+ * line, and rule. A rule without a fixture directory has no tests in this suite.
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";

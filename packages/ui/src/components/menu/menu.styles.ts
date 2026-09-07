@@ -1,25 +1,6 @@
 import { cva, type VariantProps } from "class-variance-authority";
 
-/*
- * One recipe per styled part of the menu. The class lists are not invented here
- * — menu.test.tsx declares each part's exact utility set as a top-of-file
- * `*_CLASSES` constant and asserts it as an order-free set through the rendered
- * component, so that spec is the source of truth for everything below.
- *
- * Five of Base UI's twenty-two namespace members have no recipe, because they
- * render no visible element: `Root` and `SubmenuRoot` render no DOM at all,
- * `Portal` renders only the structural container Base UI appends to `<body>`,
- * and `Handle`/`createHandle` are the imperative API (see menu.tsx).
- *
- * No recipe takes a cva VARIANT. A menu has no visual variant axis in this
- * catalog: open/closed, highlighted, checked, disabled and the entering/exiting
- * transition phases are all STATES, and Base UI publishes states as `data-*`
- * attributes, so they belong in the base string as `data-[highlighted]:` /
- * `data-[starting-style]:` / `data-[ending-style]:` / `data-[popup-open]:` /
- * `data-[disabled]:` modifiers rather than as cva variants nobody would pass by
- * hand. The `VariantProps` types are still exported so each part's props keep
- * the catalog-wide shape and a later variant axis stays a non-breaking addition.
- */
+/* Recipes style visible component parts. State transitions use Base UI data attributes; state-only roots and structural portals have no recipe. */
 
 /**
  * The button that opens the menu — Base UI's `Menu.Trigger`, a `<button>`.

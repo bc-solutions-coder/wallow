@@ -1,22 +1,10 @@
 /*
- * Public-API pin for Wallow-m5aq.1.3 (migrate the flat components into
- * per-component folders).
- *
  * Task 1.3 is a MECHANICAL MOVE: every component file relocates from
  * `src/<name>.tsx` to `src/components/<name>/<name>.tsx`, each folder grows an
  * `index.ts`, and the root barrel is rewritten to re-export the folders instead
  * of the files. The acceptance criteria say that move must produce "no behavior
  * change to the public API" — this spec is what makes that claim checkable
  * rather than asserted.
- *
- * It therefore PASSES BEFORE the migration as well as after (see the red-phase
- * note on the bead): it is an invariant guard, not a new-structure assertion.
- * A migration that silently drops an export while rewriting the barrel — the
- * single most likely way this "zero risk" restructure actually breaks the apps —
- * turns this file red. It is now the ONLY pin on the catalog set:
- * `core/package-scaffold.test.ts` and `core/dist-structure.test.ts` walked the
- * folder tree and `dist/` off disk, and went with the source-reading guards
- * (`Wallow-xg9t.1`).
  *
  * Two surfaces are pinned, because the barrel re-exports both:
  *   - runtime values (components + the two exported constants), checked here;
@@ -339,12 +327,6 @@ import type {
 } from "./index";
 
 /**
- * The complete runtime surface of `@bc-solutions-coder/ui`, sorted. Asserted as
- * an EXACT set (not a subset) in both directions: a dropped export fails, and so
- * does an accidentally widened one — nothing reaches the barrel by accident,
- * `core/cn.ts` included (it is an internal helper components reach by relative
- * path; see Wallow-m5aq.1.2).
- *
  * Each Base UI wave grows this list once, at its gate, in lockstep with
  * `src/index.ts` — the two are what the catalog is, now that nothing walks
  * `src/components` off disk.

@@ -13,11 +13,7 @@ import {
 } from "./log-event";
 
 /**
- * The wire contract: level ordering, the event-name grammar, redaction, and the
- * batch validator the ingest route runs against unauthenticated input.
- *
- * `parseLogBatch` is total — it never throws — so every case here asserts the
- * returned reason rather than a rejection.
+ * Batch shape validation, event syntax, severity ordering, and bounded object-key redaction.
  */
 
 function event(overrides: Partial<LogEvent> = {}): LogEvent {

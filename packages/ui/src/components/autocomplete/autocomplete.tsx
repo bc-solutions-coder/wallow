@@ -28,38 +28,6 @@ import type {
 } from "../combobox/combobox";
 
 /**
- * An autocomplete is a combobox that commits the TEXT in its input rather than
- * an item object: the list is a set of suggestions, not a set of values, so
- * there is no selected item to tick and no chip to remove. Base UI models that
- * as literally the same component — `autocomplete/index.parts.d.ts` re-exports
- * `@base-ui/react/combobox`'s own runtime for TWENTY of its twenty-three
- * members, and only `Root`, `Value` and `useFilter` are autocomplete code:
- *
- *   - `Root` drops the whole selection surface from the combobox's prop type
- *     (`selectionMode`, `selectedValue`, `onSelectedValueChange`,
- *     `itemToStringValue`, `isItemEqualToValue`, `fillInputOnItemPress`) and adds
- *     `mode`, which chooses between filtering the list (`list`, the default),
- *     inline-completing the input (`inline`), both, or neither.
- *   - `Value` reads the INPUT value rather than the selected value — the one
- *     genuinely different runtime between the two components' same-named parts.
- *   - `useFilter` is Base UI's locale-aware `contains`/`startsWith`/`endsWith`
- *     matcher factory taking only `{ locale }`, where the combobox's takes the
- *     selection-aware `{ multiple, value, locale }`. Same return shape, different
- *     options — so they are NOT interchangeable and are not shared here.
- *
- * Every other member is the `Combobox` catalog component's ALREADY-WRAPPED part,
- * re-exported. Not a re-wrap: `Autocomplete.Popup` IS `Combobox.Popup`, the same
- * function object, so anything the combobox docs say about a part is true of the
- * same part here and a row styled for one is styled for the other. See
- * autocomplete.styles.ts for why sharing (the ContextMenu call) rather than
- * re-wrapping (the AlertDialog call) is the right trade for this pair.
- *
- * Three of those shared members are Base UI's own unwrapped re-exports on the
- * `Combobox` namespace (`Portal`, `Collection`, `useFilteredItems`), because
- * none of them renders a visible element.
- */
-
-/**
  * Every Base UI `Autocomplete.Root` prop, generic over the item value type.
  * Re-exported unwrapped: `Root` renders no HTML element, so no recipe props.
  *
@@ -142,46 +110,101 @@ export type AutocompleteEmptyProps = ComboboxEmptyProps;
 export type AutocompleteSeparatorProps = ComboboxSeparatorProps;
 
 /**
- * The catalog's autocomplete, as ONE namespace object whose keys mirror Base
- * UI's twenty-three namespace members 1:1 — the catalog-wide convention for
- * multi-part components, so a caller who knows the Base UI docs already knows
- * this API.
- *
- * A minimal usable autocomplete is Root(items) > InputGroup(Input) plus a
- * portalled Positioner > Popup > List > Item. Everything else is opt-in:
- * `Trigger`/`Icon` for a chevron that also opens the list, `Clear` for a reset
- * button, `Empty` and `Status` for the no-matches and loading messages,
- * `Group`/`GroupLabel`/`Separator` for sections, `Row` for grid-shaped
- * suggestions, `Backdrop` and `Arrow` for popup chrome, and `Value`/`Collection`
- * as renderless windows onto the input value and the filtered items.
- *
- * There is no `Label`, no `ItemIndicator` and no `Chips`/`Chip`/`ChipRemove`
- * here, in Base UI or in this catalog: nothing is "selected" to tick or to show
- * as a pill. Reach for `Combobox` when the control must commit item objects, and
- * for its `multiple` mode when it must commit several.
+ * Text suggestions without an item selection. Root owns the input value; Value reads that
+ * text. Shared list and popup parts use Combobox styling; useFilter provides locale-aware
+ * string matching.
  */
 export const Autocomplete = {
+  /**
+   * Owns the component state and provides context to its parts.
+   */
   Root: BaseAutocomplete.Root,
+  /**
+   * Displays the current value using the part's children or formatting options.
+   */
   Value: BaseAutocomplete.Value,
+  /**
+   * Opens or toggles the associated content; render can compose it onto another control.
+   */
   Trigger: Combobox.Trigger,
+  /**
+   * The editable input connected to Root state.
+   */
   Input: Combobox.Input,
+  /**
+   * Groups the input with its trigger, clear button, and icon.
+   */
   InputGroup: Combobox.InputGroup,
+  /**
+   * Visual indicator beside the input or selected value.
+   */
   Icon: Combobox.Icon,
+  /**
+   * Clears the current input or selection.
+   */
   Clear: Combobox.Clear,
+  /**
+   * Contains selectable items.
+   */
   List: Combobox.List,
+  /**
+   * Announces status changes such as loading or result counts.
+   */
   Status: Combobox.Status,
+  /**
+   * Renders popup content outside the parent DOM hierarchy.
+   */
   Portal: Combobox.Portal,
+  /**
+   * Covers the surrounding page behind the popup.
+   */
   Backdrop: Combobox.Backdrop,
+  /**
+   * Positions the popup relative to its anchor; render inside Portal.
+   */
   Positioner: Combobox.Positioner,
+  /**
+   * The visible popup container; place labeled content and actions inside it.
+   */
   Popup: Combobox.Popup,
+  /**
+   * Draws the popup's pointer toward its anchor.
+   */
   Arrow: Combobox.Arrow,
+  /**
+   * Groups related items or controls.
+   */
   Group: Combobox.Group,
+  /**
+   * Labels a group of items.
+   */
   GroupLabel: Combobox.GroupLabel,
+  /**
+   * Groups one item and its associated content.
+   */
   Item: Combobox.Item,
+  /**
+   * Groups items in a list row.
+   */
   Row: Combobox.Row,
+  /**
+   * Renders items from the collection supplied to Root.
+   */
   Collection: Combobox.Collection,
+  /**
+   * Displays content when no items match.
+   */
   Empty: Combobox.Empty,
+  /**
+   * Separates adjacent groups or content.
+   */
   Separator: Combobox.Separator,
+  /**
+   * Creates locale-aware contains, startsWith, and endsWith string matchers.
+   */
   useFilter: BaseAutocomplete.useFilter,
+  /**
+   * Reads the filtered items from the surrounding collection context.
+   */
   useFilteredItems: Combobox.useFilteredItems,
 };

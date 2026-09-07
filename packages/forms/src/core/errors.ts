@@ -1,21 +1,10 @@
 /**
- * Normalization of a TanStack field's `state.meta.errors` into the one string a
- * field's `Field.Error` renders.
- *
- * That array is deliberately loosely typed by the framework (`ValidationError =
- * unknown`) because its entries come from three different producers: function
- * validators push plain strings, standard-schema (zod) validators push
- * `{ message }` issue objects, and server errors arrive through
- * `form.setErrorMap({ onServer: ... })` as plain strings. Every catalog field
- * displays whichever of those landed first, so the unwrapping lives here once.
- *
- * Layer 0 of the package: `src/core/` imports nothing from `src/fields/` or
- * `src/form/`.
+ * Read the first field error, accepting a string or an issue with a string message.
  */
 
 /**
- * The first displayable message in a field's error list, or `undefined` when
- * there is none (no errors, or a shape carrying no string message).
+ * Return the first error if it is a string or has a string message. An unrecognized first entry
+ * returns undefined even when a later entry contains a message.
  */
 export function firstErrorMessage(errors: readonly unknown[]): string | undefined {
   const first: unknown = errors[0];

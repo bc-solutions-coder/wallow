@@ -1,16 +1,7 @@
 /**
- * Stylesheet-presence guard for a consumer's Vitest BROWSER project.
- *
- * The two halves fail differently, so each is asserted. With no utilities a
- * catalog control has no box — `Checkbox.Root`'s `<span role="checkbox">`
- * measures 0x0 and every click hangs to Playwright's ~15s actionability timeout.
- * With no theme every Tailwind colour token maps onto a VALUELESS custom
- * property (`--color-card: var(--card, …)`), so `bg-card` paints
- * `rgba(0, 0, 0, 0)` and every rendered-colour assertion in the project goes
- * vacuous — both sides of a contrast pair read as the same nothing.
- *
- * The caller's spec must be `*.test.tsx`: the preset routes `*.test.ts` to the
- * NODE project, where none of this can run.
+ * Browser-only assertions for nonempty theme tokens, a nontransparent color probe,
+ * and a Tailwind-sized element. Call assertThemeWiring at module scope in a
+ * .test.tsx file so the preset runs its suite in Chromium.
  */
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";

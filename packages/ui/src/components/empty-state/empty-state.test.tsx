@@ -6,15 +6,6 @@ import { textRecipe } from "../text/text.styles";
 import { EmptyState } from "./empty-state";
 
 /*
- * SPEC (Wallow-lrlm.3.3). EmptyState is the "nothing here yet" card both
- * wallow-web list components hand-roll today —
- * `features/organizations/components/OrganizationList.tsx`
- * (`OrganizationsEmptyState`: a card-shaped div holding a 🏢 emoji, an `<h2>`
- * message and a `<p>` of supporting copy) and `features/apps/components/
- * AppList.tsx` (`AppsEmptyState`: the same block with a 🐷). Neither ships an
- * action today; the optional `action` slot is what lets the migrated call sites
- * grow a "create your first one" button without forking the component.
- *
  * Two compositions are load-bearing and are asserted the only way a render can:
  *
  *   - the SURFACE is the real `Card`, so the root's classes are exactly
@@ -183,7 +174,6 @@ describe("EmptyState", () => {
       />,
     );
 
-    // The shipped wallow-web shape: icon, message, description and no CTA.
     expect(rootOf(container).children.length).toBe(3);
   });
 

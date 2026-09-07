@@ -11,45 +11,6 @@ import { expect, fn, screen, userEvent, waitFor } from "storybook/test";
 
 import { NavigationMenu } from "./navigation-menu";
 
-/*
- * Wallow-m5aq.3.9 — Navigation Menu stories. `@storybook/addon-vitest` turns
- * every export below into a Vitest test case rendered in the same headless
- * Chromium the `browser` project uses, with the real Tailwind pipeline attached
- * (see .storybook/main.ts), so these are the VISUAL half of the component's spec
- * while navigation-menu.test.tsx holds the markup assertions a screenshot cannot
- * make.
- *
- * Three things belong HERE rather than in navigation-menu.test.tsx:
- *
- *   - POINTER interaction while the panel is open. `vitest/browser`'s
- *     `userEvent` drives real Playwright input, which hit-tests the click point;
- *     the `browser` project compiles no Tailwind, so the popup's `z-50` is inert
- *     and the open panel sits on top of the trigger list, and a click on a
- *     second trigger there never resolves. `userEvent` here is
- *     `@testing-library/user-event` (bundled by `storybook/test`), which
- *     dispatches synthetic events straight at the element with no hit-testing.
- *   - Any assertion that a recipe utility actually PAINTS (see
- *     PaintedByTheDesignTokens) — this project compiles real Tailwind and the
- *     `browser` project does not.
- *   - The EXPANDED vs COLLAPSED presentation, which is the bead's own acceptance
- *     criterion and is a composition of caller `className` and caller markup
- *     rather than anything the recipes decide. ExpandedSidebar and
- *     CollapsedIconRail render the SAME tree with one prop flipped.
- *
- * TWO STANDING RULES THIS FILE OBEYS:
- *
- *   - `toBeVisible()` is always wrapped in `waitFor`. The popup recipe carries a
- *     150ms enter transition starting at `opacity-0`, so the popup is not
- *     "visible" for the duration of that transition; asserting it synchronously
- *     right after opening is the failure the Dialog exemplar pinned for the
- *     whole wave.
- *   - EVERY `href` BELOW IS A `#hash`. `NavigationMenu.Link` renders a genuine
- *     `<a>`, and a real click on an absolute URL navigates the test iframe,
- *     which kills the whole run with "Cannot connect to the iframe" — not one
- *     failing story, all of them. Dismissal below therefore goes through Escape
- *     rather than through pressing a link.
- */
-
 /** Which of the two sidebar presentations the subject renders. */
 type NavMode = "expanded" | "rail";
 
@@ -283,11 +244,6 @@ export const MobileOverlay: Story = {
  * The controlled shape: the open section lives in the caller's `useState` and
  * the menu reports every change back through `onValueChange`. This is the story
  * a consumer copies when the sidebar's open section is derived from the route.
- *
- * The two buttons are deliberately IDEMPOTENT rather than one toggle: a toggle
- * button beside a menu that closes on outside press flips the state twice per
- * click (the press closes the menu, then the handler reopens it), which is the
- * trap Wallow-m5aq.3.5 pinned.
  */
 export const Controlled: Story = {
   render: function ControlledNav(args) {
@@ -505,21 +461,6 @@ export const PaintedByTheDesignTokens: Story = {
   },
 };
 
-/**
- * The `surface` axis on `NavigationMenu.Link` (Wallow-lrlm.6.4) — which surface
- * the row is composed ONTO, which is the one thing about a row that no `data-*`
- * attribute can say, because only the caller knows it.
- *
- * Both arms render on a real `bg-sidebar` rail, because the page arm looks
- * correct anywhere else: `text-foreground` on the inverted surface is the defect,
- * and it is only visible next to the arm that fixes it.
- *
- * The `play` measures rather than describes. This project is the only one with
- * the real Tailwind pipeline and the fork theme attached, so it is the only place
- * that can tell "the row names a sidebar token" (which the recipe unit spec
- * already proves) from "the row is legible on the rail", which is the criterion
- * the bead was actually filed for.
- */
 export const SidebarSurface: Story = {
   render: function SurfaceComparison() {
     return (
@@ -630,25 +571,10 @@ function TriggerArm({ id, surface }: TriggerArmProps): ReactElement {
 }
 
 /**
- * The `surface` axis on `NavigationMenu.Trigger` (Wallow-lrlm.10) — the sibling
- * of the Link's axis two stories up, and the same question: WHICH PALETTE does
- * this row paint from, which nothing in the DOM can say because only the caller
- * knows what it composed the row onto.
- *
  * A CONSISTENCY GAP, NOT A LIVE DEFECT, when this was filed: no app renders a
- * trigger at all, so nothing paints wrong in production today. The coverage
+ * trigger at all, so nothing paints wrong in production. The coverage
  * therefore has to come from here rather than from an app spec — and that makes
  * this story the only place in the repo where a trigger meets a real rail.
- *
- * WHY THIS PLAY MEASURES INSTEAD OF READING CLASSES. A class string is blind to
- * `twMerge(recipe, className)`: a recipe can name every right token and still
- * lose the pair to a page colour it left standing, which is how a 1.27:1 hover
- * contrast defect shipped through a green suite (Wallow-lrlm.5.4). Only this
- * project has the real Tailwind pipeline and the fork theme attached, so this is
- * the only place a Wallow spec can ask what the row actually PAINTS. Colours go
- * through `@bc-solutions-coder/testing/contrast`, which normalises by painting
- * into a canvas — the fork palette is `oklch(...)` and Chromium hands that
- * straight back, so an `rgb()` regex would silently never match.
  *
  * THE SWATCHES ARE NOT DECORATION. `bg-accent` and `bg-sidebar-accent` are
  * rendered alongside so the assertions can name a TOKEN without hard-coding a

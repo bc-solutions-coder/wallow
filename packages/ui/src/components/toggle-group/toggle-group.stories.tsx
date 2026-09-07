@@ -5,10 +5,6 @@ import { Toggle } from "../toggle";
 import { ToggleGroup } from "./toggle-group";
 
 /*
- * Wallow-m5aq.2.12 — Toggle Group stories. Each export becomes a Vitest test
- * case in the same headless Chromium the `browser` project uses, with the real
- * Tailwind pipeline attached (see .storybook/main.ts).
- *
  * A group is only visible through the buttons it drives, so every story renders
  * real `Toggle`s inside it — which also makes these the pressed/unpressed states
  * in their natural setting, a toolbar.

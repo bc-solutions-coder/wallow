@@ -23,8 +23,10 @@ const FIRST_CHARACTER: number = 0;
 const REST_OF_KEY: number = 1;
 
 /**
- * Splits `failure.fieldErrors` across `knownFields`. A failure without field
- * errors yields an empty split rather than throwing.
+ * Match validation errors against known form field names using the exact key, camelCase key, then
+ * folded dotted key. Returns unmatched messages separately and an empty result when no field
+ * errors exist. If multiple source keys resolve to one field, the later entry replaces its
+ * messages.
  */
 export function splitFieldErrors(
   failure: ApiFailure,

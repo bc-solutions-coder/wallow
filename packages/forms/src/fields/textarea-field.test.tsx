@@ -8,15 +8,9 @@ import { AppForm } from "../form/app-form";
 import { SubmitButton } from "../form/submit-button";
 import { useAppForm } from "../form/use-app-form";
 
-/*
- * `TextareaField` through the REAL pipeline, in the browser project (nothing
- * mocked — see `text-field.test.tsx`, the catalog's template spec, for the full
- * rationale and the shape of these cases).
- *
- * What this field adds over the template: the control is a real `<textarea>`
- * (the ui `Textarea`, not an `Input`), because Base UI ships no textarea part and
- * a field that quietly rendered a single-line box would still pass every other
- * assertion here. CreateInquiryForm's message box is the migration target.
+/**
+ * Exercise a native textarea, label association, validation, and test ID overrides through the
+ * form pipeline.
  */
 
 const schema = z.object({

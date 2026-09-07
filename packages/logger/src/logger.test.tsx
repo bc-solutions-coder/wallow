@@ -3,12 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createLogger, type Logger, type LogBatch } from "./index";
 
 /**
- * The two page-lifecycle flushes, in a real browser.
- *
- * These are the whole reason a browser project exists here: `pagehide` and
- * `visibilitychange` are the paths where "logs vanish when the tab closes"
- * hides, and `navigator.sendBeacon` is the only transport a browser promises to
- * finish after the document is gone.
+ * Browser lifecycle coverage for visibilitychange, pagehide, and beacon queueing. A successful sendBeacon call confirms queue acceptance, not collector delivery.
  */
 
 const ENDPOINT = "/bff/logs";
@@ -48,8 +43,7 @@ describe("pagehide", () => {
     globalThis.dispatchEvent(new PageTransitionEvent("pagehide"));
 
     expect(beacon).toHaveBeenCalledTimes(1);
-    // fetch cannot carry this flush: a discarded page may never run the
-    // continuation that reads the response.
+    // The pagehide path uses a beacon and carries its CSRF token in the body.
     expect(fetchImpl).not.toHaveBeenCalled();
 
     const [url, body] = beacon.mock.calls[0]!;

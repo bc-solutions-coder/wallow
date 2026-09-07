@@ -4,30 +4,8 @@ import { defineConfig } from "vite";
 import type { UserConfig } from "vite";
 
 /**
- * The one Vite library-mode build every `packages/*` shares.
- *
- * Rolldown IS the bundler in Vite 8 — it ships as part of vite, so there is no
- * separate dependency, no `rolldown-vite` alias and no package override. What it
- * does not do is emit type declarations; those come from
- * `tsc -p tsconfig.build.json`, which every package's `build` script runs
- * alongside `vite build`.
- *
- * Two invariants this preset exists to hold identically everywhere:
- *
- *  - **Every non-relative import is external.** Nothing a package depends on is
- *    bundled into its own output. That is load-bearing rather than tidy: a
- *    bundled copy of `@bc-solutions-coder/query` hands consumers a second
- *    react-query instance with its own `QueryClientProvider` context, a bundled
- *    SDK gives them a second generated client whose query keys no longer match
- *    the ones their app invalidates, and a bundled `react` breaks hooks outright.
- *  - **No content hashing on anything a consumer names** (Wallow-do5e — no
- *    hashed filenames anywhere in this workspace without a build manifest). Entry
- *    and asset names are stable and unhashed so the `exports` map can point
- *    straight at them; only internal chunks, which nothing outside the bundle
- *    references, carry a hash.
- *
- * This package is itself never built — a config that every build imports cannot
- * be something every build has to build first. See `packages/config/CLAUDE.md`.
+ * Entry points and output layout for a workspace ESM library build. Type declarations are emitted
+ * separately by the package TypeScript build.
  */
 export interface LibraryConfigOptions {
   /**
@@ -65,7 +43,14 @@ function isAbsoluteWindows(id: string): boolean {
   return /^[a-zA-Z]:[\\/]/u.test(id);
 }
 
-/** Build the Vite config for one workspace library. */
+/**
+ * Create an unminified ES2023 ESM library build in dist with source maps. Entry and asset
+ * filenames are stable, internal chunks carry hashes, and bare imports remain external. Vite
+ * clears dist on build; declarations require a separate TypeScript invocation.
+ *
+ * @param options Source entries resolved relative to configUrl and optional source-module
+ * preservation.
+ */
 export function defineLibraryConfig(options: LibraryConfigOptions): UserConfig {
   const entry: Record<string, string> = {};
   for (const [name, source] of Object.entries(options.entries)) {
@@ -80,9 +65,7 @@ export function defineLibraryConfig(options: LibraryConfigOptions): UserConfig {
       sourcemap: true,
       minify: false,
       lib: { entry, formats: ["es"] },
-      // `rolldownOptions`, not `rollupOptions` — Vite 8 bundles with Rolldown
-      // natively and the `rollupOptions` name is now a deprecated alias for this
-      // one. Same option type either way (`RolldownOptions`).
+      // Use the Vite Rolldown build configuration for external imports and stable entry filenames.
       rolldownOptions: {
         external: (id: string): boolean =>
           !id.startsWith(".") && !id.startsWith("/") && !isAbsoluteWindows(id),

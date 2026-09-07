@@ -1,26 +1,6 @@
 import { cva, type VariantProps } from "class-variance-authority";
 
-/*
- * One recipe per styled part of the tooltip. The class lists are not invented
- * here — tooltip.test.tsx declares each part's exact utility set as a top-of-file
- * `*_CLASSES` constant and asserts it as an order-free set through the rendered
- * component, so that spec is the source of truth for everything below.
- *
- * One recipe per part that renders a VISIBLE element. `Provider` and `Root`
- * render no element, `Portal` renders only the structural container Base UI
- * appends to `<body>`, and `Handle`/`createHandle` are not components at all, so
- * none of them has a recipe (see tooltip.tsx for why they are re-exported
- * unwrapped).
- *
- * No recipe takes a cva VARIANT. A tooltip has no visual variant axis in this
- * catalog: open/closed, the entering/exiting transition phases, the resolved
- * side/align and the disabled trigger are all STATES, and Base UI publishes
- * states as `data-*` attributes, so they belong in the base string as
- * `data-[starting-style]:` / `data-[ending-style]:` / `data-[trigger-disabled]:`
- * modifiers rather than as cva variants nobody would pass by hand. The
- * `VariantProps` types are still exported so each part's props keep the
- * catalog-wide shape and a later variant axis stays a non-breaking addition.
- */
+/* Recipes style visible component parts. State transitions use Base UI data attributes; state-only roots and structural portals have no recipe. */
 
 /**
  * The element the tooltip is attached to — Base UI's `Tooltip.Trigger`, a

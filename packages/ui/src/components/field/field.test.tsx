@@ -6,19 +6,10 @@ import { Input } from "../input/input";
 import { Field } from "./field";
 
 /*
- * Follows the exemplar spec shape from button.test.tsx (Wallow-m5aq.2.1):
- * browser project, nothing mocked, every recipe asserted THROUGH the component,
- * and class assertions as an order-free SET because cn()/tailwind-merge reorders.
- *
- * COMPAT GUARANTEE (this component): the pre-rebuild `Field` was
- * `<div className="space-y-2">` with children passed through, used at 22 call
- * sites. That row must render identically, which is why the root's class set is
- * pinned as an exact match rather than a "contains".
- *
  * Everything else here is what a real Field.Root adds and a bare div could not:
  * the label/control/description/error association, and the field state
  * published to every part as `data-*` attributes. Those attributes were
- * measured against the installed @base-ui/react 1.6.0 rather than read from the
+ * measured against the installed Base UI rather than read from the
  * docs — including the two that would otherwise be guessed wrong:
  *   - `Field.Error` renders NOTHING at all until its `match` is satisfied, even
  *     when the root is `invalid`.
@@ -26,18 +17,10 @@ import { Field } from "./field";
  *     a message needs `validate` (or `match`).
  */
 
-/** The pre-rebuild row recipe, verbatim from the Field this replaces. */
 const ROOT_RECIPE = "space-y-2";
 
-/** The pre-rebuild label recipe plus the disabled state a Field makes possible. */
 const LABEL_RECIPE = "text-sm font-medium text-foreground data-[disabled]:opacity-50";
 
-/**
- * The control's recipe: the standalone Input's class set (Base UI's Input IS
- * Field.Control underneath, so the two must render alike) plus the invalid
- * treatment that only exists inside a Field — the one Wallow-m5aq.2.2 deferred
- * to this task because it could not be tested from there.
- */
 const INPUT_RECIPE =
   "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground data-[disabled]:opacity-50";
 const CONTROL_INVALID_UTILITY = "data-[invalid]:border-destructive";
@@ -86,10 +69,6 @@ describe("Field", () => {
     });
 
     it("lets a caller className override the row recipe", async () => {
-      // The cn()/tailwind-merge proof: the conflicting recipe utility is REMOVED
-      // rather than appended after. The pre-rebuild Field hard-coded its
-      // className and dropped the caller's entirely, so this is also the fix for
-      // a real footgun.
       const { container } = await render(<Field className="space-y-4" data-testid="row" />);
 
       const row = byTestId(container, "row");
@@ -188,8 +167,6 @@ describe("Field", () => {
 
   describe("association", () => {
     it("points the label at the control with no htmlFor from the caller", async () => {
-      // The upgrade over the pre-rebuild row: callers no longer hand-maintain an
-      // htmlFor/id pair, which is exactly the kind of thing that silently rots.
       const { container } = await render(
         <Field>
           <Field.Label data-testid="label">Email</Field.Label>
@@ -317,11 +294,6 @@ describe("Field", () => {
     });
 
     it("lights up the field state on a plain <Input> placed inside it", async () => {
-      // The claim Wallow-m5aq.2.2 left for this task to prove: because Base UI's
-      // Input IS Field.Control, the existing <Input> gains the whole state
-      // contract from the Field context with no change to input.tsx. That is
-      // what makes the 22 <Field><Label/><Input/></Field> call sites an upgrade
-      // rather than a rewrite.
       const { container } = await render(
         <Field invalid>
           <Field.Label data-testid="label">Email</Field.Label>

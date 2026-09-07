@@ -1,12 +1,5 @@
 /**
- * The catalog's boolean field: a ui `Checkbox` with its label to the right,
- * inside the same `Field` row every other catalog field uses so its message
- * renders in the same place.
- *
- * The box and its label sit in a `Field.Item`, Base UI's horizontal grouping for
- * a control that reads BESIDE its label rather than under it. `Field.Item` also
- * scopes the association, so the label names the box even though the row's other
- * parts (the message) stay outside it.
+ * Boolean field with an associated label beside the checkbox and errors below the row.
  */
 
 import { Checkbox } from "@bc-solutions-coder/ui/checkbox";
@@ -15,6 +8,10 @@ import type { ReactElement, ReactNode } from "react";
 
 import { CatalogFieldError, CatalogFieldLabel, useCatalogField } from "./field-parts";
 
+/**
+ * Labels and presentation for CheckboxField. The field value and validation come from the
+ * surrounding AppField.
+ */
 export interface CheckboxFieldProps {
   /**
    * The visible label, sitting to the right of the box and naming it. A
@@ -72,12 +69,7 @@ function CheckboxFieldText({
 }
 
 /**
- * The box itself, one nesting level down from the row.
- *
- * Its own component for the same reason `SelectField`'s popup tree is split
- * into one component per level: `react/jsx-max-depth` is 2 and `pnpm lint` runs
- * `--deny-warnings`, so `Field > Field.Item > Checkbox.Root > Checkbox.Indicator`
- * cannot be written as one tree.
+ * Render the checkbox control separately to keep the row within the JSX nesting limit.
  */
 function CheckboxFieldBox({
   checked,
@@ -107,6 +99,10 @@ function CheckboxFieldBox({
   );
 }
 
+/**
+ * Render a boolean checkbox inside AppForm and a matching AppField. The control disables while
+ * pending and displays the first field error.
+ */
 export function CheckboxField({ label, description, testId }: CheckboxFieldProps): ReactElement {
   const { field, pending, error, controlTestId, errorTestId } = useCatalogField<boolean>(testId);
 

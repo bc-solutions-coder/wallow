@@ -1,21 +1,6 @@
 /**
- * The catalog's fixed-choice field: the ui `Select`'s seven-part portal tree
- * (Root > Trigger(Value, Icon) plus Portal > Positioner > Popup > List >
- * Item(ItemText)) collapsed behind an `options` prop, inside the same `Field` row
- * every other catalog field uses.
- *
- * TWO TRANSLATIONS HAPPEN HERE, both at this boundary rather than in callers:
- *
- *   - "nothing chosen" is `""` in form state (TanStack Form's default for a
- *     required select) and `null` in Base UI.
- *   - the trigger shows the option's LABEL while the WIRE VALUE is what lands in
- *     form state — which is what `items` buys: without it Base UI's
- *     `Select.Value` renders the raw value, so a `web-app` / "Web application"
- *     pair would show the wire value to the user.
- *
- * The tree is split into one component per nesting level for the same reason the
- * catalog's `SimpleSelect` is: spelled out inline it blows the repo's
- * `react/jsx-max-depth` budget.
+ * String-valued select field. An empty string means no selection; displayed labels come from
+ * options while form state stores option values.
  */
 
 import { Field } from "@bc-solutions-coder/ui/field";
@@ -26,17 +11,23 @@ import { CatalogFieldError, CatalogFieldLabel, useCatalogField } from "./field-p
 
 /** One choice: `value` travels on the wire, `label` is what a user reads. */
 export interface SelectFieldOption {
+  /** Value stored in the form when selected. Use an empty string for no selection. */
   readonly value: string;
   readonly label: string;
 }
 
+/**
+ * Labels and presentation for SelectField. The field value and validation come from the
+ * surrounding AppField.
+ */
 export interface SelectFieldProps {
   /** The visible label, associated with the trigger by the ui `Field` row. */
   readonly label: string;
+  /** Available value/label pairs in display order. Values identify options and should be unique. */
   readonly options: readonly SelectFieldOption[];
   /** Shown on the trigger while nothing is chosen. */
   readonly placeholder?: string;
-  /** Marks the field optional in its label, for a form where most fields are not. */
+  /** Add an optional marker to the label. Does not change schema validation. */
   readonly optional?: boolean;
   /**
    * Overrides the derived `{testIdPrefix}-{field name}` testid (and its `-error`
@@ -58,6 +49,7 @@ function SelectFieldOptionRow({ option }: { readonly option: SelectFieldOption }
 function SelectFieldOptionList({
   options,
 }: {
+  /** Available value/label pairs in display order. Values identify options and should be unique. */
   readonly options: readonly SelectFieldOption[];
 }): ReactElement {
   return (
@@ -73,6 +65,7 @@ function SelectFieldOptionList({
 function SelectFieldPopupCard({
   options,
 }: {
+  /** Available value/label pairs in display order. Values identify options and should be unique. */
   readonly options: readonly SelectFieldOption[];
 }): ReactElement {
   return (
@@ -83,14 +76,13 @@ function SelectFieldPopupCard({
 }
 
 /**
- * The portalled half of the select. Nothing below this exists in the DOM while
- * the select is closed — Base UI mounts it on open and unmounts it on close,
- * which is why a spec has to reach for it through `page` rather than the render
- * container.
+ * Render the popup outside the form container. Browser tests query the page to find portalled
+ * options.
  */
 function SelectFieldPopupLayer({
   options,
 }: {
+  /** Available value/label pairs in display order. Values identify options and should be unique. */
   readonly options: readonly SelectFieldOption[];
 }): ReactElement {
   return (
@@ -120,6 +112,11 @@ function SelectFieldTrigger({
   );
 }
 
+/**
+ * Render a string-valued select inside AppForm and a matching AppField. Empty string means no
+ * selection. Option labels are displayed while option values are submitted; the control disables
+ * while pending.
+ */
 export function SelectField({
   label,
   options,

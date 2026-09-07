@@ -10,30 +10,7 @@ import { createWallowSdk, type WallowSdk } from "./create-sdk";
 import * as queryEntry from "./query";
 
 /**
- * Spec (Wallow-pu6a.5.2): the TanStack Query layer is GENERATED for every
- * operation, and its keys are hey-api's flat `[{ _id, baseUrl, path, tags }]`
- * shape — not the hand-written hierarchical `queryKeys` factory the previous
- * `src/query/keys.ts` exposed.
- *
- * What is pinned here, in the order the acceptance criteria list it:
- *
- *   1. `openapi-ts.config.ts` asks for the surface: `throwOnError` on the
- *      client, `responseStyle: "data"` on the sdk plugin, and the
- *      `@tanstack/react-query` plugin with `queryOptions`, `queryKeys.tags`
- *      and `mutationOptions` all on.
- *   2. Coverage: EVERY operation in the committed snapshot has its generated
- *      artifact reachable from the `./query` entry — a query options factory
- *      and key builder for every GET, a mutation options factory for every
- *      write. This is an invariant over the generated output, so a backend that
- *      adds an endpoint keeps passing without editing this file, while a config
- *      regression that silently drops the plugin fails it.
- *   3. (D4) A server instance and a browser instance built with the same
- *      `baseUrl` emit BYTE-IDENTICAL keys for the same operation — task 3.5(e)
- *      proved it for the client config and the pre-transport request URL; this
- *      proves it for the artifact that actually keys the cache, which is what
- *      makes an SSR-primed cache hydrate in the browser instead of refetching.
- *   4. `invalidations.ts` sweeps a subtree by matching on the flat key's `_id`
- *      and `tags`, since hey-api generates no hierarchical prefix to sweep by.
+ * Verify generated GET query options and keys, write mutations, and metadata-based invalidation. Equal public base URLs must produce equal keys.
  */
 
 // packages/sdk/src -> packages/sdk
@@ -163,10 +140,7 @@ describe("openapi-ts.config.ts asks for the full generated query surface", () =>
     const client: Record<string, unknown> = await resolvePlugin("@hey-api/client-fetch");
 
     expect(client.runtimeConfigPath).toBe("./src/runtime-config");
-    // Every operation must reject on a non-2xx so the ApiFailure interceptor
-    // (task 5.3) is the single error path; without this the generated query
-    // functions resolve with an error payload and TanStack Query calls it a
-    // success.
+    // Generated queries must throw the normalized ApiFailure produced by the response interceptor.
     expect(client.throwOnError).toBe(true);
   });
 

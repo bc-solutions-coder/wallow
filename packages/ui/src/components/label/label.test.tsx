@@ -7,19 +7,11 @@ import { Field } from "../field/field";
 import { Label } from "./label";
 
 /*
- * `Label` is the compat name for `Field.Label` — Base UI ships no standalone
- * `label` part, because associating itself with a field's control is the whole
- * job of a label. These specs cover both halves of that: the three assertions
- * the pre-rebuild Label already had to satisfy (recipe, htmlFor, data-testid),
- * now made inside a `<Field>`, and the one deliberate behaviour change the
- * rebuild introduces — a Label outside a Field throws.
- *
  * All 12 in-repo `<Label>` call sites already sit inside a `<Field>`, so that
  * change moves none of them; it is pinned here so a future change has to
  * acknowledge it rather than discover it.
  */
 
-/** The pre-rebuild recipe, verbatim, plus the disabled state a Field enables. */
 const LEGACY_RECIPE = "text-sm font-medium text-foreground";
 const STATE_DISABLED_UTILITY = "data-[disabled]:opacity-50";
 
@@ -141,8 +133,6 @@ describe("Label", () => {
   });
 
   it("throws outside a Field, because a label is a member of the field anatomy", async () => {
-    // The one deliberate behaviour change from the pre-rebuild <label>. Pinned
-    // so it stays a decision rather than a surprise.
     const { container } = await render(
       <Boundary>
         <Label>Email</Label>

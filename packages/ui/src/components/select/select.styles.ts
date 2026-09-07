@@ -1,19 +1,6 @@
 import { cva, type VariantProps } from "class-variance-authority";
 
-/*
- * One recipe per styled part of the select. The class lists are not invented
- * here — select.test.tsx declares each part's exact utility set as an order-free
- * constant and asserts it through the rendered component, so that spec is the
- * source of truth for everything below.
- *
- * No recipe takes a cva VARIANT. A select has no visual variant axis in this
- * catalog: open/closed, selected, highlighted, disabled and placeholder are all
- * STATES, and Base UI publishes states as `data-*` attributes, so they belong in
- * the base string as `data-[popup-open]:` / `data-[highlighted]:` / …
- * modifiers rather than as cva variants nobody would ever pass by hand. The
- * `VariantProps` types are still exported so each part's props keep the
- * catalog-wide shape and a later variant axis stays a non-breaking addition.
- */
+/* Recipes style visible component parts. State transitions use Base UI data attributes; state-only roots and structural portals have no recipe. */
 
 /** The field label above the trigger — Base UI's `Select.Label`, a `<div>`. */
 export const selectLabelRecipe = cva("text-sm font-medium text-foreground");

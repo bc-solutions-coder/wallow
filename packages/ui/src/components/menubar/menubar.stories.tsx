@@ -7,12 +7,6 @@ import { Menubar } from "./menubar";
 import { menubarTriggerRecipe } from "./menubar.styles";
 
 /*
- * Wallow-m5aq.3.8 — Menubar stories. `@storybook/addon-vitest` turns every export
- * below into a Vitest test case rendered in the same headless Chromium the
- * `browser` project uses, with the real Tailwind pipeline attached (see
- * .storybook/main.ts), so these are the VISUAL half of the component's spec while
- * menubar.test.tsx holds the markup assertions a screenshot cannot make.
- *
  * Three things belong HERE rather than in menubar.test.tsx:
  *
  *   - POINTER interaction, including the one that defines a menubar: with a menu

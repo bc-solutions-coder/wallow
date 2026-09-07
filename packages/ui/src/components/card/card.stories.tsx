@@ -6,14 +6,6 @@ import { Text } from "../text/text";
 import { Card, CardTitle } from "./card";
 import { CardHeader } from "./card-header";
 
-/*
- * The visual half of Card's spec (Wallow-m5aq.2.13). card.test.tsx makes the
- * markup assertions a screenshot cannot; these stories cover the states a
- * reviewer needs to eyeball — the default rhythm, each measured `spacing`
- * outlier, and the heading in place. Card is not interactive, so the only story
- * carrying a `play` is `HeadingScale`, which MEASURES rather than shows.
- */
-
 const meta = {
   title: "Components/Card",
   component: Card,
@@ -31,7 +23,6 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** The dominant recipe: `p-6 space-y-6`, 14x across wallow-auth. */
 export const Default: Story = {};
 
 /** The LoginScreen outlier: a tighter vertical rhythm. */
@@ -44,7 +35,6 @@ export const PaddingOnly: Story = {
   args: { spacing: "p-6" },
 };
 
-/** The wallow-web call site: a roomier `spacing` plus an additive className. */
 export const RoomyWithShadow: Story = {
   args: { spacing: "p-8 space-y-6", className: "shadow-sm" },
 };
@@ -59,10 +49,6 @@ export const TitleOnly: Story = {
   args: { children: <CardTitle>Account settings</CardTitle> },
 };
 
-/**
- * The shape 11 wallow-auth screens open with, now one component: the heading
- * and its supporting line at the `space-y-1` rhythm, above the card's body.
- */
 export const WithHeader: Story = {
   args: {
     children: (
@@ -97,8 +83,6 @@ export const CenteredHeader: Story = {
 };
 
 /**
- * The MEASURED pin on the catalog-wide heading standard (Wallow-io5f).
- *
  * THE CLAIM. `CardTitle` and `Text`'s `subheading` step are the two ways this
  * catalog spells a card heading, and they are now ONE size: 20px, the `text-xl`
  * step. Before this bead `cardTitleRecipe` hard-coded `text-lg` (18px) while
@@ -175,8 +159,6 @@ export const HeadingScale: Story = {
     await expect(title, "CardTitle renders at the text-xl step").toBe(xl);
     await expect(title, "CardTitle and Text's subheading are one size").toBe(subheading);
 
-    // Stated as an explicit absence because it is the regression, not a
-    // restatement: `text-lg` is where `cardTitleRecipe` used to sit.
     await expect(title, "no card heading left at text-lg").not.toBe(lg);
   },
 };

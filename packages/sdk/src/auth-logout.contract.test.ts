@@ -9,18 +9,7 @@ import { CookieSessionStore } from "./server/store/cookie";
 import type { SessionStore } from "./server/store/types";
 
 /**
- * Contract spec for Wallow-pu6a.3.9: the browser helper `logout()` driven
- * against the REAL ported `/bff/logout` handler, not a hand-written stub of it.
- *
- * The two sides were regressed apart by Wallow-pu6a.3.2, which hardened the
- * handler to require `POST` + `x-csrf-token` (F12a) while the browser helper
- * still navigated with a GET. A unit spec with a mocked `fetch` cannot catch
- * that class of drift — only running the helper's real request through the real
- * handler can. The `fetch` global is stubbed with a transport that hands the
- * request straight to the handler, so this asserts the acceptance criteria
- * end-to-end without a live backend: the session cookie is cleared, the
- * server-side session is destroyed, and the browser lands on the IdP
- * end-session URL.
+ * Exercise browser logout through the BFF handler: CSRF validation, session and cookie cleanup, and navigation to the identity provider.
  */
 
 /** Hermetic openid-client stub: endpoints derived from the requested issuer. */

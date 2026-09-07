@@ -16,25 +16,7 @@ import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
 
 /**
- * Import guardrails for the collapsed SDK surface (bead Wallow-pu6a.5.8).
- *
- * Beads 5.2-5.5 deleted the module-global client, the hand-written query slices
- * and key registry, and the three per-app facade singletons. Deleting them stops
- * TODAY's call sites; it does not stop the pattern coming back, because the
- * shapes are all still writable — a fork can hand-roll a `queryKeys` object or
- * reach past the exports map into `dist/` and get a working build with none of
- * the per-request isolation the collapse bought. `no-restricted-imports` is what
- * makes that a build failure with a message naming the replacement.
- *
- * A config assertion alone would pass against a rule that silently matches
- * nothing, so the config surface is pinned AND the real binary is run over
- * snippets: each restricted form must produce a `no-restricted-imports`
- * diagnostic, and the surviving entry points must produce none.
- *
- * The second half of the file covers the facade ban (`@tanstack/react-query` is
- * reachable only through `@bc-solutions-coder/query`) and its exemption, which
- * needs a stronger harness than a snippet — see the comment above
- * `lintMirrorTree`.
+ * Exercise restricted imports through the real oxlint configuration, including allowed instance-based SDK factories.
  */
 
 // packages/sdk/src -> packages/sdk
@@ -306,10 +288,7 @@ describe("the guardrails fire on real source", () => {
     expect(restrictedImportDiagnostics(fileName, source)).not.toHaveLength(0);
   });
 
-  // A guardrail that also catches `export ... from` matters more than it looks:
-  // the surviving `features/<name>/api.ts` seams are pure re-export files, so a
-  // rule blind to that form would miss the most likely place a deleted symbol
-  // creeps back in.
+  // Check re-exports as well as imports so facade modules cannot expose unsupported symbols.
   it("rejects a re-export of a deleted symbol, not only a plain import", () => {
     const diagnostics: string[] = restrictedImportDiagnostics(
       "reexport-seam.ts",
@@ -353,28 +332,7 @@ describe("the guardrails fire on real source", () => {
 });
 
 /**
- * The facade ban (bead Wallow-x4qn.12) — `@tanstack/react-query` is importable
- * only through `@bc-solutions-coder/query`, and `@bc-solutions-coder/web-shell`
- * is importable nowhere.
- *
- * This ban is the first one in the config with an EXEMPTION, and an exemption is
- * the part that rots: oxlint cannot disable one restricted name, so the facade
- * and the four SDK files that hold the optional peer are let through by a
- * re-declared copy of the rule. Two things can quietly go wrong there and
- * neither shows up as a lint error — the exemption's glob can be wider than the
- * five locations it names (reopening the ban for a whole package), and the
- * re-declared copy can drift into `"off"` (reopening every OTHER ban for those
- * files). Snippets linted from a scratch directory cannot see either, because an
- * absolute path outside the repo matches no `files` glob at all.
- *
- * So the fixtures below are a MIRROR of the repo: a scratch root (in-repo — see
- * the comment above `mirrorRoot` for why) holding a verbatim copy of
- * `.oxlintrc.json` plus files at the repo-relative paths that matter.
- * oxlint resolves `files` and `ignorePatterns` against the config's own
- * directory, so a fixture at `apps/wallow-web/src/routes/dashboard.tsx` is
- * matched by exactly the globs its real counterpart is — which makes "an app
- * violation is caught" and "the exemption stops at these five locations"
- * assertions about the real binary's behaviour rather than about config text.
+ * Mirror repository paths to exercise import exemptions and preserve unrelated restrictions. Fixtures stay inside the repository so oxlint resolves configuration plugins.
  */
 
 /** One `no-restricted-imports` diagnostic, attributed to the mirror file that earned it. */
@@ -385,22 +343,8 @@ interface Offence {
 }
 
 /**
- * The mirror lives INSIDE the repo — `<repoRoot>/.lint-mirror/` (gitignored, and
- * in the root config's `ignorePatterns`) — NOT in `os.tmpdir()`. Do not "clean
- * this up" back to a temp directory: the root config carries a `jsPlugins` entry
- * whose bare `@bc-solutions-coder/lint` specifier documented oxlint behaviour
- * resolves from the CONFIG FILE'S OWN directory, so the copy of the config below
- * must sit somewhere Node's walk-up resolution can reach the repo's
- * `node_modules`. A temp-dir mirror happens to load today only because the
- * installed oxlint also probes its own install location (pnpm's hidden hoist
- * store) — an implementation detail this spec must not depend on.
- *
- * `realpathSync` is load-bearing, not tidiness: oxlint canonicalizes each file's
- * path before matching it against an override's `files`, while the globs are
- * resolved against the config's directory as given. A mirror rooted at a
- * symlinked form of the path matches NO override — every exemption silently
- * evaporates and the tree only ever proves the root rule. The harness proof
- * below is what catches that.
+ * Keep fixture mirrors inside the repository so oxlint resolves JavaScript plugins from the
+ * repository node_modules. Ignore the mirror in ordinary lint runs.
  */
 const lintMirrorBase: string = join(repoRoot, ".lint-mirror");
 mkdirSync(lintMirrorBase, { recursive: true });
@@ -494,7 +438,7 @@ const MIRROR_FIXTURES: Readonly<Record<string, string>> = {
   "packages/sdk/src/query/index.ts":
     'import { useQuery } from "@tanstack/react-query";\nexport const use = useQuery;\n',
 
-  // The deleted package, which nothing may import — app or facade.
+  // The web-shell package is prohibited in both app and facade modules.
   "apps/wallow-web/src/router.tsx":
     'import { createQueryClient } from "@bc-solutions-coder/web-shell";\nexport const use = createQueryClient;\n',
 
@@ -639,7 +583,7 @@ describe("the exemption reopens one ban, not the rest", () => {
 
 describe("the root config states the facade convention", () => {
   it("bans the whole @tanstack/react-query package, not a list of its exports", () => {
-    // With `importNames` the ban would cover only the symbols named today, and
+    // With `importNames` the ban would cover only the explicitly named symbols, and
     // the next hook react-query adds would be importable directly.
     expect(restrictedPathFor(TANSTACK).importNames).toBeUndefined();
   });
@@ -786,7 +730,7 @@ describe("every nested oxlint config inherits the root", () => {
   it("finds the nested configs to check", () => {
     // Non-vacuity guard: a broken walk would make every assertion below pass by
     // iterating an empty list, which is precisely the failure mode this whole
-    // block exists to close (bead Wallow-i3hr).
+    // block exists to close (bead ).
     expect(nested.length).toBeGreaterThanOrEqual(3);
   });
 

@@ -5,10 +5,6 @@ import { Checkbox } from "../checkbox";
 import { CheckboxGroup } from "./checkbox-group";
 
 /*
- * Wallow-m5aq.2.5 — Checkbox Group stories. Each export becomes a Vitest test
- * case in the same headless Chromium the `browser` project uses, with the real
- * Tailwind pipeline attached (see .storybook/main.ts).
- *
  * A group is only visible through the boxes it drives, so every story renders
  * real `Checkbox.Root`s inside it — which also makes these the checked/unchecked
  * /indeterminate states in their natural setting.

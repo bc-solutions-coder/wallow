@@ -60,13 +60,9 @@ export interface WallowBffServerOptions {
    */
   trustedProxies?: string;
   /**
-   * Receives boot-time misconfiguration warnings — today exactly two: the
-   * issuer advertises OIDC back-channel logout but the selected store defines
-   * neither `revokeBySid` nor `revokeBySubject`, so logout tokens would be
-   * accepted and revoke nothing; and the store's key namespace is already
-   * claimed by a DIFFERENT BFF identity, so two BFFs would read each other's
-   * sessions (set `BFF_APP_ID` per BFF to separate them). Defaults to
-   * `console.warn`.
+   * Receives warnings when the issuer supports back-channel logout but the store cannot revoke
+   * sessions, or when another BFF identity owns the store namespace. Set BFF_APP_ID to separate
+   * deployments. Defaults to console.warn.
    */
   onWarning?: (message: string) => void;
 }

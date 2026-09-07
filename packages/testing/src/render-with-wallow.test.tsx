@@ -1,9 +1,6 @@
 /**
- * The shared `renderWithWallow` seam. BROWSER project — the one part of
- * `@bc-solutions-coder/testing` that mounts a real component tree, so it runs in
- * headless Chromium like every other `*.test.tsx`. Nothing here mocks anything:
- * the SDK is the real one over a fake transport; the router and query client
- * are real. Assertions stay off the `{ data, error }` shape of a generated call.
+ * Exercise browser rendering with a real memory router, query cache, and SDK
+ * over a programmable transport.
  */
 import {
   QueryClient,

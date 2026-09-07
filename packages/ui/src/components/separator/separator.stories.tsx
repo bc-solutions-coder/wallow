@@ -4,12 +4,6 @@ import { expect } from "storybook/test";
 import { Separator } from "./separator";
 
 /*
- * Wallow-m5aq.4.3 — Separator stories. `@storybook/addon-vitest` turns each
- * export below into a Vitest test case rendered in the same headless Chromium
- * the `browser` project uses, but with the real Tailwind pipeline attached
- * (.storybook/preview.css), so this is the only place a hairline that is
- * actually one pixel of `bg-border` can be seen.
- *
  * A separator has no size of its own, so every story below wraps it in a box
  * that gives it something to span — a bare `<Separator />` on an empty canvas
  * renders as nothing at all, in Storybook exactly as in an app.

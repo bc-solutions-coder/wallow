@@ -122,7 +122,7 @@ describe("sealSession / unsealSession", () => {
 });
 
 /**
- * Cookie-password rotation (finding L3).
+ * Cookie-password rotation.
  *
  * A rotation runs in three states, and a session sealed before it started has to
  * survive all of them: the old key alone, both keys with the NEW one sealing,

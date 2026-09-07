@@ -88,9 +88,7 @@ describe("@bc-solutions-coder/query facade surface", () => {
 });
 
 describe("@bc-solutions-coder/query built package", () => {
-  // `dist/` is a build artifact and `pnpm check` runs `test` BEFORE `build`, so a
-  // fresh clone has none when these execute. Skipped rather than failed in that
-  // case: run `pnpm --filter @bc-solutions-coder/query build` to arm them.
+  // Skip built-entry checks when dist is absent, such as before the first local build.
   const distDir = join(packageDir, "dist");
   const distEntry = join(distDir, "index.js");
   const distIsMissing = !existsSync(distEntry);

@@ -35,15 +35,16 @@ function RadioIndicator({ className, ...rest }: RadioIndicatorProps): ReactEleme
 }
 
 /**
- * The catalog's radio button. Multi-part components ship a single namespace
- * object whose keys mirror Base UI's part names 1:1 — `Radio.Root` renders the
- * control (a `<span role="radio">` plus a hidden `<input type="radio">`), and
- * `Radio.Indicator` renders the dot shown while it is selected.
- *
- * A radio is only meaningful inside a `RadioGroup`, which owns the selected
- * value and the shared `name`.
+ * A radio choice and its selected indicator. Place Root parts with distinct values inside
+ * RadioGroup and give each choice an accessible label.
  */
 export const Radio = {
+  /**
+   * Owns the component state and provides context to its parts.
+   */
   Root: RadioRoot,
+  /**
+   * Displays the control's current state or selected extent.
+   */
   Indicator: RadioIndicator,
 };

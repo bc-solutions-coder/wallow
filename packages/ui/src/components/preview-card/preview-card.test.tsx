@@ -6,10 +6,7 @@ import { userEvent } from "vitest/browser";
 import { PreviewCard } from "./preview-card";
 
 /*
- * PreviewCard behavioural spec (Wallow-m5aq.3.5), shaped after the
- * Wallow-m5aq.3.1 Dialog exemplar:
- *
- *   1. Runs in the vitest BROWSER project — real headless Chromium, real Base UI,
+ * 1. Runs in the vitest BROWSER project — real headless Chromium, real Base UI,
  *      real DOM. Nothing is mocked.
  *   2. Recipes are asserted THROUGH the component, never by importing
  *      `previewCardPopupRecipe` and inspecting its return value: a recipe unit
@@ -21,7 +18,7 @@ import { PreviewCard } from "./preview-card";
  *   4. Stories carry the visual coverage (see preview-card.stories.tsx); this
  *      file is only for the edges a screenshot cannot make.
  *
- * ANATOMY, measured against @base-ui/react 1.6.0 in this browser (not guessed):
+ * ANATOMY, measured against Base UI in this browser (not guessed):
  *
  *   <a id="base-ui-…" href>                                <- PreviewCard.Trigger
  *     …gains data-popup-open while open. It is an ANCHOR, not a button, and
@@ -304,7 +301,7 @@ describe("PreviewCard", () => {
   });
 
   it("renders the trigger as an anchor Base UI has claimed, with no aria wiring", async () => {
-    // PINS a measured Base UI 1.6.0 behaviour rather than an aspiration: a
+    // PINS a measured Base UI behaviour rather than an aspiration: a
     // preview card gets no `aria-haspopup`, no `aria-expanded`, no
     // `aria-controls` and no `aria-describedby` — grepping the whole subpath
     // finds exactly one `aria-*`, the arrow's `aria-hidden`. The catalog
@@ -370,9 +367,6 @@ describe("PreviewCard", () => {
   });
 
   it("leaves placement to Base UI's inline styles on the positioner and arrow", async () => {
-    // The anchored-overlay pin the Popover task (Wallow-m5aq.3.3) added and every
-    // sibling inherits: a recipe that reached for `fixed`, `top-1/2` or a
-    // translate would fight values Base UI rewrites on every scroll and resize.
     await render(<FullPreviewCard defaultOpen />);
 
     const positioner = part("p-positioner");

@@ -1,5 +1,5 @@
 /**
- * The `x-request-id` correlation primitive (Wallow-pu6a.6.7).
+ * The `x-request-id` correlation primitive.
  *
  * These are the rules the BFF proxy and the browser error path both build on,
  * so they are pinned here once rather than re-asserted at each call site: what

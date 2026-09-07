@@ -6,10 +6,7 @@ import { userEvent } from "vitest/browser";
 import { Popover } from "./popover";
 
 /*
- * Popover behavioural spec (Wallow-m5aq.3.3), shaped after the Wallow-m5aq.3.1
- * Dialog exemplar:
- *
- *   1. Runs in the vitest BROWSER project — real headless Chromium, real Base UI,
+ * 1. Runs in the vitest BROWSER project — real headless Chromium, real Base UI,
  *      real DOM. Nothing is mocked.
  *   2. Recipes are asserted THROUGH the component, never by importing
  *      `popoverPopupRecipe` and inspecting its return value: a recipe unit test
@@ -21,7 +18,7 @@ import { Popover } from "./popover";
  *   4. Stories carry the visual coverage (see popover.stories.tsx); this file is
  *      only for the edges a screenshot cannot make.
  *
- * ANATOMY, measured against @base-ui/react 1.6.0 in this browser (not guessed):
+ * ANATOMY, measured against Base UI in this browser (not guessed):
  *
  *   <button aria-haspopup="dialog" aria-expanded data-base-ui-click-trigger>  <- Popover.Trigger
  *     …gains data-popup-open, data-pressed and aria-controls="<popup id>" while open

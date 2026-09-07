@@ -92,17 +92,28 @@ function AccordionPanel({ className, ...rest }: AccordionPanelProps): ReactEleme
 }
 
 /**
- * The catalog's accordion, as ONE namespace object whose keys mirror Base UI's
- * five namespace members 1:1 — the catalog-wide convention for multi-part
- * components, so a caller who knows the Base UI docs already knows this API.
- *
- * A complete accordion is Root > Item > (Header > Trigger, Panel). The root is
- * single-select by default; pass `multiple` to let several panels stay open.
+ * Expandable sections composed as Root > Item > Header > Trigger, with Panel beside Header.
+ * Pass multiple on Root to keep several sections open.
  */
 export const Accordion = {
+  /**
+   * Owns the component state and provides context to its parts.
+   */
   Root: AccordionRoot,
+  /**
+   * Groups one item and its associated content.
+   */
   Item: AccordionItem,
+  /**
+   * Contains the heading for an expandable section.
+   */
   Header: AccordionHeader,
+  /**
+   * Opens or toggles the associated content; render can compose it onto another control.
+   */
   Trigger: AccordionTrigger,
+  /**
+   * Contains the content associated with the selected or expanded item.
+   */
   Panel: AccordionPanel,
 };

@@ -1,20 +1,5 @@
 /**
- * The browser-facing origin of an inbound SSR request, honoring the scheme a
- * terminating reverse proxy reports in `X-Forwarded-Proto`.
- *
- * Behind an HTTPS-terminating ingress the app itself is reached over plain HTTP,
- * so `new URL(request.url).origin` says `http` while the browser that will
- * hydrate the page says `https`. The generated TanStack Query keys embed the
- * SDK's `baseUrl` verbatim, so that one-character difference is a cache-key
- * miss and every SSR-prefetched query refetches on hydration.
- *
- * The header is believed only when the immediate peer is inside the deployment's
- * trusted-proxy set — the same gate `resolveClientAddress` puts on
- * `X-Forwarded-For`, so the two forwarded headers are one trust policy rather
- * than two. Even from a trusted peer, only `http` and `https` are honored: a
- * misconfigured ingress can forward what a caller sent, and an unrecognized
- * value would otherwise travel into the SDK's `baseUrl` and into every query key
- * built from it. Falling back to the request's own scheme keeps that input inert.
+ * Derive the browser-visible request origin for SSR. A trusted peer may supply the forwarded scheme; preserving the public origin keeps browser and server query keys consistent.
  */
 
 import {

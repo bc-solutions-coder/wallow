@@ -51,11 +51,10 @@ emits `ClientOptions` from the document's `servers` entry unconditionally; it is
 from `src/index.ts`, but a server-URL change still regenerates this directory. Never hand-edit
 it. `pnpm check:generated` (inside `pnpm check`) regenerates both packages and fails on a
 diff; `openapi-autoregen.yml` regenerates this directory alongside the SDK's. Like the SDK
-this package pins `typescript: catalog:tooling-tsc6` because the generator needs the JS
+this package pins `typescript: catalog:tooling` because the generator needs the JS
 compiler API.
 
 ## Tests (vitest, node environment)
 
 One spec per module; every parser branch, every resolver step, the dotted-key fold and the
-silent predicate are covered, and `index.test.ts` pins the runtime export list. No spec reads
-source or the manifest off disk.
+silent predicate are covered, and `index.test.ts` pins the runtime export list. The generator config spec imports and checks the configuration object; source text is not a test oracle.

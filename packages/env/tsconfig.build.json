@@ -1,7 +1,5 @@
 {
-  // Every entry listed explicitly: an unlisted module emits no .d.ts unless
-  // another module here happens to import it (only auth-origin imports
-  // published-global today).
+  // Explicit entries ensure that each public subpath emits declarations.
   "extends": ["./tsconfig.json", "../../tsconfig.build.base.json"],
   "include": [
     "src/auth-origin.ts",

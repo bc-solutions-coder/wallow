@@ -3,37 +3,6 @@ import { dirname, join } from "node:path";
 
 import { defineRule, type ESTree } from "@oxlint/plugins";
 
-/**
- * Keep a library package's four module lists agreeing with each other.
- *
- * Every `packages/*` library builds through `defineLibraryConfig` and declares
- * its modules four times over: the `entries` map in `vite.config.ts`, the
- * `exports` map and the `publishConfig.exports` map in `package.json`, and the
- * `include` list in `tsconfig.build.json`. A module added to some of them and
- * missed in another fails SILENTLY — an `exports` subpath with no lib entry
- * resolves in-repo (where `exports` points at `src/`) and publishes a path the
- * build never emitted; an entry missing from `include` emits no declarations;
- * an entry missing from `exports` is unreachable for consumers. `packages/env`
- * is where this bit: its four lists misaddress a Start app when they drift, and
- * the spec that used to diff them read source off disk and was deleted under
- * the no-source-tests doctrine (`.claude/rules/TESTING.md`).
- *
- * The rule anchors on `vite.config.ts` — the one list oxlint lints — and reads
- * the two JSON siblings off disk, the same way `zone-dag` reads an app's
- * `tsconfig.json`. Entry keys normalize to `exports` subpaths (`index` ↔ `.`,
- * `server/index` ↔ `./server`, `extra` ↔ `./extra`); the `include` list is
- * compared against the entry VALUES, since both name source files. A list the
- * rule cannot enumerate is skipped, not guessed at: a spread in `entries`
- * (packages/ui), a `*` in any `exports` key, a glob or directory in `include`.
- * Manifest keys whose target is not a JS/TS module (`./styles.css`,
- * `./source.css`) need no entry and are ignored.
- *
- * Self-gates on the `vite.config.ts` filename, so the root config switches it
- * on once repo-wide and it stays inert everywhere else — a helper or spec that
- * merely calls `defineLibraryConfig` is never judged against whatever
- * `package.json` sits beside it.
- */
-
 /** The one file whose directory's manifests the rule may read. */
 const CONFIG_FILE = /[\\/]vite\.config\.ts$/u;
 
@@ -167,6 +136,12 @@ function moduleSubpathsOf(map: unknown): readonly string[] | null {
   });
 }
 
+/**
+ * Compare explicit library build entries with package exports and declaration inputs.
+ * Runs on vite.config.ts and reads sibling package.json and tsconfig.build.json.
+ * Skips lists it cannot enumerate, including wildcard exports and spread entries;
+ * stylesheet exports are ignored.
+ */
 export const moduleListsInSync = defineRule({
   meta: {
     type: "problem",

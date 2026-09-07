@@ -3,25 +3,19 @@ import type { LinkProps } from "@tanstack/react-router";
 import type { NavIconComponent } from "./nav-icons";
 
 /**
- * What a destination requires of the visitor before it is offered.
- *
- * The shape is deliberately inert here — the package never evaluates it. It is
- * handed straight back to `AppShell`'s `can` predicate, which is the app's, so a
- * fork with a different auth model keeps using this package. That is the whole
- * reason there is no `@bc-solutions-coder/auth` edge.
+ * App-defined role and permission requirements passed unchanged to AppShell.can. This package
+ * does not evaluate or authorize them.
  */
 export interface NavRequirement {
+  /** Role name for the app-supplied visibility predicate to interpret. */
   readonly role?: string;
+  /** Permission name for the app-supplied visibility predicate to interpret. */
   readonly permission?: string;
 }
 
 /**
- * One nav destination: where it goes, what it is called, which icon names it,
- * and who may see it.
- *
- * `to` is typed as the router's own, so a consumer that has registered its route
- * tree gets its destinations checked against it. Inside this package there is no
- * registration, so the same type is the router's unregistered fallback.
+ * One navigation link with a stable identity, accessible label, and icon. to uses TanStack Router
+ * link typing, including route registration supplied by the app.
  */
 export interface NavDestination {
   /**
@@ -30,6 +24,7 @@ export interface NavDestination {
    * prefix is `dashboard-nav-apps`.
    */
   readonly id: string;
+  /** Route destination interpreted by the surrounding TanStack Router. */
   readonly to: LinkProps["to"];
   /**
    * The accessible name, in all three modes. It is the visible label in the
@@ -37,6 +32,7 @@ export interface NavDestination {
    * both spelled separately, which is what keeps the modes from drifting.
    */
   readonly label: string;
+  /** Decorative SVG component used in the expanded rail, icon rail, and drawer. */
   readonly icon: NavIconComponent;
   /** Handed to `can`; a destination with none is always visible. */
   readonly requires?: NavRequirement;

@@ -1,21 +1,6 @@
 /**
- * Spec for `ensureCurrentUser` — the `beforeLoad` half of the current-user
- * contract (Wallow-x4qn.3).
- *
- * A route gate and the components under it must read ONE answer about who is
- * signed in, so the gate primes the request's query cache rather than fetching
- * privately. Two properties make that true, and both are asserted against a real
- * `QueryClient` and a real SDK instance over a counting transport:
- *
- *   1. it writes under the GENERATED key, so the `useCurrentUser` a component
- *      calls next is a cache hit on the very entry the gate resolved — not a
- *      second request for the same user;
- *   2. it is `ensureQueryData`, not `fetchQuery`. Paired with the query's
- *      30-second `staleTime` that is what makes a gate running on EVERY
- *      navigation cost one request instead of one per route change. A
- *      `fetchQuery` would satisfy every other assertion here and still refetch on
- *      each navigation, so the request count is the only thing that separates
- *      them.
+ * Verify that ensureCurrentUser populates the generated cache entry and reuses existing data. A
+ * real SDK client and counting transport expose unintended extra requests.
  */
 
 import { createQueryClient, type QueryClient } from "@bc-solutions-coder/query";

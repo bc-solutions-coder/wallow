@@ -2,39 +2,15 @@ import { cva, type VariantProps } from "class-variance-authority";
 
 import { inputRecipe } from "../input/input.styles";
 
-/**
- * The Field anatomy's class recipes — one per styled part, JSX-free so the
- * styling can be read and diffed without the components around it.
- *
- * Base UI's Field is a CONTEXT: `Field.Root` publishes the field's state
- * (`disabled`, `invalid`, `touched`, `dirty`, `filled`, `focused`) as `data-*`
- * attributes onto every part beneath it. Every state treatment below therefore
- * hangs off a `data-[...]` selector rather than a CSS pseudo-class, which is
- * also what keeps it working when a caller substitutes the element via `render`.
- *
- * Every utility is a semantic token class from `@bc-solutions-coder/styles`.
- * None of these recipes has a variant axis today: the apps render one field
- * treatment, so a `size`/`tone` axis would have no consumer. The `VariantProps`
- * aliases stay in the components' prop types so the folder keeps the catalog's
- * uniform shape and a future variant is a one-file change.
- */
+/** Field parts use semantic tokens and Base UI data attributes. Field.Control composes the shared input recipe and adds validation styling. */
 
-/**
- * The field row. `space-y-2` is the pre-rebuild `Field` recipe verbatim — the
- * compat guarantee for the 22 `<Field>` call sites across wallow-auth and
- * wallow-web, none of which may shift by a pixel.
- */
+/** Vertical spacing between the field label, control, and supporting text. */
 export const fieldRootRecipe = cva("space-y-2");
 
 /** The recipe's variant props, mixed into `FieldProps`. */
 export type FieldRootRecipeProps = VariantProps<typeof fieldRootRecipe>;
 
-/**
- * The field label. `text-sm font-medium text-foreground` is the pre-rebuild
- * `Label` recipe verbatim (the compat guarantee for its 12 call sites); the
- * disabled treatment is new, and is what `Field.Root disabled` now makes
- * expressible.
- */
+/** Field-label typography and disabled-state color. */
 export const fieldLabelRecipe = cva(
   "text-sm font-medium text-foreground data-[disabled]:opacity-50",
 );
@@ -42,17 +18,7 @@ export const fieldLabelRecipe = cva(
 /** The recipe's variant props, mixed into `LabelProps`. */
 export type FieldLabelRecipeProps = VariantProps<typeof fieldLabelRecipe>;
 
-/**
- * The field control. Base UI's `Input` IS `Field.Control` underneath, so this
- * deliberately composes `inputRecipe()` rather than restating it — the two must
- * never drift, because an app may use either inside a `Field`.
- *
- * The added `data-[invalid]:border-destructive` is the state treatment
- * Wallow-m5aq.2.2 explicitly deferred here: `data-invalid` only exists inside a
- * `Field.Root`, so it could not be styled — or tested — from the Input task.
- * It lives on this recipe rather than on `inputRecipe` so the Input task's
- * measured class set stays exactly as that bead pinned it.
- */
+/** Input classes plus the invalid-state border for a control inside Field. */
 export const fieldControlRecipe = cva(`${inputRecipe()} data-[invalid]:border-destructive`);
 
 /** The recipe's variant props, mixed into `FieldControlProps`. */

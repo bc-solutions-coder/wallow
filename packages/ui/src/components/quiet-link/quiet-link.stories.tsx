@@ -8,9 +8,6 @@ import { QuietLink } from "./quiet-link";
  * asserted as a class set in quiet-link.test.tsx rather than measured, because
  * `:hover` is not a state a story's play function can hold open for
  * getComputedStyle.
- *
- * `href` stays a real in-app path: wallow-auth's footer links are cross-origin
- * navigations with real hrefs, and a `#` would misrepresent that.
  */
 
 const meta = {
@@ -34,7 +31,6 @@ export const CenteredBlock: Story = {
   args: { className: "block text-center" },
 };
 
-/** wallow-web's inline back-link, which carries its own bottom margin. */
 export const InlineBackLink: Story = {
   args: { className: "inline-block mb-4", children: "← Back to inquiries" },
 };

@@ -5,12 +5,6 @@ import { expect, fn, userEvent } from "storybook/test";
 import { Toolbar } from "./toolbar";
 
 /*
- * Wallow-m5aq.4.5 — Toolbar stories. `@storybook/addon-vitest` turns every
- * export below into a Vitest test case rendered in the same headless Chromium the
- * `browser` project uses, with the real Tailwind pipeline attached (see
- * .storybook/main.ts), so these are the VISUAL half of the component's spec while
- * toolbar.test.tsx holds the markup assertions a screenshot cannot make.
- *
  * Nothing about Toolbar is portalled, so every play function queries `canvas`.
  */
 

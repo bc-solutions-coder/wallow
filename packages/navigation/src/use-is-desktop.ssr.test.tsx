@@ -4,14 +4,8 @@ import { describe, expect, it } from "vitest";
 import { useIsDesktop } from "./use-is-desktop";
 
 /**
- * `useIsDesktop`'s server snapshot — the one code path a browser-mode spec can
- * never reach, hence the `.ssr` name that routes this onto the node project.
- * `useSyncExternalStore` consults `getServerSnapshot` only when there is no
- * client store, so a spec that MOUNTS the hook takes `getSnapshot` and real
- * `matchMedia` on the first render and sees nothing wrong.
- *
- * The server has no viewport, so any boolean is a guess painted before
- * hydration can correct it. "Unknown" is the only honest answer.
+ * Exercise the server snapshot through renderToString. It returns undefined so responsive CSS can
+ * choose the first-paint layout before the client observes its viewport.
  */
 
 /** Renders the hook's value into an attribute so `renderToString` can be read. */

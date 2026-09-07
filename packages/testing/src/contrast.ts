@@ -1,24 +1,7 @@
 /**
- * Rendered-colour assertions for Vitest browser-mode specs — the `./contrast`
- * subpath.
- *
- * A class-string assertion cannot see what a component actually paints. The real
- * class string is the `twMerge` of a catalog recipe with a consumer `className`,
- * so a spec can pin the recipe, stay green, and still ship a 1.27:1 hover
- * contrast defect. These helpers read the COMPUTED colour off a live element and
- * compare the two sides of a pair, which is the only form of that assertion that
- * can fail for the right reason.
- *
- * BROWSER-ONLY, like `./render`: it needs `getComputedStyle` and a canvas, so it
- * must never appear on the `.` barrel (which is loaded in plain Node at vitest
- * config time). See packages/testing/CLAUDE.md.
- *
- * WHY A CANVAS. `getComputedStyle` hands back whatever colour space the author
- * wrote — `packages/styles/branding.json`'s palette is `oklch(...)`, and Chromium preserves
- * that in the computed value — so an `rgb()` regex silently fails on the exact
- * tokens this repo uses. Painting the string into a 2d context and reading the
- * pixel back makes the browser itself do the conversion, so ANY CSS colour
- * syntax (`oklch`, `color-mix`, `rgba`, a keyword) normalises to sRGB bytes.
+ * Browser-only computed-color and contrast helpers.
+ * A canvas converts CSS color syntax to pixel data. Use opaque inputs for reliable
+ * byte-range channels; parseColor documents the current translucent-input limitation.
  */
 
 /** The 0-255 range one sRGB channel comes back in. */
@@ -46,13 +29,13 @@ const BLUE_WEIGHT = 0.0722;
 /** The spec's flare term, which keeps the ratio finite for pure black. */
 const CONTRAST_FLARE = 0.05;
 
-/** An sRGB colour with its alpha, as read back from the browser. */
+/** RGB channels on a nominal 0-255 scale and alpha. parseColor can exceed that scale for translucent input. */
 export interface Rgba {
-  /** Red channel, 0-255. */
+  /** Red channel on the 0-255 scale. */
   r: number;
-  /** Green channel, 0-255. */
+  /** Green channel on the 0-255 scale. */
   g: number;
-  /** Blue channel, 0-255. */
+  /** Blue channel on the 0-255 scale. */
   b: number;
   /** Alpha, 0-1. */
   a: number;
@@ -85,19 +68,19 @@ function scratchContext(): CanvasRenderingContext2D {
 }
 
 /**
- * Parse ANY CSS colour string to sRGB bytes by painting it, so `oklch(...)`,
- * `color-mix(...)` and `rgba(...)` all work.
+ * Read a CSS color through a browser canvas.
  *
- * Throws on a string the browser refuses, which is the useful behaviour here: a
- * theme-less page yields `var(--sidebar)` fallbacks, not garbage, so a genuine
- * miss should be loud rather than silently read as black.
+ * Invalid CSS retains the black fill rather than throwing. For translucent colors,
+ * the current implementation divides the canvas channels by alpha without clamping,
+ * so returned RGB values can exceed 255. Prefer opaque inputs for contrast assertions.
+ * Throws if the canvas context or pixel data cannot be obtained.
  */
 export function parseColor(value: string): Rgba {
   const context = scratchContext();
 
   context.clearRect(PIXEL_ORIGIN, PIXEL_ORIGIN, PIXEL_SIZE, PIXEL_SIZE);
   // A canvas keeps its previous `fillStyle` when handed an invalid colour, so
-  // seed a sentinel and check the assignment actually took.
+  // seed black before assigning. Invalid strings therefore return black.
   context.fillStyle = "#000000";
   context.fillStyle = value;
   context.fillRect(PIXEL_ORIGIN, PIXEL_ORIGIN, PIXEL_SIZE, PIXEL_SIZE);
@@ -116,9 +99,8 @@ export function parseColor(value: string): Rgba {
   const a: number = alpha / CHANNEL_MAX;
 
   return {
-    // `getImageData` returns PREMULTIPLIED-looking bytes for a translucent fill
-    // against the cleared (transparent) canvas, so undo the alpha to recover the
-    // authored channel values. Fully transparent has no colour to recover.
+    // This alpha division can produce channels above 255 for translucent input.
+    // Fully transparent input returns zero channels.
     r: a === TRANSPARENT ? TRANSPARENT : Math.round(r / a),
     g: a === TRANSPARENT ? TRANSPARENT : Math.round(g / a),
     b: a === TRANSPARENT ? TRANSPARENT : Math.round(b / a),

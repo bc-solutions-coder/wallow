@@ -72,12 +72,20 @@ function CollapsiblePanel({ className, ...rest }: CollapsiblePanelProps): ReactE
 }
 
 /**
- * The catalog's collapsible, as ONE namespace object whose keys mirror Base UI's
- * three namespace members 1:1 — the catalog-wide convention for multi-part
- * components, so a caller who knows the Base UI docs already knows this API.
+ * A single expandable section. Root owns open state, Trigger toggles it, and Panel contains
+ * the expandable content.
  */
 export const Collapsible = {
+  /**
+   * Owns the component state and provides context to its parts.
+   */
   Root: CollapsibleRoot,
+  /**
+   * Opens or toggles the associated content; render can compose it onto another control.
+   */
   Trigger: CollapsibleTrigger,
+  /**
+   * Contains the content associated with the selected or expanded item.
+   */
   Panel: CollapsiblePanel,
 };

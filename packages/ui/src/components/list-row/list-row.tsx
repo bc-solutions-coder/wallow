@@ -5,18 +5,8 @@ import { cn } from "../../core/cn";
 import { listRowRecipe } from "./list-row.styles";
 
 /**
- * A single row inside a `ListCard`: the `<li>` cell every wallow-web list page
- * hand-rolls today, and — through `render` — the element a caller composes a
- * TanStack Router `Link` onto so the whole row navigates.
- *
- * `ListRow` wraps no headless Base UI part, so it takes the `render` contract
- * from `@base-ui/react`'s own `useRender` hook rather than inventing a second
- * spelling of it: `render` accepts a `ReactElement` or a function, and the
- * substituted element receives the recipe, the derived test id and the rest
- * props with its own className and event handlers merged in rather than
- * replaced. `render` SUBSTITUTES the element, it does not wrap it — so a
- * composed row is the anchor itself, which is what makes the whole row the
- * navigation target.
+ * List item attributes with an optional render element or function. render replaces the li and
+ * receives merged classes, handlers, and the derived test ID.
  */
 export type ListRowProps = useRender.ComponentProps<"li"> & {
   /**
@@ -27,6 +17,10 @@ export type ListRowProps = useRender.ComponentProps<"li"> & {
   readonly name: string;
 };
 
+/**
+ * Renders a padded list row with hover and keyboard-focus styles. render can replace the li
+ * with a link or another element; the row test ID is `${name}-item`.
+ */
 export function ListRow({ name, className, render, ref, ...rest }: ListRowProps): ReactElement {
   return useRender({
     render,

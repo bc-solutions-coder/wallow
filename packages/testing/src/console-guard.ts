@@ -1,23 +1,7 @@
 /**
- * The console guard a browser project installs once, in its setup file.
- *
- * React reports real defects through `console.error` — a key collision, an
- * update outside `act`, a hook order change, a boundary catch — and none of them
- * fail anything. They scroll past in a run that reports green, so the defect
- * survives until it surfaces somewhere else as a symptom nobody connects back.
- *
- * Installed per project rather than per spec for the same reason
- * `./navigation-escape` is: the file that writes the noise is not the file a
- * reader would think to guard, so a guard a spec has to opt into never covers
- * the spec that needed it. Wrapping `console` (rather than replacing it) keeps
- * the message on the terminal, so the failure and the original output arrive
- * together.
- *
- * The record is CONSUMED, not cleared: a spec that deliberately drives an error
- * path reads its entries back with {@link consumeConsoleNoise} /
- * {@link expectConsoleError}, and anything it did not read is still in the
- * record when the project's `afterEach` runs. So a second, unexpected error
- * cannot hide behind an expected one.
+ * Record console errors and warnings without suppressing their output.
+ * Install in browser setup and assert the record is empty after each test.
+ * Tests expecting console output consume the matching entries explicitly.
  */
 
 import { vi } from "vitest";
@@ -151,13 +135,10 @@ export interface ConsumeConsoleNoiseOptions {
 }
 
 /**
- * Wait for at least one entry, then take everything the record holds at that
- * moment out of it and return it.
+ * Wait for console output, then drain and return every entry currently recorded.
  *
- * Consuming rather than clearing is what keeps "a spec that forgot to assert
- * still fails" true: an entry nobody reads is still there for the project's
- * `afterEach`. Only what was READ is removed, by count rather than by emptying
- * the array, so a message written while this awaited survives to fail the test.
+ * Rejects when no entry arrives before the configured timeout. Entries recorded
+ * while waiting are included in the returned snapshot.
  */
 export async function consumeConsoleNoise(
   options: ConsumeConsoleNoiseOptions = {},

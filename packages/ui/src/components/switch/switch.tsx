@@ -8,11 +8,6 @@ import { switchRootRecipe, switchThumbRecipe } from "./switch.styles";
  * Every Base UI `Switch.Root` prop (`checked`, `defaultChecked`,
  * `onCheckedChange`, `disabled`, `readOnly`, `required`, `name`, `value`,
  * `render`, `nativeButton`).
- *
- * `className` is deliberately narrowed back to `string`: Base UI widens it to
- * `string | ((state) => string | undefined)`, and the callback form cannot be
- * merged with a recipe through `cn()`. Every component in this catalog makes
- * the same narrowing (Wallow-m5aq.2.1 established it).
  */
 export interface SwitchRootProps extends Omit<ComponentProps<typeof BaseSwitch.Root>, "className"> {
   readonly className?: string;
@@ -44,11 +39,16 @@ function SwitchThumb({ className, ...rest }: SwitchThumbProps): ReactElement {
 }
 
 /**
- * The catalog's switch, as a namespace whose keys mirror Base UI's part names
- * 1:1 (`Switch.Root`, `Switch.Thumb`) so a reader can move between Base UI's
- * docs and this catalog without a translation step.
+ * An on/off input composed from Root and Thumb. Root owns checked state and needs an
+ * accessible label; Thumb follows the checked state.
  */
 export const Switch = {
+  /**
+   * Owns the component state and provides context to its parts.
+   */
   Root: SwitchRoot,
+  /**
+   * The movable or state-positioned part of the control.
+   */
   Thumb: SwitchThumb,
 };

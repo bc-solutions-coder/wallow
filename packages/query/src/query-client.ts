@@ -11,10 +11,9 @@ export interface UnhandledFailure {
 /** Options for {@link createQueryClient}. */
 export interface CreateQueryClientOptions {
   /**
-   * Called once per failure the app has not claimed: every mutation whose meta
-   * does not carry {@link handledFailure}'s flag, and only the queries whose
-   * meta carries {@link toastedFailure}'s. The app decides what to do with it —
-   * this package knows nothing about toasts or message registries.
+   * Receives each unhandled mutation failure and opted-in query failures. Query failures are
+   * reported once until that query succeeds; mutation reports are not deduplicated. Use
+   * handledFailure for mutations and toastedFailure for queries to set the reporting flags.
    */
   onUnhandledFailure?: (failure: UnhandledFailure) => void;
 }
@@ -29,37 +28,25 @@ const FAILURE_HANDLED = "failureHandled";
 const TOAST_FAILURE = "toastFailure";
 
 /**
- * Mark a mutation's failure as owned by its call site (a form rendering the
- * banner, say), so the client callback stays quiet for it. Composes with
- * whatever `meta` the mutation already carries.
+ * Return new metadata that suppresses the client failure callback for a mutation. Preserves the
+ * caller metadata without mutating it. Rendering the failure remains the caller responsibility.
  */
 export function handledFailure<T extends Meta>(meta?: T): T & { failureHandled: true } {
   return { ...meta, [FAILURE_HANDLED]: true } as T & { failureHandled: true };
 }
 
 /**
- * Opt a query into the client callback. Queries are silent by default — a
- * route loader or a banner usually owns their failure — so only the ones that
- * ask are reported. Composes with whatever `meta` the query already carries.
+ * Return new metadata that opts a query into the client failure callback. Preserves the caller
+ * metadata without mutating it. Queries without this flag remain silent.
  */
 export function toastedFailure<T extends Meta>(meta?: T): T & { toastFailure: true } {
   return { ...meta, [TOAST_FAILURE]: true } as T & { toastFailure: true };
 }
 
 /**
- * The single source of the React Query client wired into the router context
- * and the `__root` `QueryClientProvider`.
- *
- * Browser-safe (no Node APIs), so it lives in the package's `.` barrel — it is
- * imported from client-side bundles as well as SSR. It applies an explicit
- * query policy (retry disabled — deterministic tests, no silent backoff) and
- * mints a fresh client per call so an SSR request never shares cache with
- * another. The optional `onUnhandledFailure` is the one place an app hears
- * about failures nobody rendered.
- *
- * A query is reported once per failure streak, not once per fetch: a query
- * that keeps failing across focus and reconnect refetches would otherwise
- * raise the same toast each time. The streak ends at the next success.
+ * Create an independent QueryClient with query and mutation retries disabled. Use one per browser
+ * app and a new one for each SSR request. The optional callback receives unhandled mutation
+ * failures and opted-in query failures, once per query failure streak until success.
  */
 export function createQueryClient(options: CreateQueryClientOptions = {}): QueryClient {
   const report = options.onUnhandledFailure;

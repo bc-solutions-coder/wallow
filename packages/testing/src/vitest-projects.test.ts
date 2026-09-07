@@ -4,24 +4,7 @@ import { describe, expect, it } from "vitest";
 import { browserOptimizeDepsBaseline } from "./browser-optimize-deps";
 import { createVitestProjects, ssrSpecGlob } from "./vitest-projects";
 
-// Unit guard for Wallow-0q2s.1.2: createVitestProjects emits the shared node +
-// real-Chromium browser project pair that apps/wallow-auth/vitest.config.ts and
-// apps/wallow-web/vitest.config.ts hand-roll today.
-//
-// These specs assert MEMBERSHIP, not exact arrays. An `include`/`exclude`
-// pinned with `toEqual` makes adding one glob to the preset a test-editing
-// exercise before it can be a preset-editing one, while proving nothing beyond
-// "this glob is routed to this project" — which `toContain` proves too. The
-// contract callers depend on is that each project receives its globs and that
-// overrides layer ON TOP of the preset's rather than replacing them; both
-// survive a longer list, and both are still asserted below.
-//
-// The provider spec that used to sit here asserted `provider` was not the
-// string `"playwright"` (the Vitest 3 spelling, which throws in v4). It was
-// unfalsifiable in practice: the browser projects in this workspace cannot boot
-// at all with a bad provider, so every browser-mode run in `pnpm test` already
-// proves it — and it would have to be rewritten on any future Vitest major that
-// changes the provider shape again.
+// Verify project routing and consumer overrides by checking the emitted config objects.
 
 describe("createVitestProjects — default (no options)", () => {
   it("returns a node + browser project pair", () => {
@@ -66,9 +49,6 @@ describe("createVitestProjects — default (no options)", () => {
 });
 
 describe("createVitestProjects — nodeTsxSpecs routing", () => {
-  // The convention IS the default, so the routing contract is asserted on a
-  // caller that passes nothing — the shape every consumer now uses. Both apps
-  // used to hand-list their SSR specs here and in their own configs.
   it("routes the *.ssr.test.tsx convention onto node by default", () => {
     const { node, browser } = createVitestProjects();
 

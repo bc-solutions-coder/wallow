@@ -4,18 +4,17 @@ import { cn } from "../../core/cn";
 import { badgeRecipe, type BadgeRecipeProps } from "./badge.styles";
 
 /**
- * The shared status/label pill. One inline `<span>` carrying the recipe — the
- * chip six wallow-web surfaces hand-roll as a literal class string today, plus
- * the state variants that string could not express.
- *
- * `className` is narrowed back to a plain string and merged over the recipe, so
- * a caller class always wins.
+ * Span attributes and a status variant for Badge. className overrides the recipe classes.
  */
 export type BadgeProps = Omit<HTMLAttributes<HTMLSpanElement>, "className"> &
   BadgeRecipeProps & {
     className?: string;
   };
 
+/**
+ * Displays a compact status label. The variant selects a matching background and foreground;
+ * defaults to neutral.
+ */
 export function Badge({ variant, className, ...rest }: BadgeProps): ReactElement {
   return <span className={cn(badgeRecipe({ variant }), className)} {...rest} />;
 }

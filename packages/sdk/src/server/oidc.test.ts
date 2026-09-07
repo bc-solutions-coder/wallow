@@ -207,16 +207,7 @@ describe("discover", () => {
 });
 
 /**
- * Path-preserving endpoint pinning (Wallow-vufu.2.1).
- *
- * OpenIddict derives its advertised endpoint URIs from the base of the request
- * that fetched them, so a discovery document fetched over the internal network
- * advertises the internal host and — behind a path-based reverse proxy — omits
- * the public path prefix entirely. Pinning must therefore rebase the
- * browser-facing endpoints onto the FULL public issuer URL (origin *and* path),
- * not just its origin: with issuer `https://wallow.dev/api`, the browser has to
- * be sent to `https://wallow.dev/api/connect/authorize`, never
- * `https://wallow.dev/connect/authorize`.
+ * Browser endpoints retain the public issuer origin and path prefix even when discovery uses an internal address.
  */
 interface PinningCase {
   /** Deployment topology this row stands for. */
@@ -380,16 +371,7 @@ describe("discover pins browser-facing endpoints to the full public issuer", () 
 });
 
 /**
- * The plain-HTTP discovery gate (Wallow-pu6a.4.7).
- *
- * The apps are TanStack Start, so the SDK's server entry is bundled INTO each
- * app's nitro production build. Vite's bundler substitutes build-time environment
- * reads with literals there and then constant-folds the branch away, which is
- * how `process.env.NODE_ENV !== "production"` silently became `void 0` in
- * `.output/server/_ssr/bff-*.mjs` and made every containerised login return
- * `OAUTH_HTTP_REQUEST_FORBIDDEN`. The gate must therefore be decided from a
- * signal only knowable at runtime — the protocol of the URL being discovered —
- * so no bundler can pre-compute it.
+ * Plain HTTP discovery is enabled from the runtime URL protocol, independently of the build environment.
  */
 describe("shouldAllowInsecureRequests", () => {
   it("allows insecure requests when the discovery URL is plain http", () => {
@@ -720,9 +702,7 @@ describe("refreshTokens", () => {
   }
 
   /**
-   * Reject any native `fetch` so a lingering token-endpoint POST would fail the
-   * test loudly: after migration the refresh grant must go through
-   * openid-client's {@link refreshTokenGrant}, never a hand-rolled fetch.
+   * Refresh grants must go through openid-client, without a native fetch fallback.
    */
   function stubFetchAsForbidden(): ReturnType<typeof vi.fn> {
     const fetchMock: ReturnType<typeof vi.fn> = vi
@@ -817,9 +797,7 @@ describe("fetchUserInfo", () => {
   }
 
   /**
-   * Reject any native `fetch` so a lingering hand-rolled Bearer request would
-   * fail loudly: after migration the userinfo call must go through
-   * openid-client's {@link fetchUserInfo}, never a native fetch.
+   * User information requests must go through openid-client, without a native fetch fallback.
    */
   function stubFetchAsForbidden(): ReturnType<typeof vi.fn> {
     const fetchMock: ReturnType<typeof vi.fn> = vi
@@ -1029,21 +1007,7 @@ describe("buildLogoutUrl", () => {
 });
 
 /**
- * Browser-bound URLs must be built from the REBASED endpoints (Wallow-vufu.5.4).
- *
- * `discover` rebases `authorization_endpoint` and `end_session_endpoint` onto the
- * public issuer, but those strings were dead: `buildAuthorizeUrl` and
- * `buildLogoutUrl` delegate to openid-client, which builds from the
- * `Configuration`'s OWN `serverMetadata()` — the raw, un-rebased discovery
- * response. So under a split-horizon deployment (discovery fetched over the
- * container network, browser on the public origin) the BFF answered
- * `GET /bff/login` with a 302 to `http://wallow-api:8080/connect/authorize`: an
- * internal Docker hostname no browser can reach. The rebasing was correct and
- * simply never reached the user agent.
- *
- * The mocks below reproduce that faithfully: openid-client is made to return a
- * URL on the INTERNAL host, exactly as the real library does when its
- * Configuration carries raw metadata. The wrapper is what must pin it.
+ * Authorization and logout URLs use public browser endpoints while preserving the query parameters built by openid-client.
  */
 describe("browser-bound URLs under a split-horizon issuer", () => {
   /** The public origin plus path prefix the browser reaches, via the ingress. */

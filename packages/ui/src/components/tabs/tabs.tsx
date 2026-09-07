@@ -100,14 +100,28 @@ function TabsPanel({ className, ...rest }: TabsPanelProps): ReactElement {
 }
 
 /**
- * The catalog's tabs, as ONE namespace object whose keys mirror Base UI's five
- * namespace members 1:1 — the catalog-wide convention for multi-part
- * components.
+ * Tabbed content sharing a selected value. Root contains List > Tab and matching Panel parts;
+ * each Tab and Panel pair uses the same value.
  */
 export const Tabs = {
+  /**
+   * Owns the component state and provides context to its parts.
+   */
   Root: TabsRoot,
+  /**
+   * Contains selectable items.
+   */
   List: TabsList,
+  /**
+   * Selects the panel with the same value.
+   */
   Tab: TabsTab,
+  /**
+   * Displays the control's current state or selected extent.
+   */
   Indicator: TabsIndicator,
+  /**
+   * Contains the content associated with the selected or expanded item.
+   */
   Panel: TabsPanel,
 };

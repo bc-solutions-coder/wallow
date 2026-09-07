@@ -7,14 +7,6 @@ import { darkScheme, lightScheme } from "../../../.storybook/scheme-decorators";
 import { Text, type TextAs, type TextProps } from "./text";
 
 /*
- * Wallow-lrlm.2.1 — Text stories. Each export becomes a Vitest test case in the
- * same headless Chromium the `browser` project uses, but with the real Tailwind
- * pipeline and the fork's real theme attached (.storybook/preview.css +
- * preview.tsx). Since the `browser` project loads no Tailwind at all, this is the
- * ONLY place Text's type scale and its semantic colours can actually be seen —
- * and the only place dark-mode colour correctness is checkable. Every axis is
- * therefore rendered TWICE, once per scheme.
- *
  * Text is not interactive beyond its scheme, so the only `play` a story carries
  * is `expectScheme`, which measures that the scheme it claims is the scheme it
  * paints. The assertions about markup and class strings that a screenshot cannot
@@ -212,11 +204,6 @@ export const Alignments: Story = {
   ),
 };
 
-/**
- * The overline treatment two wallow-web settings sections hand-roll today as
- * `text-xs font-semibold text-foreground/70 uppercase tracking-wider mb-1` — here
- * with a real colour instead of the opacity, and the spacing left to the caller.
- */
 export const Overline: Story = {
   decorators: [lightScheme],
   play: expectScheme("light"),
@@ -231,17 +218,6 @@ export const OverriddenColour: Story = {
 };
 
 /**
- * The MEASURED pin on `subheading` (Wallow-io5f).
- *
- * WHY THIS EXISTS. `subheading` is the catalog-wide card-heading standard —
- * 20px, the `text-xl` step. That bead moved `cardTitleRecipe` and wallow-auth's
- * sixteen screens UP to meet this variant precisely because it was already
- * there, so `subheading` holding still is a premise of the change rather than a
- * detail of it. Nothing pinned that premise before: `TypeScale` above renders
- * every step but asserts only the scheme it paints, so an edit dragging
- * `subheading` to another step would have moved the standard underneath every
- * consumer without failing anything.
- *
  * WHAT IS ASSERTED. That `subheading` is the `text-xl` step, and that it is a
  * real step above `body` — the relation, not the number, so a fork that retunes
  * its scale keeps a meaningful spec instead of a stale literal. The probes

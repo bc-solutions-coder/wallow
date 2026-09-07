@@ -14,7 +14,7 @@ import { cva, type VariantProps } from "class-variance-authority";
  * the catalog-wide shape and a later variant axis is a non-breaking addition.
  */
 
-/** The card surface — the outer `<div>`, minus the `spacing` block. */
+/** Bordered list-card surface with clipped overflow; caller attributes apply to this outer div. */
 export const cardRecipe = cva("rounded-lg border border-border bg-card");
 
 /** The surface recipe's variant props, mixed into `CardProps`. */

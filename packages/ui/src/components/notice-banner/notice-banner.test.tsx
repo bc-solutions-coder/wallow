@@ -4,12 +4,6 @@ import { describe, expect, it } from "vitest";
 import { NoticeBanner } from "./notice-banner";
 
 /*
- * SPEC for Wallow-86os (NoticeBanner).
- *
- * Sourced from six hand-rolled wrappers across wallow-auth that each rebuilt
- * `ErrorBanner`'s shape in a non-destructive tone: five `border-success
- * bg-success/10` confirmations and one `border-warning bg-warning/10` nudge.
- *
  * Two deliberate differences from `ErrorBanner`, and both are asserted below:
  *
  *  - NO inner `<p>`, so no second sealed recipe. A notice body ranges from one

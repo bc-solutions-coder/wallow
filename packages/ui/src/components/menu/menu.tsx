@@ -39,27 +39,6 @@ import {
   type MenuViewportRecipeProps,
 } from "./menu.styles";
 
-/**
- * Five of Base UI's twenty-two namespace members are re-exported UNWRAPPED,
- * because none of them can carry a recipe:
- *
- *   - `Root` renders no HTML element at all (it is the state container), and it
- *     is generic over the trigger payload type — wrapping it would either drop
- *     the generic or add an element the DOM does not want.
- *   - `SubmenuRoot` is the same thing one level down: it groups a nested menu
- *     and renders no element of its own.
- *   - `Portal` renders only the structural `<div data-base-ui-portal>` Base UI
- *     appends to `<body>`. It accepts a `className`, but it has no visual role,
- *     and the caller's `className` still reaches it because the part is
- *     re-exported unchanged.
- *   - `Handle` is a class and `createHandle` a factory — the imperative
- *     open/close API for detached triggers. Neither renders anything.
- *
- * This is the same rule Dialog established for the catalog: a part gets a
- * wrapper plus a recipe only if it renders a VISIBLE element, so the namespace
- * keys still mirror Base UI 1:1.
- */
-
 /** Every Base UI `Menu.Root` prop, generic over the trigger payload type. */
 export type MenuRootProps<Payload = unknown> = Parameters<typeof BaseMenu.Root<Payload>>[0];
 
@@ -68,13 +47,6 @@ export type MenuSubmenuRootProps = ComponentProps<typeof BaseMenu.SubmenuRoot>;
 
 /** Every Base UI `Menu.Portal` prop. Re-exported unwrapped, so no recipe props. */
 export type MenuPortalProps = ComponentProps<typeof BaseMenu.Portal>;
-
-/*
- * `className` is deliberately narrowed back to `string` on every wrapped part:
- * Base UI widens it to `string | ((state) => string | undefined)`, and the
- * callback form cannot be merged with a recipe through `cn()`. Every component
- * in this catalog makes the same narrowing.
- */
 
 /** Every Base UI `Menu.Trigger` prop, with `className` narrowed to `string`. */
 export interface MenuTriggerProps<Payload = unknown>
@@ -272,43 +244,97 @@ function MenuSubmenuTrigger({ className, ...rest }: MenuSubmenuTriggerProps): Re
 }
 
 /**
- * The catalog's menu, as ONE namespace object whose keys mirror Base UI's
- * twenty-two namespace members 1:1 — the catalog-wide convention for multi-part
- * components, so a caller who knows the Base UI docs already knows this API.
- *
- * A minimal usable menu is Root > Trigger plus a portalled Positioner > Popup of
- * Items. Everything else is opt-in: `Group`/`GroupLabel`/`Separator` for
- * sections, `CheckboxItem`/`RadioGroup` for state-carrying rows,
- * `SubmenuRoot`/`SubmenuTrigger` for nested menus, `Backdrop` for a full-window
- * outside-press catcher, `Arrow` for a pointer at the anchor, `Viewport` for
- * animated content changes, and `Handle`/`createHandle` for triggers that live
- * outside the Root.
- *
- * `Separator` is Base UI's SHARED separator, re-exported on the menu namespace
- * by Base UI itself. Context Menu and Menubar reuse these very wrappers rather
- * than re-wrapping the identical underlying parts.
+ * A menu of actions and optional selection items. Compose Root and Trigger with Portal >
+ * Positioner > Popup; use Group and GroupLabel for sections, and SubmenuRoot with
+ * SubmenuTrigger for nested menus.
  */
 export const Menu = {
+  /**
+   * Owns the component state and provides context to its parts.
+   */
   Root: BaseMenu.Root,
+  /**
+   * Opens or toggles the associated content; render can compose it onto another control.
+   */
   Trigger: MenuTrigger,
+  /**
+   * Renders popup content outside the parent DOM hierarchy.
+   */
   Portal: BaseMenu.Portal,
+  /**
+   * Covers the surrounding page behind the popup.
+   */
   Backdrop: MenuBackdrop,
+  /**
+   * Positions the popup relative to its anchor; render inside Portal.
+   */
   Positioner: MenuPositioner,
+  /**
+   * The visible popup container; place labeled content and actions inside it.
+   */
   Popup: MenuPopup,
+  /**
+   * Draws the popup's pointer toward its anchor.
+   */
   Arrow: MenuArrow,
+  /**
+   * Contains the visible popup region and its layout.
+   */
   Viewport: MenuViewport,
+  /**
+   * Groups related items or controls.
+   */
   Group: MenuGroup,
+  /**
+   * Labels a group of items.
+   */
   GroupLabel: MenuGroupLabel,
+  /**
+   * Groups one item and its associated content.
+   */
   Item: MenuItem,
+  /**
+   * A menu item that navigates through a native link.
+   */
   LinkItem: MenuLinkItem,
+  /**
+   * A menu item with independent checked state.
+   */
   CheckboxItem: MenuCheckboxItem,
+  /**
+   * Displays content while its checkbox menu item is checked.
+   */
   CheckboxItemIndicator: MenuCheckboxItemIndicator,
+  /**
+   * Shares one selected value across radio menu items.
+   */
   RadioGroup: MenuRadioGroup,
+  /**
+   * A menu item representing one value in its radio group.
+   */
   RadioItem: MenuRadioItem,
+  /**
+   * Displays content while its radio menu item is selected.
+   */
   RadioItemIndicator: MenuRadioItemIndicator,
+  /**
+   * Separates adjacent groups or content.
+   */
   Separator: MenuSeparator,
+  /**
+   * Owns the state of a nested menu.
+   */
   SubmenuRoot: BaseMenu.SubmenuRoot,
+  /**
+   * Opens a nested menu from its parent menu.
+   */
   SubmenuTrigger: MenuSubmenuTrigger,
+  /**
+   * Handle class for sharing popup state with detached triggers.
+   */
   Handle: BaseMenu.Handle,
+  /**
+   * Creates a handle that connects a popup to triggers outside its Root.
+   */
   createHandle: BaseMenu.createHandle,
 };

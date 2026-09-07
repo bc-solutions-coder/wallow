@@ -5,27 +5,7 @@ import * as browserEntry from "./index";
 import { type LoginRedirectOptions, loginRedirect, requireAuth } from "./route-context";
 
 /**
- * Spec (Wallow-pu6a.5.6): the SSR-safe auth guard.
- *
- * This runs in the SDK's node environment, i.e. under the same conditions as a
- * full-page SSR render: no `location`, no `document`. That is deliberate — the
- * defect these helpers exist to prevent (Wallow-zyxe) was a guard that
- * navigated by assigning to the global `location`, which turned a gated SSR
- * load into an HTTP 500 instead of a redirect. Any helper here that reached for
- * a browser global would blow up in this file rather than in production.
- *
- * The pinned properties:
- *
- *   (a) `loginRedirect` is pure — it BUILDS a target and navigates nothing;
- *   (b) the target is an `href` with `reloadDocument`, never a `to`: `/bff/login`
- *       is a BFF endpoint outside the route tree, so a `to` (or an href without
- *       `reloadDocument`) is committed through the client router and lands on a
- *       not-found match instead of reaching the BFF;
- *   (c) `requireAuth` narrows the user away from null on the happy path and
- *       THROWS the injected router redirect otherwise — a returned redirect
- *       would let the guarded route render;
- *   (d) `redirect` is injected, so the SDK takes no dependency on
- *       `@tanstack/react-router` and the guard is testable without a router.
+ * Verify SSR-safe route guards and injected redirects. Login redirects include href and reloadDocument so the browser reaches the BFF outside the router tree.
  */
 
 /** A distinguishable stand-in for the object a router's `redirect()` returns. */
@@ -191,8 +171,7 @@ describe("requireAuth", () => {
 
 describe("browser entry surface", () => {
   it.each(["loginRedirect", "requireAuth"])("exports %s from the package root", (name: string) => {
-    // The AC is "exported from the SDK browser entry": apps import these from
-    // `@bc-solutions-coder/sdk`, never from a deep internal path.
+    // Applications consume these helpers through the SDK browser entrypoint.
     expect(Object.keys(browserEntry)).toContain(name);
     expect((browserEntry as unknown as Record<string, unknown>)[name]).toBeDefined();
   });

@@ -1,21 +1,7 @@
 /**
- * The one writer behind every failure the server hop originates itself.
- *
- * Both presets — the session-owning `/api` proxy and the session-less
- * passthrough — answer their own rejections through {@link problemResponse}, so
- * a stale session, a bad CSRF token, an unknown path, or an unreachable API
- * reaches the browser wearing the API's own envelope: RFC 7807 members plus a
- * top-level `code` and the `requestId`, and never a `traceId` (there was no
- * backend trace to have gotten one from). The browser's `api-errors` parser
- * then reads an originated problem exactly as it reads a relayed one.
- *
- * The per-code copy below is the server counterpart of the failure-message
- * defaults `@bc-solutions-coder/api-errors` ships: fixed wording per case. The
- * message of the underlying fault — an undici error, an abort, a rejected grant
- * — never enters a body; it belongs in the redacted log record.
- *
- * This module is imported by the passthrough subpath, so it must stay clear of
- * the handler/proxy graph: `api-errors` and the request-id helpers only.
+ * Create problem responses for locally originated BFF and passthrough failures. Public bodies use
+ * fixed messages and requestId; transport details stay in logs. Keep this module independent of
+ * the BFF handler graph for the passthrough entrypoint.
  */
 
 import { ClientErrorCode, ErrorCode } from "@bc-solutions-coder/api-errors";

@@ -17,11 +17,6 @@ import {
  * `largeStep`, `snapOnStep`, `allowOutOfRange`, `allowWheelScrub`, `format`,
  * `locale`, `disabled`, `readOnly`, `required`, `name`, `form`, `id`,
  * `inputRef`, `render`).
- *
- * `className` is deliberately narrowed back to `string`: Base UI widens it to
- * `string | ((state) => string | undefined)`, and the callback form cannot be
- * merged with a recipe through `cn()`. Every component in this catalog makes
- * the same narrowing (Wallow-m5aq.2.1 established it).
  */
 export interface NumberFieldRootProps extends Omit<
   ComponentProps<typeof BaseNumberField.Root>,
@@ -140,17 +135,36 @@ function NumberFieldScrubAreaCursor({
 }
 
 /**
- * The catalog's number field, as a namespace whose keys mirror Base UI's part
- * names 1:1 (`NumberField.Root`, `.Group`, `.Decrement`, `.Input`,
- * `.Increment`, `.ScrubArea`, `.ScrubAreaCursor`) so a reader can move between
- * Base UI's docs and this catalog without a translation step.
+ * A numeric input with increment, decrement, and optional drag adjustment. Root owns value and
+ * bounds; Group arranges the input and buttons, while ScrubArea enables pointer adjustment.
  */
 export const NumberField = {
+  /**
+   * Owns the component state and provides context to its parts.
+   */
   Root: NumberFieldRoot,
+  /**
+   * Groups related items or controls.
+   */
   Group: NumberFieldGroup,
+  /**
+   * Decreases the number by the configured step.
+   */
   Decrement: NumberFieldDecrement,
+  /**
+   * The editable input connected to Root state.
+   */
   Input: NumberFieldInput,
+  /**
+   * Increases the number by the configured step.
+   */
   Increment: NumberFieldIncrement,
+  /**
+   * Changes the number by dragging the labeled area.
+   */
   ScrubArea: NumberFieldScrubArea,
+  /**
+   * Displays the cursor during pointer-based number adjustment.
+   */
   ScrubAreaCursor: NumberFieldScrubAreaCursor,
 };

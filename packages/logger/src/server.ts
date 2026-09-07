@@ -1,30 +1,8 @@
 /**
- * The ingest handler both apps mount, and the server-side logger they use for
- * their own records.
- *
- * **One transport, one record format, one handler, TWO mount points.**
- * `wallow-web` mounts it under `/bff/*`, where the SDK's CSRF gate already
- * applies; `wallow-auth` mounts it at `/logs` on its own Start server route and
- * supplies no CSRF verifier, because it holds no session and therefore has no
- * token to check. Neither app reimplements the guards.
- *
- * **CSRF is not the control this endpoint needs**, and treating it as one is how
- * an ingest route ends up unprotected in the app that has no session. The
- * controls that actually apply, in both apps:
- *
- *  - an **origin allowlist**, which is load-bearing rather than advisory:
- *    `Origin` is a forbidden header name, so page script cannot forge it, and it
- *    survives the `sendBeacon` path where no other header can be set;
- *  - **payload caps**, rejecting rather than truncating;
- *  - a **per-IP rate limit**, because the route is unauthenticated by design,
- *    keyed on the address the HOST supplies rather than on anything inbound —
- *    a caller who can choose the key can mint a fresh bucket per request;
- *  - **server-side stamping** of receipt time, client IP, service, correlation id
- *    and tenant/user — every field a page could otherwise assert about itself.
- *    The client IP comes from `clientAddress`, never off the wire.
- *
- * A valid batch answers **204 whether or not the collector accepted it**. The
- * page's behaviour must not change because telemetry is down.
+ * Server log ingestion and direct server logging. Ingestion checks the Origin header, payload
+ * limits, and a per-client rate limit before optional authorization. It stamps service, receipt
+ * time, and host-supplied identity fields. Accepted batches return 204 even when their sink
+ * fails.
  */
 import {
   DEFAULT_INGEST_LIMITS,
@@ -77,7 +55,13 @@ export {
 
 /** What the handler learned about the caller from the app's own session state. */
 export interface LogRequestContext {
+  /**
+   * Authenticated user identifier supplied by the host context callback.
+   */
   userId?: string;
+  /**
+   * Resolved tenant identifier supplied by the host context callback.
+   */
   tenantId?: string;
 }
 
@@ -92,16 +76,9 @@ export interface LogIngestOptions {
    */
   service: string;
   /**
-   * Origins allowed to POST here, compared exactly (scheme, host and port).
-   *
-   * The load-bearing guard. An empty list rejects everything, which is the right
-   * failure direction for a misconfigured deployment.
-   *
-   * A function is resolved per request, which is what lets an app whose own
-   * public origin is not in its configuration — a pure passthrough app — answer
-   * with the origin THIS request was addressed to and require the page to match
-   * it. That is the classic Origin-versus-target check: the browser sets both,
-   * and only a page actually served from this origin satisfies it.
+   * Exact allowed Origin values, including scheme, host, and port. An empty list or absent Origin
+   * rejects the request. A callback can derive the list per request; forwarded values require the
+   * host own trust policy.
    */
   allowedOrigins: readonly string[] | ((request: Request) => readonly string[]);
   /** Collector base URL, e.g. `http://localhost:4318`. Omitted: no OTLP emit. */
@@ -113,27 +90,14 @@ export interface LogIngestOptions {
   /** Attribute keys scrubbed server-side — the authoritative pass. */
   redact?: readonly string[];
   /**
-   * The peer address, supplied by the host. Never read off the wire.
-   *
-   * Both the rate-limit key and the stamped `clientIp` come from here, which is
-   * why it cannot be a header. The route is unauthenticated by design, so an
-   * inbound header is a value the caller chooses: rotating it would mint a fresh
-   * rate-limit bucket per request, and it would forge a field that reads as
-   * server-stamped. Only the host knows who the peer actually is.
-   *
-   * Absent, or answering `undefined`: every caller shares one `"unknown"` bucket
-   * and no `clientIp` is stamped. That is the correct failure direction — a
-   * misconfigured host limits too much and claims nothing, rather than the
-   * reverse.
+   * Resolve a trusted client address from the host runtime. Used for the rate-limit key and
+   * stamped clientIp. Missing or empty values put every such request in the unknown bucket.
    */
   clientAddress?: (request: Request) => string | undefined;
   /**
-   * Whether this request may write logs, for apps that hold a session.
-   *
-   * Receives the parsed batch as well as the request, because on the
-   * `sendBeacon` path the CSRF token is in the body — `sendBeacon` cannot set
-   * headers, and the alternative is losing every log a closing tab was holding.
-   * Omitted: no CSRF check, which is correct for a passthrough app.
+   * Optional authorization callback run after batch validation. For CSRF checks, account for the
+   * request header and the beacon batch csrfToken. Returning false rejects with 403; omission adds
+   * no session or CSRF check.
    */
   authorize?: (request: Request, batch: LogBatch) => boolean | Promise<boolean>;
   /** Session-derived fields stamped onto every record of this request. */
@@ -233,11 +197,14 @@ function toServerRecord(
 }
 
 /**
- * Build the ingest handler.
+ * Create one reusable POST handler with a persistent per-client rate limiter. Checks origin,
+ * request rate, payload limits, and optional authorization before constructing server records.
+ * Accepted batches return 204 even if the sink fails; rejected requests return 400, 403, 405, 413,
+ * or 429 with a reason.
  *
- * A factory rather than a bare `handleLogIngest(request, options)` because the
- * rate limiter is state that must live ACROSS requests: a limiter constructed
- * per call counts to one and never refuses anything.
+ * Configure clientAddress from trusted runtime peer information. Without it, all requests share
+ * the unknown bucket. Exceptions from application callbacks such as authorize and context
+ * propagate.
  */
 export function createLogIngestHandler(options: LogIngestOptions): LogIngestHandler {
   const limits: IngestLimits = options.limits ?? DEFAULT_INGEST_LIMITS;
@@ -364,9 +331,25 @@ export interface ServerLoggerOptions {
 
 /** The logger an app's server code holds. Fire-and-forget: nothing here awaits. */
 export interface ServerLogger {
+  /**
+   * Record a debug event when it meets the configured minimum level. Use a stable event name,
+   * per-call attributes, and an optional error; per-call attributes override base attributes.
+   */
   debug: (event: string, attrs?: Record<string, unknown>, error?: unknown) => void;
+  /**
+   * Record a info event when it meets the configured minimum level. Use a stable event name,
+   * per-call attributes, and an optional error; per-call attributes override base attributes.
+   */
   info: (event: string, attrs?: Record<string, unknown>, error?: unknown) => void;
+  /**
+   * Record a warn event when it meets the configured minimum level. Use a stable event name,
+   * per-call attributes, and an optional error; per-call attributes override base attributes.
+   */
   warn: (event: string, attrs?: Record<string, unknown>, error?: unknown) => void;
+  /**
+   * Record a error event when it meets the configured minimum level. Use a stable event name,
+   * per-call attributes, and an optional error; per-call attributes override base attributes.
+   */
   error: (event: string, attrs?: Record<string, unknown>, error?: unknown) => void;
   /** A logger stamping `attrs` on top of this one's. */
   child: (attrs: Record<string, unknown>) => ServerLogger;
@@ -388,12 +371,12 @@ function toRecordError(error: unknown): ServerLogRecord["error"] {
 }
 
 /**
- * Build the server-side logger.
+ * Create a direct server logger with level filtering and attribute redaction. Writes to the
+ * console by default and optionally invokes a custom sink or OTLP exporter. Child loggers overlay
+ * base attributes.
  *
- * Same record shape as the browser's, so a request that starts in the page and
- * finishes on the server produces two records a collector can join on
- * `wallow.correlation_id` — which is the entire reason this package owns both
- * ends rather than leaving the server on `console.*`.
+ * Delivery is not awaited. Rejected sink promises are logged, but a synchronous custom sink,
+ * clock, or serialization failure can throw to the caller.
  */
 export function createServerLogger(options: ServerLoggerOptions): ServerLogger {
   const minimum: LogLevel = options.level ?? "info";

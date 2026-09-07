@@ -3,34 +3,6 @@ import { dirname, relative, resolve } from "node:path";
 
 import { defineRule, type ESTree } from "@oxlint/plugins";
 
-/**
- * The app's three zones and the one-way graph between them.
- *
- * `src/` is `app/` (routes, router, entries, server-only modules), `features/<x>/` (one
- * directory per screen or flow) and `shared/` (what more than one feature genuinely
- * needs). The rule is a DAG: `app` may reach features and shared, a feature may reach
- * shared, shared may reach nothing but itself. Nothing reaches back up, and no feature
- * reaches sideways into another.
- *
- * Cross-zone edges must be spelled as ALIASES rather than relative hops. That is not
- * decoration: an alias makes a boundary crossing visible in the import block, and it is
- * what lets a module move within its zone without a rewrite. Relative specifiers stay
- * legal — and required — WITHIN a zone.
- *
- * `no-restricted-imports` cannot state any of this, because it globs the specifier
- * STRING and the rule here is about where a path RESOLVES: whether `../../lib/thing`
- * lands in your own zone or someone else's depends entirely on which file wrote it. A
- * glob that catches `../../shared/*` from a feature is defeated by
- * `../../../wallow-auth/src/shared/*`, and one strict enough to catch both bans
- * legitimate intra-zone imports. So this resolves every specifier against its importer's
- * real directory and judges the resulting edge.
- *
- * The zones are READ from the app's `tsconfig.json` `paths` rather than named here, so
- * the list this polices and the list Vite and vitest resolve are one list, and a fourth
- * zone is policed from the moment it exists. That derivation is also what lets one rule
- * serve both apps with no options at all — nothing here names `src`, a zone, or an app.
- */
-
 /** Zones whose members are BARREL-ONLY, as `{ barrelZones: [...] }`. */
 const DEFAULT_BARREL_ZONES: readonly string[] = ["features"];
 
@@ -125,6 +97,12 @@ function readApp(directory: string): App | null {
   return { srcDir: commonDirectory(zoneDirectories), aliases };
 }
 
+/**
+ * Enforce app, feature, and shared import boundaries derived from tsconfig aliases.
+ * Cross-zone imports use aliases. Configured barrelZones prohibit deep imports
+ * and sibling-member imports. Tests may reach app code; root-level source files
+ * are exempt from boundary checks.
+ */
 export const zoneDag = defineRule({
   meta: {
     type: "problem",

@@ -7,10 +7,6 @@ import { Radio } from "../radio";
 import { RadioGroup } from "./radio-group";
 
 /*
- * RadioGroup behavioural spec (Wallow-m5aq.2.6), shaped after the
- * Wallow-m5aq.2.1 Button exemplar: browser project, nothing mocked, recipes
- * asserted THROUGH the component, class assertions as an order-free set.
- *
  * The group owns everything that is not one radio's own business — the
  * `radiogroup` role, the selected value, the shared `name`, and roving-focus
  * keyboard selection — so that is what this file covers. Per-radio state lives

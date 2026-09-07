@@ -7,9 +7,6 @@ import {
 import { expect } from "storybook/test";
 
 /*
- * Wallow-lrlm.11 — the assertion a scheme-scoped story makes about ITSELF: the
- * scheme it is named for is the scheme it actually paints.
- *
  * WHY THIS EXISTS. Six story files (`empty-state`, `list-card`, `list-row`,
  * `page-header`, `text`, `theme-toggle`) used to scope a scheme with a wrapper
  * `<div className="dark">` that asserted nothing about colour, so every story
@@ -102,7 +99,7 @@ function schemeHost(canvasElement: HTMLElement): HTMLElement {
  *
  *  1. THE PALETTE IS THE RIGHT WAY UP. Dark mode is light text on a dark ground,
  *     so the background's relative luminance sits BELOW the foreground's; light
- *     mode is the reverse. This is what fails today for every *Dark story: under
+ *     mode is the reverse. This is what fails for every *Dark story: under
  *     a wrapper they paint the light background and the dark foreground.
  *  2. THE TOKEN LAYER AGREES WITH THE RAW LAYER. `--color-background` is defined
  *     as `var(--background)`, so inside a correctly scoped scheme the two paint

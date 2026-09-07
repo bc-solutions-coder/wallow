@@ -123,14 +123,32 @@ function ToolbarSeparator({ className, ...rest }: ToolbarSeparatorProps): ReactE
 }
 
 /**
- * The catalog's toolbar, as ONE namespace object whose keys mirror Base UI's six
- * namespace members 1:1 — the catalog-wide convention for multi-part components.
+ * A composite toolbar with arrow-key navigation among Button, Link, and Input parts. Group
+ * organizes related controls; Separator defaults to the orientation opposite the toolbar.
  */
 export const Toolbar = {
+  /**
+   * Owns the component state and provides context to its parts.
+   */
   Root: ToolbarRoot,
+  /**
+   * Groups related items or controls.
+   */
   Group: ToolbarGroup,
+  /**
+   * A button that participates in the toolbar's keyboard navigation.
+   */
   Button: ToolbarButton,
+  /**
+   * A navigation link within the composite widget.
+   */
   Link: ToolbarLink,
+  /**
+   * The editable input connected to Root state.
+   */
   Input: ToolbarInput,
+  /**
+   * Separates adjacent groups or content.
+   */
   Separator: ToolbarSeparator,
 };

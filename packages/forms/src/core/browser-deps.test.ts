@@ -1,13 +1,5 @@
-/*
- * Pre-bundle guard for packages/forms. The machinery — and the long explanation
- * of why an unresolvable `optimizeDeps.include` entry is a silent warning rather
- * than an error — lives in `@bc-solutions-coder/testing/browser-deps`; this file
- * only points it at this package.
- *
- * This package is where that failure was first diagnosed, which is why the check
- * now runs everywhere with a browser project instead of here alone.
- *
- * Pure-logic spec: runs in the vitest NODE project.
+/**
+ * Verify browser pre-bundle imports resolve and Base UI resolves to one directory.
  */
 
 import { fileURLToPath } from "node:url";

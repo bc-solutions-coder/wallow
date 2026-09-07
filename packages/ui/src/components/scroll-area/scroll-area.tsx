@@ -138,15 +138,33 @@ function ScrollAreaCorner({ className, ...rest }: ScrollAreaCornerProps): ReactE
 }
 
 /**
- * The catalog's scroll area, as ONE namespace object whose keys mirror Base UI's
- * six namespace members 1:1 — the catalog-wide convention for multi-part
- * components.
+ * A scrollable region with custom scrollbar parts. Root contains Viewport > Content and
+ * Scrollbar > Thumb; Corner fills the intersection when both axes have scrollbars. Give the
+ * root a constrained size.
  */
 export const ScrollArea = {
+  /**
+   * Owns the component state and provides context to its parts.
+   */
   Root: ScrollAreaRoot,
+  /**
+   * Contains the visible popup region and its layout.
+   */
   Viewport: ScrollAreaViewport,
+  /**
+   * Contains the component's content.
+   */
   Content: ScrollAreaContent,
+  /**
+   * Contains a scrollbar for the selected orientation.
+   */
   Scrollbar: ScrollAreaScrollbar,
+  /**
+   * The movable or state-positioned part of the control.
+   */
   Thumb: ScrollAreaThumb,
+  /**
+   * Fills the corner where horizontal and vertical scrollbars meet.
+   */
   Corner: ScrollAreaCorner,
 };

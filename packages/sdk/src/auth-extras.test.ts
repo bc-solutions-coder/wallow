@@ -1,19 +1,6 @@
 /**
- * Spec for `auth-extras`.
- *
- * Renames of generated operations, envelope unwrapping, and error mapping are
- * the generated client's job (`responseStyle: 'data'` + `throwOnError: true`
- * plus the `ApiFailure` interceptor). Two behaviors have no codegen expression,
- * and this file is the contract for exactly those two plus the deletions that
- * make them the ONLY survivors:
- *
- *   1. `getCurrentUser` softens 401 (and ONLY 401) into `null`;
- *   2. `validateRedirectUriArgs` omits the `clientId` KEY rather than sending it
- *      as `undefined`.
- *
- * `./generated` is mocked because these helpers are wrappers: the assertions are
- * about which operation is called, with which argument, and what happens to the
- * result — never about the wire.
+ * Verify that getCurrentUser maps only 401 to null and validateRedirectUriArgs omits an absent
+ * clientId. Generated operations are mocked to isolate wrapper behavior.
  */
 
 import { ApiFailure } from "@bc-solutions-coder/api-errors";

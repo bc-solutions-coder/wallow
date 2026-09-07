@@ -177,13 +177,7 @@ describe("loadBffConfigFromEnv — cookieSameSite", () => {
 });
 
 /**
- * Env-contract fail-fast (Wallow-pu6a.3.7).
- *
- * The loader used to throw on the FIRST missing variable, so a fork bringing up
- * a new environment fixed one name, restarted, and hit the next — one round trip
- * per variable. It now validates the whole contract and throws ONE error listing
- * every problem it found, at boot, so a misconfigured deployment never reaches
- * the first request and answers it with a 500.
+ * Report all invalid required environment settings together so startup configuration can be corrected in one pass.
  */
 describe("loadBffConfigFromEnv — aggregated env-contract validation", () => {
   it("names EVERY missing required variable in a single error, not just the first", () => {
@@ -279,13 +273,7 @@ describe("loadBffConfigFromEnv — aggregated env-contract validation", () => {
 });
 
 /**
- * `COOKIE_PASSWORD` must be at least 32 characters (finding M4).
- *
- * iron-webcrypto's `seal()` rejects a shorter password, and nothing else reads
- * the length, so a 31-character secret boots cleanly and then fails with a 500
- * in the middle of the login callback — the one code path a fork exercises last.
- * The loader checks it at boot instead, and reports it alongside every other
- * configuration problem in the SAME aggregated error.
+ * Reject cookie passwords shorter than 32 characters during configuration loading, before a login attempts to seal a cookie.
  */
 describe("loadBffConfigFromEnv — COOKIE_PASSWORD length", () => {
   it("throws when COOKIE_PASSWORD is 31 characters", () => {
@@ -358,13 +346,7 @@ describe("loadBffConfigFromEnv — COOKIE_PASSWORD length", () => {
 });
 
 /**
- * Keyed cookie secrets for rotation (finding L3).
- *
- * With one secret, changing it 401s every signed-in browser at once, because
- * nothing can unseal the cookies the previous secret sealed. `COOKIE_PASSWORDS`
- * carries a JSON map of key ID to secret instead: the FIRST entry seals new
- * cookies and every entry stays valid for unsealing, so an operator adds the new
- * key, deploys, waits out the old cookies' TTL, and only then drops the old key.
+ * Keyed cookie passwords allow old cookies to be read while new cookies use the selected active key.
  */
 describe("loadBffConfigFromEnv — COOKIE_PASSWORDS rotation", () => {
   const V2: string = "v2".repeat(20);
@@ -415,8 +397,7 @@ describe("loadBffConfigFromEnv — COOKIE_PASSWORDS rotation", () => {
       envWith({ COOKIE_PASSWORDS: JSON.stringify({ v2: V2, v1: V1 }) }),
     );
 
-    // The back-compat field keeps its meaning: the secret new cookies are sealed
-    // with. Call sites that only seal therefore need no change.
+    // cookiePassword contains the active secret used to seal new cookies.
     expect(config.cookiePassword).toBe(V2);
   });
 
@@ -560,21 +541,7 @@ describe("loadBffConfigFromEnv — existing behavior is unchanged", () => {
 });
 
 /**
- * The default session-cookie name carries the `__Host-` prefix
- * (Wallow-pu6a.3.2, finding F10).
- *
- * `__Host-` is the only cookie protection a subdomain cannot defeat: a browser
- * refuses to accept such a cookie unless it is `Secure`, `Path=/`, and carries
- * no `Domain`, which means a compromised or attacker-controlled sibling host
- * cannot overwrite the session cookie of `app.example.com`. Without it, cookie
- * fixation from any subdomain stays open.
- *
- * The prefix is only honoured over HTTPS, so it has to follow `cookieSecure`:
- * on a plain-http dev origin a `__Host-` cookie would be silently DROPPED by
- * the browser and login would fail with no error anywhere. `COOKIE_SECURE=false`
- * therefore also drops the prefix, and `COOKIE_HOST_PREFIX=false` exists as the
- * explicit opt-out for the rare deployment that terminates TLS but cannot meet
- * the prefix's other requirements.
+ * The default __Host- cookie requires Secure, Path=/, and no Domain. Custom cookie names remain configurable.
  */
 describe("loadBffConfigFromEnv — cookieName __Host- prefix", () => {
   it("defaults to __Host-wallow_bff when cookies are Secure", () => {

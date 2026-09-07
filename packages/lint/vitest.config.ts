@@ -1,7 +1,6 @@
 import { defineConfig } from "vitest/config";
 
-// Node only. Every spec here shells out to the real oxlint binary and reads its
-// JSON report; nothing renders, so there is no browser project.
+/** Run the fixture suite in Node against the real oxlint binary. */
 export default defineConfig({
   test: {
     include: ["src/**/*.test.ts"],

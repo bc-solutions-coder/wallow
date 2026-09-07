@@ -4,8 +4,6 @@ import { type ReactElement, type ReactNode, useLayoutEffect } from "react";
 import type { SchemeName } from "./scheme-assertions";
 
 /*
- * Wallow-lrlm.11 — the ONE way a story selects a colour scheme.
- *
  * WHY THE CLASS GOES ON THE DOCUMENT ELEMENT. `renderThemeStyle` emits
  * `:root` / `.dark` / `.light` blocks carrying the RAW variables (`--background`,
  * `--sidebar`, …), while `styles.css`'s `@theme` declares the TOKEN

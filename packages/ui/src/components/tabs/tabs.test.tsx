@@ -5,18 +5,7 @@ import { userEvent } from "vitest/browser";
 import { Tabs } from "./tabs";
 
 /*
- * Wallow-m5aq.4.2 — Tabs. Same spec shape as the Wave-1 exemplar
- * (Wallow-m5aq.2.1) and the Wave-2 exemplar (Wallow-m5aq.3.1): browser vitest
- * project, nothing mocked, the recipes asserted THROUGH the component, class
- * assertions as an order-free set.
- *
- * Nothing here is portalled, so unlike every Wave-2 overlay every query goes
- * through render()'s `container` and none of the popup gotchas apply.
- *
- * ANATOMY, measured against the installed Base UI 1.6.0 rather than read off the
- * docs (a throwaway probe spec, since deleted):
- *
- *   <div data-orientation data-activation-direction>                  <- Root
+ * <div data-orientation data-activation-direction>                  <- Root
  *     <div role="tablist" data-orientation data-activation-direction>  <- List
  *       <button type="button" role="tab" aria-selected aria-disabled>  <- Tab
  *       <span role="presentation" style="--active-tab-left: …">        <- Indicator

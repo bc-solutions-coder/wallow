@@ -15,15 +15,8 @@ import {
 import { render } from "./render";
 
 /**
- * Specs for the `./contrast` subpath — the measured-colour helpers app specs use
- * instead of class-string assertions.
- *
- * `.test.tsx` because these need a real DOM and a real canvas: the preset routes
- * `*.test.ts` to the NODE project, where `document` does not exist.
- *
- * This project loads no stylesheet, which suits the subject — every case sets
- * colours inline, so what is under test is the PARSING and the arithmetic rather
- * than any Tailwind token.
+ * Exercise canvas color parsing and contrast arithmetic in Chromium.
+ * Inline colors keep these assertions independent of application stylesheets.
  */
 describe("parseColor", () => {
   it("parses rgb() and rgba()", () => {
@@ -44,8 +37,7 @@ describe("parseColor", () => {
   });
 
   it("recovers the authored channels of a translucent colour", () => {
-    // Painted onto a cleared canvas the bytes come back scaled by alpha; the
-    // helper undoes that, so `/40` opacity utilities report their real colour.
+    // This checks alpha and a lower bound, not exact translucent RGB channels.
     const half: Rgba = parseColor("rgba(255, 0, 0, 0.5)");
 
     expect(half.r).toBeGreaterThan(250);

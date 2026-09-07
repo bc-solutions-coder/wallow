@@ -12,32 +12,6 @@ import {
   type ThemeMode,
 } from "./theme-provider";
 
-/*
- * Wallow-lrlm.1.2 — theme activation in the REAL browser. The `browser` vitest
- * project, so `localStorage`, `matchMedia` and `document.documentElement` are
- * the genuine articles: nothing here is mocked (packages/ui mocks nothing), the
- * specs manipulate the real environment and restore it afterwards.
- *
- * The two claims that matter, and why they are asserted the way they are:
- *
- *   NO FLASH — the class has to land BEFORE first paint, which means before any
- *   React code runs at all. That is only provable by executing the actual script
- *   source: appending a `<script>` with `textContent` runs it synchronously on
- *   insertion, so an assertion taken on the very next line (no `await`, no
- *   `waitFor`) proves the stamping is synchronous. A spec that rendered the
- *   provider and then polled would pass for an implementation that stamps from
- *   `useEffect` — the exact defect the bead forbids.
- *
- *   NO HYDRATION MISMATCH — proved structurally rather than by watching the
- *   console: a mismatch IS the server and client markup disagreeing, so the SSR
- *   string and the client DOM are compared directly, and the class the script
- *   stamped is asserted to survive the provider's mount untouched.
- *
- * The precedence table itself lives in the sibling `theme-provider.test.ts`
- * (node project): `prefers-color-scheme` cannot be emulated from here, so the
- * cases below read the LIVE media query and derive what they expect from it.
- */
-
 /** The colour scheme this browser actually reports, or `null` if it has none. */
 function liveSystemMode(): ThemeMode | null {
   if (globalThis.matchMedia("(prefers-color-scheme: dark)").matches) {

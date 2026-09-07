@@ -3,17 +3,22 @@ import type { ReactElement } from "react";
 import { MutedText } from "../muted-text/muted-text";
 import { Text } from "../text/text";
 
+/**
+ * Branding content and page or card presentation. The caller supplies the resolved brand; this
+ * component does not fetch it.
+ */
 export interface BrandedHeaderProps {
-  /** Heading text: the requesting client's display name, else the fork's app name. */
+  /**
+   * Display name used for the heading and logo alternative text.
+   */
   readonly name: string;
   /** Sub-heading beneath the name; `null`/`undefined`/`""` renders nothing. */
   readonly tagline?: string | null;
   /** Logo `src` above the name; `null`/`undefined`/`""` renders nothing. */
   readonly logoUrl?: string | null;
   /**
-   * The organization that owns the client, attributed as "by {organizationName}"
-   * beneath the heading. Absent for the fork's own branding and for first-party
-   * clients, which render no attribution line.
+   * Optional owner attribution beneath the heading. Null, undefined, or an empty string omits
+   * the line.
    */
   readonly organizationName?: string | null;
   /**

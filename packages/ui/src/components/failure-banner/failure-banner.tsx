@@ -11,6 +11,10 @@ import { Button } from "../button/button";
 import { ErrorBanner, type ErrorBannerProps } from "../error-banner/error-banner";
 import { useFailureMessage } from "../failure-messages/failure-messages";
 
+/**
+ * Failure input, message overrides, and optional recovery actions. Other attributes apply to
+ * the outer ErrorBanner.
+ */
 export interface FailureBannerProps extends Omit<ErrorBannerProps, "children"> {
   /**
    * The failure to show; anything not already an `ApiFailure` is classified

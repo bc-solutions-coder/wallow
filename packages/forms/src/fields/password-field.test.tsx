@@ -9,14 +9,9 @@ import { AppForm } from "../form/app-form";
 import { SubmitButton } from "../form/submit-button";
 import { useAppForm } from "../form/use-app-form";
 
-/*
- * `PasswordField` through the REAL pipeline, in the browser project (nothing
- * mocked — see `text-field.test.tsx`, the catalog's template spec, for the full
- * rationale and the shape of these cases).
- *
- * The one case this field adds over the template: the control is MASKED, and it
- * is masked because the component says so rather than because a caller passed
- * the right `type`. ResetPasswordForm's two boxes are the migration target.
+/**
+ * Exercise masked values, label actions, validation, and test ID overrides through the form
+ * pipeline.
  */
 
 const schema = z.object({

@@ -1,27 +1,8 @@
 /**
- * The browser core: a level-filtered, redacting buffer that posts batches to an
- * app-server ingest route.
- *
- * Transport is **browser -> app server -> OTLP**. The page never talks to a
- * collector and never holds a collector credential; what it holds is a
- * same-origin path, which is why the ingest route can afford an origin allowlist
- * as its load-bearing guard (see `./server`).
- *
- * Three failure rules, because a logger that fails loudly is worse than none:
- *
- *  1. **A transport error never calls the logger.** It falls back to `console`
- *     and disables transport for a backoff window, so a failing ingest route
- *     cannot turn one dropped batch into an unbounded retry storm.
- *  2. **The buffer drops OLDEST on overflow** and reports the count as a
- *     `logger.dropped` event on the next flush, rather than growing without
- *     bound in a long-lived tab.
- *  3. **Nothing here throws into the page.** Every public method returns
- *     `void`/`Promise<void>`; a page's behaviour never changes because telemetry
- *     is down.
- *
- * Outside a browser — SSR, a node test — `createLogger` registers no listeners
- * and starts no timer. It still records and still flushes when asked, which is
- * what makes the buffering testable without a DOM.
+ * Browser logging with level filtering, bounded buffering, attribute redaction, and same-origin
+ * batch delivery. Fetch failures go to the console and start a backoff window; failed batches
+ * are not requeued. Browser instances register lifecycle listeners and an optional timer; other
+ * runtimes flush only when called or when the buffer threshold is reached.
  */
 import {
   DEFAULT_REDACT_KEYS,
@@ -65,9 +46,8 @@ export interface LoggerOptions {
   /** The current `x-request-id`, when the app tracks one. Stamped on every event. */
   getCorrelationId?: () => string | undefined;
   /**
-   * The CSRF token for apps whose ingest route is behind one — BFF apps only.
-   * A passthrough app holds no session, so it supplies nothing and the handler
-   * asks for nothing.
+   * Read the current CSRF token for a protected ingest route. Fetch sends it in x-csrf-token;
+   * beacon delivery puts it in the batch body.
    */
   getCsrfToken?: () => string | null;
   /** Attribute keys scrubbed before an event is buffered. Default {@link DEFAULT_REDACT_KEYS}. */
@@ -82,21 +62,46 @@ export interface LoggerOptions {
   flushIntervalMs?: number;
   /** How long transport stays disabled after a failure, in ms. Default 30000. */
   transportBackoffMs?: number;
-  /** Serialized-batch ceiling in bytes. Default 64 KiB — `sendBeacon`'s own quota. */
+  /**
+   * Fetch-batch size limit in UTF-8 bytes, defaulting to 65536. Oversized fetch batches are split;
+   * the pagehide beacon path does not apply this split.
+   */
   maxBodyBytes?: number;
 }
 
 /** The logger an app holds. */
 export interface Logger {
+  /**
+   * Record a debug event when it meets the configured minimum level. Use a stable event name,
+   * per-call attributes, and an optional error; per-call attributes override base attributes.
+   */
   debug: (event: string, attrs?: Record<string, unknown>, error?: unknown) => void;
+  /**
+   * Record a info event when it meets the configured minimum level. Use a stable event name,
+   * per-call attributes, and an optional error; per-call attributes override base attributes.
+   */
   info: (event: string, attrs?: Record<string, unknown>, error?: unknown) => void;
+  /**
+   * Record a warn event when it meets the configured minimum level. Use a stable event name,
+   * per-call attributes, and an optional error; per-call attributes override base attributes.
+   */
   warn: (event: string, attrs?: Record<string, unknown>, error?: unknown) => void;
+  /**
+   * Record a error event when it meets the configured minimum level. Use a stable event name,
+   * per-call attributes, and an optional error; per-call attributes override base attributes.
+   */
   error: (event: string, attrs?: Record<string, unknown>, error?: unknown) => void;
   /** A logger stamping `attrs` on top of this one's. Shares the same buffer. */
   child: (attrs: Record<string, unknown>) => Logger;
-  /** Send everything buffered now. Resolves once the attempt is over, failure included. */
+  /**
+   * Attempt to send buffered events unless transport is in backoff. Fetch-path failures are logged
+   * and swallowed; failed events are not requeued.
+   */
   flush: () => Promise<void>;
-  /** Stop the timer and unregister the page-lifecycle listeners. */
+  /**
+   * Stop the shared timer and remove lifecycle listeners for this logger and its children. Does
+   * not flush the buffer or disable further recording.
+   */
   dispose: () => void;
 }
 
@@ -275,13 +280,9 @@ async function flushCore(core: LoggerCore): Promise<void> {
 }
 
 /**
- * The terminal flush, on `pagehide`.
- *
- * `sendBeacon` is the only transport a browser guarantees to complete after the
- * document is gone — and it cannot set headers, so the CSRF token rides in the
- * body here and the ingest handler accepts it from either place. A `fetch` with
- * `keepalive` is not a substitute on this path: a page being discarded may never
- * run the continuation that reads the response.
+ * Attempt a final beacon flush on pagehide.
+ * The CSRF token travels in the body because sendBeacon cannot set custom headers.
+ * Queue acceptance does not confirm delivery.
  */
 function flushBeacon(core: LoggerCore): void {
   if (core.buffer.length === NONE && core.dropped === NONE) {
@@ -399,11 +400,13 @@ function registerLifecycle(core: LoggerCore): void {
 }
 
 /**
- * Build the app's logger.
+ * Create a reusable logger with a shared buffer for its child loggers. Applies the level filter
+ * and configured attribute redaction before enqueueing. Browser instances flush on a timer, hidden
+ * visibility, and pagehide; dispose stops the timer and listeners without flushing.
  *
- * One per app, held as a module singleton: a second logger is a second buffer
- * with its own timer, and the two interleave records across two requests for no
- * gain.
+ * Fetch transport failures are logged and start a backoff window without requeueing the failed
+ * batch. Supply nonthrowing callbacks and serializable attributes; record callbacks and the
+ * pagehide beacon path can throw.
  */
 export function createLogger(options: LoggerOptions): Logger {
   const core: LoggerCore = {

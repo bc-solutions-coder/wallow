@@ -25,6 +25,11 @@
 // ref-held box the upstream implementation also omits from dependency arrays.
 import { useDebugValue, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 
+/**
+ * Subscribe to an external store and return its selected snapshot using React hooks. Memoizes
+ * selections and optionally reuses equal results through isEqual. This vendored adapter is reached
+ * by the app preset aliases, not a public package subpath.
+ */
 export function useSyncExternalStoreWithSelector(
   subscribe,
   getSnapshot,

@@ -1,24 +1,6 @@
 /**
- * Capture a native form submission instead of letting it leave the runner.
- *
- * A screen that delivers an answer as a full-page `<form method="post">` cannot
- * be asserted through the navigation guard: the guard sees only the action URL,
- * and the body — the part a POST exists to carry — is gone with the document.
- * `captureFormSubmission()` listens for the next `submit` event on the document,
- * cancels it before the browser navigates, and hands back what WOULD have been
- * sent: the resolved action, the method, and the entries the browser itself
- * assembled from the form and the button that submitted it.
- *
- * Call it BEFORE the click, and await it after:
- *
- * ```ts
- * const submission = captureFormSubmission();
- * await user.click(page.getByTestId("consent-approve"));
- * expect((await submission).fields).toContainEqual(["consent_decision", "granted"]);
- * ```
- *
- * The submit is cancelled, so no navigation escape is recorded and the guard's
- * `afterEach` stays quiet. Only one submission is captured per call.
+ * Capture and cancel the next native form submission before it navigates away.
+ * Call captureFormSubmission() before clicking the submit button, then await its result.
  */
 
 /** A form submission as the browser assembled it, before it was cancelled. */
@@ -40,9 +22,11 @@ function entryValue(value: FormDataEntryValue): string {
 }
 
 /**
- * Resolve with the next form submission on the document, cancelled so the page
- * stays put. A submission that never comes leaves the promise pending, which
- * the test's own timeout reports.
+ * Capture and cancel the next document submit event.
+ *
+ * Install this listener before triggering the submit and await the returned promise
+ * afterwards. The result includes the resolved action, method, fields, and submitter
+ * value. If no submit event arrives, the promise remains pending.
  */
 export function captureFormSubmission(): Promise<CapturedFormSubmission> {
   return new Promise<CapturedFormSubmission>((resolve: (value: CapturedFormSubmission) => void) => {

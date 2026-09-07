@@ -1,13 +1,5 @@
 /**
- * The catalog's single-line text field — the template every other field in this
- * folder follows: a ui `Field` row (label auto-associated with the control, error
- * auto-associated with both) bound to the TanStack field it renders under.
- *
- * The control is the ui `Field.Control`, which IS the ui `Input` underneath
- * (Base UI's Input renders `Field.Control`); the two differ only in that the
- * former carries `data-[invalid]:border-destructive`, the treatment that needs a
- * `Field.Root` around it to fire. A form field is exactly where that treatment
- * belongs, so the catalog uses the field-aware part.
+ * Single-line string field bound to the surrounding AppField and AppForm contexts.
  */
 
 import { Field } from "@bc-solutions-coder/ui/field";
@@ -18,13 +10,17 @@ import { CatalogFieldError, CatalogFieldLabel, useCatalogField } from "./field-p
 /** The input types this field offers. Masked input lives in `PasswordField`. */
 export type TextFieldType = "text" | "email" | "tel" | "url";
 
+/**
+ * Labels and presentation for TextField. The field value and validation come from the surrounding
+ * AppField.
+ */
 export interface TextFieldProps {
   /** The visible label, associated with the control by the ui `Field` row. */
   readonly label: string;
   /** The native input type. Defaults to `"text"`. */
   readonly type?: TextFieldType;
   readonly placeholder?: string;
-  /** Marks the field optional in its label, for a form where most fields are not. */
+  /** Add an optional marker to the label. Does not change schema validation. */
   readonly optional?: boolean;
   readonly autoComplete?: string;
   /**
@@ -35,19 +31,21 @@ export interface TextFieldProps {
    */
   readonly inputMode?: InputHTMLAttributes<HTMLInputElement>["inputMode"];
   /**
-   * Overrides the derived `{testIdPrefix}-{field name}` testid (and the
-   * `-error` id derived from it), so a migrated form keeps its E2E ids
-   * byte-identical.
+   * Override the control test ID. The error test ID uses this value plus -error; otherwise both
+   * IDs derive from AppForm testIdPrefix and the field name.
    */
   readonly testId?: string;
   /**
-   * A value the form states rather than asks for — pre-filled by the server and
-   * not the visitor's to change, though still submitted and still validated.
-   * Distinct from `disabled`, which drops the value from the submission.
+   * Prevent user edits while retaining the value in form state and submitted variables. Schema
+   * validation still applies.
    */
   readonly readOnly?: boolean;
 }
 
+/**
+ * Render a single-line string input inside AppForm and a matching AppField. The control disables
+ * while pending and displays the first field error.
+ */
 export function TextField({
   label,
   type = "text",

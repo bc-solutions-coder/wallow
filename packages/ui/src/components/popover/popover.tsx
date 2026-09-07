@@ -23,38 +23,11 @@ import {
   type PopoverViewportRecipeProps,
 } from "./popover.styles";
 
-/**
- * Four of Base UI's thirteen namespace members are re-exported UNWRAPPED,
- * because none of them can carry a recipe — the same rule the Dialog exemplar
- * set for every overlay in this catalog:
- *
- *   - `Root` renders no HTML element at all (it is the state container), and it
- *     is generic over the trigger payload type — wrapping it would either drop
- *     the generic or add an element the DOM does not want.
- *   - `Portal` renders only the structural `<div data-base-ui-portal>` Base UI
- *     appends to `<body>`. It accepts a `className`, but it has no visual role,
- *     and the caller's `className` still reaches it because the part is
- *     re-exported unchanged.
- *   - `Handle` is a class and `createHandle` a factory — the imperative
- *     open/close API for triggers that live outside the `Root`. Neither renders
- *     anything.
- *
- * Everything that renders a visible element is wrapped, so `Object.keys` still
- * mirrors `@base-ui/react/popover`'s namespace 1:1.
- */
-
 /** Every Base UI `Popover.Root` prop, generic over the trigger payload type. */
 export type PopoverRootProps<Payload = unknown> = Parameters<typeof BasePopover.Root<Payload>>[0];
 
 /** Every Base UI `Popover.Portal` prop. Re-exported unwrapped, so no recipe props. */
 export type PopoverPortalProps = ComponentProps<typeof BasePopover.Portal>;
-
-/*
- * `className` is deliberately narrowed back to `string` on every wrapped part:
- * Base UI widens it to `string | ((state) => string | undefined)`, and the
- * callback form cannot be merged with a recipe through `cn()`. Every component
- * in this catalog makes the same narrowing.
- */
 
 /** Every Base UI `Popover.Trigger` prop, with `className` narrowed to `string`. */
 export interface PopoverTriggerProps<Payload = unknown>
@@ -162,33 +135,60 @@ function PopoverClose({ className, ...rest }: PopoverCloseProps): ReactElement {
 }
 
 /**
- * The catalog's popover, as ONE namespace object whose keys mirror Base UI's
- * thirteen namespace members 1:1 — the catalog-wide convention for multi-part
- * components, so a caller who knows the Base UI docs already knows this API.
- *
- * A minimal usable popover is Root > Trigger plus a portalled
- * Positioner(Popup(Title, Description, Close)). `Arrow` is the opt-in pointer
- * aimed at the anchor, `Backdrop` the opt-in scrim, `Viewport` the opt-in
- * cross-fade container for a popup shared by several triggers, and
- * `Handle`/`createHandle` the opt-in imperative API for triggers outside the
- * Root.
- *
- * Unlike `Dialog`, a popover is NON-MODAL by default (`Root`'s `modal` prop
- * defaults to `false`): the page keeps scrolling, pointer events outside stay
- * live, focus is not trapped, and moving focus out of the popup dismisses it.
+ * An anchored popup for interactive content. Compose Root and Trigger with Portal > Positioner
+ * > Popup. Title and Description label the content; Close dismisses it.
  */
 export const Popover = {
+  /**
+   * Owns the component state and provides context to its parts.
+   */
   Root: BasePopover.Root,
+  /**
+   * Opens or toggles the associated content; render can compose it onto another control.
+   */
   Trigger: PopoverTrigger,
+  /**
+   * Renders popup content outside the parent DOM hierarchy.
+   */
   Portal: BasePopover.Portal,
+  /**
+   * Covers the surrounding page behind the popup.
+   */
   Backdrop: PopoverBackdrop,
+  /**
+   * Positions the popup relative to its anchor; render inside Portal.
+   */
   Positioner: PopoverPositioner,
+  /**
+   * The visible popup container; place labeled content and actions inside it.
+   */
   Popup: PopoverPopup,
+  /**
+   * Draws the popup's pointer toward its anchor.
+   */
   Arrow: PopoverArrow,
+  /**
+   * Contains the visible popup region and its layout.
+   */
   Viewport: PopoverViewport,
+  /**
+   * Provides the popup's accessible title.
+   */
   Title: PopoverTitle,
+  /**
+   * Provides supporting text associated with the control or popup.
+   */
   Description: PopoverDescription,
+  /**
+   * Closes the associated popup when activated.
+   */
   Close: PopoverClose,
+  /**
+   * Handle class for sharing popup state with detached triggers.
+   */
   Handle: BasePopover.Handle,
+  /**
+   * Creates a handle that connects a popup to triggers outside its Root.
+   */
   createHandle: BasePopover.createHandle,
 };

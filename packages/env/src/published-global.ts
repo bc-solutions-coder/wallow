@@ -1,33 +1,16 @@
 /**
- * The document channel for per-deployment values: a server render states its
- * answer in `<head>` as an inline `<script>` assigning one global, and the
- * hydrating browser reads the global back — so both renders agree and nothing
- * ships in the bundle. Only the BROWSER ever holds the global: the server
- * renders the script as text and never assigns it, because a server global is
- * shared by every concurrent request.
- *
- * These two halves must stay symmetric for the channel to be safe — the
- * escaping in {@link publishedGlobalScript} and the guard in
- * {@link readPublishedGlobal} used to live as per-caller copies that could
- * drift apart. What stays with each caller is VALIDATION: the reader hands back
- * whatever was published, and the caller narrows it to its own shape with its
- * own fallback, so a malformed global costs the deployment's override rather
- * than the page.
+ * Serialize deployment values as inline browser script source and read them back from a supplied
+ * scope. The server renders text without assigning shared server globals; callers validate the
+ * recovered value.
  */
 
 /** `<` as a JavaScript string escape — the one character an inline script must not carry. */
 const LT_ESCAPE = String.raw`\u003c`;
 
 /**
- * The source of the inline `<script>` publishing `value` on `window[name]`,
- * rendered in `<head>` so it runs before hydration.
- *
- * The returned source contains no `<`: React does not escape a text child of
- * `<script>`, so a value containing `</script` would otherwise end the element
- * early. Escaping every `<` to its `\u003c` sequence keeps the JSON literal
- * valid and the element intact. A value JSON cannot express — `undefined`, a
- * circular object — publishes `null`, which every caller's read-back
- * validation already rejects.
+ * Serialize a value as inline script source assigning window[name]. Escapes every less-than
+ * character, including those in the property name, so data cannot close the script element. Values
+ * JSON cannot serialize publish null; no global is assigned until the returned script runs.
  */
 export function publishedGlobalScript(name: string, value: unknown): string {
   let payload: string;
@@ -42,10 +25,9 @@ export function publishedGlobalScript(name: string, value: unknown): string {
 }
 
 /**
- * The value {@link publishedGlobalScript} published on `scope` — `globalThis`
- * in a browser — or `undefined` when the scope is not an object or nothing
- * published one. The value comes back UNVALIDATED: the caller narrows it to
- * its own shape and keeps its own fallback.
+ * Read a named property from an object scope without validating its value. Returns undefined for
+ * null or a non-object scope. Use globalThis in the browser and apply the application-specific
+ * shape check before using the result.
  */
 export function readPublishedGlobal(name: string, scope: unknown): unknown {
   if (typeof scope !== "object" || scope === null) {

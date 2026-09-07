@@ -4,20 +4,7 @@ import { describe, expect, it } from "vitest";
 import { Meter } from "./meter";
 
 /*
- * Wallow-m5aq.4.4 — Meter, the paired half of the Progress task. Same spec shape
- * as the Wave-1 exemplar (Wallow-m5aq.2.1) and the Wave-2 exemplar
- * (Wallow-m5aq.3.1): browser vitest project, nothing mocked, the recipes
- * asserted THROUGH the component, class assertions as an order-free set.
- *
- * Meter is a VALUE-DISPLAY component, not an overlay and not interactive:
- * nothing is portalled, nothing opens or closes, and there is no keyboard
- * contract, so every query goes through render()'s `container` and none of the
- * Wave-2 popup gotchas apply. Every assertion below is a synchronous read.
- *
- * ANATOMY, measured against the installed Base UI 1.6.0 rather than read off the
- * docs (a throwaway probe spec, since deleted):
- *
- *   <div role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="30"
+ * <div role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="30"
  *        aria-valuetext="30%" aria-labelledby="…">                        <- Root
  *     <span role="presentation" id="…">Storage</span>                     <- Label
  *     <span aria-hidden="true">30%</span>                                 <- Value

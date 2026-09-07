@@ -1,18 +1,6 @@
 import { cva } from "class-variance-authority";
 
-/**
- * The avatar's class recipes — one per Base UI part, no JSX and no React import,
- * so the styling can be read and diffed without the component around it.
- *
- * Every utility must be a semantic token class from `@bc-solutions-coder/styles`
- * (`bg-muted`, `text-muted-foreground`); no raw colour values.
- *
- * Unlike most of this catalog these recipes hang off NO `data-*` state selector:
- * measured against @base-ui/react 1.6.0, an avatar publishes its loading status
- * only through React state and `onLoadingStatusChange`, never as an attribute —
- * the parts MOUNT and UNMOUNT instead (see avatar.test.tsx). There is nothing
- * for a `data-[...]:` modifier to hook.
- */
+/** Avatar recipes provide the shared frame, image sizing, and fallback presentation. */
 
 /**
  * The circular frame. Sizes the whole avatar and clips whatever is inside it, so

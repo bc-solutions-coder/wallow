@@ -22,11 +22,6 @@ import {
  * its default — the union of both — because the catalog's parts are plain
  * non-generic components; a caller who wants `onValueChange` narrowed to
  * `number` narrows it at the call site.
- *
- * `className` is deliberately narrowed back to `string`: Base UI widens it to
- * `string | ((state) => string | undefined)`, and the callback form cannot be
- * merged with a recipe through `cn()`. Every component in this catalog makes
- * the same narrowing (Wallow-m5aq.2.1 established it).
  */
 export interface SliderRootProps extends Omit<ComponentProps<typeof BaseSlider.Root>, "className"> {
   readonly className?: string;
@@ -142,17 +137,36 @@ function SliderThumb({ className, ...rest }: SliderThumbProps): ReactElement {
 }
 
 /**
- * The catalog's slider, as a namespace whose keys mirror Base UI's part names
- * 1:1 (`Slider.Root`, `.Label`, `.Value`, `.Control`, `.Track`, `.Indicator`,
- * `.Thumb`) so a reader can move between Base UI's docs and this catalog
- * without a translation step.
+ * A slider for a number or range. Root owns values and bounds; Control contains Track,
+ * Indicator, and one Thumb per value. Label and Value provide the name and displayed reading.
  */
 export const Slider = {
+  /**
+   * Owns the component state and provides context to its parts.
+   */
   Root: SliderRoot,
+  /**
+   * Provides the control's accessible label.
+   */
   Label: SliderLabel,
+  /**
+   * Displays the current value using the part's children or formatting options.
+   */
   Value: SliderValue,
+  /**
+   * The interactive control connected to Root state.
+   */
   Control: SliderControl,
+  /**
+   * Provides the full range or scroll track behind the indicator.
+   */
   Track: SliderTrack,
+  /**
+   * Displays the control's current state or selected extent.
+   */
   Indicator: SliderIndicator,
+  /**
+   * The movable or state-positioned part of the control.
+   */
   Thumb: SliderThumb,
 };

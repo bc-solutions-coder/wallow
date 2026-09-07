@@ -6,26 +6,14 @@ import { describe, expect, it } from "vitest";
 import { Input } from "./input";
 
 /*
- * Follows the exemplar spec shape established by button.test.tsx (Wallow-m5aq.2.1):
- * browser project, nothing mocked, the recipe asserted THROUGH the component, and
- * class assertions as an order-free SET because cn()/tailwind-merge may reorder.
- *
- * COMPAT GUARANTEE (this component): the pre-rebuild Input was a hand-rolled
- * string-append rendering a bare <input>, used at 23 call sites across
- * wallow-auth and wallow-web. Its class set must survive the rebuild, with ONE
- * deliberate addition pinned by its own test below: `data-[disabled]:opacity-50`,
- * the state treatment Base UI's `data-disabled` attribute makes possible and the
- * pre-rebuild input had no equivalent of.
- *
  * Which state data-attributes are asserted here was settled empirically against
- * @base-ui/react 1.6.0 rather than from the docs: Base UI's Input is Field.Control
+ * Base UI rather than from the docs: Base UI's Input is Field.Control
  * underneath, and OUTSIDE a Field.Root the only state attribute it renders is
  * `data-disabled`. `data-valid`/`data-invalid`/`data-touched`/`data-dirty`/
  * `data-filled`/`data-focused` all require the Field context and stay untested
  * here on purpose — they belong to the Field task, which owns that subpath.
  */
 
-/** The pre-rebuild recipe, verbatim from the Input this replaces. */
 const LEGACY_RECIPE =
   "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground";
 
@@ -165,8 +153,6 @@ describe("Input", () => {
   });
 
   it("stamps a generated id when the caller supplies none", async () => {
-    // A deliberate delta from the pre-rebuild bare <input>, which had no id at
-    // all: Base UI always mints one so Field.Label can point `htmlFor` at it.
     const { container } = await render(<Input />);
 
     expect(onlyInput(container).id).not.toBe("");

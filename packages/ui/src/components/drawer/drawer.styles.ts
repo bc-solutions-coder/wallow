@@ -1,39 +1,6 @@
 import { cva, type VariantProps } from "class-variance-authority";
 
-/*
- * One recipe per styled part of the drawer. The class lists are not invented
- * here — drawer.test.tsx declares each part's exact utility set as a top-of-file
- * `*_CLASSES` constant and asserts it as an order-free set through the rendered
- * component, so that spec is the source of truth for everything below.
- *
- * A part gets a recipe only if it renders a VISIBLE element (the rule Dialog
- * established). `Root`, `Provider` and `VirtualKeyboardProvider` render no HTML
- * at all, `Portal` renders only the structural container Base UI appends to
- * `<body>`, and `Handle`/`createHandle` are the imperative API — none of them
- * has a recipe, and drawer.tsx re-exports all six unwrapped.
- *
- * THE ONE cva VARIANT: `side`. Unlike Dialog, a drawer has a real visual axis —
- * which screen edge it is anchored to — and it drives three parts at once
- * (`SwipeArea` sits on that edge, `Viewport` aligns the popup against it, and
- * `Popup` takes its shape, border, radius and enter/exit translate from it).
- * Everything else remains a STATE, published by Base UI as a `data-*` attribute
- * and pinned as a `data-[…]:` modifier in the base string rather than a variant.
- *
- * `side` mirrors Base UI's `Drawer.Root` `swipeDirection` prop, which names the
- * direction the drawer is swiped AWAY in: side `bottom` <-> `swipeDirection`
- * "down" (both defaults), `top` <-> "up", `left` <-> "left", `right` <->
- * "right". The two are deliberately separate — `swipeDirection` is Base UI's
- * gesture contract and `side` is this catalog's styling contract — so a caller
- * must set both, and every story below does.
- *
- * TAILWIND v4, LOAD-BEARING: `translate-*` and `scale-*` compile to the
- * INDIVIDUAL `translate` / `scale` CSS properties, not to a `transform`
- * function (verified by compiling these exact utilities through the repo's own
- * Tailwind 4.3.3). `transition-transform` still covers them — it emits
- * `transition-property: transform, translate, scale, rotate` — but nothing may
- * assert `getComputedStyle(...).transform` for a drawer; it is legitimately
- * "none" forever. See drawer.stories.tsx.
- */
+/* Recipes style visible component parts. State transitions use Base UI data attributes; state-only roots and structural portals have no recipe. */
 
 /** The screen edge a drawer is anchored to. `bottom` is the default sheet. */
 export type DrawerSide = "bottom" | "left" | "right" | "top";

@@ -4,13 +4,6 @@ import { describe, expect, it } from "vitest";
 import { MutedText } from "./muted-text";
 
 /*
- * REFIT SPEC (Wallow-m5aq.2.13). Pins the pre-refit contract (a `<p>` carrying
- * the muted recipe, children, an additive caller className, app-owned
- * data-testid) and adds the refit requirement: a conflicting caller className
- * must WIN, which only `cn()` over a cva recipe delivers. Five wallow-web call
- * sites already pass `className="text-center py-12"`, so the additive case is a
- * shipped-behaviour pin, not a hypothetical.
- *
  * Class assertions are order-free sets, per the Button exemplar.
  */
 
@@ -60,8 +53,6 @@ describe("MutedText", () => {
   });
 
   it("lets a caller className override the muted colour", async () => {
-    // The refit requirement. Pre-refit the append kept both colour utilities and
-    // left the winner to stylesheet order.
     const { container } = await render(<MutedText className="text-destructive">Failed</MutedText>);
 
     const p = onlyParagraph(container);

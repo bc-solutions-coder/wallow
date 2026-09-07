@@ -4,11 +4,7 @@ import { cn } from "../../core/cn";
 import { MutedText } from "../muted-text/muted-text";
 import { CardTitle } from "./card";
 
-/**
- * `title` is a real `HTMLAttributes` member, so it is omitted from the
- * passthrough rather than shadowed: a spread of `rest` would otherwise stamp the
- * heading text onto the wrapper as a tooltip.
- */
+/** Div attributes and heading content for CardHeader. title supplies the heading, not a native tooltip. */
 export interface CardHeaderProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"> {
   /** The card's heading. Rendered as the surface's `<h2>` by `CardTitle`. */
   readonly title: ReactNode;
@@ -17,27 +13,11 @@ export interface CardHeaderProps extends Omit<HTMLAttributes<HTMLDivElement>, "t
   /**
    * A testid for the `<h2>` itself, distinct from the wrapper's own
    * `data-testid` (which `rest` carries).
-   *
-   * Both exist because every wallow-auth `{screen}-heading` id names the heading
-   * ELEMENT, and the wrapper also holds the description — so a text assertion
-   * made against it would pass on copy the heading does not contain.
    */
   readonly titleTestId?: string;
 }
 
-/**
- * The card's title-and-description pair. Sourced from 11 local `CardHeading`
- * functions across wallow-auth, all of which rebuilt the same stack.
- *
- * Owning the `<h2>` here is the point: screens stop spelling out
- * `<Text as="h2" variant="subheading">`, so the card-heading step is guaranteed
- * by construction rather than by `wallow/text-heading-variant` catching a call
- * site. The description is omitted rather than emptied when absent — an empty
- * `<p>` would leave a rhythm gap under the screens that ship a bare heading.
- *
- * A caller `className` merges over the `space-y-1` rhythm (RegisterForm centres
- * its heading), and `data-testid` passes through to the wrapper.
- */
+/** Renders a card h2 and an optional supporting paragraph. className styles the wrapper; titleTestId targets the heading. */
 export function CardHeader({
   title,
   description,

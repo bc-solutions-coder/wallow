@@ -1,28 +1,9 @@
 /**
- * Fork + per-client branding resolution, shared by every Wallow frontend.
- *
- * This is the TypeScript port of the branding/theme logic in the Blazor auth
- * app's `Components/Layout/AuthLayout.razor`. That layout injected the fork's
- * `BrandingOptions` (bound from `branding.json`, which lived under `api/` for
- * exactly that reason and now lives here, since no backend code ever read it)
- * plus an `IClientBrandingClient`, read the `client_id` query parameter, and — when
- * a client is identified — overlaid that OAuth client's own display name, tagline,
- * logo, and `ThemeJson` colours on top of the fork's.
- *
- * The port keeps that behaviour in one pure, testable function
- * ({@link mergeClientBranding}) so the React layout is left with rendering only.
+ * Resolve fork and per-client branding into display fields and CSS custom properties. Fork
+ * defaults come from this package branding.json; client values are supplied by the caller.
  */
-// `branding.json` is the ONE file a fork edits to rebrand, and it sits at this
-// package's root — beside `styles.css` and `assets/`, the two other things a
-// fork's identity is made of. It is deliberately not under `src/`: it is
-// configuration a human edits, not a module.
-//
-// The `with { type: "json" }` attribute is required, not decorative. In-repo
-// this module is resolved from source rather than from a prebuilt bundle that
-// already inlined the JSON, so consumers whose loader is plain Node ESM —
-// Storybook evaluating packages/ui/.storybook/main.ts, which reaches here
-// through `@bc-solutions-coder/styles/vite` — import this file directly, and
-// Node rejects a JSON import without the attribute (ERR_IMPORT_ATTRIBUTE_MISSING).
+// Fork configuration stays at the package root beside its stylesheet and assets.
+// The JSON import attribute also permits direct loading through Node ESM configuration tools.
 import forkBrandingJson from "../branding.json" with { type: "json" };
 import {
   publishedGlobalScript,
@@ -34,11 +15,8 @@ import { toRootRelativeAssetUrl } from "./asset-urls";
 export type ThemeMode = "light" | "dark";
 
 /**
- * A theme colour set as authored in JSON: camelCase keys (`primaryForeground`)
- * mapped to CSS values (`oklch(...)`, `0.5rem`). Mirrors the C#
- * `ThemeColorSet`, but stays open-ended — a client's `ThemeJson` may carry
- * whatever keys it likes, and unknown keys are passed through as CSS variables
- * exactly as the Blazor layout passes them through.
+ * Theme keys mapped to CSS values, such as primaryForeground to oklch(...). Keys remain open-ended
+ * and become CSS custom properties; values are not CSS-sanitized.
  */
 export type ThemeColors = Readonly<Record<string, string>>;
 
@@ -47,37 +25,80 @@ export type CssVars = Readonly<Record<string, string>>;
 
 /** The fork's theme block (`theme` in `packages/styles/branding.json`). */
 export interface ForkTheme {
+  /**
+   * Initial mode; case-insensitive light selects light and other values select dark.
+   */
   readonly defaultMode: string;
+  /**
+   * Theme values used for the light mode.
+   */
   readonly light: ThemeColors;
+  /**
+   * Theme values used for the dark mode.
+   */
   readonly dark: ThemeColors;
 }
 
 /**
- * The fork's branding, i.e. the shape of `packages/styles/branding.json`. Mirrors the C#
- * `BrandingOptions`. `repositoryUrl` and `docsUrl` are optional here because the
- * JSON omits them when empty, where C# defaults them to `""`.
+ * Fork display settings and theme as authored in packages/styles/branding.json. Optional
+ * repositoryUrl and docsUrl use upstream defaults when absent; the raw constants retain explicitly
+ * empty strings.
  */
 export interface ForkBranding {
+  /**
+   * Fork display name when no client branding is supplied.
+   */
   readonly appName: string;
+  /**
+   * Fork icon reference resolved under the consuming app base path.
+   */
   readonly appIcon: string;
+  /**
+   * Fork subtitle; an empty string resolves to no tagline.
+   */
   readonly tagline: string;
+  /**
+   * Optional repository link; absence selects the upstream repository.
+   */
   readonly repositoryUrl?: string;
+  /**
+   * Optional documentation link; absence selects upstream documentation.
+   */
   readonly docsUrl?: string;
+  /**
+   * Fork preference for whether the consuming app offers its landing page.
+   */
   readonly landingPage: { readonly enabled: boolean };
+  /**
+   * Default mode and palettes for both color schemes.
+   */
   readonly theme: ForkTheme;
 }
 
 /**
- * Per-client branding as returned by `GET /v1/identity/apps/{clientId}/branding`.
- * Structurally identical to the SDK's generated `ClientBrandingDto` and to the
- * C# `ClientBrandingResponse`; declared locally so this module stays free of
- * transport concerns and remains a pure function of its inputs.
+ * Per-client display fields and serialized theme supplied by the API caller. Declared
+ * independently of the SDK so branding resolution does not depend on transport code.
  */
 export interface ClientBranding {
+  /**
+   * OIDC client identifier associated with these display settings.
+   */
   readonly clientId: string;
+  /**
+   * Client display name, used instead of the fork name.
+   */
   readonly displayName: string;
+  /**
+   * Client subtitle; null or an empty string hides it.
+   */
   readonly tagline: string | null;
+  /**
+   * Client logo reference, passed through without applying the app base path.
+   */
   readonly logoUrl: string | null;
+  /**
+   * Optional JSON mode palettes overlaid on the fork theme.
+   */
   readonly themeJson: string | null;
 }
 
@@ -96,31 +117,23 @@ export interface ResolvedBranding {
 }
 
 /**
- * The fork branding, read from this package's `branding.json` — the single source
- * of fork identity, and the one file a fork edits to rebrand.
- *
- * It is a static JSON *import*, not a runtime `fs` read, deliberately: Vite
- * inlines it at build/config time, so the same module resolves identically in
- * the SSR graph, in the browser bundle, and under Vitest, and the browser bundle
- * never pulls in `node:fs`.
+ * Fork configuration imported from the package branding.json. The bundler includes it in the
+ * browser and SSR output without a runtime filesystem read.
  */
 export const forkBranding: ForkBranding = forkBrandingJson;
 
 /**
- * Convert a camelCase theme key to its CSS custom property name, mirroring the
- * Blazor layout's `ConvertToCssName` regex (`([a-z])([A-Z])` -> `$1-$2`,
- * lowercased): `primaryForeground` -> `--primary-foreground`, `radius` ->
- * `--radius`.
+ * Convert a camelCase key into a lowercase CSS custom property name. For example,
+ * primaryForeground becomes --primary-foreground. Only lowercase-to-uppercase boundaries insert a
+ * hyphen.
  */
 export function toCssVarName(propertyName: string): string {
   return `--${propertyName.replaceAll(/(?<lower>[a-z])(?<upper>[A-Z])/gu, "$<lower>-$<upper>").toLowerCase()}`;
 }
 
 /**
- * Project a camelCase theme colour set onto CSS custom properties.
- *
- * Empty values are dropped rather than emitted as blank declarations, matching
- * the Blazor layout's `if (!string.IsNullOrEmpty(value))` guard.
+ * Map theme keys to CSS custom property names, omitting exactly empty string values. Whitespace
+ * values are preserved. Neither names nor values are CSS-sanitized.
  */
 export function toCssVars(colors: ThemeColors): CssVars {
   const vars: Record<string, string> = {};
@@ -133,15 +146,9 @@ export function toCssVars(colors: ThemeColors): CssVars {
 }
 
 /**
- * Parse one mode's colours out of a client's `ThemeJson` — a JSON string whose
- * top level is keyed by mode (`{"light": {...}, "dark": {...}}`).
- *
- * Mirrors the Blazor layout's `ParseThemeColors`: a missing mode yields no
- * variables, and non-string values are skipped (C# reads them as `null` and
- * drops them via the empty-value guard). Unlike the Blazor version, malformed
- * JSON is caught rather than thrown: branding is decoration, and a bad theme
- * from one OAuth client must not fail the login page — it degrades to the fork
- * theme, exactly as an unreachable branding endpoint already does.
+ * Read one mode from JSON shaped as { light: {...}, dark: {...} }. Returns CSS variables for
+ * nonempty string values and skips other values. Invalid JSON or a missing mode returns an empty
+ * object; this validates the shape, not CSS safety.
  */
 export function parseThemeCssVars(themeJson: string, mode: ThemeMode): CssVars {
   let parsed: unknown;
@@ -169,39 +176,32 @@ export function parseThemeCssVars(themeJson: string, mode: ThemeMode): CssVars {
   return vars;
 }
 
-/** Normalise the fork's `theme.defaultMode`, falling back to the C# default. */
+/**
+ * Use light for a case-insensitive light value; all other values select dark.
+ */
 function toThemeMode(defaultMode: string): ThemeMode {
   return defaultMode.toLowerCase() === "light" ? "light" : "dark";
 }
 
-/** Treat `null`/`undefined`/`""` alike, as C#'s `string.IsNullOrEmpty` does. */
+/**
+ * Convert null, undefined, and an empty string to null; preserve other strings.
+ */
 function orNull(value: string | null | undefined): string | null {
   return value === null || value === undefined || value === "" ? null : value;
 }
 
 /**
- * Resolve the branding to render for a request: the fork's, overlaid with the
- * per-client branding when the `client_id` query parameter identified one.
+ * Resolve display fields and theme variables from fork defaults and an optional client. A null
+ * client uses the fork name, tagline, and base-path-aware icon. A client replaces those display
+ * fields, with empty tagline and logo becoming null, while its theme variables overlay fork
+ * variables separately for each mode.
  *
- * Semantics are taken from the Blazor layout:
- *  - No client (no `client_id`, or the branding fetch failed/404'd — the caller
- *    passes `null` either way): the fork's app name, tagline, and icon.
- *  - A client: its display name, and its tagline/logo *only if it set them*.
- *    They deliberately do NOT fall back to the fork's — a client branded as
- *    "Acme" showing Wallow's piggy icon and "Wallow in it" would misattribute
- *    the fork, so the layout renders neither instead.
+ * @param fork Fork defaults, usually forkBranding.
  *
- * `basePath` is the URL prefix the consuming app is served under (empty by
- * default). It reaches only the fork's icon, which is the one asset resolved
- * here: a client's `logoUrl` is an absolute URL on its own origin, where this
- * app's prefix means nothing.
+ * @param client Retrieved client branding, or null when absent or unavailable.
  *
- * Themes differ from the identity fields: the client's `ThemeJson` is *overlaid*
- * on the fork's colours per mode, so a client that overrides only `primary`
- * keeps a coherent palette. (The Blazor layout emits only the client's variables
- * because its fork palette already ships in a static stylesheet; this app has no
- * such stylesheet, so the fork palette is the base layer here. Same rendered
- * result, one source.)
+ * @param basePath App URL prefix, applied only to the fork icon; client logo URLs remain
+ * unchanged.
  */
 export function mergeClientBranding(
   fork: ForkBranding,
@@ -246,13 +246,9 @@ function toDeclarations(vars: CssVars): string {
 }
 
 /**
- * Render resolved theme variables as a stylesheet for the document head,
- * mirroring the `<HeadContent>` block in the Blazor layout: light variables on
- * `:root`, dark variables on `.dark`.
- *
- * When the fork's default mode is dark, the dark variables are additionally
- * emitted on `:root` so the palette applies before any class is set — the Blazor
- * app gets this from its static stylesheet's own defaults.
+ * Render CSS for :root, .dark, and .light from resolved branding. The root uses defaultMode, while
+ * explicit classes select their respective palettes. Names and values are interpolated verbatim;
+ * use trusted theme data when inserting the result into a style element.
  */
 export function renderThemeStyle(resolved: ResolvedBranding): string {
   const blocks: string[] = [
@@ -264,13 +260,8 @@ export function renderThemeStyle(resolved: ResolvedBranding): string {
 }
 
 /**
- * The fork's own branding, resolved with no client overlay, for an app served
- * under `basePath` (empty — the site root — by default).
- *
- * An app with a URL prefix must call this with that prefix rather than read
- * {@link forkResolvedBranding}: this package ships prebuilt, so it cannot see
- * the consumer's `import.meta.env.BASE_URL` and the constant is always the
- * unprefixed resolution.
+ * Resolve the package fork branding without client overrides. Pass the consuming app URL prefix to
+ * root the icon correctly; the forkResolvedBranding constant uses the origin root.
  */
 export function resolveForkBranding(basePath: string = ""): ResolvedBranding {
   return mergeClientBranding(forkBranding, null, basePath);
@@ -308,23 +299,34 @@ const UPSTREAM_REPOSITORY_URL: string = "https://github.com/bc-solutions-coder/w
 const UPSTREAM_DOCS_URL: string = "https://bc-solutions-coder.github.io/wallow/";
 
 /**
- * The fork's repository — every rendered "source" link reads this rather than
- * deriving one URL from another, which is how a docs link drifts off the
- * canonical one.
+ * Build-time repository link from branding.json, or the upstream repository when absent.
+ * Explicitly empty strings are retained; use resolveForkLinks for deployment overrides.
  */
 export const forkRepositoryUrl: string = forkBranding.repositoryUrl ?? UPSTREAM_REPOSITORY_URL;
 
-/** The fork's documentation site. */
+/**
+ * Build-time documentation link from branding.json, or upstream documentation when absent.
+ * Explicitly empty strings are retained.
+ */
 export const forkDocsUrl: string = forkBranding.docsUrl ?? UPSTREAM_DOCS_URL;
 
 /** The fork's two outbound identity links, resolved together. */
 export interface ForkLinks {
+  /**
+   * Repository URL for rendered source links.
+   */
   readonly repositoryUrl: string;
+  /**
+   * Documentation URL for rendered help links.
+   */
   readonly docsUrl: string;
 }
 
 /** The environment variables {@link resolveForkLinks} reads, by name. */
 export const FORK_REPOSITORY_URL_VAR = "WALLOW_REPOSITORY_URL";
+/**
+ * Environment variable name for the deployment documentation URL override.
+ */
 export const FORK_DOCS_URL_VAR = "WALLOW_DOCS_URL";
 
 /** {@link forkRepositoryUrl} and {@link forkDocsUrl} as one object. */
@@ -334,25 +336,9 @@ export const forkLinks: ForkLinks = {
 };
 
 /**
- * The fork's links for ONE deployment: `WALLOW_REPOSITORY_URL` /
- * `WALLOW_DOCS_URL` if the environment names them, else `branding.json`, else
- * the upstream constants.
- *
- * The environment layer exists because `branding.json` is baked at BUILD time
- * while one image is run in several environments — a staging docs site and a
- * production one, a private mirror and the public repo — and rebuilding to move
- * a link is not a deployment step anyone should need.
- *
- * The env record is a PARAMETER, exactly as a base path is (see the note on
- * {@link toRootRelativeAssetUrl}): this package ships a prebuilt bundle, so any
- * `process.env` or `import.meta.env` read inside it would answer with the
- * LIBRARY's build environment rather than the running app's. The caller reads
- * its own environment — for a Start app, in the server-only request middleware
- * — and passes the record in.
- *
- * A variable set to the empty string is treated as unset: that is what an
- * unsubstituted `WALLOW_DOCS_URL=` in a compose env file produces, and a link
- * with no href is worse than the default one.
+ * Resolve repository and documentation links using nonblank environment overrides, then the
+ * package fork-link constants. Overrides are trimmed. The constants use branding.json values when
+ * present and upstream URLs when absent; explicitly empty JSON values are preserved.
  */
 export function resolveForkLinks(
   env: Readonly<Record<string, string | undefined>> = {},
@@ -369,22 +355,13 @@ function firstNonEmpty(value: string | undefined, fallback: string): string {
 }
 
 /**
- * The global property a server-rendered document publishes {@link resolveForkLinks}'s
- * answer on, so the browser can read back the same pair the SSR pass rendered.
- *
- * This is the whole crossing mechanism: the environment exists only on the
- * server, and a link whose href differs between the server render and the
- * hydrating one is a hydration mismatch. Only the BROWSER ever holds this
- * property — the server renders it as text into the document and never assigns
- * it, because a server global is shared by every concurrent request.
+ * Browser global property used to share resolved fork links between SSR and hydration.
  */
 export const FORK_LINKS_GLOBAL_KEY = "__WALLOW_FORK_LINKS__";
 
 /**
- * The source of the inline `<script>` that publishes one deployment's links,
- * rendered in `<head>` so it runs before hydration. The escaping that keeps a
- * hostile href from ending the element early lives in the shared
- * {@link publishedGlobalScript}.
+ * Return escaped inline script source that publishes repository and documentation URLs before
+ * hydration. The server renders the source without assigning its own global state.
  */
 export function forkLinksScript(links: ForkLinks): string {
   return publishedGlobalScript(FORK_LINKS_GLOBAL_KEY, {
@@ -394,13 +371,8 @@ export function forkLinksScript(links: ForkLinks): string {
 }
 
 /**
- * The links {@link forkLinksScript} published, read back off a scope —
- * `globalThis` in a browser — or `undefined` when nothing published any.
- *
- * `undefined` is the answer for anything that is not two non-blank strings, junk
- * included: the caller's fallback chain (the request's own resolution on the
- * server, the build-time pair elsewhere) is always a usable pair, so a
- * malformed global costs the deployment's override rather than the href.
+ * Read the browser-published link pair from a supplied scope such as globalThis. Returns undefined
+ * unless both properties are nonblank strings. Returned strings are not trimmed or URL-validated.
  */
 export function readInjectedForkLinks(scope: unknown): ForkLinks | undefined {
   const injected: unknown = readPublishedGlobal(FORK_LINKS_GLOBAL_KEY, scope);

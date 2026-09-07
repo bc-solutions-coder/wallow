@@ -30,7 +30,6 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
 
-/** The pre-rebuild shape: an explicit htmlFor against a hand-written id. */
 export const WithExplicitHtmlFor: Story = {
   args: { htmlFor: "email" },
 };

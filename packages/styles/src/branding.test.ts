@@ -144,8 +144,7 @@ describe("mergeClientBranding with a client", () => {
   });
 
   it("shows no tagline or logo rather than falling back to the fork's", () => {
-    // A client branded "Acme" must never render Wallow's icon/tagline — that
-    // would misattribute the fork. Mirrors AuthLayout.razor's client branch.
+    // A client with no logo or tagline does not fall back to the fork identity.
     const resolved: ResolvedBranding = mergeClientBranding(testFork, makeClient());
     expect(resolved.tagline).toBeNull();
     expect(resolved.logoUrl).toBeNull();
@@ -251,10 +250,7 @@ describe("forkBranding read from packages/styles/branding.json", () => {
 });
 
 /**
- * Branding for an app served under a URL prefix (Wallow-8via). The fork's icon
- * is the only asset this module resolves itself, so it is the only thing the
- * base path changes — a client's hosted `logoUrl` is somebody else's origin and
- * must survive untouched.
+ * Base paths affect the fork icon only. Client logo URLs remain unchanged.
  */
 describe("branding under a base path", () => {
   it("serves the fork's icon from under the prefix", () => {

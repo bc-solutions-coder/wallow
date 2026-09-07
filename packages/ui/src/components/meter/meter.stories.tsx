@@ -5,16 +5,6 @@ import { expect, fn, userEvent } from "storybook/test";
 import { Meter } from "./meter";
 
 /*
- * Wallow-m5aq.4.4 — Meter stories, the paired half of the Progress task.
- * `@storybook/addon-vitest` turns every export below into a Vitest test case
- * rendered in the same headless Chromium the `browser` project uses, with the
- * real Tailwind pipeline attached (see .storybook/main.ts), so these are the
- * VISUAL half of the component's spec while meter.test.tsx holds the markup
- * assertions a screenshot cannot make.
- *
- * Nothing about Meter is portalled or animated open, so every play function
- * queries `canvas` and none of the Wave-2 waitFor-after-opening rule applies.
- *
  * The interaction story uses storybook/test's `userEvent`, which is
  * @testing-library/user-event and dispatches synthetic events, so a click needs
  * no hit-testing.

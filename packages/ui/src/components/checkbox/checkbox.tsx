@@ -41,16 +41,16 @@ function CheckboxIndicator({ className, ...rest }: CheckboxIndicatorProps): Reac
 }
 
 /**
- * The catalog's checkbox, as ONE namespace object whose keys mirror Base UI's
- * part names 1:1 (`Checkbox.Root`, `Checkbox.Indicator`) — the catalog-wide
- * convention for multi-part components, so a caller who knows the Base UI docs
- * already knows this API.
- *
- * Pair it with `CheckboxGroup` (`../checkbox-group`) to drive several boxes from
- * one value array; the two talk to each other through Base UI's own context, so
- * neither component imports the other.
+ * Checkbox state and indicator parts. Root owns checked or indeterminate state; render the
+ * check glyph inside Indicator and provide an accessible label.
  */
 export const Checkbox = {
+  /**
+   * Owns the component state and provides context to its parts.
+   */
   Root: CheckboxRoot,
+  /**
+   * Displays the control's current state or selected extent.
+   */
   Indicator: CheckboxIndicator,
 };

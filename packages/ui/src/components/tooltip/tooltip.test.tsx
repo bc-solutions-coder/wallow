@@ -6,10 +6,7 @@ import { userEvent } from "vitest/browser";
 import { Tooltip, type TooltipProviderProps } from "./tooltip";
 
 /*
- * Tooltip behavioural spec (Wallow-m5aq.3.4), shaped after the Wallow-m5aq.3.1
- * Dialog exemplar:
- *
- *   1. Runs in the vitest BROWSER project — real headless Chromium, real Base UI,
+ * 1. Runs in the vitest BROWSER project — real headless Chromium, real Base UI,
  *      real DOM. Nothing is mocked.
  *   2. Recipes are asserted THROUGH the component, never by importing
  *      `tooltipPopupRecipe` and inspecting its return value: a recipe unit test
@@ -21,7 +18,7 @@ import { Tooltip, type TooltipProviderProps } from "./tooltip";
  *   4. Stories carry the visual coverage (see tooltip.stories.tsx); this file is
  *      only for the edges a screenshot cannot make.
  *
- * ANATOMY, measured against @base-ui/react 1.6.0 in this browser (not guessed):
+ * ANATOMY, measured against Base UI in this browser (not guessed):
  *
  *   <button data-base-ui-tooltip-trigger id>                 <- Tooltip.Trigger
  *     …gains data-popup-open while open; gains data-trigger-disabled and LOSES
@@ -233,7 +230,7 @@ describe("Tooltip", () => {
   });
 
   it("renders the trigger as a button Base UI has claimed, with no aria wiring", async () => {
-    // PINS a measured Base UI 1.6.0 behaviour rather than an aspiration: a
+    // PINS a measured Base UI behaviour rather than an aspiration: a
     // tooltip gets no `aria-describedby`, no `aria-expanded` and no
     // `aria-controls`, so the catalog documents the tooltip as supplementary
     // rather than pretending the popup is announced. If a later Base UI adds the

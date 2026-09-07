@@ -14,11 +14,6 @@ import {
  * `validationType`, `normalizeValue`, `mask`, `autoSubmit`, `autoComplete`,
  * `inputMode`, `disabled`, `readOnly`, `required`, `name`, `form`, `id`,
  * `render`).
- *
- * `className` is deliberately narrowed back to `string`: Base UI widens it to
- * `string | ((state) => string | undefined)`, and the callback form cannot be
- * merged with a recipe through `cn()`. Every component in this catalog makes
- * the same narrowing (Wallow-m5aq.2.1 established it).
  */
 export interface OTPFieldRootProps extends Omit<
   ComponentProps<typeof BaseOTPField.Root>,
@@ -73,12 +68,20 @@ function OTPFieldSeparator({ className, ...rest }: OTPFieldSeparatorProps): Reac
 }
 
 /**
- * The catalog's OTP field, as a namespace whose keys mirror Base UI's part
- * names 1:1 (`OTPField.Root`, `.Input`, `.Separator`) so a reader can move
- * between Base UI's docs and this catalog without a translation step.
+ * Separate input slots for a one-time code. Root owns the combined value; Input parts
+ * represent its characters, and Separator adds visual grouping.
  */
 export const OTPField = {
+  /**
+   * Owns the component state and provides context to its parts.
+   */
   Root: OTPFieldRoot,
+  /**
+   * The editable input connected to Root state.
+   */
   Input: OTPFieldInput,
+  /**
+   * Separates adjacent groups or content.
+   */
   Separator: OTPFieldSeparator,
 };

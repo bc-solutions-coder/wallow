@@ -6,14 +6,6 @@ import { darkScheme, lightScheme } from "../../../.storybook/scheme-decorators";
 import { PageHeader } from "./page-header";
 
 /*
- * Wallow-lrlm.3.2 — PageHeader stories. Each export becomes a Vitest test case
- * in the same headless Chromium the `browser` project uses, but with the real
- * Tailwind pipeline and the fork's real theme attached (.storybook/preview.css +
- * preview.tsx). Since the `browser` project loads no Tailwind, this is the only
- * place the header's type scale, its muted description and its trailing-edge
- * layout can actually be seen — and the only place dark-mode correctness is
- * checkable.
- *
  * PageHeader is not interactive beyond its scheme, so the only `play` a story
  * carries is `expectScheme`, which measures that the scheme it claims is the
  * scheme it paints. The assertions about markup and class strings that a
@@ -25,11 +17,6 @@ import { PageHeader } from "./page-header";
  * `.storybook/scheme-decorators.tsx` for why, and never reintroduce one.
  */
 
-/**
- * The wallow-web apps route's CTA, spelled with the tokens it already uses. A
- * plain anchor rather than a catalog Button: the actions slot takes any node,
- * and the story frames the slot rather than the thing inside it.
- */
 function RegisterAppLink(): ReactElement {
   return (
     <a
@@ -71,7 +58,6 @@ export const WithDescriptionDark: Story = {
   args: { description: "Every application you have registered with this tenant." },
 };
 
-/** Title plus a trailing-edge action — the wallow-web apps route's shape today. */
 export const WithActions: Story = {
   decorators: [lightScheme],
   play: expectScheme("light"),

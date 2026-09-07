@@ -1,19 +1,6 @@
 import { cva, type VariantProps } from "class-variance-authority";
 
-/*
- * The text primitive's class recipe. Style decisions live here and nowhere else
- * — this file holds no JSX and imports no React. Every utility is a semantic
- * token class from `@bc-solutions-coder/styles`; no raw colour values.
- *
- * Two constraints this recipe must keep satisfying:
- *
- *   1. NO `/NN` opacity suffix on any colour utility. Erasing the apps'
- *      hand-rolled `text-foreground/60` is the entire point of the component,
- *      so every `color` value maps onto exactly one semantic token.
- *   2. The base string stays EMPTY and `bodySm` stays `text-sm` alone, so
- *      `bodySm` + `muted` resolves to exactly `text-sm text-muted-foreground` —
- *      MutedText's byte-exact contract, which Wallow-lrlm.2.2 reroutes onto Text.
- */
+/* Text styling uses separate axes for scale, semantic color, weight, and alignment. Later axes override conflicting utilities from earlier ones. */
 
 /**
  * The type scale, the semantic colour, and the optional weight/alignment

@@ -1,12 +1,4 @@
-// Barrel entry for @bc-solutions-coder/testing: the shared Vitest preset factory
-// and the browser-mode optimizeDeps baseline + merge helper.
-//
-// This barrel is CONFIG-SAFE: it is imported at Vitest config-load time (in a
-// plain Node process) by each app's vitest.config.ts, so it must NOT transitively
-// pull in browser-only modules. `render` re-exports `vitest-browser-react`, which
-// evaluates `vitest/browser` at import and THROWS outside browser mode — it is
-// therefore exposed on the dedicated `@bc-solutions-coder/testing/render` subpath
-// (see package.json exports), never from this barrel.
+// Node-safe Vitest configuration helpers. Browser render helpers have separate subpaths.
 export { browserOptimizeDepsBaseline, mergeOptimizeDeps } from "./browser-optimize-deps";
 export {
   createVitestProjects,

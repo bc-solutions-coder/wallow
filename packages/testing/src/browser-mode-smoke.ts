@@ -1,14 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 /**
- * A consumer's browser project really is real Chromium.
- *
- * Asserts signals only a genuine browser produces, so it fails if the multi-project
- * split routes the spec onto node (no `document`) or if jsdom/happy-dom is ever
- * reintroduced (fake userAgent, zero-sized layout boxes). Both are banned repo-wide
- * — see `.claude/rules/TESTING.md`.
- *
- * BROWSER-ONLY. Keep it off the barrel, which is loaded in plain Node at config time.
+ * Declare browser tests that check Chromium globals and nonzero layout.
+ * Call at module scope in a browser .test.tsx file. appName labels the suite.
  */
 export function assertBrowserModeSmoke(appName: string): void {
   describe(`${appName} browser-mode smoke`, () => {

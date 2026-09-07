@@ -6,24 +6,9 @@ import { userEvent } from "vitest/browser";
 import { NumberField, type NumberFieldRootProps } from "./number-field";
 
 /*
- * Follows the exemplar spec shape from Wallow-m5aq.2.1 (button.test.tsx):
- * browser project, nothing mocked, recipes asserted THROUGH the component, and
- * class assertions as an order-free SET so tailwind-merge may reorder.
- *
  * THREE DEPARTURES, each forced by how Base UI's number field actually behaves.
  * All three were verified against the real (unstyled) part before this spec was
  * written.
- *
- * 1. Stepper presses are dispatched with the DOM's own `button.click()`, not
- *    `userEvent.click`. Tailwind's stylesheet is NOT loaded in the vitest
- *    browser project, so an unstyled part is a 0x0 box and Playwright's
- *    actionability check refuses to click it — `userEvent.click` then hangs for
- *    the full timeout no matter how correct the component is (Wallow-m5aq.2.7
- *    proved this wave-wide). `click()` also happens to be the path Base UI
- *    handles synchronously: its `shouldSkipClick` guard skips clicks with
- *    `event.detail !== 0`, i.e. REAL pointer clicks, because those are already
- *    served by the press-and-hold pointerdown path. A programmatic `click()`
- *    carries `detail === 0` and therefore steps exactly once.
  *
  * 2. Every read of the value after a step is preceded by `await flush()`. The
  *    number field commits through a ref-backed state update that React has not

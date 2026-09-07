@@ -38,10 +38,8 @@ function derive(testId: string | undefined, part: string): string | undefined {
 }
 
 /**
- * The heading row both wallow-web list routes hand-roll today. The title and
- * the description go through `Text` rather than raw tags, so the type scale and
- * the semantic colour stay one decision made in one place — `variant="title"`
- * because `as="h1"` alone would derive the larger `display` scale.
+ * Renders the page h1 at the title scale, with optional description and trailing actions.
+ * Optional sections leave no empty wrapper when omitted.
  */
 export function PageHeader({
   title,

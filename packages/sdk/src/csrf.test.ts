@@ -9,19 +9,7 @@ import {
 } from "./csrf";
 
 /**
- * CSRF interceptor module (Wallow-0q2s.7.1). This is the SDK-owned home of the
- * CSRF helper, consolidated from the byte-near-identical
- * `apps/wallow-auth/src/lib/csrf.test.ts` and
- * `apps/wallow-web/src/lib/csrf.test.ts` copies. The interceptor echoes the
- * session CSRF token in the `x-csrf-token` header on state-changing requests and
- * leaves safe methods (GET/HEAD/OPTIONS) untouched.
- *
- * The ONE token source is the BFF's non-HttpOnly double-submit cookie
- * (Wallow-j7qk). The module-scope token store that used to sit in front of it
- * (`setCsrfToken`/`getCsrfToken`) is deleted: at module scope the token was
- * process-global during SSR — the exact cross-user hazard `create-sdk.ts`
- * exists to prevent — and in the browser it could only ever equal or trail the
- * cookie, which the BFF rewrites on every login.
+ * Mutating requests echo the current CSRF cookie; safe methods remain unchanged. Reading on every call prevents stale or cross-request tokens.
  */
 
 /**
@@ -179,9 +167,8 @@ describe("wireCsrfInterceptor", () => {
   });
 
   it("picks up the rewritten cookie after a re-login", () => {
-    // Every login mints a fresh token and overwrites the cookie. A cached copy
-    // would present the STALE token here and 403 every mutation — the class of
-    // bug the deleted module store invited.
+    // Read the replacement token after login so mutations do not send a token from the previous
+    // session.
     const jar = stubCookieJar("wallow_bff-csrf=first-session");
     const client = createFakeClient();
     wireCsrfInterceptor(client);

@@ -1,22 +1,5 @@
 /**
- * Barrel pins for @bc-solutions-coder/auth (Wallow-x4qn.3).
- *
- * The package exists so an app's auth imports come from ONE place, which makes
- * two things structural rather than incidental:
- *
- *   1. THE SURFACE, in both directions. A dropped export sends the next migration
- *      back to reaching into the SDK (or re-inventing a current-user probe, which
- *      is exactly the duplication this package deletes), and an accidentally
- *      widened one turns a curated surface into a grab bag.
- *   2. IDENTITY of the SDK re-exports. `requireAuth`/`loginRedirect` are
- *      re-exported by reference, not wrapped, so app code importing them from here
- *      gets the SDK's own tested guards.
- *
- * The third pin — no `@tanstack/react-router` dependency, and react-query only
- * through the `@bc-solutions-coder/query` facade — used to be a source sweep over
- * `src/`. The facade half is a repo-root `no-restricted-imports` rule, which
- * catches it in the editor; the router half is carried by this package's manifest,
- * which declares no router to import.
+ * Verify the public runtime exports and reference identity of SDK guard re-exports.
  */
 
 import { loginRedirect, requireAuth } from "@bc-solutions-coder/sdk";
@@ -36,14 +19,8 @@ const OWN_EXPORTS: readonly string[] = [
 ];
 
 /**
- * The SDK route guards re-exported so auth imports come from one package, held
- * next to the bindings they must BE. `isAdmin` is no longer among them: the
- * SDK's claim-bag readers are deleted (Wallow-j7qk), and the `isAdmin` this
- * barrel exports is this package's own, over the typed `CurrentUser`.
- *
- * Named imports rather than a namespace import: the repo-root oxlint
- * `no-restricted-imports` rule bans `import * as` from the SDK, because a
- * namespace import reaches the deleted module-global client symbols too.
+ * SDK route guards must be the same bindings exported by the SDK. This package owns its typed
+ * current-user role helpers.
  */
 const SDK_GUARDS: Readonly<Record<string, unknown>> = { loginRedirect, requireAuth };
 

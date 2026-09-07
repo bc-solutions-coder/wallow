@@ -36,14 +36,7 @@ vi.mock("./oidc", async (importOriginal) => {
 });
 
 /**
- * Hermetic mock of openid-client: the real `discover()` (used by the proxy
- * integration tests that fall back to `actual.discover`) resolves endpoints via
- * openid-client's `discovery()` rather than the native `fetch`. The stub
- * reconstructs the same endpoint shape as {@link makeDoc} from the requested
- * metadata URL's origin. The refresh grant now runs through openid-client's
- * `refreshTokenGrant`, so the integration test that falls back to
- * `actual.refreshTokens` gets its rotated token set from the stub below rather
- * than a native token-endpoint POST.
+ * Mock openid-client discovery without network access while preserving endpoint metadata used by proxy integration tests.
  */
 vi.mock("openid-client", () => ({
   discovery: vi.fn((server: URL) => {
@@ -493,13 +486,7 @@ describe("createApiProxy", () => {
 });
 
 /**
- * `X-Forwarded-*` on the BFF's own `/api` hop (Wallow-vufu.4.2).
- *
- * The proxy used to forward a two-header allowlist (`content-type`, `accept`)
- * and nothing else, so every request reached the API wearing this proxy's
- * address and the API's rate limiter counted a whole app's users as ONE client.
- * The reverse-proxy passthrough already got this right; these tests pin the BFF
- * proxy to the identical rules, which now live in `./forwarded`.
+ * Verify forwarded scheme, host, and client-address headers on the BFF API hop using the shared proxy trust rules.
  */
 describe("createApiProxy forwarded headers", () => {
   /**
@@ -1585,10 +1572,7 @@ async function problemBodyOf(res: Response): Promise<Record<string, unknown>> {
 const UNSAFE_METHODS: readonly string[] = ["POST", "PUT", "PATCH", "DELETE"];
 const SAFE_METHODS: readonly string[] = ["GET", "HEAD", "OPTIONS"];
 /**
- * Every safe method now reaches the proxy. A deliberate behaviour delta from the
- * h3 handler this replaces: h3 answered OPTIONS with a 405 of its own before the
- * proxy ever ran, so the CSRF bypass for OPTIONS was untestable. Calling the
- * handler directly makes it observable — and asserted.
+ * GET, HEAD, and OPTIONS reach the proxy without requiring a CSRF token.
  */
 const PROXIED_SAFE_METHODS: readonly string[] = SAFE_METHODS;
 
@@ -1825,19 +1809,7 @@ describe("csrfTokenMatches", () => {
 });
 
 /**
- * Upstream URL construction must not be relative-resolvable
- * (Wallow-pu6a.3.3, finding F11).
- *
- * The h3 proxy this replaces built its target with
- * `new URL(strippedPath, config.apiBaseUrl)`. That is a *relative* resolution,
- * and the browser-supplied path is the relative part: a path beginning `//`
- * makes the URL parser read the next segment as an AUTHORITY, so
- * `/api//evil.test/x` resolves to `https://evil.test/x` — and the proxy then
- * attaches the session's bearer token to a request aimed at the attacker's
- * host. The same resolution silently discards any path prefix on `apiBaseUrl`.
- *
- * The port must join the stripped path onto the base as a path, and never
- * forward a request whose resolved origin is not the configured API origin.
+ * Join request paths without relative URL resolution so they cannot change the upstream origin or escape its base path.
  */
 describe("createApiProxy upstream URL construction", () => {
   /** Drive one request through the proxy with a session already in the store. */
@@ -1931,15 +1903,7 @@ describe("createApiProxy upstream URL construction", () => {
 });
 
 /**
- * The proxy only serves `/api/**` (Wallow-pu6a.3.3, finding F12b).
- *
- * Under h3 the mount point was the router's business, so the handler itself
- * never checked the path — it stripped a leading `/api` if it happened to be
- * there and forwarded whatever was left. Called directly (and mounted by a host
- * that may pass through anything), that turns the proxy into an open, bearer-
- * attaching relay for any path a caller invents. A prefix check must be an
- * explicit segment boundary test: `startsWith("/api")` alone also accepts
- * `/apiary`.
+ * Accept the /api path segment and its descendants; reject lookalike prefixes such as /apiary.
  */
 describe("createApiProxy path allowlist", () => {
   async function attempt(
@@ -2035,16 +1999,7 @@ function bodyTextOf(fetchMock: ReturnType<typeof vi.fn>, index: number): string 
 }
 
 /**
- * Request bodies must be buffered, never streamed
- * (Wallow-pu6a.3.1, NEW RISK 2).
- *
- * `forwardWithResilience` replays the request after a reactive 401. A
- * `ReadableStream` body cannot be replayed: the first `fetch` consumes it, and
- * the retry throws "Response body object should not be disturbed or locked".
- * Passing `request.body` straight through would therefore work in every test
- * where the token happens to be fresh and fail exactly when a user's token
- * expires mid-POST — the hardest failure to reproduce and the worst to lose.
- * Streaming stays a response-direction optimisation only.
+ * Buffer request bodies so a refresh retry can replay the same bytes after the first fetch consumes its body.
  */
 describe("createApiProxy request-body buffering", () => {
   it("hands forwardWithResilience a replayable body, not a stream", async () => {
@@ -2335,17 +2290,7 @@ describe("createApiProxy header handling", () => {
 });
 
 /**
- * Request-id correlation (Wallow-pu6a.6.7).
- *
- * The proxy is the only place in the tunnel that sees both the browser's request
- * and the API's, so it is where the correlation key is minted. Every request it
- * forwards carries an `x-request-id` — the caller's when it sent a usable one, a
- * generated one otherwise — and every response it returns echoes the same id, so
- * an error the user reports names the request the backend logged.
- *
- * "Every response" means every exit: the proxy answers a rejected path, an
- * unauthenticated session and a failed CSRF check itself, and those are precisely
- * the failures a user cannot otherwise describe.
+ * Every proxy response returns a valid supplied or generated request ID, and forwarded requests carry that same correlation value.
  */
 describe("createApiProxy request-id correlation", () => {
   /** The header a scripted upstream attempt was called with. */

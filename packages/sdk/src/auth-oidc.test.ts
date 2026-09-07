@@ -1,27 +1,5 @@
 /**
- * OIDC handshake URL builders + the open-redirect guard (Wallow-vec7.2.2).
- *
- * These helpers are PURE: no fetch, no client, no mocks. Every test is an exact
- * string assertion against the Blazor oracle it ports, so the C# call site and
- * the TypeScript builder cannot drift silently.
- *
- * ORACLE MAP (api/src/Wallow.Auth/...):
- *   isSafeReturnUrl        <- Helpers/ReturnUrlValidator.cs IsSafe
- *   buildConsentSubmission <- the consent form: the authorize request as POST fields
- *   buildExchangeTicketUrl <- Components/Pages/Login.razor
- *   buildConnectLogoutUrl  <- Components/Pages/Logout.razor LogoutUrl
- *   buildConnectAuthorizeUrl -- no single call site; the API redirects TO the
- *     login page, so this is the reverse direction and is specified here only.
- *
- * GUARD CONTRACT: Login.razor is the authoritative treatment of an
- * unsafe returnUrl -- it checks IsSafe and REFUSES to build the URL, bailing to
- * /error?reason=invalid_redirect_uri. The builders port that refusal as a thrown
- * TypeError rather than ReturnUrlValidator.Sanitize's silent "/" fallback: a
- * builder that quietly swaps an attacker's returnUrl for "/" would hand the
- * caller a URL it never asked for. The caller catches and decides where to go.
- * Assertions match on the thrown MESSAGE, never on a class identity, so no
- * instanceof-across-module-graphs trap exists here (bd memory
- * vitest-resetmodules-breaks-instanceof-across-graphs).
+ * Verify authentication URL encoding and return URL validation. Local paths are accepted directly; absolute URLs require explicit server approval.
  */
 
 import { describe, expect, it } from "vitest";
@@ -40,8 +18,7 @@ import {
 const ORIGIN: string = "http://localhost:5001";
 
 /**
- * The shape the external-login MFA hand-off really sends: the `AuthUrl` origin,
- * absolute by construction (Wallow-vec7.3.17's investigation).
+ * Use an absolute authentication URL to verify that endpoint construction retains its origin and path.
  */
 const EXTERNAL_RETURN_URL: string = "http://localhost:5002/login";
 
@@ -64,7 +41,7 @@ const UNSAFE_RETURN_URLS: readonly (readonly [label: string, url: string])[] = [
   ["a scheme-only URI", "vbscript:msgbox(1)"],
   ["a path with no leading slash", "dashboard"],
   ["a backslash-relative path", String.raw`\\evil.com/steal`],
-  // Backslash-prefixed open redirects (Wallow-41ot). WHATWG URL parsing treats a
+  // Backslash-prefixed open redirects. WHATWG URL parsing treats a
   // backslash as an extra path separator for http/https, so each of these
   // resolves CROSS-ORIGIN against the current origin even though the old
   // `startsWith('/') && !startsWith('//')` rule waved them through:
@@ -321,24 +298,7 @@ describe("buildExchangeTicketUrl", () => {
 });
 
 /**
- * THE FLOW'S CLIENT ID ON THE EXCHANGE (Wallow-nv7l.1, closing Wallow-53kr).
- *
- * `AccountController.ExchangeTicket` takes `[FromQuery] string? clientId` and
- * scopes its returnUrl allow-list check to it (Wallow-9jab). Nothing supplies
- * one from the auth app today, so that endpoint always falls back to the
- * union-of-every-client origin set — the per-client scoping is correct but
- * inert on this path. The MFA-challenge screen is the last hop of the
- * external-login journey and the one that builds this URL, so the builder has to
- * be able to carry the id.
- *
- * SPELLING: `clientId`, camelCase. This is an API endpoint, and the endpoints
- * bind camelCase (the auth-app-facing REDIRECTS are the ones spelled
- * `client_id`) — the same contract Wallow-53kr pinned on the accept-terms relay.
- *
- * ENCODING: `encodeURIComponent`, like every other parameter this builder
- * writes. The id is attacker-influenced cargo spliced into a URL built by
- * concatenation; unencoded it can smuggle a second `returnUrl` into the query
- * string and hand the endpoint a destination the user never asked for.
+ * The clientId query parameter scopes the server’s return URL authorization and must retain its camelCase name and encoded value.
  */
 describe("buildExchangeTicketUrl — the flow's client id", () => {
   it("appends the client id the flow belongs to", () => {
@@ -385,7 +345,7 @@ describe("buildExchangeTicketUrl — the flow's client id", () => {
       // A flow with no client id must not grow an empty `clientId=`. The endpoint
       // fails an unknown client CLOSED to the AuthUrl-only origin set, so a blank
       // relay would refuse the very returnUrl the user is mid-journey to, where
-      // sending nothing falls back to the behaviour that works today.
+      // sending nothing falls back to the default return URL policy.
       expect(buildExchangeTicketUrl(ORIGIN, "tkt", "/dashboard", clientId)).toBe(
         `${ORIGIN}/v1/identity/auth/exchange-ticket?ticket=tkt&returnUrl=%2Fdashboard`,
       );
@@ -394,22 +354,7 @@ describe("buildExchangeTicketUrl — the flow's client id", () => {
 });
 
 /**
- * THE EXTERNAL-LOGIN HAND-OFF (Wallow-a6jr).
- *
- * `AccountController.ExternalLoginCallback` redirects an MFA-required external
- * login to `{authUrl}/mfa/challenge?returnUrl=...`, and that returnUrl is ALWAYS
- * ABSOLUTE: it either passed `IsAllowedAsync` -- which requires
- * `Uri.TryCreate(uri, UriKind.Absolute)` -- or it is the `AuthUrl` fallback. So
- * `isSafeReturnUrl` is false for 100% of them, and the MFA screen's own mount
- * guard (Wallow-vec7.3.17) admits them anyway by asking the SERVER's allow-list
- * (`/redirect-uri/validate`, scoped to the flow's client). That left the builder
- * refusing the value its own caller had just been told was legitimate.
- *
- * THE RULE IS NOT RELAXED. A bare `string` returnUrl still means "prove it is
- * relative" and every open-redirect case above still throws. What changed is
- * that a caller who HAS the allow-list verdict can carry it, by minting an
- * `AllowListedReturnUrl` -- which demands that verdict as an argument, so a
- * caller that never probed cannot produce one by omission.
+ * Bare return URL strings accept local paths only. AllowListedReturnUrl carries explicit server approval for an absolute HTTP(S) destination.
  */
 describe("allowListedReturnUrl", () => {
   it("mints a hand-off token when the allow-list said yes", () => {

@@ -5,46 +5,12 @@ import { userEvent } from "vitest/browser";
 import { Toolbar } from "./toolbar";
 
 /*
- * Wallow-m5aq.4.5 — Toolbar. Same spec shape as the Wave-1 exemplar
- * (Wallow-m5aq.2.1) and the Wave-2 exemplar (Wallow-m5aq.3.1): browser vitest
- * project, nothing mocked, the recipes asserted THROUGH the component, class
- * assertions as an order-free set.
- *
- * Nothing here is portalled and nothing here is a popup, so every query goes
- * through render()'s `container` and none of the Wave-2 overlay gotchas apply.
- *
- * ANATOMY, measured against the installed Base UI 1.6.0 rather than read off the
- * docs (a throwaway probe spec, since deleted):
- *
- *   <div role="toolbar" aria-orientation data-orientation>            <- Root
+ * <div role="toolbar" aria-orientation data-orientation>            <- Root
  *     <button type="button" data-focusable aria-disabled tabindex>     <- Button
  *     <div role="separator" data-orientation aria-orientation>         <- Separator
  *     <div role="group" data-orientation>                              <- Group
  *     <input data-focusable tabindex>                                  <- Input
  *     <a tabindex href>                                                <- Link
- *
- * Four measurements are worth stating, because each is easy to assume wrong:
- *   - THE SEPARATOR'S ORIENTATION IS THE OPPOSITE OF THE TOOLBAR'S. A horizontal
- *     toolbar renders `data-orientation="vertical"` rules and vice versa, because
- *     a rule crosses the strip. The recipe's `data-[orientation=vertical]:` arm
- *     is therefore the one that fires in the DEFAULT horizontal toolbar — the
- *     reverse of every other part here, and the reverse of the catalog's
- *     standalone Separator.
- *   - `focusableWhenDisabled` DEFAULTS TO TRUE. A disabled button therefore keeps
- *     `data-disabled` + `aria-disabled="true"`, stays in the arrow-key order, and
- *     carries NO native `disabled` attribute. Opting out (`focusableWhenDisabled
- *     ={false}`) swaps that for a real `disabled` attribute and drops the item
- *     out of the roving order entirely.
- *   - *** NEVER `userEvent.click()` A DISABLED TOOLBAR BUTTON. *** Playwright's
- *     actionability check treats `aria-disabled="true"` as not-enabled and blocks
- *     the click until the 15s timeout. The click must be dispatched with the DOM
- *     `element.click()` instead — the same device the Wave-2 pointer-blocker
- *     gotcha established.
- *   - A `Toolbar.Input` SWALLOWS THE HORIZONTAL ARROW KEY while its caret can
- *     still move inside its own value. With a non-empty value, the first
- *     ArrowRight moves the caret and only the next one leaves the field; with an
- *     empty value it exits on the first press. The keyboard specs below use an
- *     EMPTY input so the step count is the obvious one.
  *
  * Base UI stamps NO class of its own on any of the six parts (probed), so every
  * class set below is pure recipe and is asserted with no spread-in extras.

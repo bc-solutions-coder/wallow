@@ -1,45 +1,9 @@
 /*
- * The shared Tailwind v4 entry for every Wallow frontend.
- *
- * Tailwind v4 is CSS-first, so this file is the config. It maps Tailwind's
- * tokens onto plain custom properties and stops there: the palette those
- * properties resolve to is emitted at render time from packages/styles/branding.json (see
- * ./src/branding.ts), which keeps that JSON the only place a fork edits to
- * rebrand.
- *
- * A consuming app imports this entry and then declares its own source scan,
- * which this package cannot do on the app's behalf — a scan declared here would
- * see this package's files, not the app's, and ship a stylesheet that styles
- * nothing.
- *
- * The sidebar, success and warning tokens carry a two-level fallback the older
- * tokens do not need: packages/styles/branding.json is merge=ours in .gitattributes, so a fork whose
- * copy predates those keys never receives them from an upstream merge and the
- * theme emits no custom property for them. The fallback lands such a fork on a
- * colour its palette has always carried instead of on nothing at all.
- *
- * warning falls back to primary because that is exactly where it came from: the
- * catalog's warning badge spent bg-primary by hand, this fork's primary being an
- * amber and the palette carrying nothing else warning-shaped. A fork too old to
- * have the key therefore keeps the colour it already had, while a fork whose
- * primary is not amber now gets a warning that reads as one.
- *
- * The sidebar-* family is deliberately named after its first consumer, not
- * after what it now means: it is the theme's general inverted-surface family,
- * and three of its four current consumers (PublicLayout's footer, LandingPage's
- * StepsBand, LandingPage's outline-CTA hover — only the dashboard rail/drawer
- * is an actual sidebar) are not sidebars. That mismatch was weighed and the
- * name was kept, not renamed to something surface-neutral like inverse-*,
- * because branding.ts's mergeClientBranding merges a per-client themeJson
- * override over the fork's palette BY KEY NAME: a stored client override still
- * spelled sidebar would stop applying the moment the fork's key became
- * inverse, with no error and no build failure — a CSS var() fallback chain
- * can prefer the fork's old name over its new one, but it cannot prefer a
- * client's old-named override over the fork's new-named value, so no fallback
- * can fix this. Renaming would also be a breaking change on two public
- * surfaces (this branding.json key and @bc-solutions-coder/ui's Text
- * color="onSidebar" prop) for a purely cosmetic gain. Do not reopen this; see
- * Wallow-lrlm.6.6 for the full analysis.
+ * Shared Tailwind tokens backed by the fork CSS custom properties.
+ * Consumers import this entry and declare their own source scanning paths relative to their stylesheet.
+ * Render branding theme variables in the document head or load virtual:wallow-theme.css.
+ * Sidebar, success, and warning tokens have fallback values for palettes that omit those keys.
+ * Sidebar key names are also used by per-client theme overrides.
  */
 @import "tailwindcss";
 

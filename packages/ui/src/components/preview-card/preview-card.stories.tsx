@@ -5,12 +5,6 @@ import { expect, fn, screen, userEvent, waitFor } from "storybook/test";
 import { PreviewCard } from "./preview-card";
 
 /*
- * Wallow-m5aq.3.5 — PreviewCard stories. `@storybook/addon-vitest` turns every
- * export below into a Vitest test case rendered in the same headless Chromium the
- * `browser` project uses, with the real Tailwind pipeline attached (see
- * .storybook/main.ts), so these are the VISUAL half of the component's spec while
- * preview-card.test.tsx holds the markup assertions a screenshot cannot make.
- *
  * What belongs HERE rather than in preview-card.test.tsx:
  *
  *   - Any assertion that a recipe utility actually PAINTS (see

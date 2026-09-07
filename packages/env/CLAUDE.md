@@ -41,6 +41,6 @@ runtime variable would fail `vite build`.
   build-time literal, and a library copy would freeze every published consumer's prefix
   to `/`.
 - **Boot-time validation** — that is the SDK's `loadBffConfigFromEnv`; duplicating it here
-  creates an `sdk → env` edge. This package throws nothing; it answers `undefined`.
+  creates an `sdk → env` edge. Keep malformed-value handling in each helper consistent with its documented fallback.
 - **Trust decisions** — anything gated on `WALLOW_TRUSTED_PROXIES` belongs beside the
   proxies that act on it, in the SDK.

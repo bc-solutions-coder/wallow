@@ -367,18 +367,7 @@ describe("callback handler", () => {
 });
 
 /**
- * The token-exchange `currentUrl` must be rooted at `config.redirectUri`
- * (Wallow-pu6a.3.1, NEW RISK 1).
- *
- * openid-client derives the token request's `redirect_uri` from the `currentUrl`
- * it is handed, while the authorize step sends `config.redirectUri`. Deriving
- * `currentUrl` from the incoming request instead would make the two disagree
- * behind TLS termination — the hosts build the `Request` as
- * `http://${req.headers.host}${req.url}` and ignore `x-forwarded-proto`, so a
- * request that reached the edge as `https://app.example.com/bff/callback`
- * arrives here as `http://localhost:3000/bff/callback`. The IdP would then
- * answer `invalid_grant` in every TLS-terminated deployment while every local
- * test still passed.
+ * Root the token-exchange currentUrl at config.redirectUri so openid-client sends the same redirect_uri used in the authorization request.
  */
 describe("callback token-exchange currentUrl", () => {
   it("roots currentUrl at config.redirectUri, not at the incoming request URL", async () => {
@@ -419,22 +408,7 @@ describe("callback token-exchange currentUrl", () => {
 });
 
 /**
- * Open-redirect guard on `returnTo` (Wallow-pu6a.1.5, finding F6/R5).
- *
- * `/bff/login?returnTo=` is attacker-reachable: anyone can hand a victim a link
- * to the app's own login endpoint carrying a foreign `returnTo`, and the value
- * survives the whole OIDC round trip inside the tx cookie before the callback
- * issues its redirect. Both ends must run the value through the existing
- * `isSafeReturnUrl` guard from `../auth-oidc`.
- *
- * SANITIZE, DO NOT REFUSE. An unsafe `returnTo` falls back to "/" and login
- * still proceeds — matching the backend's `ReturnUrlValidator.Sanitize`
- * behaviour. (The pure builders in `auth-oidc.ts` deliberately throw instead,
- * but those are called by app code with a value it chose; this handler is a
- * browser navigation entry point where a hard 400 would turn a merely-malformed
- * link into a broken login.) The guard covers the callback too, so a tx cookie
- * sealed by an older build — or by any path that bypasses the login handler —
- * cannot still land the browser on a foreign origin.
+ * Reject unsafe returnTo values before carrying them through the login transaction to the post-login redirect.
  */
 describe("returnTo open-redirect guard", () => {
   /** Round-trip the login response's tx cookie back into its `LoginTx`. */
@@ -517,11 +491,8 @@ describe("returnTo open-redirect guard", () => {
   });
 
   it("takes the first value of a repeated returnTo parameter and still sanitizes it", async () => {
-    // A deliberate behaviour delta from the h3 handler this replaces: h3's
-    // getQuery returned an ARRAY for a repeated parameter, which failed the
-    // `typeof === "string"` test and fell back to "/". `searchParams.get`
-    // returns the FIRST value instead, so the guard — not the parameter
-    // parser — is what has to reject a smuggled second value.
+    // Repeated returnTo parameters use the first value, which still passes through the local-path
+    // guard.
     const [res, config] = await loginWithQuery(
       "https://login-guard-repeated.example.com",
       `returnTo=${encodeURIComponent("/safe")}&returnTo=${encodeURIComponent("//evil.test/pwn")}`,
@@ -619,18 +590,14 @@ describe("user handler", () => {
       }),
     );
 
-    // h3 serialized the handler's returned object and stamped the content type;
-    // nothing does that for us now, so the handler must do it itself.
+    // The handler must return an explicit JSON content type.
     expect(res.headers.get("content-type") ?? "").toContain("application/json");
     const body: BffUserResponse = (await res.json()) as BffUserResponse;
     expect(body.sub).toBe(session.user.sub);
   });
 
   it("marks the identity response no-store", async () => {
-    // This body carries the user's claims AND the CSRF token (Wallow-vufu.5.1,
-    // finding L2). Without an explicit directive a shared intermediary — or the
-    // browser's own back/forward cache — may keep one user's session data and
-    // hand it to the next request on the same connection.
+    // Identity responses contain claims and CSRF data and must not be cached.
     const config: BffConfig = makeConfig("https://user-no-store.example.com");
     const sealed: string = await sealSession(makeSession(), config.cookiePassword);
     const handle = makeHandle(createBffHandlers(config));
@@ -802,16 +769,7 @@ describe("logout handler", () => {
 });
 
 /**
- * Logout is a state-changing operation and must be gated like one
- * (Wallow-pu6a.3.2, finding F12a).
- *
- * The h3 handler this replaces accepted a bare `GET /bff/logout` from anyone:
- * an `<img src="/bff/logout">` on any page the victim visited was enough to
- * revoke their session server-side and clear their cookies. The port takes the
- * opportunity to require `POST` plus the session-bound CSRF token the `/api`
- * proxy already demands — and, critically, to destroy NOTHING when the check
- * fails. A rejected logout that still cleared the cookies would be the same
- * denial of service wearing a 403.
+ * Logout changes session state and requires POST plus a matching CSRF token for an active session.
  */
 describe("logout CSRF gate", () => {
   /** A logout handler over a recording store, with discovery stubbed. */
@@ -929,20 +887,7 @@ describe("logout CSRF gate", () => {
   });
 
   /**
-   * Anonymous logout is idempotent, not forbidden (Wallow-vufu.5.1, finding L1).
-   *
-   * The CSRF gate above used to run unconditionally, and
-   * `csrfTokenMatches(undefined, presented)` is false by construction — so a
-   * logout with no session at all was answered with the same 403 as a genuine
-   * cross-site attempt, and the user saw a spurious "Logout failed" for a
-   * session that was already gone. There is nothing to protect when there is no
-   * session: the request is a no-op that should succeed and tidy up the
-   * browser's stale cookies.
-   *
-   * The narrowness matters. ONLY a null session skips the gate. A session that
-   * EXISTS but carries no `csrfToken` stays rejected — treating a missing token
-   * as "no protection needed" would hand every unprotected session to any
-   * cross-site caller, which is the opposite of the fix.
+   * Anonymous logout succeeds and clears stale cookies. An active session still requires a matching CSRF token.
    */
   it("answers an anonymous POST with 204 instead of 403", async () => {
     const { handle, destroyed } = makeLogout("https://logout-anon-204.example.com");
@@ -1398,15 +1343,7 @@ describe("session cookie hardening", () => {
 });
 
 /**
- * A `__Host-`-prefixed cookie name must survive every name the BFF composes
- * (Wallow-pu6a.3.2, finding F10).
- *
- * RFC 6265bis only honours the prefix when the cookie is `Secure`, `Path=/`,
- * and carries no `Domain` — which `baseCookieOpts` already satisfies — and the
- * prefix is part of the NAME, so the chunk (`.1`), CSRF (`-csrf`), and
- * transaction (`_tx`) names all have to compose around it without colliding.
- * The default itself is `loadBffConfigFromEnv`'s business and is pinned in
- * config.test.ts; these tests pin the handler side.
+ * Session chunks, CSRF cookies, and transaction cookies retain the Secure, Path=/, and no-Domain requirements of __Host- names.
  */
 describe("__Host- prefixed cookie names", () => {
   const HOST_PREFIXED: string = "__Host-wallow_bff";
@@ -1468,15 +1405,7 @@ describe("__Host- prefixed cookie names", () => {
 });
 
 /**
- * Multiple `Set-Cookie` headers must survive the web-standard response
- * (Wallow-pu6a.3.1, risk (a)).
- *
- * `Headers` is the one place where the port can silently lose data: building a
- * response from an object literal collapses duplicate keys before `Headers`
- * ever sees them, and `Headers.set` after an `append` destroys every cookie
- * already written. Either mistake leaves a chunked session half-written and a
- * logout half-cleared, and neither shows up as an error — only as a session
- * that mysteriously fails to unseal.
+ * Preserve every Set-Cookie header when constructing web-standard responses, including session chunks and cleanup cookies.
  */
 describe("multiple Set-Cookie headers", () => {
   it("emits one Set-Cookie per chunk plus the CSRF companion on a callback", async () => {
@@ -1622,14 +1551,7 @@ describe("readSession/writeSession store threading", () => {
 });
 
 /**
- * OIDC front-channel logout (Wallow-whsz).
- *
- * The OP's logout page loads `/bff/frontchannel-logout?iss=...&sid=...` in a
- * hidden iframe when the SSO session ends. The handler destroys the local
- * session ONLY when both `iss` and `sid` match; every other GET answers the
- * same 200 page so a prober learns nothing about session state. It is
- * deliberately outside the CSRF gate — the notification is a cross-site GET by
- * design, and the sid requirement is what stops a forged teardown.
+ * Front-channel logout destroys the session only when both issuer and session ID match. Other requests return the same successful response without clearing the session.
  */
 describe("frontchannel logout handler", () => {
   const FC_PATH: string = "http://localhost/bff/frontchannel-logout";

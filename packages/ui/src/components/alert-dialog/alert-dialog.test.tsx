@@ -7,10 +7,7 @@ import { buttonRecipe } from "../button/button.styles";
 import { AlertDialog } from "./alert-dialog";
 
 /*
- * Alert Dialog behavioural spec (Wallow-m5aq.3.2), shaped after the
- * Wallow-m5aq.3.1 Dialog exemplar:
- *
- *   1. Runs in the vitest BROWSER project — real headless Chromium, real Base UI,
+ * 1. Runs in the vitest BROWSER project — real headless Chromium, real Base UI,
  *      real DOM. Nothing is mocked.
  *   2. Recipes are asserted THROUGH the component, never by importing
  *      `alertDialogPopupRecipe` and inspecting its return value: a recipe unit
@@ -23,7 +20,7 @@ import { AlertDialog } from "./alert-dialog";
  *      file is only for the edges a screenshot cannot make.
  *
  * WHAT MAKES AN ALERT DIALOG DIFFERENT FROM A DIALOG, measured against
- * @base-ui/react 1.6.0 rather than read from the docs: `AlertDialog.Root` is the
+ * Base UI rather than read from the docs: `AlertDialog.Root` is the
  * only part with its own runtime, and all it does is call Dialog's
  * `useRenderDialogRoot(props, 'alert-dialog')`, which forces `modal`, forces
  * `disablePointerDismissal`, and swaps the popup's role. So:
@@ -407,10 +404,6 @@ describe("AlertDialog", () => {
   });
 
   it("builds the close recipe from the button's own recipe rather than restating it", async () => {
-    // The one deliberate cross-component import in this catalog (bead
-    // Wallow-m5aq.3.2, design doc §2). Asserted against `buttonRecipe`'s LIVE
-    // output rather than a copied class list, so a change to button.styles.ts
-    // moves this spec with it instead of letting the two silently drift.
     await openAlert();
 
     const rendered = new Set(classSet(part("a-confirm")));

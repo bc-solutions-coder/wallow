@@ -5,13 +5,6 @@ import { expect, fn, userEvent, waitFor } from "storybook/test";
 import { Collapsible } from "./collapsible";
 
 /*
- * Wallow-m5aq.4.1 — Collapsible stories, the standalone half of the Accordion
- * pair. Same contract as accordion.stories.tsx: `@storybook/addon-vitest` turns
- * every export into a Vitest test case rendered in the same headless Chromium as
- * the `browser` project, but WITH the real Tailwind pipeline attached, so this
- * file owns the "does the recipe actually paint" half and collapsible.test.tsx
- * owns the markup.
- *
  * THE PANEL IS HEIGHT-ANIMATED HERE AND ONLY HERE. Real CSS means the recipe's
  * 150ms `transition-[height]` genuinely runs, so no story below may assert an
  * opened panel's visibility synchronously after the press — it starts at `h-0`.

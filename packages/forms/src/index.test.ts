@@ -27,16 +27,8 @@ import type {
 } from "./index";
 
 /**
- * The complete runtime surface of `@bc-solutions-coder/forms`, sorted. Asserted
- * as an EXACT set, so this list grows only when a new capability is genuinely
- * meant to be public — nothing reaches the barrel by accident.
- *
- * Four groups, and no fifth:
- *   - the hook (`useAppForm`) and its higher-order companion (`withForm`);
- *   - the shell (`AppForm`) and the two children that read its context
- *     (`SubmitButton`, `FormError`);
- *   - the catalog fields, so a form can also render one outside `AppField`;
- *   - the two testid helpers.
+ * The complete runtime export set. Includes hooks, the form shell and controls, context-bound
+ * catalog fields, and test ID helpers.
  */
 const PUBLIC_RUNTIME_EXPORTS = [
   "AppForm",
@@ -104,7 +96,7 @@ describe("@bc-solutions-coder/forms public API", () => {
 
   it("derives testids exactly as the catalog fields do", () => {
     // The two helpers are on the barrel so a bespoke form can keep its
-    // Playwright ids byte-identical to a migrated one; pinning their VALUES here
+    // Playwright ids consistent with the catalog; pinning their values here
     // makes the barrel's copy provably the same function the catalog uses.
     expect(forms.fieldTestId("inquiry", "projectType")).toBe("inquiry-project-type");
     expect(forms.fieldErrorTestId("inquiry", "projectType")).toBe("inquiry-project-type-error");

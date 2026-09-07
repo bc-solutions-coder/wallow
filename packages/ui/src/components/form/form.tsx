@@ -64,9 +64,9 @@ export interface FormProps<FormValues extends Record<string, unknown> = Record<s
 }
 
 /**
- * The `FormValues` type argument is forwarded explicitly rather than left to
- * inference, which would erase it back to the default and untype the values
- * `onFormSubmit` receives.
+ * Validates named child fields before calling onFormSubmit with their values. The errors prop
+ * maps server messages to field names; validationMode sets the default timing for child
+ * fields.
  */
 export function Form<FormValues extends Record<string, unknown> = Record<string, unknown>>({
   className,

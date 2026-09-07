@@ -5,10 +5,6 @@ import { userEvent } from "vitest/browser";
 import { Toggle, type ToggleProps } from "./toggle";
 
 /*
- * Wallow-m5aq.2.12 — Toggle. Same spec shape as the exemplar
- * (Wallow-m5aq.2.1): browser vitest project, nothing mocked, the recipe asserted
- * THROUGH the component, class assertions as an order-free set.
- *
  * Unlike the Switch/Checkbox specs, this one CAN use `userEvent.click`. Tailwind
  * is not compiled in the `browser` project, so a component whose box comes only
  * from its recipe measures 0x0 and Playwright's actionability check refuses to
@@ -21,7 +17,7 @@ import { Toggle, type ToggleProps } from "./toggle";
  * landed). `await userEvent.click(...)` yields long enough for React to flush,
  * so it is the only pointer path used.
  *
- * Every assertion below was measured against the unstyled Base UI 1.6.0 part
+ * Every assertion below was measured against the unstyled Base UI part
  * before this spec was written. Two of those measurements are worth stating
  * because they are easy to assume wrong:
  *   - there is NO `data-unpressed`. Off is the ABSENCE of `data-pressed`, which

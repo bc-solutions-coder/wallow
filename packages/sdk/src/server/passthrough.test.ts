@@ -16,14 +16,7 @@ import {
 } from "./passthrough";
 
 /**
- * `createApiPassthrough` is the pure reverse-proxy topology a passthrough-only
- * fork runs: prefix-matched paths go upstream, everything else is not ours. The
- * options under test are `prefixes` (the `/v1`, `/connect`, `/.well-known` list)
- * and the client-address stamping, `forwardClientIp` plus `trustedProxies`.
- *
- * A real fake upstream HTTP server stands in for Wallow.Api, so the assertions
- * pin what actually reaches the wire: method, path, query, body, `Cookie`, the
- * `X-Forwarded-*` chain, and every upstream `Set-Cookie` coming back verbatim.
+ * Verify allowed path prefixes, custom fetch forwarding, and upstream responses for the session-free API passthrough.
  */
 
 interface RecordedRequest {
@@ -220,9 +213,7 @@ describe("createApiPassthrough — prefix allowlist", () => {
 });
 
 /**
- * Spec ported from `auth-server.test.ts` (Wallow-vec7.4.2): discovery and the
- * `jwks_uri` it advertises both resolve at this origin, so the whole
- * `/.well-known` subtree must proxy — not just `openid-configuration`.
+ * Forward the complete discovery subtree, including the issuer’s JWKS endpoint.
  */
 describe("createApiPassthrough — discovery passthrough", () => {
   it("proxies GET /.well-known/openid-configuration to upstream", async () => {
@@ -346,12 +337,8 @@ describe("createApiPassthrough — reverse-proxy passthrough", () => {
 });
 
 /**
- * Spec ported from `auth-server.test.ts` (Wallow-vec7.4.3): the API computes the
- * Identity cookie's `Secure` attribute and OpenIddict's HTTPS check (ID2083)
- * from the scheme it sees, which it derives from `X-Forwarded-Proto`. This
- * proxy's upstream leg is plain HTTP even when the browser leg is HTTPS, and an
- * outer TLS-terminating ingress is the only hop that knows the real scheme — so
- * a header it already set must win.
+ * Preserve the trusted browser-facing scheme so API HTTPS and cookie policies see the original
+ * connection scheme.
  */
 describe("createApiPassthrough — forwarded-scheme propagation", () => {
   it("sends X-Forwarded-Proto derived from the inbound scheme when the client sent none", async () => {
@@ -397,13 +384,7 @@ describe("createApiPassthrough — forwarded-scheme propagation", () => {
 });
 
 /**
- * The API rate-limits per client IP off `X-Forwarded-For` with
- * `KnownProxies.Clear()`, so it reads the RIGHTMOST entry — the one this hop
- * appends. The passthrough resolves that entry itself from the peer address
- * srvx exposes on `request.ip` and the deployment's trusted-proxy list: with no
- * proxies configured the peer is the caller; behind a configured ingress the
- * chain the ingress wrote is walked for the real caller; a chain sent by an
- * untrusted peer is never believed. Nothing a host stamps is consulted.
+ * Append the client address resolved from the peer and trusted proxy chain. An untrusted forwarded header must not control that address.
  */
 describe("createApiPassthrough — client address", () => {
   /** A request as srvx hands it to a route: a WHATWG `Request` plus the peer's address. */
@@ -539,10 +520,8 @@ describe("createApiPassthrough — client address", () => {
 });
 
 /**
- * Spec ported from `auth-server.test.ts` (Wallow-vpnt): precedence is explicit
- * config, then `WALLOW_API_INTERNAL_URL`, then the standalone-dev localhost
- * default — `http://wallow-api` only resolves under Aspire/Docker and 500s every
- * proxied call outside them.
+ * Resolve API origin from explicit apiBaseUrl, then WALLOW_API_INTERNAL_URL, then the localhost
+ * default.
  */
 describe("createApiPassthrough — API target resolution", () => {
   const ENV_KEY = "WALLOW_API_INTERNAL_URL";

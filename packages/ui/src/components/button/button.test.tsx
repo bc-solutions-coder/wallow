@@ -8,12 +8,7 @@ import { Button } from "./button";
 import { buttonRecipe, type ButtonRecipeProps } from "./button.styles";
 
 /*
- * EXEMPLAR SPEC (Wallow-m5aq.2.1), extended by Wallow-lrlm.3.1 (the upgraded
- * recipe: outline/ghost/link variants, sm/md/lg/icon sizes, width and shape
- * groups, hover + focus-visible treatment). Every component task copies the
- * shape of this file, so the shape is part of the deliverable:
- *
- *   1. Runs in the vitest BROWSER project — real headless Chromium, real Base UI,
+ * 1. Runs in the vitest BROWSER project — real headless Chromium, real Base UI,
  *      real DOM. `*.test.tsx` under src/ is collected there automatically; no
  *      environment pragma, and never jsdom/happy-dom (.claude/rules/TESTING.md).
  *   2. NOTHING is mocked. packages/ui specs render the actual Base UI part and
@@ -31,16 +26,6 @@ import { buttonRecipe, type ButtonRecipeProps } from "./button.styles";
  *      scale rather than the contract. What IS pinned exactly: the legacy
  *      recipe's utilities (below), the two shape radii, and `w-full` belonging to
  *      `width` rather than to the base string.
- *
- * COMPAT GUARANTEE (this component only): the pre-rebuild Button was a
- * hand-rolled string-append with a measured recipe used 11x across wallow-auth.
- * Its class set must survive, with ONE deliberate delta pinned by its own test:
- * `disabled:opacity-50` becomes `data-[disabled]:opacity-50`, because Base UI
- * drives state through data-attributes and the `:disabled` pseudo-class does not
- * exist on a `render`-prop anchor. The new variant groups keep that guarantee by
- * DEFAULTING to today's rendering: `size="md"` carries the legacy padding and
- * type scale, `width="full"` carries the legacy `w-full`, `shape="rounded"`
- * carries the legacy `rounded-md`.
  */
 
 type ButtonVariantName = NonNullable<ButtonRecipeProps["variant"]>;
@@ -60,14 +45,12 @@ const SIZES: ButtonSizeName[] = ["sm", "md", "lg", "icon"];
 const WIDTHS: ButtonWidthName[] = ["auto", "full"];
 const SHAPES: ButtonShapeName[] = ["rounded", "pill"];
 
-/** The three pre-existing variants and the token pair each one must keep. */
 const SOLID_VARIANT_TOKENS: [ButtonVariantName, string, string][] = [
   ["primary", "bg-primary", "text-primary-foreground"],
   ["secondary", "bg-secondary", "text-secondary-foreground"],
   ["destructive", "bg-destructive", "text-destructive-foreground"],
 ];
 
-/** The pre-rebuild recipe, verbatim from the Button this replaces. */
 const LEGACY_PRIMARY_RECIPE =
   "w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50";
 
@@ -218,7 +201,7 @@ describe("Button recipe options", () => {
   });
 
   it("defaults to the primary variant at the md size, full width, rounded shape", () => {
-    // The compat default: today's Button is a full-width rounded-md primary, and
+    // The compat default: the applications' Button is a full-width rounded-md primary, and
     // every one of the 11 existing call sites passes no size, width or shape.
     expect(recipeClasses()).toEqual(
       recipeClasses({ variant: "primary", size: "md", width: "full", shape: "rounded" }),
@@ -623,21 +606,11 @@ describe("Button component", () => {
   });
 });
 
-/**
- * A stand-in for TanStack Router's `Link`: a COMPONENT-typed render element that
- * turns its own routing prop into the `href`. The distinction from a literal
- * `<a href>` is the whole difficulty of the spec below it — `render.type` here is
- * a function and `render.props` carries no `href`, so nothing about this element
- * says "anchor" until it has actually mounted. `apps/wallow-web` composes the
- * catalog Button exactly this way for its header CTA.
- */
 function StandInRouterLink({ to, ...rest }: { to: string } & ComponentProps<"a">): ReactElement {
   return <a href={to} {...rest} />;
 }
 
 /**
- * ROLE SEMANTICS (Wallow-lrlm.12).
- *
  * Base UI's `useButton` merges `isNativeButton ? { type: "button" } : { role:
  * "button" }` into the props of whatever `render` substitutes, so every
  * anchor-composed catalog Button announces a NAVIGATION as an ACTION: it is
@@ -660,7 +633,7 @@ function StandInRouterLink({ to, ...rest }: { to: string } & ComponentProps<"a">
  * fails on `role="button"`. `.query()` is used rather than `expect.element` so a
  * negative case resolves immediately instead of retrying to timeout.
  *
- * WHY BASE UI IS NOT ASKED TO FIX THIS: it declines to. Base UI 1.6.0 documents
+ * WHY BASE UI IS NOT ASKED TO FIX THIS: it declines to. Base UI documents
  * the role as INTENTIONAL ("The Button component enforces button semantics
  * (`role="button"`, keyboard interaction, disabled state). It should not be used
  * for links") and exposes no opt-out prop — `nativeButton` only chooses between
@@ -694,10 +667,6 @@ describe("Button link semantics", () => {
   });
 
   it("announces a component-typed render that resolves to an anchor as a link", async () => {
-    // The wallow-web shape. The element only becomes an anchor once the
-    // component has rendered, so an implementation that inspects `render.type`
-    // or `render.props.href` passes the spec above and fails here. Both call
-    // shapes are shipped today, so both are the contract.
     const screen = await render(
       <Button render={<StandInRouterLink to="/dashboard/apps/register" />} nativeButton={false}>
         Register New App
@@ -714,7 +683,7 @@ describe("Button link semantics", () => {
   it("keeps button semantics for a non-anchor composed through render", async () => {
     // The other arm, and the reason the fix cannot simply drop the role: a <div>
     // has no implicit role at all, so without Base UI's `role="button"` this
-    // control would announce as nothing. Passes today; it fails the moment a fix
+    // control would announce as nothing. Passes; it fails the moment a fix
     // strips the role unconditionally instead of only for links.
     const screen = await render(
       <Button render={<div />} nativeButton={false}>

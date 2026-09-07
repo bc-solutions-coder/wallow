@@ -6,21 +6,10 @@ import { Text, type TextAs } from "./text";
 import { textRecipe, type TextRecipeProps } from "./text.styles";
 
 /*
- * SPEC for Wallow-lrlm.2.1 (the Text component).
- *
  * Text's visual half — every variant against every colour, in both schemes —
  * lives in `text.stories.tsx`, which the `storybook` vitest project runs with the
  * real Tailwind pipeline and the fork's real theme attached. This file holds only
  * the edges a story cannot express:
- *
- *   - `as` picks the rendered ELEMENT;
- *   - `as` alone picks a default type scale, and an explicit `variant` beats it;
- *   - a caller `className` beats the recipe's own utilities;
- *   - `weight` beats the variant's own weight;
- *   - the colour map is one semantic token per value with NO `/NN` opacity
- *     suffix anywhere — asserted by reading `textRecipe()` directly, no render;
- *   - `bodySm` + `muted` resolves to exactly MutedText's two classes, the
- *     byte-exact contract Wallow-lrlm.2.2 depends on.
  *
  * Class assertions are order-free sets, per the Button exemplar: `cn()` lets
  * tailwind-merge reorder.
@@ -45,11 +34,6 @@ const AS_VALUES: TextAs[] = [
   "code",
 ];
 
-/**
- * The type scale each `as` value derives when no `variant` is supplied. h5/h6 are
- * deliberately absent: the bead leaves those two to the implementer's judgement,
- * so pinning them here would over-specify the lookup table.
- */
 const AS_DEFAULT_VARIANT: [TextAs, TextVariant][] = [
   ["h1", "display"],
   ["h2", "title"],
@@ -65,7 +49,7 @@ const AS_DEFAULT_VARIANT: [TextAs, TextVariant][] = [
 
 /**
  * The single semantic token each `color` value maps to. One utility per value and
- * never an alpha variant — today's apps write `text-foreground/60` by hand, and
+ * never an alpha variant — the applications' apps write `text-foreground/60` by hand, and
  * making that unreproducible is the point of the component.
  */
 const COLOR_TOKENS: [TextColor, string][] = [
@@ -170,8 +154,6 @@ describe("Text type scale", () => {
   });
 
   it("gives the overline variant the uppercase caption treatment", () => {
-    // The string two wallow-web sections hand-roll today, minus the mb-1 (that is
-    // the caller's spacing) and minus the /70 (that is the color prop's job).
     const overline = textRecipe({ variant: "overline" }).split(" ");
 
     expect(overline).toContain("uppercase");
@@ -204,9 +186,6 @@ describe("Text semantic colour", () => {
   });
 
   it("resolves bodySm + muted to exactly MutedText's two classes", async () => {
-    // Wallow-lrlm.2.2 reroutes MutedText's render through Text, and
-    // muted-text.test.tsx asserts an EXACT two-class set with no edits allowed.
-    // So the recipe's base string must be empty and bodySm must be text-sm alone.
     const classes = await renderedClasses(
       <Text as="p" variant="bodySm" color="muted">
         Loading…

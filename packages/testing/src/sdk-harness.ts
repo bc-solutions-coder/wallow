@@ -1,28 +1,7 @@
 /**
- * Shared SDK test seam (Wallow-pu6a.5.1) — a fake transport handed to the REAL
- * `createWallowSdk()` factory.
- *
- * The rule this encodes is the same one `.claude/rules/TESTING.md` already
- * states for `@bc-solutions-coder/ui`: specs drive the real implementation, not
- * a hand-rolled stand-in. So nothing here mocks the SDK module — no
- * `vi.mock("@bc-solutions-coder/sdk")`, no fake facade object with the four
- * methods a screen happens to call. The harness builds a genuine `WallowSdk`
- * whose only substitution is `fetch`, which means the whole pipeline the app
- * ships (generated operation -> CSRF interceptor -> request serialization ->
- * response parsing -> TanStack Query cache) executes in the spec, while the
- * test still owns the wire result and can read the outgoing request back.
- *
- * It supersedes `apps/wallow-web/src/test/sdk-client-mock.ts`, which injected
- * `fetch` into the SDK's MODULE-GLOBAL client via `client.setConfig()`. That
- * singleton is deleted in Wallow-pu6a.5.5, so the injection point moves to the
- * per-request factory. Until that deletion lands, screens that still resolve
- * their SDK through the old singleton can be bridged with `legacyClients` (see
- * below) — deliberately typed structurally so this package never imports the
- * deprecated symbol and the bridge disappears from call sites, not from here.
- *
- * No `vitest` import: the recorder is a plain closure, so this module stays
- * usable from the node project, the browser project and the storybook project
- * alike, and importing it costs nothing at Vitest config-load time.
+ * Create a real SDK with a recording transport and programmable responses.
+ * Each harness owns its requests and responder. It does not replace global fetch
+ * and can be used in Node, browser, or Storybook tests.
  */
 import { createWallowSdk, type WallowSdk } from "@bc-solutions-coder/sdk";
 
@@ -54,11 +33,7 @@ export interface SdkCall {
 export type SdkResponder = (call: SdkCall) => Response | Promise<Response>;
 
 /**
- * A client whose transport can be reprogrammed after construction.
- *
- * TRANSITIONAL (removed with Wallow-pu6a.5.5). Structural rather than an import
- * of the SDK's deprecated module-global `client`, so deleting that singleton
- * touches the specs that opt in, never this package.
+ * An additional client whose fetch transport can be assigned by createSdkHarness.
  */
 export interface LegacyConfigurableClient {
   setConfig: (config: { fetch?: typeof globalThis.fetch }) => unknown;
@@ -68,14 +43,7 @@ export interface LegacyConfigurableClient {
 export interface SdkHarnessOptions {
   /** Base URL for the SDK instance. Defaults to {@link DEFAULT_HARNESS_BASE_URL}. */
   baseUrl?: string | undefined;
-  /**
-   * Extra already-constructed clients to point at this harness's transport.
-   *
-   * TRANSITIONAL: the escape hatch for screens that still reach the SDK through
-   * the deprecated module singleton instead of the router context. Pass
-   * `[client]` (imported from `@bc-solutions-coder/sdk` by the spec) until
-   * Wallow-pu6a.5.5 deletes it, then drop the option.
-   */
+  /** Additional clients to mutate so they use this harness's recording transport. */
   legacyClients?: readonly LegacyConfigurableClient[] | undefined;
 }
 
@@ -141,8 +109,11 @@ async function decodeBody(request: Request): Promise<unknown> {
 }
 
 /**
- * Build a {@link SdkHarness}: a real `WallowSdk` whose transport is a recording
- * fake the spec programs.
+ * Create an isolated SDK backed by a request recorder and programmable transport.
+ *
+ * The default response is JSON {} with status 200. Program responses before calling
+ * an operation. Requests are recorded after decoding the body and before invoking
+ * the responder, including requests left pending. No request uses the real network.
  */
 export function createSdkHarness(options: SdkHarnessOptions = {}): SdkHarness {
   const calls: SdkCall[] = [];

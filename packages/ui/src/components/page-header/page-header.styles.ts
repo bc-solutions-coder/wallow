@@ -14,11 +14,7 @@ import { cva, type VariantProps } from "class-variance-authority";
  * component's decision. These recipes carry layout alone.
  */
 
-/**
- * The header row — the outer `<div>` the caller's props land on. `items-start`
- * keeps the actions aligned to the top of a title that wraps to two lines, and
- * `mb-8` is the page rhythm both wallow-web list routes hand-roll today.
- */
+/** Page-header flex layout with top-aligned actions and space below the heading block. */
 export const pageHeaderRecipe = cva("flex items-start justify-between gap-4 mb-8");
 
 /** The row recipe's variant props, mixed into `PageHeaderProps`. */

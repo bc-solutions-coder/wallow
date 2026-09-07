@@ -5,10 +5,6 @@ import { describe, expect, it, vi } from "vitest";
 import { OTPField, type OTPFieldRootProps } from "./otp-field";
 
 /*
- * Follows the exemplar spec shape from Wallow-m5aq.2.1 (button.test.tsx):
- * browser project, nothing mocked, recipes asserted THROUGH the component, and
- * class assertions as an order-free SET so tailwind-merge may reorder.
- *
  * Two things about this component shape the spec:
  *
  * 1. `OTPField.Input` takes NO index prop. Each slot derives its index from its

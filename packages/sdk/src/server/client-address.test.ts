@@ -11,14 +11,7 @@ import {
 } from "./client-address";
 
 /**
- * The address a rate limiter buckets on and a log line records.
- *
- * Two failures sit on opposite sides of one decision. Ignore `X-Forwarded-For`
- * and every user behind an ingress shares the ingress's address — one global
- * rate-limit bucket, and a log field naming the proxy. Believe it unconditionally
- * and any caller picks its own bucket and its own recorded address by sending a
- * header. The trusted-peer check is what separates the two, so it is what these
- * specs are mostly about.
+ * Resolve the client address by walking forwarded hops from the trusted peer. Untrusted peers cannot supply a forwarded client address.
  */
 
 const LOCAL_PROXIES = parseTrustedProxies("10.0.0.0/8, 172.16.0.0/12");

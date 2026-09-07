@@ -1,38 +1,6 @@
-/*
- * The shared pre-bundle guard: `describeBrowserPreBundleList` verifies that a
- * package's browser Vitest project can actually resolve every entry in its
- * `optimizeDeps.include`.
- *
- * That list is not an optimisation. Left to on-the-fly discovery, Vite
- * pre-bundles a Base UI subpath into a chunk carrying its OWN copy of React and
- * the first spec that renders the part dies on `Cannot read properties of null
- * (reading 'useRef')`, or the mid-run "dependencies optimized: ..." reload drops
- * the runner outright.
- *
- * The catch this guard exists for: an unresolvable entry is a WARNING, not an
- * error. Vite prints `Failed to resolve dependency: X, present in client
- * 'optimizeDeps.include'` and carries on with X silently absent — so the list can
- * look complete while pre-bundling nothing, and the package inherits exactly the
- * duplicate-React failures the list was written to prevent. Worse, a dropped
- * entry never reaches the dep-cache hash, so `node_modules/.vite` from an earlier
- * run is happily reused and the failure turns intermittent: green on one cache
- * state, red on another, with nothing in the config to point at.
- *
- * Why an entry fails is pnpm's strict `node_modules`: a package resolves only
- * what it DECLARES, and `@base-ui/react`, the recipe runtime and the browser
- * render helper reach most consumers transitively, through
- * `@bc-solutions-coder/ui` and `@bc-solutions-coder/testing`. The fix is a
- * `package.json` line, which is why the declaration check below is stated
- * separately from the resolution one.
- *
- * This lives here rather than in one package because the failure it catches is
- * silent everywhere, not only where it was first found (packages/forms). Every
- * consumer with a browser project calls it from a one-import spec.
- *
- * NODE-ONLY: it spawns child processes and reads the filesystem, so the calling
- * spec must be a `*.test.ts` that lands in the node project. It is deliberately
- * NOT re-exported from the package barrel, which is loaded at Vitest
- * config-load time.
+/**
+ * Node-only checks that a browser project declares and resolves its pre-bundled dependencies.
+ * Vite warns and continues when an include cannot resolve, so this guard makes that gap fail a test.
  */
 
 import { execFileSync } from "node:child_process";
@@ -52,6 +20,9 @@ export interface ConfigWithProjects {
   readonly test?: { readonly projects?: unknown };
 }
 
+/**
+ * Consumer package root and Vitest project whose dependency declarations and resolution are checked.
+ */
 export interface BrowserPreBundleGuardOptions {
   /**
    * The package root — the directory holding `package.json` and the directory
@@ -97,34 +68,10 @@ function resolvableForm(id: string): string {
 }
 
 /**
- * Resolve every id in a PRISTINE Node process anchored at `fromDir`.
+ * Resolve module specifiers in a fresh Node ESM process rooted at fromDir.
  *
- * Three things have to be neutralised for the answer to match Vite's, and the
- * first two were observed making this check pass against a package that Vite
- * could not resolve a single Base UI subpath in:
- *
- *   - vitest's node project runs specs through its own module runner, which
- *     patches CJS resolution for mocking, so an in-process
- *     `createRequire(...).resolve("@base-ui/react/field")` succeeds regardless.
- *     Hence a child process.
- *   - `pnpm run` exports NODE_PATH pointing at the hoisted virtual store
- *     (`node_modules/.pnpm/node_modules`), where every transitive package in the
- *     workspace is reachable. Node's CJS resolver honours it; Vite, which walks
- *     `node_modules` directories itself, does not. Hence the empty NODE_PATH
- *     below — without it a CJS child inherits pnpm's and answers a different
- *     question.
- *   - the walk has to run under the IMPORT conditions, which is what Vite reads
- *     an `optimizeDeps.include` entry with. Every workspace package here (the
- *     `@bc-solutions-coder/query` facade, `ui`, `sdk`) publishes an `exports` map
- *     with an `import` condition and no `require` one, so `require.resolve`
- *     reports ERR_PACKAGE_PATH_NOT_EXPORTED for a package Vite pre-bundles
- *     happily — a false alarm on the facade, and previously invisible only
- *     because no workspace package was listed. Hence `import.meta.resolve` in an
- *     ESM child anchored by its cwd. That also puts NODE_PATH out of reach for
- *     good: ESM resolution ignores it entirely.
- *
- * What is left is a plain directory walk from `fromDir`: exactly what Vite does
- * when it reads `optimizeDeps.include`.
+ * Returns a resolved URL for each ID, or null when resolution throws. Modules are
+ * not imported. The child avoids Vitest resolver mocks and clears NODE_PATH.
  */
 export function resolveInPristineNode(
   ids: readonly string[],

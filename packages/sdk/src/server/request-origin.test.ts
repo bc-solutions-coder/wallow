@@ -9,16 +9,7 @@ import {
 import { createRequestOriginResolver, resolveRequestOrigin } from "./request-origin";
 
 /**
- * The SSR origin derivation behind the SDK's `baseUrl`.
- *
- * Behind an HTTPS-terminating ingress the app is reached over plain HTTP, so an
- * SSR pass reading the request URL derives `http://…` while the browser derives
- * `https://…`. Generated query keys embed that `baseUrl` verbatim, so the two
- * never match and every SSR-prefetched query refetches on hydration.
- *
- * `x-forwarded-proto` is believed only when the immediate peer is a configured
- * proxy — the same gate `resolveClientAddress` puts on `x-forwarded-for`, so the
- * two forwarded headers are one trust policy rather than two.
+ * Trusted forwarded schemes produce the browser-visible SSR origin, keeping server and browser query keys consistent behind HTTPS-terminating proxies.
  */
 
 const TRUSTED = parseTrustedProxies("10.0.0.0/8");

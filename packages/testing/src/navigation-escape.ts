@@ -1,22 +1,7 @@
 /**
- * The full-page hand-off guard a browser project installs once, in its setup file.
- *
- * A spec that lets a real navigation reach the Vitest iframe does not fail: the
- * runner loses the iframe and dies mid-file, and the error names whichever file
- * the orchestrator was loading next. So the report both misattributes and
- * over-reports, and the leak reads as an intermittent flake in a neighbour.
- *
- * `location` is [Unforgeable] in real Chromium, so nothing can shadow it. The
- * Navigation API's `navigate` event is the one seam from which a page can observe
- * and veto a hand-off, and it fires for every source — an anchor whose default
- * nobody prevented, `location.assign`, a form submit. That is why this is
- * installed once per project rather than repaired once per router stub: the
- * construct that navigates does not have to be known, or reachable, to be caught.
- *
- * Only CROSS-DOCUMENT hand-offs are vetoed. A same-document `navigate` — what
- * `history.pushState` and a hash change raise, and what a real router does on
- * every route change — leaves the iframe intact, so vetoing it would break
- * routing in exchange for nothing.
+ * Record cross-document navigation and cancel it when the Navigation API allows.
+ * Install in browser setup to keep tests inside the runner. Same-document routing
+ * is allowed; tests expecting a hand-off consume the recorded navigation.
  */
 
 import { vi } from "vitest";
@@ -183,19 +168,10 @@ export interface ConsumeNavigationEscapeOptions {
 export const NO_NAVIGATION_ESCAPE_MESSAGE = "No navigation escaped the test iframe";
 
 /**
- * Wait for the guard to veto a hand-off, then take the entries it holds at that
- * moment out of the shared record and return them.
+ * Wait for a recorded navigation, then drain all entries currently recorded.
  *
- * This is how a spec asserts a hand-off it MEANT to provoke. Registering a second
- * `navigate` listener beside the guard's does not work: both fire, the spec is
- * satisfied, and the project's `afterEach` still fails the test over an escape
- * nobody told it was expected. Consuming is also why this is not
- * `clearNavigationEscapes()` — a spec that forgets to call it leaves the escape
- * in the record, so the `afterEach` still fails, and nothing is suppressed by
- * being ignored.
- *
- * Only what was READ is removed, by count rather than by emptying the array, so a
- * second hand-off arriving while this awaited is still there for the `afterEach`.
+ * Use the returned destinations to assert an expected hand-off. Rejects when no
+ * entry arrives before the configured timeout. Later events remain recorded.
  */
 export async function consumeNavigationEscapes(
   options: ConsumeNavigationEscapeOptions = {},

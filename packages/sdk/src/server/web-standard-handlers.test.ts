@@ -1,17 +1,5 @@
 /**
- * The server entry is a web-standard handler factory (Wallow-pu6a.3.4).
- *
- * `server/handlers.ts` and `server/proxy.ts` were ported off h3 to
- * `Request`/`Response` in Wallow-pu6a.3.2/3.3. What that port has to keep true
- * is exercised here: every handler answers a bare WHATWG `Request` with a bare
- * WHATWG `Response`, and the handler TYPES are nameable by consumers — h3's
- * `EventHandler` (which the hosts annotated their handlers with beforehand) is
- * no longer available to them.
- *
- * The "no h3 anywhere" half of this claim used to be a source sweep over the
- * manifest and every `.ts` file under `src/` and `apps/`. It is not a test:
- * pnpm's strict `node_modules` already fails a build that imports a dependency
- * the manifest does not declare, so an h3 import cannot reach a passing run.
+ * Verify public handlers accept Request and return Response without a framework adapter. Responses preserve all Set-Cookie values.
  */
 import { describe, expect, it } from "vitest";
 
@@ -50,8 +38,7 @@ function makeStore(): SessionStore {
 describe("the server entry stays functional on the web-standard API", () => {
   it("exposes the four BFF handlers as (Request) => Promise<Response>", async () => {
     const handlers: BffHandlers = createBffHandlers(makeConfig(), makeStore());
-    // Named as the exported handler type: with h3 gone, `EventHandler` is no
-    // longer available to hosts, so the SDK must name this shape itself.
+    // Assign the public handler type so this test also checks its Request/Response signature.
     const user: BffHandler = handlers.user;
 
     const response: Response = await user(new Request("https://app.example.com/bff/user"));

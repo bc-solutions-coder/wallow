@@ -5,18 +5,7 @@ import { describe, expect, it } from "vitest";
 import { ScrollArea } from "./scroll-area";
 
 /*
- * Wallow-m5aq.4.5 — Scroll Area. Same spec shape as the Wave-1 exemplar
- * (Wallow-m5aq.2.1) and the Wave-2 exemplar (Wallow-m5aq.3.1): browser vitest
- * project, nothing mocked, the recipes asserted THROUGH the component, class
- * assertions as an order-free set.
- *
- * Nothing here is portalled and nothing here is a popup, so every query goes
- * through render()'s `container` and none of the Wave-2 overlay gotchas apply.
- *
- * ANATOMY, measured against the installed Base UI 1.6.0 rather than read off the
- * docs (a throwaway probe spec, since deleted):
- *
- *   <div role="presentation" style="position:relative; --scroll-area-corner-*">   <- Root
+ * <div role="presentation" style="position:relative; --scroll-area-corner-*">   <- Root
  *     <div role="presentation" class="base-ui-disable-scrollbar"
  *          tabindex style="overflow:scroll; --scroll-area-overflow-*">            <- Viewport
  *       <div role="presentation" style="min-width:fit-content">                   <- Content

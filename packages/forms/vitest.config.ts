@@ -20,17 +20,8 @@ import { defineConfig } from "vitest/config";
  */
 
 /**
- * Every `@base-ui/react` subpath reachable from the ui components this package's
- * fields wrap, for the browser project's `optimizeDeps.include`. This is not an
- * optimisation — it is required. Left to on-the-fly discovery, Vite pre-bundles a
- * Base UI subpath into a chunk carrying its own copy of React and the first spec
- * that renders the part dies on `Cannot read properties of null (reading
- * 'useRef')` (see packages/ui/CLAUDE.md).
- *
- * One glob, which Vite expands against Base UI's own `exports` keys — the same
- * line packages/ui/vitest.config.ts carries. It replaces the five subpaths kept
- * by hand here, and with them the rule that every new catalog field had to append
- * the subpaths of the ui component it wraps.
+ * Pre-bundle Base UI subpaths before browser tests to avoid mid-run dependency discovery and
+ * duplicate React instances. The glob follows the package export keys.
  */
 const baseUi = ["@base-ui/react/*"];
 

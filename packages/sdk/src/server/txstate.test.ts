@@ -37,10 +37,8 @@ describe("sealTx / unsealTx", () => {
 });
 
 /**
- * The login-transaction cookie rotates on the same keys as the session cookie
- * (finding L3). Leaving it on the single-secret path would abort every login
- * that was mid-flight when a rotation deployed: the authorize redirect seals the
- * tx cookie, and the callback a few seconds later has to unseal it.
+ * Login transaction cookies use the session rotation keys so an in-flight login can complete
+ * after the active secret changes.
  */
 describe("sealTx / unsealTx — keyed password rotation", () => {
   const V1: string = "v1-cookie-password-of-at-least-32-chars";

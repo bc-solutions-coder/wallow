@@ -104,8 +104,7 @@ describe("the guard chain", () => {
   });
 
   it("refuses a request with no Origin", async () => {
-    // A browser sets Origin on every POST, and script cannot forge it — it is a
-    // forbidden header name. Its absence is not a browser.
+    // Require an allowed Origin header; browser script cannot set an arbitrary Origin.
     const { handler } = handlerWith();
 
     const response = await handler(request({ events: [event()] }, { origin: null }));

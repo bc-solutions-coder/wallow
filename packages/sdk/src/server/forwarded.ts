@@ -1,5 +1,5 @@
 /**
- * Dependency-free forwarded-header and trusted-proxy helpers shared by the BFF and passthrough proxies.
+ * Shared forwarding headers for the BFF proxy and session-free passthrough. Keep this module independent of BFF authentication dependencies so both entrypoints use the same forwarding rules.
  */
 
 export {
@@ -16,10 +16,8 @@ export {
 export { createRequestOriginResolver, resolveRequestOrigin } from "./request-origin";
 
 /**
- * A header a host used to stamp the peer address onto before the SDK read the
- * peer itself. No host stamps it any more, and nothing reads it: it is stripped
- * so a caller who sends it — the only remaining author — cannot smuggle a
- * self-chosen address past this hop.
+ * Strip the unsupported x-wallow-client-ip header; client addresses come from request.ip and the
+ * trusted proxy chain.
  */
 const STRIPPED_CLIENT_IP_HEADER: string = "x-wallow-client-ip";
 

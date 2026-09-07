@@ -6,12 +6,6 @@ import { Combobox } from "./combobox";
 import type { ComboboxRootProps } from "./combobox";
 
 /*
- * Wallow-m5aq.4.6 — Combobox stories. `@storybook/addon-vitest` turns every
- * export below into a Vitest test case rendered in the same headless Chromium
- * the `browser` project uses, with the real Tailwind pipeline attached (see
- * .storybook/main.ts), so these are the VISUAL half of the component's spec
- * while combobox.test.tsx holds the markup assertions a screenshot cannot make.
- *
  * The popup is PORTALLED to <body>, which is outside the story canvas, so play
  * functions reach it through `screen` rather than `canvas`.
  *
@@ -218,11 +212,6 @@ export const MultiSelect: Story = {
 /**
  * The acceptance-criteria journey: narrow the list BY TYPING, then commit the
  * result that survived the filter.
- *
- * A combobox popup is non-modal — no focus trap, no scroll lock, no
- * `pointer-events` blocker over the page — so the click on the filtered row is a
- * plain click straight onto the item, unlike every overlay in the Wave-2
- * catalog.
  */
 export const FilterAndSelect: Story = {
   play: async ({ args, canvas }) => {

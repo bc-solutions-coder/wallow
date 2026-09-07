@@ -5,20 +5,8 @@ import { ListRow } from "../list-row/list-row";
 import { ListCard } from "./list-card";
 
 /*
- * SPEC (Wallow-lrlm.3.5). `ListCard` is the outer half of the list shape both
- * wallow-web list features hand-roll verbatim today —
- * `features/organizations/components/OrganizationList.tsx` and
- * `features/apps/components/AppList.tsx` each end in
- *
- *   <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
+ * <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden">
  *     <ul data-testid="organizations-table" className="divide-y divide-border">
- *
- * with a comment explaining why they cannot use the catalog `Card` (its fixed
- * `p-6 space-y-6` fights rows that must bleed to the card edge). That is the
- * component this file specifies: a card-shaped surface whose ONE child is the
- * divided `<ul>`, and whose test id is DERIVED from a `name` prop rather than
- * hand-passed, so the shipped `organizations-table` / `apps-table` selectors
- * keep resolving after the migration (F5) with the app naming the list once.
  *
  * Class assertions are order-free sets, per the Button/PageHeader exemplars.
  */

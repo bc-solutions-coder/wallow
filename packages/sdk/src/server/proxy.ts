@@ -588,17 +588,8 @@ function strippedApiPath(pathname: string): string | null {
 }
 
 /**
- * The absolute upstream URL for a stripped path, or `null` when it does not
- * resolve inside the configured API.
- *
- * The path is JOINED onto the base as a path and the result parsed as an
- * ABSOLUTE URL. `new URL(strippedPath, config.apiBaseUrl)` — the obvious
- * spelling, and the one this replaces — is a *relative* resolution in which the
- * browser-supplied path is the relative part: it silently discards any path
- * prefix on `apiBaseUrl`, and a path beginning `//` re-roots the whole URL at
- * an authority of the caller's choosing, with the session's bearer attached.
- * The origin and base-path checks below are the backstop for anything the
- * joining misses.
+ * Join the stripped path onto the API base path without relative URL resolution. Reject a target
+ * outside the configured origin or base path before attaching credentials.
  */
 function upstreamTarget(config: BffConfig, path: string, search: string): string | null {
   const base: URL = new URL(config.apiBaseUrl);
@@ -667,22 +658,9 @@ async function tearDownDeadSession(
 }
 
 /**
- * Answer a failed forward.
- *
- * An upstream failure is relayed verbatim — status, headers, and body — so the
- * browser sees the API's own problem details, `errors[]` and `traceId` included.
- * The BFF's own faults (an unreachable API, a forward that timed out) have no
- * upstream response to relay, so they are rendered as problem details of their
- * own. Either way the session cookies written earlier in the request ride along:
- * dropping a re-sealed cookie on the error path would leave the browser holding
- * a refresh token that has already been spent.
- *
- * A body the BFF originates also NAMES `requestId` as a member, not just on the
- * header: a relayed upstream body carries the API's own `traceId` to correlate
- * by, and an originated one has no upstream to have gotten a trace id from. Its
- * `detail` is the fixed wording {@link problemResponse} ships for the code —
- * the failure's own `detail` (a transport message, a rejected grant) has
- * already gone to the log record and stops there.
+ * Relay upstream status, headers, and body while retaining rotated session cookies. Locally
+ * originated problems include requestId and fixed public messages; transport details remain in
+ * logs.
  */
 function respondToFailure(error: unknown, cookies: Headers, requestId: string): Response {
   if (error instanceof UpstreamError) {

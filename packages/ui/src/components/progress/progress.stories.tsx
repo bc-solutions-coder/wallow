@@ -5,17 +5,6 @@ import { expect, fn, userEvent } from "storybook/test";
 import { Progress } from "./progress";
 
 /*
- * Wallow-m5aq.4.4 — Progress stories. `@storybook/addon-vitest` turns every
- * export below into a Vitest test case rendered in the same headless Chromium
- * the `browser` project uses, with the real Tailwind pipeline attached (see
- * .storybook/main.ts), so these are the VISUAL half of the component's spec
- * while progress.test.tsx holds the markup assertions a screenshot cannot make.
- *
- * Nothing about Progress is portalled or animated open, so every play function
- * queries `canvas` and none of the Wave-2 waitFor-after-opening rule applies —
- * the only thing that moves here is a width, and it moves synchronously with a
- * React re-render.
- *
  * The interaction stories use storybook/test's `userEvent`, which is
  * @testing-library/user-event and dispatches synthetic events, so a click needs
  * no hit-testing.

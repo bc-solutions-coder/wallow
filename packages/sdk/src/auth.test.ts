@@ -63,14 +63,7 @@ function sentInit(fetchMock: ReturnType<typeof vi.fn>): RequestInit {
 }
 
 /**
- * `logout()` under the hardened `/bff/logout` gate (Wallow-pu6a.3.9).
- *
- * The ported handler answers `405 Method Not Allowed` (with `Allow: POST`) to
- * every non-`POST` request and `403` to a `POST` without a matching
- * `x-csrf-token` — a bare `GET /bff/logout` made an `<img src="/bff/logout">`
- * enough to revoke any visitor's session. The old browser helper navigated with
- * exactly that GET, so it now leaves the user staring at a raw 405 with the
- * session still live. These specs pin the POST-based replacement.
+ * Logout uses POST with the current CSRF cookie. A rejected request must preserve the session.
  */
 describe("logout (POST + CSRF gate)", () => {
   it("POSTs to /bff/logout instead of navigating the browser there with a GET", async () => {
@@ -93,9 +86,7 @@ describe("logout (POST + CSRF gate)", () => {
   });
 
   it("echoes the BFF's double-submit cookie in the x-csrf-token header", async () => {
-    // The non-HttpOnly companion cookie the login handler writes is the ONE
-    // token source in the browser (Wallow-j7qk) — the module token store that
-    // used to sit in front of it is deleted.
+    // Read the current token from the non-HttpOnly CSRF cookie.
     const { fetchMock } = stubBrowser(
       logoutSuccess(),
       "wallow_bff=sealed-session-blob; wallow_bff-csrf=tok-from-cookie",
@@ -193,7 +184,7 @@ describe("logout (POST + CSRF gate)", () => {
   });
 
   it("still refuses to run server-side, throwing synchronously before any fetch", () => {
-    // Wallow-pu6a.3.6 guard: the SSR check must stay a synchronous throw, not a
+    // guard: the SSR check must stay a synchronous throw, not a
     // rejected promise, so `location` is never touched during SSR.
     const fetchMock: ReturnType<typeof vi.fn> = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -204,18 +195,8 @@ describe("logout (POST + CSRF gate)", () => {
 });
 
 /**
- * SSR import-safety: `logout()` navigates via the `location` global, which does
- * not exist in Node. Merely importing the module must stay safe (it is
- * re-exported from the browser entry that SSR pulls in), and calling the
- * function server-side must fail with a descriptive, actionable error instead of
- * the raw `ReferenceError: location is not defined`. The SDK stays
- * framework-neutral while doing so — no `@tanstack/react-start` isomorphic-fn
- * dependency.
- *
- * These specs run in the vitest node project, where `location` is genuinely
- * absent from `globalThis` — the exact production condition — so they deliberately
- * stub nothing. The final case additionally pins an explicitly `undefined`
- * `location`, the shape a partially-polyfilled SSR runtime can present.
+ * Importing logout must be safe during SSR. Calling it without a browser throws synchronously
+ * before attempting navigation or a network request.
  */
 describe("logout under SSR (no browser globals)", () => {
   it("has no location global in this environment (guards the specs below)", () => {
@@ -254,7 +235,7 @@ describe("logout under SSR (no browser globals)", () => {
 
   it("still navigates when a real location global is present", async () => {
     // logout() no longer navigates to /bff/logout — that GET is a 405 under the
-    // hardened gate (Wallow-pu6a.3.9). It POSTs, then navigates to the
+    // hardened gate. It POSTs, then navigates to the
     // end-session URL the handler answers with. Only the SSR guard is under
     // test here.
     const { location, fetchMock } = stubBrowser(logoutSuccess(), "wallow_bff-csrf=tok-abc");

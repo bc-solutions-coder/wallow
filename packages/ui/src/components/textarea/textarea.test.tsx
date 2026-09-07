@@ -6,21 +6,6 @@ import { describe, expect, it } from "vitest";
 import { Textarea } from "./textarea";
 
 /*
- * The markup-level half of the Textarea spec (Wallow-ov6w.1.3). Stories are this
- * component's render/interaction coverage; what is left for a spec file is the
- * three edges a story cannot express — the exact class SET, the cn()/
- * tailwind-merge override, and the presence/absence of the `data-disabled`
- * attribute — plus the controlled value/onChange pairing its one measured call
- * site uses. Spec shape follows input.test.tsx: browser project, nothing mocked,
- * the recipe asserted THROUGH the component, classes compared as an order-free
- * set because cn()/tailwind-merge may reorder.
- *
- * SOURCE OF THE RECIPE: `Input`'s, verbatim. The measured call site is
- * CreateInquiryForm's `inquiry-message` textarea (apps/wallow-web), which today
- * hand-carries the pre-rebuild Input string on a bare `<textarea>` precisely
- * because no catalog Textarea existed. Sharing Input's recipe is therefore the
- * compat guarantee, not a coincidence — the two controls must not drift.
- *
  * WHY `data-disabled` IS ASSERTED HERE: the catalog styles state off Base UI's
  * `data-*` attributes rather than the `:disabled` pseudo-class
  * (packages/ui/CLAUDE.md), and the inherited recipe carries

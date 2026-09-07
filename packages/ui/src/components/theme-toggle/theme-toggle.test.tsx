@@ -5,28 +5,6 @@ import { userEvent } from "vitest/browser";
 import { THEME_STORAGE_KEY, ThemeProvider } from "../theme-provider";
 import { THEME_PREFERENCE_CYCLE, ThemeToggle, type ThemeToggleProps } from "./theme-toggle";
 
-/*
- * Wallow-lrlm.1.2 — ThemeToggle. Same spec shape as the catalog exemplar
- * (Wallow-m5aq.2.1): browser vitest project, nothing mocked, the recipe asserted
- * THROUGH the component, class assertions as an order-free set. The rendered
- * LOOK of each state belongs to `theme-toggle.stories.tsx`, which runs with the
- * real Tailwind pipeline; what is left here is what a story cannot express — the
- * data attributes, the accessible name, the cycle order, and the override rule.
- *
- * THREE STATES, NOT TWO — `light -> dark -> system -> light`. This is the choice
- * the bead asked to be made explicitly. A two-state `aria-pressed` toggle can
- * say "I want dark" but can never get back to "follow the OS", and "follow the
- * OS" is both the default and the only state that keeps honouring a visitor
- * who changes their system theme later. The control therefore carries NO
- * `aria-pressed` (a two-state attribute would have to lie about the third
- * state); the current state is announced through the accessible name and
- * exposed to tests and E2E as `data-theme-preference`.
- *
- * `userEvent.click` is safe here even though the `browser` project compiles no
- * Tailwind: the toggle renders a text label, so it has intrinsic size and
- * Playwright's actionability check passes (see packages/ui/CLAUDE.md).
- */
-
 /**
  * Every utility the toggle must end up with at the default size — the Button
  * recipe's `secondary` box merged with this component's own additions. It is

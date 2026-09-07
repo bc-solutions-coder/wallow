@@ -2,26 +2,13 @@ import { Menu, PanelLeft, X } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 
 /**
- * The shell's three CONTROL icons and their accessible names.
- *
- * Destination icons are not here — they come from each entry of the
- * `destinations` manifest, which is what makes "same icon, same name in all
- * three render modes" structural: one entry, three renders. The controls have no
- * destination to hang off, so the package ships lucide defaults and takes an
- * `icons` override.
- *
- * The icons come from a tree-shakeable per-icon React icon library (each icon is
- * its own ES export, never an icon font) so a consumer's bundle only carries the
- * three named here. That library is `lucide-react`: every icon is a named ES
- * export of a plain SVG-props component, it ships no icon font and no runtime
- * dependencies, and it peers on React 19. Swapping it out means editing this
- * module's imports and nothing else.
+ * Default icons and accessible labels for shell controls. Destination icons are supplied
+ * separately on each NavDestination.
  */
 
 /**
- * An icon: a React component taking plain SVG props. Deliberately library-
- * agnostic — the shell passes `className` for sizing and nothing else, so
- * swapping icon libraries never reaches past this module.
+ * React SVG component used for navigation icons. Receives className for sizing and aria-hidden
+ * because the surrounding control supplies its accessible name.
  */
 export type NavIconComponent = ComponentType<SVGProps<SVGSVGElement>>;
 
@@ -31,7 +18,7 @@ export interface NavControlIcons {
   readonly navToggle: NavIconComponent;
   /** Mobile: summon the overlay drawer. */
   readonly mobileMenu: NavIconComponent;
-  /** Mobile: dismiss the overlay drawer (the backdrop's accessible name). */
+  /** Reserved close icon slot. The current backdrop has an accessible label but renders no icon. */
   readonly close: NavIconComponent;
 }
 

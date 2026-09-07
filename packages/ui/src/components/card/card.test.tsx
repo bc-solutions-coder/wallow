@@ -3,26 +3,6 @@ import { describe, expect, it } from "vitest";
 
 import { Card, CardTitle } from "./card";
 
-/*
- * REFIT SPEC (Wallow-m5aq.2.13). Card is not Base UI-backed — it is a plain
- * styled `<div>` that predates the rebuild — so this file has two jobs:
- *
- *   1. REGRESSION PINS. Card ships in wallow-web today (`<Card className="mt-8">`,
- *      `<Card spacing="p-8 space-y-6" className="shadow-sm">`), so every prop the
- *      pre-refit component honoured is pinned here: the default recipe, the
- *      `spacing` slot with its two measured outliers, children, data-testid.
- *   2. THE REFIT REQUIREMENT. The recipe must move into card.styles.ts and reach
- *      the element through `cn()`, which is only observable from outside as
- *      OVERRIDE BEHAVIOUR: a caller `className` conflicting with a recipe utility
- *      has to WIN. The pre-refit string append kept both classes, so those tests
- *      fail until `cn()` is wired.
- *
- * Class assertions are order-free sets (`classSet`), per the Button exemplar:
- * tailwind-merge is free to reorder, so the pre-refit exact-string `toBe`
- * assertions are restated as set equality — strictly stronger than per-class
- * `contains` checks, because a stray extra utility fails too.
- */
-
 /** The card surface, minus the `spacing` block the prop owns. */
 const SURFACE_CLASSES = ["rounded-lg", "border", "border-border", "bg-card"];
 
@@ -30,10 +10,6 @@ const SURFACE_CLASSES = ["rounded-lg", "border", "border-border", "bg-card"];
 const DEFAULT_SPACING = ["p-6", "space-y-6"];
 
 /**
- * The heading recipe. `text-xl` is the catalog-wide heading standard adopted in
- * Wallow-io5f — the same step `Text`'s `subheading` variant carries, so the two
- * spellings of a card heading agree. It used to be `text-lg`.
- *
  * That the class is PRESENT is all this file can say: it runs in the `browser`
  * project, which loads no Tailwind, so nothing here proves the element computes
  * 20px. The measurement lives in `card.stories.tsx`'s `HeadingScale`.
@@ -101,8 +77,6 @@ describe("Card", () => {
   });
 
   it("lets a caller className override a recipe utility", async () => {
-    // The refit requirement: `cn()` resolves the conflict and the last value
-    // wins. The pre-refit string append kept `rounded-lg` next to `rounded-none`.
     const { container } = await render(<Card className="rounded-none" />);
 
     const card = firstChild(container);

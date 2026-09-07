@@ -1,18 +1,15 @@
 /**
- * Asserting on curated invalidation.
- *
- * Generated query keys are flat — one object segment carrying `_id` and the
- * operation's OpenAPI `tags` — so a mutation invalidates through a PREDICATE
- * (`queriesWithTag` / `queriesForOperation`) and there is no literal key to
- * compare a spy call against. What a spec cares about is still "does the sweep
- * this mutation asked for reach the query this screen reads?", which these
- * answer by running the REAL predicate against the REAL generated key — so a
- * mutation invalidating the wrong tag fails the spec.
+ * Assert that a query invalidation predicate matches an actual generated query key.
  */
 import type { Query, QueryFilters } from "@bc-solutions-coder/query";
 import { expect, vi } from "vitest";
 
-/** Would `filters` sweep a cached query keyed `queryKey`? */
+/**
+ * Return whether a query filter's predicate matches a generated query key.
+ *
+ * Only evaluates predicate filters. Other filter fields are ignored, and a filter
+ * without a predicate returns false. The predicate receives only queryKey.
+ */
 export function sweeps(filters: unknown, queryKey: readonly unknown[]): boolean {
   const predicate: QueryFilters["predicate"] = (filters as QueryFilters | undefined)?.predicate;
 

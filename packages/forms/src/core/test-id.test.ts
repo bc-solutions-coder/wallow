@@ -2,16 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { fieldErrorTestId, fieldTestId } from "./test-id";
 
-// Acceptance-criteria guard for Wallow-ov6w.2.1 (core/test-id.ts, testid
-// derivation). Pure logic with no rendering, so this spec runs in the node
-// vitest project (.test.ts, not .test.tsx).
-//
-// The derivation is what lets a migrated form keep its Playwright selectors
-// byte-identical: the suites already select `inquiry-name` and
-// `inquiry-project-type-error`, built by hand today from a bare `inquiry`
-// prefix. These cases pin the two halves of that shape — the prefix passes
-// through untouched (it is authored kebab-case already) and the camelCase
-// TanStack field name becomes kebab-case.
+// Verify that prefixes remain unchanged and field names determine matching control/error IDs.
 
 describe("fieldTestId", () => {
   it("joins prefix and field name", () => {

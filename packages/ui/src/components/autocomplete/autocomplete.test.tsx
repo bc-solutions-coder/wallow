@@ -9,11 +9,6 @@ import { Autocomplete } from "./autocomplete";
 import * as autocompleteStyles from "./autocomplete.styles";
 
 /*
- * Autocomplete behavioural spec (Wallow-m5aq.4.6), shaped after the
- * Wallow-m5aq.3.7 ContextMenu spec — because this component makes the same call
- * ContextMenu made: it REUSES its sibling's wrapped parts instead of re-wrapping
- * them.
- *
  * So this file is deliberately not a second copy of combobox.test.tsx. The
  * combobox spec owns the anatomy of the shared parts; this one owns:
  *
@@ -25,7 +20,7 @@ import * as autocompleteStyles from "./autocomplete.styles";
  *   3. the acceptance-criteria journey — filter by typing, then select the
  *      filtered result — driven through the autocomplete's own Root.
  *
- * THE ONE RUNTIME DIFFERENCE, measured against @base-ui/react 1.6.0 in this
+ * THE ONE RUNTIME DIFFERENCE, measured against Base UI in this
  * browser (not guessed): `Autocomplete.Value` echoes the INPUT value while
  * `Combobox.Value` echoes the SELECTED value, and `Autocomplete.Root`'s
  * `defaultValue`/`value`/`onValueChange` are the input's text rather than an item.
@@ -409,8 +404,6 @@ describe("Autocomplete", () => {
     await userEvent.type(part("a-input"), "alpi");
     await expect.poll(() => maybePart("a-item-Alpha")).toBeNull();
 
-    // A real click, straight onto the item: like the combobox and unlike every
-    // wave-2 overlay, this popup lays down no pointer-events blocker.
     await userEvent.click(part("a-item-Alpine"));
 
     await vi.waitFor(() => {

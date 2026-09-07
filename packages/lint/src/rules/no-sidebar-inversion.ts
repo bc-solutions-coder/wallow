@@ -1,20 +1,9 @@
 import { defineRule, type Node } from "@oxlint/plugins";
 
-/**
- * The retired sidebar inversion.
- *
- * These two do not name a surface — they swap the page's own two colours, which
- * means a fork editing `branding.json` cannot reach the result. The rail is painted
- * with the named `sidebar-*` family instead.
- *
- * `border-foreground` is deliberately absent: the landing page's outline CTA draws
- * its border in the page's own ink, which was adjudicated correct and is not an
- * inversion.
- */
 const INVERSION_UTILITIES: ReadonlySet<string> = new Set(["bg-foreground", "text-background"]);
 
 /**
- * The retired utilities named by `value`, if any.
+ * Opaque inversion utilities named by value, if any.
  *
  * Only the BARE form counts. `bg-foreground/40` is the drawer scrim: translucency
  * cannot be expressed by an opaque token, so an alpha modifier is categorically not
@@ -40,12 +29,9 @@ function offenders(value: string): string[] {
 }
 
 /**
- * Every string in the file, not just `className="..."`.
- *
- * The surviving colour in this app is written as a hoisted `const` and interpolated
- * into a template literal (`DashboardLayout`'s `BACKDROP_SCRIM`), so that is the
- * shape a reintroduction would copy. A rule that only visited JSX attributes would
- * miss it, and would miss the template-literal form too.
+ * Reject opaque bg-foreground and text-background utility classes.
+ * Variant prefixes and important markers are recognized; alpha-modified classes
+ * and border-foreground remain allowed.
  */
 export const noSidebarInversion = defineRule({
   meta: {

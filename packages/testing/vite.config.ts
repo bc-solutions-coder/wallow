@@ -1,9 +1,6 @@
 import { defineLibraryConfig } from "@bc-solutions-coder/config/vite/library";
 
-// A config-safe `.` barrel (plus `sdk-harness`, which imports no browser-only
-// module) alongside the browser-only subpaths, each with its own named entry so
-// a consumer loading this package at config time in plain Node never pulls the
-// browser modules into the graph.
+/** Build separate entries so Node configuration imports cannot load browser-only helpers. */
 export default defineLibraryConfig({
   configUrl: import.meta.url,
   entries: {

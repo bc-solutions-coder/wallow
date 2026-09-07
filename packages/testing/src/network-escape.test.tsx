@@ -1,15 +1,6 @@
 /**
- * Specs for `./network-escape` — the guard that answers any request no harness
- * owns, instead of letting it reach the real network.
- *
- * `.tsx` so these run on the BROWSER project: the guard's passthrough rule is
- * written against `globalThis.location.origin`, which in the node project is a
- * fiction. The file renders nothing — same precedent as `navigation-escape.tsx`,
- * where a real page is the subject rather than a component.
- *
- * `uninstallNetworkEscapeGuard()` in `afterEach` is why this file may patch a
- * global at all: it is the one place that must put the real `fetch` back, so a
- * later case installs onto an unpatched global rather than onto its own wrapper.
+ * Exercise rejected fetch requests and runner-URL passthrough in Chromium.
+ * The real page origin determines passthrough behavior. Each case restores fetch.
  */
 import { afterEach, describe, expect, it } from "vitest";
 

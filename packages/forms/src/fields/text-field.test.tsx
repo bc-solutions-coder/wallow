@@ -8,28 +8,9 @@ import { AppForm } from "../form/app-form";
 import { SubmitButton } from "../form/submit-button";
 import { useAppForm } from "../form/use-app-form";
 
-/*
- * `TextField` through the REAL pipeline, in the browser project (real headless
- * Chromium, a real `QueryClient`, the real `useAppForm` + `AppForm` +
- * `AppField` + ui `Field`/`Input` — nothing is mocked, per
- * .claude/rules/TESTING.md). A field mounted any other way would not prove the
- * thing that matters: that a form author writes `<f.TextField label="..." />`
- * and gets a labelled, testid-stamped, error-displaying control for free.
- *
- * This is the catalog's template spec — the other four fields mirror its cases:
- *
- *   1. The label is genuinely ASSOCIATED with the control (the ui `Field` row
- *      does it; nothing here keeps an htmlFor/id pair in sync by hand), and the
- *      control's testid is DERIVED from the form's prefix plus the field name.
- *   2. The passthrough props a migrated screen needs (type/placeholder/
- *      autoComplete), and the optional marker.
- *   3. A failed submit puts the schema's message under the field, at the
- *      derived `-error` id the E2E suites select.
- *   4. That message does not outlive the value that caused it.
- *   5. An explicit `testId` beats the derivation for BOTH ids — the migration
- *      compatibility valve (`forgot-password-email` over `demo-name`).
- *   6. The control is disabled while the submit is in flight, so a second edit
- *      cannot race the request.
+/**
+ * Exercise label association, input props, validation messages, test IDs, and pending state
+ * through the form pipeline in Chromium.
  */
 
 const schema = z.object({
@@ -50,7 +31,7 @@ interface HarnessProps {
   readonly onSubmit?: (values: Values) => Promise<void> | void;
 }
 
-/** A form built the way a migrated screen builds one: hook, shell, one field. */
+/** A form with the hook, shell, and one registered field. */
 function Harness(props: HarnessProps) {
   const form = useAppForm({
     schema,
@@ -176,8 +157,7 @@ describe("TextField", () => {
   });
 
   it("marks an optional field in its label", async () => {
-    // Three of the forms being migrated mix required and optional fields in one
-    // column; the marker is what tells them apart without a red asterisk legend.
+    // The optional marker distinguishes fields without changing validation.
     const { container } = await renderHarness({ optional: true });
     const label = container.querySelector("label");
 

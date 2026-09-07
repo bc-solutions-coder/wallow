@@ -53,17 +53,20 @@ function AvatarFallback({ className, ...rest }: AvatarFallbackProps): ReactEleme
 }
 
 /**
- * The catalog's avatar. Multi-part components ship a single namespace object
- * whose keys mirror Base UI's part names 1:1 — `Avatar.Root` is the frame,
- * `Avatar.Image` the photo and `Avatar.Fallback` the initials shown when there
- * is no photo or it fails to load.
- *
- * The two children are mutually exclusive at runtime and Base UI owns the
- * switch: it mounts the image only once the browser has decoded it, and mounts
- * the fallback whenever it has not. Callers render both and never branch.
+ * Image and fallback parts in a shared avatar frame. Compose Root with Image and Fallback; the
+ * fallback covers loading or unavailable images.
  */
 export const Avatar = {
+  /**
+   * Owns the component state and provides context to its parts.
+   */
   Root: AvatarRoot,
+  /**
+   * Displays the avatar image with its loading state.
+   */
   Image: AvatarImage,
+  /**
+   * Displays fallback content when the image is unavailable.
+   */
   Fallback: AvatarFallback,
 };

@@ -1,11 +1,5 @@
 /**
- * Locating helpers for browser-mode specs: address an element by its test id,
- * walk to a neighbour, and assert which element it resolved to.
- *
- * Nothing here reads `classList`. A spec asserts what a component PAINTS —
- * `getComputedStyle`, normalised through `@bc-solutions-coder/testing/contrast`
- * for colours — because `cn()` merges a caller's `className` over the recipe, so
- * a class can be present while the element renders something else.
+ * Browser-only element lookup and DOM assertions for test IDs, descendants, and tags.
  */
 import { page } from "vitest/browser";
 import { expect } from "vitest";

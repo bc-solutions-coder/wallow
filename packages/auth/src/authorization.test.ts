@@ -1,29 +1,6 @@
 /**
- * Spec for the role/permission helpers (Wallow-x4qn.3).
- *
- * These read the TYPED arrays `UsersController.GetCurrentUser` answers with, so
- * the contract they owe is the SERVER's contract — a browser helper that answers
- * differently from the API is worse than no helper, because the UI then promises
- * something the next request refuses. The API is the reason for each casing rule
- * below:
- *
- *   - ROLES are case-INSENSITIVE. `ClaimsPrincipalExtensions.GetRoles()`
- *     deduplicates with `StringComparer.OrdinalIgnoreCase` and
- *     `AuthorizationController` builds its role set the same way. `isAdmin` is
- *     defined over `hasRole`, so the two agree about any user by construction —
- *     that agreement is still asserted below, as the regression signal for
- *     anyone unpicking that definition.
- *   - PERMISSIONS are case-SENSITIVE. `PermissionAuthorizationHandler` decides
- *     with a plain `permissions.Contains(requirement.Permission)` — ordinal. A
- *     lenient browser check would show a control the API then refuses, which is
- *     the one direction that produces a broken screen rather than a hidden one.
- *
- * Surrounding whitespace is trimmed off the name being looked for in both cases:
- * no role or permission the API issues has any, so it is always caller noise.
- *
- * Anonymous and claimless users answer `false` rather than throwing. Every call
- * site is a UI gate, and a gate that throws takes the screen down instead of
- * hiding a button.
+ * Verify role and permission casing, anonymous results, and the separation between organization
+ * and global administrators.
  */
 
 import { describe, expect, it } from "vitest";

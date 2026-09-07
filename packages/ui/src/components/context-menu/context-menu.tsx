@@ -57,18 +57,6 @@ import {
  * a row styled for one is styled for the other.
  */
 
-/*
- * Two of the nineteen namespace members are context-menu code, and only one of
- * those gets a wrapper — the Dialog exemplar's rule, unchanged: a member gets a
- * wrapper plus a recipe only if it renders a VISIBLE element. `Root` renders no
- * DOM at all (it is the state container and the cursor anchor), so it is
- * re-exported as-is and the namespace keys still mirror Base UI's 1:1.
- *
- * Note what Base UI does NOT publish on this subpath, unlike `menu`: there is no
- * `Viewport` and no `Handle`/`createHandle`. A context menu has one trigger area
- * and no detached imperative opener, so nineteen members is the whole surface.
- */
-
 /**
  * Every Base UI `ContextMenu.Root` prop. Re-exported unwrapped, so no recipe
  * props. This is `Menu.Root`'s prop set minus `modal`, `openOnHover`, `delay`
@@ -159,42 +147,84 @@ function ContextMenuTrigger({ className, ...rest }: ContextMenuTriggerProps): Re
 }
 
 /**
- * The catalog's context menu, as ONE namespace object whose keys mirror Base
- * UI's nineteen namespace members 1:1 — the catalog-wide convention for
- * multi-part components, so a caller who knows the Base UI docs already knows
- * this API.
- *
- * A minimal context menu is Root > Trigger (the right-clickable area) plus a
- * portalled Positioner > Popup of Items. Everything past the trigger is the
- * `Menu` component's own part, so the anatomy, the keyboard behaviour and the
- * styling are the menu's: `Group`/`GroupLabel`/`Separator` for sections,
- * `CheckboxItem`/`RadioGroup` for state-carrying rows, `SubmenuRoot`/
- * `SubmenuTrigger` for nested menus, `Backdrop` for a full-window outside-press
- * catcher and `Arrow` for a pointer at the anchor.
- *
- * The trigger is a plain `<div>` and carries no ARIA of its own — Base UI's
- * design, because a right-click area is not a button and has no accessible
- * "expanded" state to announce. Reach for `Menu` instead whenever the menu needs
- * a keyboard-reachable opener.
+ * A menu opened from a context-menu gesture on Trigger. Compose Root with Trigger and
+ * portalled Positioner > Popup content; shared menu parts provide items, groups, and submenus.
  */
 export const ContextMenu = {
+  /**
+   * Owns the component state and provides context to its parts.
+   */
   Root: BaseContextMenu.Root,
+  /**
+   * Opens or toggles the associated content; render can compose it onto another control.
+   */
   Trigger: ContextMenuTrigger,
+  /**
+   * Covers the surrounding page behind the popup.
+   */
   Backdrop: Menu.Backdrop,
+  /**
+   * Renders popup content outside the parent DOM hierarchy.
+   */
   Portal: Menu.Portal,
+  /**
+   * Positions the popup relative to its anchor; render inside Portal.
+   */
   Positioner: Menu.Positioner,
+  /**
+   * The visible popup container; place labeled content and actions inside it.
+   */
   Popup: Menu.Popup,
+  /**
+   * Draws the popup's pointer toward its anchor.
+   */
   Arrow: Menu.Arrow,
+  /**
+   * Groups related items or controls.
+   */
   Group: Menu.Group,
+  /**
+   * Labels a group of items.
+   */
   GroupLabel: Menu.GroupLabel,
+  /**
+   * Groups one item and its associated content.
+   */
   Item: Menu.Item,
+  /**
+   * A menu item that navigates through a native link.
+   */
   LinkItem: Menu.LinkItem,
+  /**
+   * A menu item with independent checked state.
+   */
   CheckboxItem: Menu.CheckboxItem,
+  /**
+   * Displays content while its checkbox menu item is checked.
+   */
   CheckboxItemIndicator: Menu.CheckboxItemIndicator,
+  /**
+   * Shares one selected value across radio menu items.
+   */
   RadioGroup: Menu.RadioGroup,
+  /**
+   * A menu item representing one value in its radio group.
+   */
   RadioItem: Menu.RadioItem,
+  /**
+   * Displays content while its radio menu item is selected.
+   */
   RadioItemIndicator: Menu.RadioItemIndicator,
+  /**
+   * Separates adjacent groups or content.
+   */
   Separator: Menu.Separator,
+  /**
+   * Owns the state of a nested menu.
+   */
   SubmenuRoot: Menu.SubmenuRoot,
+  /**
+   * Opens a nested menu from its parent menu.
+   */
   SubmenuTrigger: Menu.SubmenuTrigger,
 };

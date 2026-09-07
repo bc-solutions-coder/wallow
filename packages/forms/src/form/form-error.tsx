@@ -1,8 +1,5 @@
 /**
- * The form-level (non-field) server error banner. It reads the shell's
- * `serverError` rather than taking it as a prop, so a migrated form drops the
- * `{error === null ? null : <ErrorBanner data-testid="...">{error}</ErrorBanner>}`
- * ternary every hand-written form repeats.
+ * Render the form-level error supplied by AppForm.
  */
 
 import { ErrorBanner } from "@bc-solutions-coder/ui/error-banner";
@@ -10,12 +7,19 @@ import type { ReactElement } from "react";
 
 import { useAppFormContext } from "./app-form-context";
 
+/**
+ * Presentation overrides for the form-level error banner.
+ */
 export interface FormErrorProps {
   /** Overrides the derived `{testIdPrefix}-error`, e.g. `"organization-create-error"`. */
   readonly testId?: string;
   readonly className?: string;
 }
 
+/**
+ * Render the AppForm serverError as an ErrorBanner, or nothing when it is null. Must be rendered
+ * inside AppForm.
+ */
 export function FormError({ testId, className }: FormErrorProps): ReactElement | null {
   const { testIdPrefix, serverError } = useAppFormContext();
 

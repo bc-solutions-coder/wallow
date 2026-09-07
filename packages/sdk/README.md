@@ -1,616 +1,123 @@
 # @bc-solutions-coder/sdk
 
-TypeScript SDK for Wallow. It ships five entry points:
+Wallow's TypeScript API client, browser authentication helpers, Node BFF, and
+service-account client. Generated endpoint functions include descriptions of their
+permissions, tenant context, inputs, results, and side effects. Those comments
+also ship in the package declarations for editor tooltips.
 
-| Import                                       | Runs in                                             | Contains                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| -------------------------------------------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@bc-solutions-coder/sdk`                    | Browser (also safe to import from a Node SSR entry) | `createWallowSdk()` (the per-request factory), `logout()`, `loginRedirect()`, `getCurrentUser()`, `requireAuth()`, the generated typed API operations, the CSRF module (`isSafeMethod`, `readCsrfCookie`, `wireCsrfInterceptor`), the OIDC URL builders (`buildConnectAuthorizeUrl`, `buildConnectLogoutUrl`, `buildConsentSubmission`, `buildExchangeTicketUrl`, `isSafeReturnUrl`). Every rejection is an `ApiFailure` from `@bc-solutions-coder/api-errors` |
-| `@bc-solutions-coder/sdk/server`             | Node                                                | `createWallowBffServer()` (the host preset), `createBffHandlers()`, `createApiProxy()`, `loadBffConfigFromEnv()`, the session stores, `RefreshFailedError`, and `redact()`                                                                                                                                                                                                                                                                                     |
-| `@bc-solutions-coder/sdk/server/passthrough` | Node                                                | `createApiPassthrough()` — a pure reverse proxy owning no session, forwarding the upstream response (`Set-Cookie` included) verbatim. Kept on its own subpath so a passthrough-only app never pulls `openid-client` into its server bundle                                                                                                                                                                                                                     |
-| `@bc-solutions-coder/sdk/server/service`     | Node                                                | `createServiceClient()` — the client-credentials (service-account) client: the same typed API client, a cached and lock-serialised access token, one replay on `401`. Its own subpath so a service-only process never pulls the BFF handler graph                                                                                                                                                                                                              |
-| `@bc-solutions-coder/sdk/query`              | Browser                                             | The TanStack Query layer (peer dep `@tanstack/react-query`): a generated `{op}Options()` / `{op}QueryKey()` / `{op}Mutation()` trio per OpenAPI operation, plus the curated invalidation predicates `queriesForOperation()` and `queriesWithTag()` — the only hand-written module left on this entry                                                                                                                                                           |
+Start with [Connect an external app](../../docs/integrations/external-app.md) for
+registration and deployment. The [SDK integration guide](../../docs/integrations/typescript-sdk.md)
+contains the full configuration and authentication reference. This README describes
+the current checkout; installed releases may expose an older API.
 
-Every server handler is a web-standard `(request: Request) => Promise<Response>`.
-The SDK declares no host framework, so the handlers mount on TanStack Start server
-routes, Nitro, Hono, or a bare Fetch handler alike.
+## Entrypoints
 
-The browser never holds a token. Your server runs the OIDC Authorization Code
-flow with PKCE, keeps the token set in a session (sealed cookie or Valkey), and
-attaches the `Authorization: Bearer` header when it proxies `/api/**` calls to
-the Wallow API.
+| Import                                       | Runtime              | Purpose                                                                     |
+| -------------------------------------------- | -------------------- | --------------------------------------------------------------------------- |
+| `@bc-solutions-coder/sdk`                    | Browser or SSR       | Isolated API client, generated operations/types, authentication URL helpers |
+| `@bc-solutions-coder/sdk/query`              | React, including SSR | Generated query keys/options, mutations, and invalidation filters           |
+| `@bc-solutions-coder/sdk/server`             | Node                 | BFF route handlers, API proxy, configuration, and session stores            |
+| `@bc-solutions-coder/sdk/server/service`     | Node                 | Service-account client using OAuth client credentials                       |
+| `@bc-solutions-coder/sdk/server/passthrough` | Node                 | Reverse proxy without a BFF-owned session                                   |
+| `@bc-solutions-coder/sdk/server/forwarded`   | Browser or server    | Trusted-proxy address and request-origin helpers                            |
 
-For the full narrative guide — protocol diagrams, the seeded local
-`bff-example-client`, publishing, troubleshooting — see
-[`docs/integrations/typescript-sdk.md`](../../docs/integrations/typescript-sdk.md).
-A runnable host lives in [`apps/wallow-web/`](../../apps/wallow-web).
+The query entry requires the optional `@tanstack/react-query` peer. Redis-backed
+sessions require the optional `redis` peer. Server entries use web-standard
+`Request` and `Response` objects and can be mounted in a Node framework adapter.
 
----
+## Call an endpoint
 
-## Install
-
-The package is published to GitHub Packages, so point the `@bc-solutions-coder`
-scope at that registry in your project's `.npmrc`:
-
-```ini
-@bc-solutions-coder:registry=https://npm.pkg.github.com
-```
-
-Then authenticate with a token that has `read:packages`. It goes in your
-**user-level** config — pnpm will not expand `${GITHUB_TOKEN}` out of a
-committed project `.npmrc`, since such a file could be edited to redirect the
-registry and leak the token:
-
-```bash
-pnpm config set "//npm.pkg.github.com/:_authToken" "$GITHUB_TOKEN"
-pnpm add @bc-solutions-coder/sdk
-```
-
-That is the whole install — there is no companion host-runtime package to add.
-
----
-
-## Onboarding
-
-### 1. Configure the environment
-
-`loadBffConfigFromEnv()` builds a `BffConfig` from `process.env` and throws on
-startup if a required key is missing or empty.
-
-This table is the **canonical** BFF environment contract — every other doc in the
-repo links here rather than restating it.
-
-| Variable                        | Required | Default                                           | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| ------------------------------- | -------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OIDC_ISSUER`                   | Yes      | —                                                 | Issuer base URL, e.g. `https://auth.example.com`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `OIDC_CLIENT_ID`                | Yes      | —                                                 | Confidential client id                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `OIDC_CLIENT_SECRET`            | Yes      | —                                                 | Confidential client secret (server-side only)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `OIDC_REDIRECT_URI`             | Yes      | —                                                 | Absolute callback URL, e.g. `http://localhost:3000/bff/callback`                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `OIDC_POST_LOGOUT_REDIRECT_URI` | Yes      | —                                                 | Absolute URL to land on after logout                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `BFF_API_BASE_URL`              | Yes      | —                                                 | Downstream API the `/api` proxy forwards to                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `COOKIE_PASSWORD`               | Yes¹     | —                                                 | Secret (32+ chars) used to seal the session, transaction, and store-reference cookies. Not required when `COOKIE_PASSWORDS` is set                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `COOKIE_PASSWORDS`              | No       | —                                                 | Rotation form of the above: a JSON object of key ID to secret. The **first** key seals new cookies, every key can unseal. Supersedes `COOKIE_PASSWORD` when both are set. See the rotation rules below                                                                                                                                                                                                                                                                                                                                |
-| `OIDC_SCOPES`                   | No       | `openid profile email offline_access`             | Space-separated scopes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `COOKIE_NAME`                   | No       | `__Host-wallow_bff`                               | Session cookie name. A non-empty value is taken verbatim and never prefixed; the readable CSRF companion cookie is `${COOKIE_NAME}-csrf`. The default carries the `__Host-` prefix, and falls back to plain `wallow_bff` only when the prefix is not viable — `COOKIE_SECURE=false` or `COOKIE_HOST_PREFIX=false`                                                                                                                                                                                                                     |
-| `BFF_APP_ID`                    | No       | —                                                 | Identifier (letters, digits, `_`, `-`) separating this BFF from its siblings on shared infrastructure. It suffixes the DEFAULT session-cookie name (`__Host-wallow_bff_<id>`, under the same prefix rules as above) and makes `createWallowBffServer()` namespace the Valkey keys under `wallow:<id>` — sid and subject indexes included. Set it on every BFF that shares a cookie host or a Valkey with another; see [multiple BFFs](#running-multiple-bffs-on-shared-infrastructure). An explicit `COOKIE_NAME` still wins verbatim |
-| `OIDC_METADATA_URL`             | No       | `${OIDC_ISSUER}/.well-known/openid-configuration` | Server-side discovery URL for split-horizon DNS — the backchannel uses its `token_endpoint`, while browser-facing redirects stay pinned to the public issuer origin                                                                                                                                                                                                                                                                                                                                                                   |
-| `SESSION_TTL_SECONDS`           | No       | `86400`                                           | Session cookie `Max-Age`. Must be a positive whole number; a malformed value throws rather than falling back                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `COOKIE_SECURE`                 | No       | `true`                                            | `Secure` flag on the session, transaction, and CSRF cookies. Fails secure: only the literal `false` clears it — set it for any plain-HTTP deployment, `localhost` included: Chrome and Firefox accept `Secure` cookies over `http://localhost` but Safari/WebKit drops them, which breaks the login callback with a 400                                                                                                                                                                                                               |
-| `COOKIE_HOST_PREFIX`            | No       | `true`                                            | `__Host-` prefix on the DEFAULT session cookie name, which binds the cookie to the exact host that set it so a sibling subdomain cannot overwrite it. Relaxes the NAME only, never `Secure`; it is the opt-out for a deployment that terminates TLS but cannot meet the prefix's other requirements. No effect when `COOKIE_NAME` is set or `COOKIE_SECURE` is `false`. Fails secure: only the literal `false` clears it                                                                                                              |
-| `COOKIE_SAMESITE`               | No       | `lax`                                             | `SameSite` on the session and CSRF cookies: `lax` or `strict`. `strict` hardens SPAs that bootstrap through same-origin `/bff/user`; the trade is that the first document request after any cross-site navigation (the post-login landing included) arrives without the session cookie. The transaction cookie is always `Lax` — it must ride the cross-site callback redirect from the IdP. `none` and any other value throw at startup                                                                                              |
-| `REDIS_URL`                     | No       | —                                                 | Read by `createWallowBffServer()` and `createServiceClient()`, not by `loadBffConfigFromEnv()`. When set, sessions live in Valkey/Redis (`ValkeySessionStore`) and the service token cache is shared — the SDK connects itself through its optional `redis` peer unless you hand in a client; otherwise the session is sealed into the cookie (`CookieSessionStore`) and the token cache is in-memory                                                                                                                                 |
-| `OIDC_SERVICE_CLIENT_ID`        | Service  | —                                                 | `createServiceClient()` only: the service account's client id                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `OIDC_SERVICE_CLIENT_SECRET`    | Service  | —                                                 | `createServiceClient()` only: its secret                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `OIDC_SERVICE_SCOPES`           | Service  | —                                                 | `createServiceClient()` only: space-separated scopes to request; required, no default. The service client shares `OIDC_ISSUER`, `OIDC_METADATA_URL`, `BFF_API_BASE_URL` and `REDIS_URL` with the BFF and needs nothing else — missing variables are reported together                                                                                                                                                                                                                                                                 |
-
-¹ Required only on the single-secret path — a `COOKIE_PASSWORDS` map carries the
-active secret itself.
-
-`OIDC_CLIENT_SECRET`, `COOKIE_PASSWORD` and `COOKIE_PASSWORDS` are confidential.
-They belong in the server process environment or a secrets manager, never in the
-browser bundle or source control.
-
-**Rotating the seal password.** `COOKIE_PASSWORDS` exists so a secret can be
-replaced without 401ing every live session. Its first rotation out of a plain
-`COOKIE_PASSWORD` deployment **must** name the outgoing secret `default` —
-iron-webcrypto seals a bare-string password with an empty key ID and reads that
-back as the literal `default`, so a map keyed anything else fails every cookie
-already in the wild with `Cannot find password: default`, which is the outage
-rotation exists to avoid:
-
-```bash
-COOKIE_PASSWORDS='{"v2":"<32+ char new secret>","default":"<the secret you are retiring>"}'
-```
-
-Key IDs must be letters, digits or underscores and must not be all digits (an
-integer-like key is enumerated first and would silently make the retiring secret
-active). Both constraints are validated at boot. The full four-step procedure is
-in [the BFF pattern guide](../../docs/integrations/bff-pattern.md#rotating-the-cookie-password).
-
-In the shipped Compose stack these two are spelled `BFF_COOKIE_PASSWORD` and
-`BFF_COOKIE_PASSWORDS` in `.env.production`, and
-`docker/docker-compose.production.yml` maps them onto the names above.
-
-### 2. Choose a session store
-
-`SessionStore` decides where the token set lives. Both stores implement the same
-interface, so swapping one for the other is a one-line change.
-
-- **`CookieSessionStore`** — seals the whole session into the session cookie. No
-  infrastructure to run. This is the default when you omit the `store` argument,
-  so a single-argument `createBffHandlers(config)` still works.
-- **`ValkeySessionStore`** — keeps the session in a Redis-compatible server and
-  puts only an opaque sealed session id in the cookie. Use this in production:
-  the cookie stays small, sessions can be revoked server-side, and concurrent
-  token refreshes for one session are serialized by a refresh lock.
+After configuring the BFF and signing in, create a browser client:
 
 ```ts
-import {
-  CookieSessionStore,
-  ValkeySessionStore,
-  loadBffConfigFromEnv,
-  type BffConfig,
-  type SessionStore,
-} from "@bc-solutions-coder/sdk/server";
-
-const config: BffConfig = loadBffConfigFromEnv();
-
-// Simple apps: everything in the sealed cookie.
-const store: SessionStore = new CookieSessionStore({
-  password: config.cookiePassword,
-});
-```
-
-`ValkeySessionStore` takes any client that satisfies the `RedisLike` interface —
-`get`, `set` (with optional `ex` / `nx` flags), and `del` — so no hard Redis
-dependency is baked into the SDK. With [node-redis](https://github.com/redis/node-redis)
-(the SDK's optional `redis` peer) nothing needs wrapping — `createRedisAdapter`
-takes the client as-is, and `createRedisFromUrl(url)` builds one that connects
-on first use:
-
-```ts
-import { createClient } from "redis";
-import {
-  createRedisAdapter,
-  createRedisFromUrl,
-  ValkeySessionStore,
-} from "@bc-solutions-coder/sdk/server";
-
-// Own the connection yourself…
-const client = createClient({ url: process.env.REDIS_URL });
-client.on("error", (error: unknown) => log.error("redis", error));
-await client.connect();
-const owned = new ValkeySessionStore({
-  client: createRedisAdapter(client),
-  password: config.cookiePassword,
-});
-
-// …or let the SDK connect lazily through the optional peer.
-const lazy = new ValkeySessionStore({
-  client: createRedisFromUrl(process.env.REDIS_URL!, {
-    onError: (error) => log.error("redis", error),
-  }),
-  password: config.cookiePassword,
-});
-```
-
-Any other client is a small adapter. With [`ioredis`](https://github.com/redis/ioredis):
-
-```ts
-import Redis from "ioredis";
-import {
-  ValkeySessionStore,
-  type RedisLike,
-  type SessionStore,
-} from "@bc-solutions-coder/sdk/server";
-
-const redis: Redis = new Redis(process.env.VALKEY_URL ?? "redis://localhost:6379");
-
-const adapter: RedisLike = {
-  get: (key: string): Promise<string | null> => redis.get(key),
-  set: (key: string, value: string, opts?: { ex?: number; nx?: boolean }): Promise<"OK" | null> => {
-    if (opts?.ex !== undefined && opts.nx === true) {
-      return redis.set(key, value, "EX", opts.ex, "NX");
-    }
-    if (opts?.ex !== undefined) {
-      return redis.set(key, value, "EX", opts.ex);
-    }
-    if (opts?.nx === true) {
-      return redis.set(key, value, "NX");
-    }
-    return redis.set(key, value);
-  },
-  del: (key: string): Promise<number> => redis.del(key),
-};
-
-const store: SessionStore = new ValkeySessionStore({
-  client: adapter,
-  password: config.cookiePassword,
-  ttlSeconds: config.sessionTtlSeconds, // record TTL; defaults to 86400
-  lockTtlSeconds: 10, // refresh-lock TTL; defaults to 10
-  keyPrefix: "wallow", // keys are <prefix>:session:<id> and <prefix>:refreshlock:<id>
-});
-```
-
-The `nx` flag must reach the server as a real conditional set — that is what
-makes the refresh lock a lock. An adapter that drops it will let concurrent
-refreshes race.
-
-### 3. Mount the handlers
-
-`createWallowBffServer()` is the golden path: it does steps 1 and 2 for you —
-loads the config, selects a store, builds the tunnel handlers and the `/api`
-proxy over that one shared instance — and returns three functions to mount:
-
-```ts
-import {
-  createWallowBffServer,
-  WALLOW_API_MOUNT, // "/api"
-  WALLOW_BFF_MOUNT, // "/bff"
-  type WallowBffServer,
-} from "@bc-solutions-coder/sdk/server";
-
-const server: WallowBffServer = createWallowBffServer();
-
-// server.handleBff(request)    -> /bff/login | /bff/callback | /bff/user | /bff/logout
-// server.handleApi(request)    -> /api/**  (the proxy strips the prefix itself)
-// server.handleHealth()        -> 200 liveness JSON
-```
-
-Build it on **first use and memoise**, not at module load — a config throw at
-import time takes the whole server bundle down with it, and a failed build that
-gets cached turns a transient store outage into a permanently dead BFF. When
-`REDIS_URL` is set the preset connects itself on first use through the optional
-`redis` peer (`pnpm add redis`); pass a connected node-redis client as
-`redisClient` instead to own the connection and its error logging. Either way
-`REDIS_URL` never degrades to stateless cookie sessions.
-
-In TanStack Start, mount each prefix as a splat server route with a single `ANY`
-handler — method policy belongs to the handlers (a bare `GET /bff/logout` answers
-`405` + `Allow: POST`), and a method-filtered route would swallow that as a local 404. Elsewhere, any router that dispatches a `Request` works: these are plain
-`(request: Request) => Promise<Response>` functions.
-
-To assemble the pieces yourself instead, `createBffHandlers(config, store)` returns
-the four tunnel handlers and `createApiProxy(config, store)` the reverse proxy.
-Pass the **same store instance** to both — the proxy has to resolve the sessions
-the callback wrote. Both default the store to a `CookieSessionStore` built from
-`config.cookiePassword` when you omit it.
-
-### Running multiple BFFs on shared infrastructure
-
-Two BFFs deployed side by side collide silently in two places unless you
-separate them:
-
-- **One cookie jar.** Cookies ignore ports, so two BFFs on one host — two dev
-  servers on `localhost`, or sibling subdomains when the `__Host-` prefix is not
-  in effect — both default to the same session-cookie name and shadow each
-  other's sessions: signing in at one signs you out of the other.
-- **One Valkey.** Both write under the same `wallow:` key prefix, so they read
-  each other's sessions, and the shared `sid` index means a back-channel logout
-  for one relying party tears down the OTHER app's session.
-
-`BFF_APP_ID` is the one switch for that co-tenancy. Give each BFF its own value
-and both derivations separate at once: the default session-cookie name becomes
-`wallow_bff_<id>` (CSRF, transaction, and chunk cookies follow it), and
-`createWallowBffServer()` keys its Valkey store under `wallow:<id>` — session
-records and the sid/subject indexes that back-channel logout resolves through.
-
-The preset also stamps each Valkey namespace with the BFF's identity (issuer +
-client id) at boot. When a DIFFERENT identity already holds the namespace it
-warns through `onWarning` (default `console.warn`) instead of silently sharing
-state — that warning is the signal to set `BFF_APP_ID`. The marker expires with
-the session TTL, so a legitimately re-pointed deployment stops warning on its
-own. The check is deliberately a boot-time warning rather than a hard failure:
-the store may simply not be reachable yet when the BFF boots (a failed probe is
-swallowed), and refusing to start would turn a misconfiguration signal into an
-availability incident — route `onWarning` into your alerting if you want it
-loud.
-
-An explicit `COOKIE_NAME` still wins verbatim over the derived cookie name, and
-a hand-built `ValkeySessionStore` keeps whatever `keyPrefix` you give it —
-`BFF_APP_ID` only drives the defaults. The repo's own E2E stack
-(`docker/docker-compose.test.yml`) runs wallow-web and the external RP example
-against one Valkey and one cookie host this way.
-
-### 3b. Or: the pure passthrough
-
-An app that only needs Wallow's API and OIDC endpoints on its own origin — no
-session, no bearer — uses the sibling preset instead:
-
-```ts
-import { createApiPassthrough } from "@bc-solutions-coder/sdk/server/passthrough";
-
-// defaults: /v1/**, /connect/**, /.well-known/**  ->  WALLOW_API_INTERNAL_URL
-const passthrough = createApiPassthrough();
-
-const response: Response = await passthrough.handle(request);
-```
-
-It forwards the inbound method, path, query, body, and `Cookie` header upstream and
-returns the response unchanged, so every `Set-Cookie` reaches the browser verbatim.
-Keep `/.well-known/**` in the prefix list: an OIDC client pointed at this origin
-resolves discovery there and fetches signing keys from the `jwks_uri` that document
-advertises, so dropping it 404s discovery and breaks login with no useful error.
-Pass the runtime's request through unchanged: the passthrough reads the peer address
-from `request.ip` and appends the resolved caller to the upstream `X-Forwarded-For`,
-so the API rate-limits per visitor. A fronting proxy's own `X-Forwarded-*` headers are
-believed only when the peer is inside `WALLOW_TRUSTED_PROXIES` (or the
-`trustedProxies` option) — `createWallowBffServer` behaves the same. The trust
-primitives are exported from the dependency-free `./server/forwarded` subpath.
-
-### 4. Build an SDK instance per request
-
-```ts
-import { createWallowSdk, getCurrentUser, loginRedirect } from "@bc-solutions-coder/sdk";
+import { createWallowSdk, usersGetCurrentUser } from "@bc-solutions-coder/sdk";
 
 const sdk = createWallowSdk({ baseUrl: "/api" });
-
-const user = await getCurrentUser({ client: sdk.client }); // null when unauthenticated
-if (user === null) {
-  // A link, not a call: /bff/login is a full-document navigation.
-  const { href } = loginRedirect("/dashboard"); // -> /bff/login?returnTo=%2Fdashboard
-}
-
-// Switch organization context: a link that re-authorizes with the hint.
-loginRedirect("/dashboard", { organization: organizationId }).href;
-// -> /bff/login?returnTo=%2Fdashboard&organization=<id>
+const user = await usersGetCurrentUser({ client: sdk.client });
 ```
 
-`baseUrl` is REQUIRED and has no default, because the right value differs by
-caller: the browser wants the same-origin relative BFF path (`/api`), while an
-SSR render wants an absolute origin Node's `fetch` can parse. Pass the full
-origin (`https://app.example.com/api`) when the app is not served from the BFF's
-origin.
+Pass `sdk.client` on each generated call. Route parameters go under `path`, URL
+parameters under `query`, and JSON input under `body`. Operations return response
+bodies directly. `getCurrentUser({ client: sdk.client })` is the convenience helper
+that returns `null` for an unauthenticated API response.
 
-Bind a generated operation to the instance through the standard `{ client }`
-call option — `usersGetCurrentUser({ client: sdk.client })` — and lift the
-instance into your router context so components read it rather than importing
-one.
-
-**There is no module-global client and no configure step.** A singleton is safe
-in a browser (one document, one session) and wrong on a server, where concurrent
-renders share the module graph: the last request to configure wins, its cookie
-leaks into another user's render, and interceptors pile up on every
-re-configure. `createWallowSdk()` builds a fresh generated client per call with
-its own `baseUrl`, cookie, and interceptor list. The old
-`configureBffClient()` / `configureWallowClient()` / `client` exports are gone,
-not deprecated — reaching for one is a build error rather than a silently
-unconfigured shared client.
-
-Two options exist for the server case: `cookieHeader` forwards the inbound
-session cookie (Node's `fetch` has no cookie jar, so an SSR render must carry it
-explicitly), and `internalOrigin` rewrites the outgoing request's origin when
-the host reaches itself on a different address than the browser does. The latter
-applies inside the instance's `fetch` only, leaving the configured `baseUrl`
-alone so a server instance and a browser instance stay hydration-compatible.
-
----
-
-## CSRF: read this before your first POST
-
-The proxy **rejects every state-changing request that does not carry a CSRF
-token** with `403` and the code `Bff.CsrfInvalid`. If your `POST`/`PUT`/`PATCH`/
-`DELETE` calls through `/api/**` come back as 403, this is why.
-
-How the token is delivered:
-
-- On successful login the callback mints a synchronizer token, stores it inside
-  the sealed session, and writes it to a companion cookie named
-  `<COOKIE_NAME>-csrf` (default: `wallow_bff-csrf`). That cookie is deliberately
-  **not** `HttpOnly` — browser JavaScript is meant to read it. It carries no
-  credential of its own; the session cookie remains `HttpOnly`.
-- `GET /bff/user` also returns the token as `csrfToken` in its JSON body.
-
-The SDK's `csrf` module owns the client side of this exchange, so you never
-hand-roll a request interceptor or read the companion cookie yourself.
-`createWallowSdk()` already wires the interceptor onto every instance it builds,
-and the interceptor reads the companion cookie at request time — there is
-nothing to arm, no token to hand over, and no state to clear on logout:
+For SSR, create an instance for each incoming request. Use an absolute BFF URL and
+forward that request's cookie header:
 
 ```ts
 import { createWallowSdk } from "@bc-solutions-coder/sdk";
 
-// CSRF interceptor already wired; it reads the double-submit cookie live.
-const sdk = createWallowSdk({ baseUrl: "/api" });
-```
-
-- `wireCsrfInterceptor(client)` registers a request interceptor exactly once:
-  on every request whose method is not CSRF-exempt it stamps the double-submit
-  cookie's value into `x-csrf-token`, and it leaves safe methods and the
-  cookie-less (anonymous, or server-side) state untouched. It accepts anything
-  shaping up like the generated client (`CsrfInterceptorClient`), so it also
-  wires onto a client you build yourself — but you only need to call it directly
-  for a client the factory did not build.
-- Pass `csrf: false` to `createWallowSdk()` to skip the interceptor entirely.
-  That is for a passthrough topology (an app that proxies the API without
-  holding a BFF session): it has no CSRF token of its own, and behind a
-  shared-hostname ingress its jar could hold _another_ app's companion cookie,
-  which the interceptor would then present as if it were this app's.
-- `readCsrfCookie()` reads the companion cookie (preferring the `__Host-`
-  prefixed name) and returns its value, or `null` outside the browser or when
-  no cookie is set. The interceptor and `logout()` both resolve the token
-  through it; it is exported for anything else that must echo the same token —
-  e.g. a logger's ingest transport.
-- `isSafeMethod(method)` is the RFC 9110 safe-method check
-  (`GET`/`HEAD`/`OPTIONS`) the interceptor uses internally; it is exported in
-  case a host needs the same rule elsewhere.
-
-`GET /bff/user` still returns the token as `csrfToken` in its body for
-non-browser clients; browser code never needs it, because the cookie is the
-same token.
-
-The header name is exported server-side as `CSRF_HEADER`; the rejection code is
-`ClientErrorCode.BFF_CSRF_INVALID` from `@bc-solutions-coder/api-errors`. `GET`,
-`HEAD`, `OPTIONS`, and `TRACE` are not gated.
-
----
-
-## Server-rendered loaders (SSR)
-
-A same-origin BFF app that server-renders authenticated routes (e.g. a TanStack
-Start `loader`) needs two things a browser tab gets for free: an ABSOLUTE origin
-(Node's `fetch` cannot resolve a relative `/api` URL) and the incoming request's
-session cookie (Node has no cookie jar, so `credentials: "include"` sends an
-anonymous request). Both are per-request, and both are constructor arguments:
-
-```ts
-// global request middleware — runs once per request
-import { createWallowSdk, type WallowSdk } from "@bc-solutions-coder/sdk";
-import { createMiddleware } from "@tanstack/react-start";
-
-const sdkMiddleware = createMiddleware().server(({ next, request }) => {
-  const origin: string = new URL(request.url).origin;
-
-  const sdk: WallowSdk = createWallowSdk({
-    baseUrl: `${origin}/api`,
-    cookieHeader: request.headers.get("cookie") ?? undefined,
-    internalOrigin: process.env.WALLOW_WEB_INTERNAL_URL,
+export function sdkForRequest(request: Request) {
+  return createWallowSdk({
+    baseUrl: new URL("/api", request.url).href,
+    cookieHeader: request.headers.get("cookie") ?? "",
   });
-
-  return next({ context: { sdk } });
-});
-```
-
-Lift that instance into the router context and every loader and component reads
-it back out (`useRouteContext({ from: "__root__" }).sdk`) instead of importing a
-client. In the browser the same router builds one with the relative `baseUrl`
-`/api` and no cookie header, so the two halves of a hydrating render agree.
-
-`internalOrigin` covers the case where the host reaches ITSELF on a different
-address than the browser uses — a container published as `127.0.0.1:5053:3000`
-cannot self-fetch the browser's origin, and every SSR'd page would fall back to
-an error boundary. It rewrites the outgoing request's origin inside the
-instance's `fetch` only, leaving the configured `baseUrl` (and therefore the
-request identity an SSR-primed cache shares with the browser) untouched.
-
-Nothing here reads module scope, so there is no `AsyncLocalStorage` to own and
-no resolver to register. The old request-context seam — `configureSsrClient`,
-`getSsrRequestContext`, `setSsrRequestContextResolver`,
-`wireSsrCookieInterceptor` — existed only to feed per-request values to a
-module-global client, and is deleted along with it.
-[`apps/wallow-web/src/app/start.ts`](../../apps/wallow-web/src/app/start.ts) is
-the reference host.
-
----
-
-## The query layer
-
-`@bc-solutions-coder/sdk/query` is generated from the same OpenAPI document as
-the operations, giving every operation a `{op}Options()` for reads, a
-`{op}Mutation()` for writes, and a `{op}QueryKey()` for both. Each takes the
-request-scoped client as a call option.
-
-The example below imports react-query directly, which is what an external
-consumer does. Apps **inside this monorepo** import the same symbols from
-`@bc-solutions-coder/query` instead — the facade owns the pinned version and one
-`QueryClientProvider` context, and a root lint rule fails a direct import. See
-`apps/wallow-web` for the in-repo form.
-
-```tsx
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouteContext } from "@tanstack/react-router";
-import {
-  inquiriesGetAllOptions,
-  inquiriesGetAllQueryKey,
-  inquiriesSubmitMutation,
-  queriesForOperation,
-} from "@bc-solutions-coder/sdk/query";
-
-function Inquiries() {
-  const { sdk } = useRouteContext({ from: "__root__" });
-  const queryClient = useQueryClient();
-
-  const list = useQuery(inquiriesGetAllOptions({ client: sdk.client }));
-
-  const submit = useMutation({
-    ...inquiriesSubmitMutation({ client: sdk.client }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries(
-        queriesForOperation(inquiriesGetAllQueryKey({ client: sdk.client })),
-      );
-    },
-  });
-
-  return list.data === undefined ? null : (
-    <InquiryTable rows={list.data} onSubmit={submit.mutate} />
-  );
 }
 ```
 
-Operations are generated with `responseStyle: "data"` and `throwOnError: true`,
-so a hook's `data` is the response BODY (no `{ data, error }` envelope to
-unwrap) and every failure arrives as a thrown `ApiFailure` on `error`.
+Use a trusted request origin in deployments behind proxies. `internalOrigin` can
+change the transport origin while retaining the public base URL in query keys.
+The CSRF interceptor reads browser cookies; SSR writes must forward any required
+CSRF header explicitly.
 
-**Generated keys are FLAT, not hierarchical.** A key is a single-element array
-holding one object — `[{ _id, baseUrl, tags, ...args }]` — so there is no
-prefix to invalidate a subtree with, and a key is not knowable without the
-client, because it embeds that client's `baseUrl`. Never write a key literal;
-always call the factory. The two curated predicates bridge the gap:
+## Use query and mutation helpers
 
-- `queriesForOperation(key)` — matches every cached query for the operation
-  that key belongs to, whatever arguments it was called with.
-- `queriesWithTag(tag)` — matches every query carrying an OpenAPI tag, for the
-  broader sweep after a write that touches a whole domain.
+Generated helper names follow the endpoint name: `usersGetCurrentUserOptions`,
+`usersGetCurrentUserQueryKey`, or `inquiriesSubmitMutation`. Each helper's comment
+includes endpoint context and explains whether it builds a cache key, query
+options, or mutation options. Constructing the helper does not send a request.
 
-The hand-written layer this replaced — the `queryKeys` registry, the per-domain
-`userQueries` / `authQueries` / `mfaQueries` / `organizationsQueries` /
-`appsQueries` / `inquiriesQueries` / `settingsQueries` namespaces, and
-`registerQueryBootstrap` / `ensureQueryBootstrapped` — is deleted rather than
-deprecated: every one of them closed over the module-global client that no
-longer exists.
+```ts
+import { useQuery } from "@tanstack/react-query";
+import type { WallowSdk } from "@bc-solutions-coder/sdk";
+import { usersGetCurrentUserOptions } from "@bc-solutions-coder/sdk/query";
 
----
-
-## Errors and resilience
-
-The proxy answers failures with RFC 7807 problem details
-(`content-type: application/problem+json`), so a failed call carries a machine
-readable `code` alongside the status. An API failure is **relayed** — status,
-headers, and body byte for byte, `errors[]` and `traceId` included. A failure
-the server hop hits itself is **originated** through the shared
-`problemResponse(status, code, { requestId, detail?, headers? })` writer, in the
-same envelope: `type: "about:blank"`, `title`, `status`, `code`, a fixed
-`detail` per case, `requestId` (also on `x-request-id`), and never a `traceId`.
-Both presets write through it, and the wording per code mirrors the failure
-messages `api-errors` ships, so the browser reads either kind the same way:
-
-| The hop answers itself when…                                                                     | Status | `code`                     |
-| ------------------------------------------------------------------------------------------------ | ------ | -------------------------- |
-| The path is outside `/api` (proxy) or the allowlist (passthrough), or escapes the API base       | `404`  | `Http.NotFound`            |
-| There is no session cookie, or the store cannot read the one presented                           | `401`  | `Bff.SessionMissing`       |
-| The refresh failed terminally (session torn down), or the freshness check faulted (session kept) | `401`  | `Bff.SessionRefreshFailed` |
-| A state-changing request carries no valid CSRF token                                             | `403`  | `Bff.CsrfInvalid`          |
-| The API's login redirect survived the one replay                                                 | `401`  | `Auth.Unauthenticated`     |
-| The upstream could not be reached                                                                | `503`  | `Transport.NetworkError`   |
-| No response within `FORWARD_TIMEOUT_MS` (30s; proxy only)                                        | `504`  | `Transport.Timeout`        |
-
-The transport's own message (undici's `fetch failed`, an abort) never enters a
-body; it goes to the redacted `console.warn` record.
-
-Every failure the SDK raises, browser or server, is an `ApiFailure` from
-`@bc-solutions-coder/api-errors` — match with `isApiFailure`, read `status`,
-`code`, `title`, `detail`, `fieldErrors`, `retryAfter`, `requestId`, `traceId`,
-and pick copy with `resolveFailureMessage`. The SDK has no error type of its
-own. Server-side, `RefreshFailedError` (code `Bff.SessionRefreshFailed`) is the
-failure the proxy raises when a refresh fails terminally, and `redact(value)`
-replaces secrets with `REDACTED` for safe logging.
-
-What the proxy does for you on the way through, each retried at most once:
-
-| Upstream                                            | Behavior                                                                    |
-| --------------------------------------------------- | --------------------------------------------------------------------------- |
-| `401` (or a `3xx` redirect to the API's login page) | Force a token refresh under the store's refresh lock and replay the request |
-| `429`                                               | Wait for `Retry-After`, bounded by `MAX_RETRY_AFTER_MS` (5s), and replay    |
-| No response within `FORWARD_TIMEOUT_MS` (30s)       | `504` with code `Transport.Timeout`                                         |
-| Transport failure                                   | `503` with code `Transport.NetworkError`                                    |
-
-Ahead of the forward, `ensureFreshSession` proactively refreshes an access token
-that is inside the expiry skew window, so most requests never see a 401 at all.
-
----
-
-## Development
-
-```bash
-pnpm install
-pnpm test        # vitest
-pnpm typecheck   # tsc --noEmit
-pnpm build       # vite build (library mode) + tsc -p tsconfig.build.json -> dist/
-pnpm generate    # regenerate src/generated from openapi/v1.json
+export function useCurrentUser(sdk: WallowSdk) {
+  return useQuery(usersGetCurrentUserOptions({ client: sdk.client }));
+}
 ```
 
-`pnpm build` is a two-stage pipeline: **Vite 8 in library mode** (`vite build`,
-ESM output) emits the JavaScript bundle for both the browser (`.`) and Node
-(`./server`) entry points, then **`tsc -p tsconfig.build.json`** does a
-declaration-only pass to emit the `.d.ts` files alongside it. There is no
-separate bundler config — the build is driven entirely by `vite.config.ts` plus
-that declaration-only tsconfig.
+`queriesWithTag(tag)` and `queriesForOperation(queryKey)` create invalidation
+filters. They match across argument combinations and client base URLs, so choose
+an appropriately isolated query cache for each user request.
 
-The generated client is wired to the BFF at construction time through
-`runtimeConfigPath` in `openapi-ts.config.ts`, which points at
-`src/runtime-config.ts` — that is why generated operations already target `/api`
-with `credentials: "include"`, and why they reject with an `ApiFailure` rather
-than resolving an `{ data, error }` envelope.
+## Authentication and errors
 
-## Browser Web Push
+`createWallowBffServer()` owns login, callback, user, logout, front-channel logout,
+back-channel logout, and the authenticated API proxy. Mount its handlers using the
+integration guide. Use `loginRedirect()` to build a full-document login link and
+`logout()` to end the browser BFF session. Lower-level OIDC helpers only build URLs
+or forms; they do not perform the authentication flow themselves.
 
-See the [browser Web Push guide](../../docs/development/browser-push.md) for organization key provisioning, typed subscriptions, service-worker integration and rotation. Use `pushDevicesGetWebPushPublicKey`, `pushDevicesRegisterDevice`, `pushDevicesDeregisterDevice` and `pushDevicesSendPush` through your request-scoped SDK client. `resolveWebPushClickUrl` confines notification navigation to the consumer origin.
+For background jobs, `createServiceClient()` returns an authenticated API client
+and an `accessToken()` function. Its configuration comes from
+`loadServiceConfigFromEnv()`. Client credentials identify a service account rather
+than a signed-in user.
+
+Configured generated API calls reject with `ApiFailure` from
+`@bc-solutions-coder/api-errors`. Use `isApiFailure()` and read its code, status,
+field errors, and request identifiers. Configuration and URL helpers can throw
+ordinary errors, and `logout()` can reject with an ordinary `Error`. BFF handlers
+return HTTP problem responses on their handled failure paths.
+
+## Development and generation
+
+Run from the repository root:
+
+```bash
+pnpm --filter @bc-solutions-coder/sdk generate
+pnpm --filter @bc-solutions-coder/sdk build
+pnpm --filter @bc-solutions-coder/sdk typecheck
+pnpm --filter @bc-solutions-coder/sdk test
+```
+
+Generation uses `openapi/v1.json`. To refresh it from a running development API,
+set `WALLOW_OPENAPI_URL` when running `tsx scripts/generate.ts` in this package.
+Commit the snapshot and generated files together; do not hand-edit them.
+
+The build emits JavaScript and declarations for all six entrypoints, then repairs
+missing TanStack symbol imports in query declarations. `pnpm check` verifies
+regeneration, package exports, and an external installed-package consumer.
+
+See the [browser Web Push guide](../../docs/development/browser-push.md) for key
+provisioning, subscriptions, service workers, and notification click handling.

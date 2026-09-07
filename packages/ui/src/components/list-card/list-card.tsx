@@ -4,14 +4,8 @@ import { cn } from "../../core/cn";
 import { listCardListRecipe, listCardRecipe } from "./list-card.styles";
 
 /**
- * The card-wrapped list surface every wallow-web list page hand-rolls today:
- * a bordered card that clips its children, wrapping a divided `<ul>`.
- *
- * The catalog `Card` cannot play this role — its fixed padding fights rows that
- * must bleed to the card edge — so the surface is its own component, and its
- * one child is always the list.
- *
- * `className` is merged over the surface recipe, so a caller class always wins.
+ * Div attributes for a card containing a divided list. Pass list items as children; name
+ * identifies the inner list for tests.
  */
 export type ListCardProps = HTMLAttributes<HTMLDivElement> & {
   /**
@@ -24,6 +18,10 @@ export type ListCardProps = HTMLAttributes<HTMLDivElement> & {
   readonly className?: string;
 };
 
+/**
+ * Renders a bordered card containing a divided ul. Its name produces the inner list's
+ * data-testid as `${name}-table`.
+ */
 export function ListCard({ name, className, children, ...rest }: ListCardProps): ReactElement {
   return (
     <div className={cn(listCardRecipe(), className)} {...rest}>

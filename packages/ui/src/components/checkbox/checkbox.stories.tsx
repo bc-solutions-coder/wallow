@@ -4,12 +4,6 @@ import { expect, fn, userEvent } from "storybook/test";
 import { Checkbox } from "./checkbox";
 
 /*
- * Wallow-m5aq.2.5 — Checkbox stories. `@storybook/addon-vitest` turns every
- * export below into a Vitest test case rendered in the same headless Chromium
- * the `browser` project uses, with the real Tailwind pipeline attached (see
- * .storybook/main.ts), so these are the VISUAL half of the component's spec
- * while checkbox.test.tsx holds the markup assertions a screenshot cannot make.
- *
  * The bead requires a story per checkbox STATE — ticked, unticked and mixed —
  * because those three are what a reviewer has to eyeball; they are also the
  * three the recipe paints through `data-[checked]:` / `data-[indeterminate]:`.

@@ -49,26 +49,6 @@ import {
   type ComboboxTriggerRecipeProps,
 } from "./combobox.styles";
 
-/**
- * Six of Base UI's twenty-eight namespace members are re-exported UNWRAPPED,
- * because none of them can carry a recipe — the Dialog exemplar's rule, applied
- * to the largest namespace in the catalog:
- *
- *   - `Root` renders no HTML element at all (it is the state container), and it
- *     is generic over the item value type and the multiple-selection flag —
- *     wrapping it would either drop the generics or add an element the DOM does
- *     not want.
- *   - `Value` renders no element either: it is a render-prop window onto the
- *     SELECTED value. It has no `className` prop to merge into.
- *   - `Collection` is the same shape for the FILTERED items — a mandatory
- *     function child, no element, no `className`.
- *   - `Portal` takes Floating UI's portal props (`container`, `keepMounted`) and
- *     renders only Base UI's structural `data-base-ui-portal` wrapper.
- *   - `useFilter` and `useFilteredItems` are hooks, not parts.
- *
- * The other twenty-two parts are wrapped so their recipes travel with them.
- */
-
 /** Every Base UI `Combobox.Root` prop, generic over the item value type. */
 export type ComboboxRootProps<
   Value = string,
@@ -83,13 +63,6 @@ export type ComboboxCollectionProps = ComponentProps<typeof BaseCombobox.Collect
 
 /** Every Base UI `Combobox.Portal` prop. This part takes no `className`. */
 export type ComboboxPortalProps = ComponentProps<typeof BaseCombobox.Portal>;
-
-/*
- * `className` is deliberately narrowed back to `string` on every wrapped part:
- * Base UI widens it to `string | ((state) => string | undefined)`, and the
- * callback form cannot be merged with a recipe through `cn()`. Every component
- * in this catalog makes the same narrowing.
- */
 
 /** Every Base UI `Combobox.Label` prop, with `className` narrowed to `string`. */
 export interface ComboboxLabelProps
@@ -371,56 +344,121 @@ function ComboboxSeparator({ className, ...rest }: ComboboxSeparatorProps): Reac
 }
 
 /**
- * The catalog's combobox, as ONE namespace object whose keys mirror Base UI's
- * twenty-eight namespace members 1:1 — the catalog-wide convention for
- * multi-part components, so a caller who knows the Base UI docs already knows
- * this API.
- *
- * A minimal usable combobox is Root(items) > InputGroup(Input, Trigger(Icon))
- * plus a portalled Positioner > Popup > List > Item(ItemIndicator). Everything
- * else is opt-in: `Label` for a field label (on a TRIGGER-only combobox — Base
- * UI's label points at the trigger, so pair it with `Input` and Base UI warns),
- * `Clear` for a reset button, `Empty` and `Status` for the no-matches and
- * loading messages, `Group`/`GroupLabel`/`Separator` for sections, `Row` for
- * grid-shaped pickers, `Chips`/`Chip`/`ChipRemove` for a multi-select's selected
- * pills, `Backdrop` and `Arrow` for popup chrome, and `Value`/`Collection` as
- * renderless windows onto the selected value and the filtered items.
- *
- * Unlike every overlay in this catalog so far, the popup is NOT modal: it does
- * not park focus, it does not lock scroll, and it lays down no pointer-events
- * blocker over the page. A pointer click lands on an item directly.
- *
- * `useFilter` returns Base UI's `contains`/`startsWith`/`endsWith` matchers for
- * the current locale, and `useFilteredItems` applies one of them to the item
- * list — together they are how typing narrows the list.
+ * An editable item picker with single or multiple selection. Compose Root with InputGroup,
+ * Input, Trigger, and a portalled Positioner > Popup > List. Chips and ChipRemove display and
+ * remove multiple selections.
  */
 export const Combobox = {
+  /**
+   * Owns the component state and provides context to its parts.
+   */
   Root: BaseCombobox.Root,
+  /**
+   * Provides the control's accessible label.
+   */
   Label: ComboboxLabel,
+  /**
+   * Displays the current value using the part's children or formatting options.
+   */
   Value: BaseCombobox.Value,
+  /**
+   * The editable input connected to Root state.
+   */
   Input: ComboboxInput,
+  /**
+   * Groups the input with its trigger, clear button, and icon.
+   */
   InputGroup: ComboboxInputGroup,
+  /**
+   * Opens or toggles the associated content; render can compose it onto another control.
+   */
   Trigger: ComboboxTrigger,
+  /**
+   * Contains selectable items.
+   */
   List: ComboboxList,
+  /**
+   * Announces status changes such as loading or result counts.
+   */
   Status: ComboboxStatus,
+  /**
+   * Renders popup content outside the parent DOM hierarchy.
+   */
   Portal: BaseCombobox.Portal,
+  /**
+   * Covers the surrounding page behind the popup.
+   */
   Backdrop: ComboboxBackdrop,
+  /**
+   * Positions the popup relative to its anchor; render inside Portal.
+   */
   Positioner: ComboboxPositioner,
+  /**
+   * The visible popup container; place labeled content and actions inside it.
+   */
   Popup: ComboboxPopup,
+  /**
+   * Draws the popup's pointer toward its anchor.
+   */
   Arrow: ComboboxArrow,
+  /**
+   * Visual indicator beside the input or selected value.
+   */
   Icon: ComboboxIcon,
+  /**
+   * Groups related items or controls.
+   */
   Group: ComboboxGroup,
+  /**
+   * Labels a group of items.
+   */
   GroupLabel: ComboboxGroupLabel,
+  /**
+   * Groups one item and its associated content.
+   */
   Item: ComboboxItem,
+  /**
+   * Displays content when its item is selected.
+   */
   ItemIndicator: ComboboxItemIndicator,
+  /**
+   * Contains the chips for multiple selected items.
+   */
   Chips: ComboboxChips,
+  /**
+   * Displays one selected item in a multiple-selection input.
+   */
   Chip: ComboboxChip,
+  /**
+   * Removes its selected chip when activated.
+   */
   ChipRemove: ComboboxChipRemove,
+  /**
+   * Groups items in a list row.
+   */
   Row: ComboboxRow,
+  /**
+   * Renders items from the collection supplied to Root.
+   */
   Collection: BaseCombobox.Collection,
+  /**
+   * Displays content when no items match.
+   */
   Empty: ComboboxEmpty,
+  /**
+   * Clears the current input or selection.
+   */
   Clear: ComboboxClear,
+  /**
+   * Separates adjacent groups or content.
+   */
   Separator: ComboboxSeparator,
+  /**
+   * Creates locale-aware contains, startsWith, and endsWith string matchers.
+   */
   useFilter: BaseCombobox.useFilter,
+  /**
+   * Reads the filtered items from the surrounding collection context.
+   */
   useFilteredItems: BaseCombobox.useFilteredItems,
 };

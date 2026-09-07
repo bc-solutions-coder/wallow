@@ -7,12 +7,6 @@ import { Drawer } from "./drawer";
 import type { DrawerSide } from "./drawer.styles";
 
 /*
- * Wallow-m5aq.3.10 — Drawer stories. `@storybook/addon-vitest` turns every
- * export below into a Vitest test case rendered in the same headless Chromium
- * the `browser` project uses, with the real Tailwind pipeline attached (see
- * .storybook/main.ts), so these are the VISUAL half of the component's spec
- * while drawer.test.tsx holds the markup assertions a screenshot cannot make.
- *
  * Three things belong HERE rather than in drawer.test.tsx:
  *
  *   - POINTER interaction inside the open popup. Base UI always renders a fixed,
@@ -370,22 +364,6 @@ export const PaintedByTheDesignTokens: Story = {
   },
 };
 
-/**
- * The MEASURED pin on the catalog-wide heading standard (Wallow-io5f).
- *
- * `drawerTitleRecipe` hard-coded `text-lg` (18px) while `Text`'s `subheading`
- * step — the other spelling of a surface heading — sat at `text-xl` (20px), so
- * the same slot rendered at two sizes depending on which part a call site
- * reached for. This bead settles all four surface-title recipes on 20px.
- *
- * No app renders a Drawer today, which is exactly why this needs a test rather
- * than a note: unrendered is not never-rendered, and the first caller to open
- * one would otherwise inherit an 18px title with nothing to catch it. See
- * `.storybook/heading-scale.tsx` for why this is measured, and why here.
- *
- * The drawer's title stays COLOURLESS — this pins the size axis only, and must
- * not be read as a licence to give the recipe a colour it deliberately omits.
- */
 export const HeadingScale: Story = {
   args: { defaultOpen: true, side: "right" },
   render: (args) => (

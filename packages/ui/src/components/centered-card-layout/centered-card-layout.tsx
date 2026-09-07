@@ -7,13 +7,15 @@ import {
 } from "./centered-card-layout.styles";
 
 /**
- * The centred fixed-width column shell generalized from wallow-auth's
- * `auth-layout.tsx` (`AuthCard`/`AuthLayout`): an outer viewport wrapper around
- * an inner fixed-width column. children, data-testid and `className` pass
- * through onto the inner column; the viewport wrapper stays sealed.
+ * Attributes applied to the inner centered column, including children and className. The outer
+ * viewport wrapper has no prop overrides.
  */
 export type CenteredCardLayoutProps = HTMLAttributes<HTMLDivElement>;
 
+/**
+ * Centers a constrained column in a full-height page. Pass card content as children; className
+ * and other div attributes apply to the inner column.
+ */
 export function CenteredCardLayout({ className, ...rest }: CenteredCardLayoutProps): ReactElement {
   return (
     <div className={centeredCardLayoutViewportRecipe()}>

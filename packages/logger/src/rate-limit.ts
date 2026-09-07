@@ -1,11 +1,6 @@
 /**
- * A fixed-window, per-key request limiter for the ingest route.
- *
- * In-process and per-instance by design. A shared limiter would mean a store,
- * and the thing being protected is an unauthenticated write endpoint on one app
- * server — the budget that matters is that server's, which is exactly what an
- * in-process counter measures. A multi-instance deployment gets N times the
- * limit, which is the right answer: each instance is protecting itself.
+ * Fixed-window request limits held in memory by each limiter instance. Limits and tracked keys
+ * are not shared between server replicas.
  */
 
 /** How the limiter is configured. */
@@ -26,7 +21,11 @@ export interface RateLimitOptions {
 
 /** The limiter the ingest handler consults. */
 export interface RateLimiter {
-  /** Whether this request is allowed. Counts it when it is. */
+  /**
+   * Count an accepted request in the key window and return true, or return false once its
+   * allowance is exhausted. Pass now as epoch milliseconds; a missing or expired key starts a new
+   * window.
+   */
   allow: (key: string, now: number) => boolean;
 }
 
@@ -36,6 +35,10 @@ interface Window {
   resetAt: number;
 }
 
+/**
+ * Default limit of 60 accepted requests per key per 60-second window, with at most 10000 tracked
+ * keys.
+ */
 export const DEFAULT_RATE_LIMIT: RateLimitOptions = {
   limit: 60,
   windowMs: 60_000,
@@ -43,13 +46,8 @@ export const DEFAULT_RATE_LIMIT: RateLimitOptions = {
 };
 
 /**
- * Drop expired windows, then — if the map is still at its ceiling — the oldest
- * entry.
- *
- * `Map` iterates in insertion order, so the first key is the least recently
- * ADMITTED one. Evicting it forgives whoever it belonged to, which is the safe
- * direction to fail: a limiter that evicts an active abuser is worse than one
- * that occasionally forgives an idle client.
+ * Remove expired windows, then evict the earliest inserted keys until a new key fits. Eviction
+ * resets the removed callers allowance.
  */
 function makeRoom(windows: Map<string, Window>, now: number, maxTrackedKeys: number): void {
   for (const [key, window] of windows) {
@@ -67,7 +65,12 @@ function makeRoom(windows: Map<string, Window>, now: number, maxTrackedKeys: num
   }
 }
 
-/** Build a limiter. Each call owns its own state. */
+/**
+ * Create an independent in-memory fixed-window limiter. Retain the returned instance across
+ * requests. Expired windows are removed when capacity is needed, then the earliest inserted keys
+ * are evicted; evicted callers start a new allowance. Supply positive limits and durations because
+ * options are not validated.
+ */
 export function createRateLimiter(options: RateLimitOptions = DEFAULT_RATE_LIMIT): RateLimiter {
   const windows = new Map<string, Window>();
 

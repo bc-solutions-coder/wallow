@@ -66,15 +66,8 @@ describe("generated client", () => {
 });
 
 /**
- * The unified error contract.
- *
- * With `throwOnError: true` + `responseStyle: "data"` every generated operation
- * rejects with the PARSED response body, whose shape differs per endpoint family
- * (RFC 7807 problem details for most, a bare `{ succeeded, error }` object for
- * the Identity auth and MFA controllers, nothing at all for an empty 401). The
- * error interceptor is the single place that difference is erased — by handing
- * the body to `@bc-solutions-coder/api-errors`' parser — and the ONLY place the
- * transport status is still reachable.
+ * Generated operations return response data directly and throw normalized ApiFailure objects for
+ * failed responses. Verify status, validation details, retry hints, and request correlation.
  */
 
 /** The interceptor shape the generated client hands its error middleware. */

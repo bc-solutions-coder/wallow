@@ -27,9 +27,7 @@ const GENERATED_EXPORTS: readonly string[] = [
 const CURATED_EXPORTS: readonly string[] = ["queriesForOperation", "queriesWithTag"];
 
 /**
- * The hand-written factories this entry used to expose. Deleted rather than
- * deprecated, because every one of them closed over the module-global client
- * that no longer exists.
+ * Unsupported singleton-backed query factories must remain absent from the query entry.
  */
 const RETIRED_EXPORTS: readonly string[] = [
   "appsQueries",

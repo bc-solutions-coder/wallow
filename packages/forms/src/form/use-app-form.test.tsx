@@ -73,9 +73,8 @@ interface HostProps {
 }
 
 /**
- * A form built the way a migrated screen will build one: the hook, the shell,
- * the banner and the submit button, with no `pending`/`serverError` threaded
- * through props.
+ * Form hook, shell, error banner, and submit button without explicit pending or serverError
+ * props.
  */
 function Harness(props: HarnessProps) {
   const form = useAppForm({

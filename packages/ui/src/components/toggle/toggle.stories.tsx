@@ -4,11 +4,6 @@ import { expect, fn, userEvent } from "storybook/test";
 import { Toggle } from "./toggle";
 
 /*
- * Wallow-m5aq.2.12 — Toggle stories. Each export becomes a Vitest test case in
- * the same headless Chromium the `browser` project uses, but with the real
- * Tailwind pipeline attached (.storybook/preview.css), so this is the only place
- * the pressed state's colour and the button's padding can actually be seen.
- *
  * Callback spies come from `fn()` in `storybook/test` (never `vi.fn()`, which
  * the Interactions panel cannot display).
  */

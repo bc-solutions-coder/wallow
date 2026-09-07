@@ -5,25 +5,7 @@ import { expect, fn, userEvent, waitFor } from "storybook/test";
 import { Accordion, type AccordionRootProps } from "./accordion";
 
 /*
- * Wallow-m5aq.4.1 — Accordion stories. `@storybook/addon-vitest` turns every
- * export below into a Vitest test case rendered in the same headless Chromium
- * the `browser` project uses, with the real Tailwind pipeline attached (see
- * .storybook/main.ts), so these are the VISUAL half of the component's spec
- * while accordion.test.tsx holds the markup assertions a screenshot cannot make.
- *
  * Two things belong HERE rather than in accordion.test.tsx:
- *
- *   - Any assertion that a recipe utility actually PAINTS (see
- *     PaintedByTheDesignTokens). This project compiles real Tailwind; the
- *     `browser` project does not, so there `h-[var(--accordion-panel-height)]`
- *     and `transition-[height]` are inert strings on a class list.
- *   - THE PANEL IS HEIGHT-ANIMATED HERE AND ONLY HERE. Because real CSS is
- *     loaded, the recipe's 150ms `transition-[height]` genuinely runs, so no
- *     story below may assert an opened panel's visibility or height
- *     SYNCHRONOUSLY after the press — it starts at `h-0`. Every post-open
- *     assertion goes through `waitFor` (the Wallow-m5aq.3.1 exemplar's gotcha,
- *     which cost that task a red run), and closing is likewise polled through
- *     `waitFor` because Base UI defers the unmount until the transition ends.
  */
 
 interface FaqProps {

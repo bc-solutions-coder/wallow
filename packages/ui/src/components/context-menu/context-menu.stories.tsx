@@ -5,12 +5,6 @@ import { expect, fn, screen, userEvent, waitFor } from "storybook/test";
 import { ContextMenu } from "./context-menu";
 
 /*
- * Wallow-m5aq.3.7 — Context Menu stories. `@storybook/addon-vitest` turns every
- * export below into a Vitest test case rendered in the same headless Chromium the
- * `browser` project uses, with the real Tailwind pipeline attached (see
- * .storybook/main.ts), so these are the VISUAL half of the component's spec while
- * context-menu.test.tsx holds the markup assertions a screenshot cannot make.
- *
  * Three things belong HERE rather than in context-menu.test.tsx:
  *
  *   - THE RIGHT CLICK ITSELF, driven the way a user drives it. `userEvent` here is

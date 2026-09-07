@@ -1,10 +1,5 @@
 /**
- * The OTLP/HTTP JSON encoding, and the POST that ships it.
- *
- * Kept separate from the ingest handler so the handler's guard chain can be read
- * — and tested — without an exporter in the way, and so a fork that ships logs
- * somewhere other than an OTLP collector replaces one function rather than
- * unpicking a request handler.
+ * Encode server records as OTLP HTTP JSON and send them to a collector.
  */
 
 import type { LogEvent, LogLevel } from "./log-event";
@@ -24,25 +19,44 @@ export interface ServerLogRecord {
   ts: string;
   /** What the browser claimed, preserved for clock-skew analysis. */
   clientTs: string;
+  /**
+   * Severity encoded in the OTLP record.
+   */
   level: LogLevel;
+  /**
+   * Stable event name used as the OTLP body and event.name attribute.
+   */
   event: string;
+  /**
+   * Application attributes; dedicated server fields win on reserved-name collisions.
+   */
   attrs: Record<string, unknown>;
   /** Stamped by the handler from its own configuration. */
   service: string;
+  /**
+   * Correlation identifier from the event or request-header fallback.
+   */
   correlationId?: string;
+  /**
+   * Client address resolved by the trusted host callback.
+   */
   clientIp?: string;
+  /**
+   * User identifier supplied by server context.
+   */
   userId?: string;
+  /**
+   * Tenant identifier supplied by server context.
+   */
   tenantId?: string;
+  /**
+   * Diagnostic error fields mapped to OTLP exception attributes.
+   */
   error?: LogEvent["error"];
 }
 
 /**
- * OTLP severity numbers for the four levels.
- *
- * From the OpenTelemetry logs data model: DEBUG 5, INFO 9, WARN 13, ERROR 17 —
- * the base of each 4-wide band. A collector that receives a number outside the
- * enumerated set renders the record as UNSPECIFIED, which is why these are a
- * fixed map rather than arithmetic on the level index.
+ * OTLP severity numbers for debug, info, warn, and error.
  */
 const SEVERITY_NUMBERS: Record<LogLevel, number> = {
   debug: 5,
@@ -137,13 +151,10 @@ function toUnixNano(iso: string, fallbackMs: number): string {
 }
 
 /**
- * Encode server records as one OTLP/JSON logs payload.
- *
- * `service` becomes a resource attribute — `service.name` is the semantic
- * convention every backend groups by — so records from the two apps stay
- * distinguishable in one collector. Records are grouped by service for the same
- * reason: a resource carries ONE service name, so a mixed batch under a single
- * resource would mislabel everything but the first.
+ * Group records by service and encode an OTLP JSON logs payload. Uses clientTs for event time and
+ * ts for observed time, falling back to nowMs for unparseable dates. Object attributes become JSON
+ * strings; known server fields overwrite colliding attribute names. nowMs must be integer epoch
+ * milliseconds.
  */
 export function toOtlpLogsPayload(records: ServerLogRecord[], nowMs: number): OtlpLogsPayload {
   const byService = new Map<string, ServerLogRecord[]>();
@@ -205,17 +216,32 @@ export function otlpLogsUrl(endpoint: string): string {
 
 /** How {@link emitOtlp} reports what happened, without throwing at its caller. */
 export interface OtlpEmitResult {
+  /**
+   * Whether no send was needed or the collector returned a successful HTTP status.
+   */
   ok: boolean;
+  /**
+   * Collector HTTP status when a response was received.
+   */
   status?: number;
+  /**
+   * Caught serialization or transport failure when no response was produced.
+   */
   error?: unknown;
 }
 
 /**
- * POST a batch to the collector.
+ * POST records as OTLP JSON to the collector logs URL. Empty input succeeds without a network
+ * request. Returns the HTTP status for a response or the caught error for encoding and transport
+ * failures; does not throw those failures or retry them.
  *
- * Never throws. The ingest handler answers 204 whether or not this succeeds — a
- * page's behaviour must not change because telemetry is down — so the result is
- * returned for the caller's own fallback rather than raised.
+ * @param endpoint Collector base URL or complete /v1/logs URL.
+ *
+ * @param records Server log records to encode.
+ *
+ * @param nowMs Integer epoch milliseconds used for invalid timestamp fallback.
+ *
+ * @param fetchImpl Transport override, defaulting to fetch.
  */
 export async function emitOtlp(
   endpoint: string,

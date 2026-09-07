@@ -1,17 +1,6 @@
 /**
- * `useAppForm` — the one hook a Wallow form calls.
- *
- * It unifies the four things every hand-written form in the apps repeats today:
- * a TanStack Form instance, a zod schema wired as the submit validator, the
- * TanStack Query mutation the submit drives, and the failure split that decides
- * which messages go on a field and which failure the banner resolves its
- * sentence from. The result is the plain TanStack form instance augmented with
- * a `wallow` member (`pending`/`serverError`/`reset`), which `AppForm` reads so
- * a call site does not have to thread either through props.
- *
- * A form is a handled failure surface: every mutation the hook creates carries
- * `handledFailure` in its `meta`, so the query client's `onUnhandledFailure`
- * callback never toasts what the form already shows.
+ * Combine schema validation, mutation state, and field or banner failures. Form mutations are
+ * marked handled so the query client does not report the same failure again.
  */
 
 import type { FailureMessageRegistry } from "@bc-solutions-coder/api-errors";
@@ -33,19 +22,15 @@ export interface WallowFormExtras {
   readonly pending: boolean;
   /** The form-level failure text `FormError` renders, or `null`. */
   readonly serverError: string | null;
-  /** Drops the mutation's result/error state, e.g. when a dialog reopens. */
+  /**
+   * Clear mutation result and failure state, including server field messages and banner text.
+   * Does not reset form values or schema errors; use form.reset() for form values.
+   */
   readonly reset: () => void;
   /**
-   * Drops the last submit's server errors — the banner and the field messages
-   * pushed under the `onServer` key.
-   *
-   * `AppForm` calls this on its way into a submit, and it has to happen THERE
-   * rather than inside this hook's `onSubmit`: `handleSubmit` aborts on
-   * `!isFieldsValid` before the submit callback runs, and nothing in
-   * `@tanstack/form-core` ever clears an `onServer` error by itself (it is
-   * untouched by `validateSync`, which only rewrites the key for the cause it
-   * validated). A server field error left in place would therefore wedge the
-   * form: every later submit would fail the gate silently.
+   * Clear the banner and onServer field errors without resetting values. AppForm calls this
+   * before validation; callers invoking handleSubmit directly must do the same before retrying a
+   * server-invalid form.
    */
   readonly clearServerErrors: () => void;
 }
@@ -66,18 +51,8 @@ export interface WallowFormExtras {
 type ServerErrorSlot<TValues> = FormValidateAsyncFn<TValues>;
 
 /**
- * The TanStack form instance for values `TValues`, augmented with
- * {@link WallowFormExtras}. Augmenting the instance rather than returning a
- * tuple is `createFormHook`'s own pattern, and it keeps `form.AppField`,
- * `form.Field` and `form.handleSubmit` exactly where a TanStack user expects.
- *
- * The validator generics are pinned to the one shape this hook ever builds: a
- * standard-schema `onDynamic` validator (the caller's zod schema) and nothing
- * else. `FormApi` declares them `in out`, so an approximation would not be
- * assignable — they have to match the instantiation below exactly. The schema
- * sits in the `TOnDynamic` slot rather than `TOnSubmit` because
- * {@link revalidateLogic} runs only that one validator; see the instantiation
- * below for why.
+ * TanStack form instance with the registered AppField catalog and Wallow submit state. Its schema
+ * occupies onDynamic, and onServer holds errors returned by a submission.
  */
 export type AppFormApi<TValues> = ReturnType<
   typeof useTanstackAppForm<
@@ -98,42 +73,33 @@ export type AppFormApi<TValues> = ReturnType<
   readonly wallow: WallowFormExtras;
 };
 
+/**
+ * Schema, initial values, and submit behavior. Provide a mutation or an onSubmit callback;
+ * mutation takes precedence when both are supplied.
+ */
 export interface UseAppFormOptions<TValues, TVariables, TData, TError = unknown> {
   /**
-   * The zod schema, wired as TanStack's `validators.onDynamic` under
-   * {@link revalidateLogic} — so it runs on submit, and thereafter on every
-   * change. It is typed as the standard-schema interface zod implements, which
-   * is what TanStack itself accepts; `TValues` is the schema's input type, i.e.
-   * the shape the form holds.
+   * Standard Schema validator, such as a Zod schema. Validates on the first submit and on changes
+   * afterward. The form stores and submits the input values; schema output transformations are
+   * not applied to mutation variables.
    */
   readonly schema: StandardSchemaV1<TValues, unknown>;
+  /** Initial form values and the known field names used to match server errors. */
   readonly defaultValues: TValues;
   /**
-   * The generated SDK mutation options (`{operation}Mutation({ client })`),
-   * passed WHOLE — no destructuring, no cast. Omit it for the plain-`onSubmit`
-   * escape hatch.
-   *
-   * `TError` is inferred from whatever is handed over, which is the only way the
-   * generated factories can be accepted at all: each operation carries its own
-   * error type (`organizationsCreateMutation` is `DefaultError`,
-   * `organizationClientsRegisterMutation` is
-   * `OrganizationClientsRegisterError`), and `TError` sits in the
-   * CONTRAVARIANT position of `UseMutationOptions`' optional
-   * `onError`/`onSettled`/`retry` members — so a slot pinned to any one concrete
-   * type (`unknown` included) rejects every factory that does not name exactly
-   * that type. The hook never reads `TError` itself; `splitSubmitFailure` takes
-   * the failure as `unknown` because an RFC 7807 body is only trustworthy after
-   * the runtime classification it does.
+   * Mutation options, including a generated SDK mutation factory result. Passed through with
+   * failureHandled metadata added. The error type is inferred from the supplied options; omit
+   * mutation to use onSubmit.
    */
   readonly mutation?: UseMutationOptions<TData, TError, TVariables>;
-  /** Values -> mutation variables. Defaults to `(values) => ({ body: values })`. */
+  /** Convert values to mutation variables. Defaults to { body: values } with mutation, or values with onSubmit. */
   readonly toVariables?: (values: TValues) => TVariables;
   /**
-   * The no-mutation escape hatch (e.g. the forgot-password screen, which
-   * deliberately swallows failures for anti-enumeration). It still runs through
-   * an internal mutation so `pending` keeps working.
+   * Submission callback used only when mutation is absent. Runs through an internal mutation to
+   * provide pending and failure state. Receives form values unless toVariables replaces them.
    */
   readonly onSubmit?: (values: TValues) => Promise<void> | void;
+  /** Called after a successful submit with mutation data, or undefined for the onSubmit callback path. */
   readonly onSuccess?: (data: TData) => void;
   /**
    * Banner sentences for this form alone, keyed by error code. They win over
@@ -148,6 +114,12 @@ export interface UseAppFormOptions<TValues, TVariables, TData, TError = unknown>
   readonly fallbackError?: string | undefined;
 }
 
+/**
+ * Create a form with schema validation and a handled submission mutation under
+ * QueryClientProvider. AppForm consumes form.wallow for pending state and resolved banner text.
+ * API field errors match keys in defaultValues; unmatched messages remain available to the banner
+ * resolver.
+ */
 export function useAppForm<TValues, TVariables = unknown, TData = unknown, TError = unknown>(
   options: UseAppFormOptions<TValues, TVariables, TData, TError>,
 ): AppFormApi<TValues> {
@@ -199,21 +171,9 @@ export function useAppForm<TValues, TVariables = unknown, TData = unknown, TErro
     never
   >({
     defaultValues: options.defaultValues,
-    /*
-     * WHEN validation runs, and the reason the schema is an `onDynamic`
-     * validator rather than an `onSubmit` one.
-     *
-     * `revalidateLogic()` defaults to `mode: "submit"` /
-     * `modeAfterSubmission: "change"`, which is exactly the rule every Wallow
-     * form wants: a first-time visitor is never judged mid-keystroke, and a
-     * field the submit has already flagged then tracks the value live, so the
-     * message clears the moment it is fixed instead of waiting for a second
-     * submit. It is deliberately set HERE and not per form — the five migrated
-     * screens configure none of this.
-     *
-     * The strategy runs ONLY the `onDynamic` validator (it ignores
-     * `onChange`/`onBlur`/`onSubmit` entirely), so leaving the schema on
-     * `onSubmit` would silently validate nothing at all.
+    /**
+     * revalidateLogic runs onDynamic validation on submit, then on changes after submission.
+     * Putting the schema under onSubmit would bypass this strategy.
      */
     validationLogic: revalidateLogic(),
     validators: { onDynamic: options.schema },

@@ -1,12 +1,6 @@
 /**
- * Shared Web Crypto handle for iron-webcrypto's `seal`/`unseal`.
- *
- * iron-webcrypto's internal `_Crypto` parameter type differs from the DOM
- * `Crypto` lib type only in typed-array buffer variance (its `subtle` methods
- * accept `Uint8Array<ArrayBuffer>` where the DOM lib uses `BufferSource`).
- * Under TypeScript 5.7's generic typed arrays these are structurally
- * incompatible, so we cast `globalThis.crypto` once here and reuse it across
- * every sealed-cookie module rather than repeating the cast at each call site.
+ * Expose the runtime Web Crypto instance with the type expected by iron-webcrypto. The assertion
+ * bridges incompatible library declarations without changing the runtime object.
  */
 
 import type { seal } from "iron-webcrypto";

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import generatorConfig from "../openapi-ts.config";
 
-// Guards Wallow-pu6a.1.10. Two separate regressions are locked here:
+// Guards Two separate regressions are locked here:
 //
 //  1. The generator must never again shell out to a post-processor. The
 //     `format: "prettier"` config (removed in 1b1ee705) spawned a Prettier

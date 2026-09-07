@@ -570,11 +570,6 @@ describe("Combobox", () => {
   });
 
   it("lays down no pointer blocker over the page", async () => {
-    // The single sharpest divergence from every wave-2 overlay. Dialog's open
-    // popup covers the page in a `pointer-events` shield, so its specs had to
-    // work around it; a combobox popup is NON-MODAL and does not, which is why
-    // the pointer-selection tests below are real clicks.
-    //
     // A positive control keeps this honest: the element under the pointer at the
     // page's top-left has to be something OUTSIDE the portal.
     await renderOpen();

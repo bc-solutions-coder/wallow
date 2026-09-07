@@ -11,15 +11,6 @@ import { describe, expect, it } from "vitest";
 // That — and only that — is what these two specs pin. They IMPORT
 // `vitest.config.ts` and assert the projects Vitest actually receives, so a
 // project declared but never pushed onto `projects` still fails.
-//
-// The eleven specs that used to sit here read `.storybook/main.ts`,
-// `preview.tsx`, `preview.css`, `vitest.config.ts` and `package.json` as text
-// and asserted their shape: the framework string, the story glob, the addon
-// array, the `storybookTest(` call, the exact script strings, an installed
-// Storybook on `^10.`. Between them they made a Storybook major, or any
-// `.storybook/` restructure, a test-editing exercise before it could be a
-// config-editing one — while asserting nothing the two specs below miss. If the
-// wiring breaks, the project count or the browser flags go with it.
 
 /** Every project name in `vitest.config.ts`, as Vitest itself would see them. */
 async function vitestProjects(): Promise<

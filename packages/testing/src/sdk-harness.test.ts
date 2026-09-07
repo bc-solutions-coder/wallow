@@ -1,15 +1,5 @@
 /**
- * Specs for the shared SDK test seam (Wallow-pu6a.5.1).
- *
- * These run on the NODE project: the harness is a transport recorder plus a call
- * to the real `createWallowSdk()`, with no DOM involved. The browser side of the
- * seam is covered by `render-with-wallow.test.tsx`.
- *
- * Everything below asserts against the transport (`harness.fetch`, the recorded
- * `calls`) or against a plain `client.get`/`client.post`, deliberately NOT
- * against the `{ data, error }` vs. thrown-error shape of a generated operation:
- * Wallow-pu6a.5.2 flips the generated client to `throwOnError`/`responseStyle`,
- * and this seam's contract must not move when it does.
+ * Exercise transport recording and programmable responses with the real SDK in Node.
  */
 import { beforeEach, describe, expect, it } from "vitest";
 

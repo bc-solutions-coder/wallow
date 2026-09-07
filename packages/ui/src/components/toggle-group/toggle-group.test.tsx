@@ -6,16 +6,12 @@ import { Toggle } from "../toggle";
 import { ToggleGroup } from "./toggle-group";
 
 /*
- * Wallow-m5aq.2.12 — Toggle Group. Same spec shape as the exemplar
- * (Wallow-m5aq.2.1): browser vitest project, nothing mocked, the recipe asserted
- * THROUGH the component, class assertions as an order-free set.
- *
  * This file imports `Toggle` from the sibling folder because a group is only
  * observable through the buttons it drives — the two share no import at RUNTIME
  * (they meet through Base UI's context), but the spec has to render both to see
  * a value array change.
  *
- * Assertions were measured against the installed Base UI 1.6.0. Three of those
+ * Assertions were measured against the installed Base UI. Three of those
  * measurements are worth stating, because each is easy to assume wrong:
  *   - the group always stamps `data-orientation`, even horizontal, while
  *     `data-multiple` appears only when `multiple` is set.

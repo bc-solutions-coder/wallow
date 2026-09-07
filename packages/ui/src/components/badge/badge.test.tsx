@@ -5,19 +5,6 @@ import { Badge } from "./badge";
 import { badgeRecipe } from "./badge.styles";
 
 /*
- * SPEC for Wallow-lrlm.3.4 (Badge).
- *
- * The neutral variant is not a new design: it is the chip six wallow-web
- * surfaces already hand-roll as the SAME literal class string (MfaSettingsSection,
- * ProfileSection, OrganizationList, AppList, InquiryList, InquiryDetail). Pinning
- * it byte-for-byte is what lets those call sites migrate onto the catalog without
- * a visual diff.
- *
- * The state variants are the new capability. MfaSettingsSection's chip carries a
- * comment saying it stays state-independent because "there is no success token in
- * the theme" — that constraint is lifted now that Wallow-lrlm.1.1 shipped
- * success/success-foreground, and this component is what spends it.
- *
  * Class assertions are order-free sets, per the Button and MutedText exemplars,
  * so tailwind-merge may reorder freely.
  */
@@ -51,7 +38,6 @@ const VARIANT_COLOURS = {
   destructive: ["bg-destructive", "text-destructive-foreground"],
 } as const;
 
-/** The literal chip string the six wallow-web call sites carry today. */
 const SHIPPED_CHIP =
   "inline-block bg-accent text-accent-foreground text-xs font-medium px-2.5 py-0.5 rounded-full";
 

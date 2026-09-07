@@ -1,15 +1,6 @@
 /**
- * The three things every catalog field would otherwise repeat: the state a field
- * reads off the two contexts, the label (with its optional marker), and the
- * error message.
- *
- * They live here rather than in each field because the testid rule is the part
- * that must not drift — a form's Playwright ids are derived, and the `-error`
- * suffix has to follow an explicit `testId` override just as faithfully as it
- * follows the derivation. One implementation, five call sites.
- *
- * INTERNAL: nothing here is re-exported from `src/index.ts`. A form author
- * composes the fields, not their parts.
+ * Internal helpers that share field state, label association, and control/error test ID
+ * derivation across the catalog.
  */
 
 import { Field } from "@bc-solutions-coder/ui/field";
@@ -35,11 +26,8 @@ export interface CatalogFieldState<TValue> {
 }
 
 /**
- * The field/shell state behind every catalog field.
- *
- * `testId` overrides BOTH ids: a migrated form that pins its control as
- * `forgot-password-email` must keep `forgot-password-email-error` too, since
- * that is the pair its E2E suite already selects.
+ * Read field state and AppForm state. A testId override names the control and also determines the
+ * error ID by appending -error.
  */
 export function useCatalogField<TValue>(testId: string | undefined): CatalogFieldState<TValue> {
   const field = useFieldContext<TValue>();

@@ -9,24 +9,9 @@ import { SubmitButton } from "../form/submit-button";
 import { useAppForm } from "../form/use-app-form";
 import type { SelectFieldOption } from "./select-field";
 
-/*
- * `SelectField` through the REAL pipeline, in the browser project (nothing
- * mocked — see `text-field.test.tsx`, the catalog's template spec, for the full
- * rationale and the shape of these cases).
- *
- * What this field adds over the template:
- *
- *   - The control is the catalog `Select` — a `role="combobox"` trigger over a
- *     portalled listbox — NOT a native `<select>`. That is asserted explicitly
- *     because the four call sites being migrated were hand-rolled `<select>`s
- *     until recently, and a regression back to one would still pass every other
- *     case here.
- *   - The field name is `projectType`, so the derived id also pins the
- *     camelCase -> kebab-case fold (`demo-project-type`) that
- *     CreateInquiryForm's existing testids depend on.
- *   - "Nothing chosen" is `""` in form state and `null` in Base UI; choosing an
- *     option has to land the WIRE VALUE (`web-app`) in form state while the
- *     trigger shows the LABEL ("Web application").
+/**
+ * Exercise the select trigger, option labels versus stored values, validation, and test ID
+ * derivation through the form pipeline.
  */
 
 const OPTIONS: readonly SelectFieldOption[] = [

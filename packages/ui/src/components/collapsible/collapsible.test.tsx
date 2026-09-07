@@ -6,13 +6,7 @@ import { userEvent } from "vitest/browser";
 import { Collapsible } from "./collapsible";
 
 /*
- * Collapsible behavioural spec (Wallow-m5aq.4.1, the standalone half of the
- * Accordion pair). Same rules as accordion.test.tsx: browser project, nothing
- * mocked, recipes asserted THROUGH the component, class assertions as an
- * order-free set, and the `*_CLASSES` constants below are the source of truth
- * the green phase transcribes into collapsible.styles.ts.
- *
- * ANATOMY, measured against @base-ui/react 1.6.0 in this browser (not guessed):
+ * ANATOMY, measured against Base UI in this browser (not guessed):
  *
  *   <div data-closed>                                        <- Collapsible.Root
  *     <button type="button" aria-expanded="false"            <- Collapsible.Trigger

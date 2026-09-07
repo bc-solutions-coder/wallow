@@ -2,11 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { cn } from "./cn";
 
-// Acceptance-criteria guard for Wallow-m5aq.1.2 (core/cn.ts, the recipe
-// class-merge helper). `cn` is layer 0 of the new package layering: it imports
-// nothing from ../components, so this spec is pure logic and runs in the node
-// vitest project (.test.ts, not .test.tsx).
-//
 // The helper exists so every component part can run `recipe + caller className`
 // through one place and have the caller reliably win — the last two specs pin
 // that contract, the first three pin the primitive join/filter/conflict rules.

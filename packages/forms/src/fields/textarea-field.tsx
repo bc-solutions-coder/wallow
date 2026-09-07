@@ -1,14 +1,6 @@
 /**
- * The catalog's multi-line text field — `TextField`'s anatomy over the ui
- * `Textarea` control.
- *
- * The `Textarea` is substituted INTO `Field.Control` through Base UI's `render`
- * prop rather than rendered beside it. Base UI ships no textarea part, so the ui
- * `Textarea` is a bare native element: standing it next to the label would leave
- * the row with no control to associate, forcing this field to hand-maintain an
- * `htmlFor`/`id` pair — the exact chore the `Field` row exists to remove. Going
- * through `Field.Control` also gives the textarea the row's `data-invalid` and
- * `aria-describedby` wiring for free.
+ * Multiline string field composed through Field.Control so the label, invalid state, and error
+ * description stay associated with the textarea.
  */
 
 import { Field } from "@bc-solutions-coder/ui/field";
@@ -17,18 +9,26 @@ import type { ReactElement } from "react";
 
 import { CatalogFieldError, CatalogFieldLabel, useCatalogField } from "./field-parts";
 
+/**
+ * Labels and presentation for TextareaField. The field value and validation come from the
+ * surrounding AppField.
+ */
 export interface TextareaFieldProps {
   /** The visible label, associated with the control by the ui `Field` row. */
   readonly label: string;
   readonly placeholder?: string;
   /** The control's visible height in lines, forwarded to the native attribute. */
   readonly rows?: number;
-  /** Marks the field optional in its label, for a form where most fields are not. */
+  /** Add an optional marker to the label. Does not change schema validation. */
   readonly optional?: boolean;
   /** Overrides the derived `{testIdPrefix}-{field name}` testid and its `-error` id. */
   readonly testId?: string;
 }
 
+/**
+ * Render a multiline string input inside AppForm and a matching AppField. The control disables
+ * while pending and displays the first field error.
+ */
 export function TextareaField({
   label,
   placeholder,

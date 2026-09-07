@@ -7,16 +7,12 @@ import { Checkbox } from "../checkbox";
 import { CheckboxGroup } from "./checkbox-group";
 
 /*
- * Wallow-m5aq.2.5 — Checkbox Group. Same spec shape as the exemplar
- * (Wallow-m5aq.2.1): browser vitest project, nothing mocked, the recipe asserted
- * THROUGH the component, class assertions as an order-free set.
- *
  * This file imports `Checkbox` from the sibling folder because a group is only
  * observable through the boxes it drives — the two components share no import at
  * RUNTIME (they meet through Base UI's context), but the spec has to render both
  * to see a value array change.
  *
- * Assertions were measured against the installed Base UI 1.6.0: the group is a
+ * Assertions were measured against the installed Base UI: the group is a
  * `<div role="group">`, a disabled group stamps `data-disabled` on ITSELF AND on
  * every child box, and a `parent` box reports `aria-checked="mixed"` plus
  * `data-indeterminate` while only some of `allValues` are ticked.

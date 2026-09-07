@@ -5,20 +5,8 @@ import { cn } from "../../core/cn";
 import { inputRecipe, type InputRecipeProps } from "./input.styles";
 
 /**
- * Every Base UI `Input` prop (`render`, `disabled`, `onValueChange` and the
- * native input attributes) plus the recipe's variants.
- *
- * The name and shape stay compatible with the pre-rebuild
- * `InputHTMLAttributes<HTMLInputElement>` alias: the 23 `<Input>` call sites in
- * wallow-auth/wallow-web pass `id`, `type`, `placeholder`, `data-testid`,
- * `required`, `autoComplete`, `name`, and a controlled `value`/`onChange` pair,
- * all of which Base UI's Input accepts unchanged.
- *
- * `className` is deliberately narrowed back to `string`: Base UI widens it to
- * `string | ((state) => string | undefined)`, and the callback form cannot be
- * merged with a recipe through `cn()`. Every component in this catalog makes
- * the same narrowing, so a caller's `className` always means "utilities merged
- * over the recipe, last one wins".
+ * Base UI input attributes, including controlled value, onValueChange, and render composition.
+ * className accepts a string merged over the input recipe.
  */
 export interface InputProps
   extends Omit<ComponentProps<typeof BaseInput>, "className">, InputRecipeProps {

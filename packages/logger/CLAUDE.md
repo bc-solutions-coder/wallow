@@ -13,8 +13,8 @@ stamps and forwards to OTLP.
   review.
 - **Build the ingest handler ONCE at module scope** — the rate limiter is state that must
   live across requests; a handler built per call counts to one and never refuses anything.
-- Both apps mount the same handler; CSRF applies because of where a route lives, not what
-  the endpoint needs.
+- Both apps mount the same handler. The app supplies `authorize` when its route requires
+  session or CSRF checks; the handler does not infer these checks from a route prefix.
 
 ## The controls that actually apply
 
@@ -33,6 +33,9 @@ stamps and forwards to OTLP.
 - `parseLogBatch` rebuilds each event field by field, so an extra wire field cannot smuggle
   past validation into a record.
 - Event names, not prose (`form.submitted`) — a rejected name fails the whole batch.
+- Redaction visits object keys to a bounded depth; it does not traverse arrays or scrub error text.
+- The parser retains `correlationId` and `error` without further validation. Ingestion uses the
+  event correlation ID before its request-header fallback.
 
 ## Three failure rules — do not "fix" these
 

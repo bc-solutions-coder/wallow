@@ -3,14 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { fieldContext, formContext, useFieldContext, useFormContext } from "./contexts";
 
-// Acceptance-criteria guard for Wallow-ov6w.2.1 (core/contexts.ts, the shared
-// TanStack Form contexts). Module-graph assertions only — nothing is rendered —
-// so this spec runs in the node vitest project (.test.ts, not .test.tsx).
-//
-// These are the singletons `createFormHook` and every catalog field bind to. A
-// field that read a DIFFERENT context would render fine and then find no field
-// API at runtime, so the point of this spec is that the module re-exports
-// TanStack's own contexts rather than standing up its own `createContext`.
+// Verify that catalog bindings share the TanStack contexts.
 
 describe("core/contexts", () => {
   it("exports the field and form contexts with their hooks", () => {

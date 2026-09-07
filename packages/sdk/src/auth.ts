@@ -70,7 +70,7 @@ export interface LogoutOptions {
  */
 export function logout(options?: LogoutOptions): Promise<void> {
   // Not an `async function`: the SSR guard must throw synchronously (see
-  // Wallow-pu6a.3.6), and `async` would turn that throw into a rejection.
+  // ), and `async` would turn that throw into a rejection.
   assertBrowserNavigation("logout()");
 
   return endSession(options);

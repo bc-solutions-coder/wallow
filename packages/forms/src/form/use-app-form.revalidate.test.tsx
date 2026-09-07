@@ -50,7 +50,7 @@ interface HarnessProps {
 }
 
 /**
- * A form built the way a migrated screen builds one — the hook, the shell and
+ * A form built with the hook, the shell and
  * two REAL catalog fields. The catalog field is deliberate rather than a bare
  * `form.Field` readout: whether a message is on screen is exactly the question
  * here, and `CatalogFieldError` renders nothing at all when the field is valid,
@@ -176,7 +176,7 @@ describe("useAppForm validation timing", () => {
 
   it("brings the message back when a corrected field is emptied again", async () => {
     // The half of "keeps up" that needs no second rule, and so applies to every
-    // migrated form: required-only fields are the common case. A field that goes
+    // form: required-only fields are the common case. A field that goes
     // quiet on correction but never speaks again is still validating once.
     const onSubmit = vi.fn<(values: Values) => void>();
     const { container } = await renderHarness({ onSubmit });

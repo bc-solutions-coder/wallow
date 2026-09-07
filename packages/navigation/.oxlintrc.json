@@ -6,11 +6,8 @@
   // rules and names their options. See `packages/lint/CLAUDE.md`.
   "rules": {
     "react/jsx-props-no-spreading": "off",
-    // This package is the application shell — the rail, the drawer and the
-    // scrim these rules were written for moved HERE out of `apps/wallow-web`,
-    // so all five apply. `no-sidebar-inversion` in particular: the rail is
-    // painted with the named `sidebar-*` family, and `app-shell.tsx`'s
-    // `BACKDROP_SCRIM` is the alpha spelling the rule deliberately allows.
+    // Shell controls use the named sidebar palette. BACKDROP_SCRIM is the
+    // translucent foreground color permitted by the sidebar rule.
     "wallow/no-hand-rolled-mutation": "error",
     "wallow/no-sidebar-inversion": "error",
     // The one rule here that applies ONLY to specs: it bans `node:fs` in a

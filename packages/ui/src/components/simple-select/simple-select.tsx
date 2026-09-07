@@ -4,33 +4,7 @@ import { Field } from "../field/field";
 import { Label } from "../label/label";
 import { Select } from "../select/select";
 
-/**
- * The whole select in one component: a labelled trigger over a fixed list of
- * options, for the call sites that need exactly the same seven-part portal tree
- * (Root > Trigger > Value/Icon, plus Portal > Positioner > Popup > List > Item >
- * ItemText) rather than a bespoke arrangement of it.
- *
- * `Select` stays the composable API — reach for it when a call site needs
- * groups, separators, an arrow, or a trigger that is not a `Field`. This is the
- * default shape, and it lives in the catalog rather than in an app because every
- * app needs the identical tree, and spelling it out per call site also blows the
- * repo's `react/jsx-max-depth` budget at each of them. That budget is why the
- * parts below are split into one component per nesting level.
- *
- * TWO TRANSLATIONS HAPPEN HERE, both at this boundary rather than in callers:
- *
- *   - "nothing chosen" is `""` on the caller's side (TanStack Form's default for
- *     a required select) and `null` in Base UI.
- *   - the trigger reports the LABEL rather than the value, which is what `items`
- *     buys: without it Base UI's `Select.Value` renders the raw value, so a
- *     `web-app` / "Web Application" pair would show the wire value to the user.
- *
- * `label` is REQUIRED: the trigger is a `role="combobox"` button with no text
- * content of its own (only the chosen option's label, which is empty until
- * something is picked), so without an explicit name a screen reader announces it
- * as unlabelled. `Field`/`Label` wrap the trigger the same way every other form
- * control in the catalog is named.
- */
+/** SimpleSelect composes Field, Label, and Select. It translates the caller's empty-string selection to Base UI's null and displays option labels. */
 
 /** One option: `value` travels on the wire, `label` is what a user reads. */
 export interface SimpleSelectOption {
@@ -38,6 +12,10 @@ export interface SimpleSelectOption {
   readonly label: string;
 }
 
+/**
+ * A controlled, labeled string selection with a fixed option list. An empty value represents
+ * no selection.
+ */
 export interface SimpleSelectProps {
   /** Names the TRIGGER — the element an E2E suite or a spec clicks. */
   readonly testId: string;
@@ -45,7 +23,13 @@ export interface SimpleSelectProps {
   readonly label: string;
   /** The chosen option's value; `""` means nothing is chosen. */
   readonly value: string;
+  /**
+   * Selectable value-label pairs. Values identify rows and must be unique.
+   */
   readonly options: readonly SimpleSelectOption[];
+  /**
+   * Receives the selected value, or an empty string when selection clears.
+   */
   readonly onChange: (value: string) => void;
   /** Shown on the trigger while nothing is chosen. */
   readonly placeholder?: string | undefined;
@@ -110,6 +94,10 @@ function SimpleSelectTrigger(props: {
   );
 }
 
+/**
+ * Renders a labeled select with its trigger and popup list. Displays option labels while
+ * onChange receives values, using an empty string for no selection.
+ */
 export function SimpleSelect({
   testId,
   label,

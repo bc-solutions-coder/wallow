@@ -1,8 +1,6 @@
 {
-  // What the charter config above deliberately cannot cover: the specs read this
-  // package's own manifest and configs off disk, and `vite.config.ts` imports
-  // `@bc-solutions-coder/config`, which imports `node:url`. Neither file is in
-  // `exports`, so letting them see Node costs the charter nothing.
+  // Typecheck tests and build configuration with Node types.
+  // These development files are not runtime package entries.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "types": ["node"]

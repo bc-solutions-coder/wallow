@@ -4,11 +4,6 @@ import { describe, expect, it } from "vitest";
 import { QuietLink } from "./quiet-link";
 
 /*
- * QuietLink is the muted secondary link — card footers ("Back to sign in"),
- * "Forgot password?", "Skip for now". Sourced from 13 hand-spelled anchors
- * across both apps, all of which were plain `<a>` elements, which is why this
- * takes `AnchorHTMLAttributes` rather than composing a router Link.
- *
  * It is deliberately NOT `Button variant="link"`: that arm is primary-coloured
  * and announces itself with an underline, because it stands in for an action.
  * This one recedes.

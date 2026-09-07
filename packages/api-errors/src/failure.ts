@@ -49,15 +49,28 @@ export interface ApiFailureInit {
 // oxlint-disable-next-line unicorn/custom-error-definition -- the name is the contract's; every consumer says "failure", not "error"
 export class ApiFailure extends Error {
   readonly [API_FAILURE_BRAND]: true = true;
+  /** HTTP status represented by this failure. */
   readonly status: number;
+  /** Machine-readable failure code, including fork-defined and OAuth codes. */
   readonly code: string;
+  /** Short diagnostic summary from the failure source. */
   readonly title: string;
+  /** Optional problem detail; use the message resolver before displaying it. */
   readonly detail: string | undefined;
+  /** Optional backend trace identifier. */
   readonly traceId: string | undefined;
+  /** Optional request identifier from the response context. */
   readonly requestId: string | undefined;
+  /** Optional validation messages indexed by source field name. */
   readonly fieldErrors: Readonly<Record<string, readonly string[]>> | undefined;
+  /** Optional retry delay in seconds. */
   readonly retryAfter: number | undefined;
 
+  /**
+   * Create a failure from known response facts without validating them. The Error message is for
+   * diagnostics; use resolveFailureMessage for display text and isApiFailure for checks across
+   * bundled copies.
+   */
   constructor(init: ApiFailureInit) {
     super(
       `[${init.status} ${init.code}] ${init.title}`,

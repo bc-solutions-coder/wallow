@@ -1,4 +1,8 @@
 import { defineConfig } from "@hey-api/openapi-ts";
+import {
+  createTypeDocumentationHooks,
+  createSdkTypeDocumentationHooks,
+} from "./scripts/type-documentation";
 import { createQueryDocumentationHooks } from "./scripts/query-documentation";
 
 export default defineConfig({
@@ -19,8 +23,8 @@ export default defineConfig({
       // resolve with an error payload and TanStack Query calls it a success.
       throwOnError: true,
     },
-    "@hey-api/typescript",
-    { name: "@hey-api/sdk", responseStyle: "data" },
+    { name: "@hey-api/typescript", $hooks: createTypeDocumentationHooks() },
+    { name: "@hey-api/sdk", responseStyle: "data", $hooks: createSdkTypeDocumentationHooks() },
     {
       name: "@tanstack/react-query",
       $hooks: createQueryDocumentationHooks(),

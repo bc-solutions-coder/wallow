@@ -60,7 +60,13 @@ const OAUTH_TOKEN_SEPARATOR: RegExp = /_+/u;
  * it on every runtime; a test can hand over a literal.
  */
 export interface FailureResponse {
+  /**
+   * Authoritative HTTP response status.
+   */
   readonly status: number;
+  /**
+   * Header reader used for x-request-id and Retry-After.
+   */
   readonly headers: { readonly get: (name: string) => string | null };
 }
 

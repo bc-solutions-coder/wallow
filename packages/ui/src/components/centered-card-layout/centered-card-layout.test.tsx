@@ -4,19 +4,6 @@ import { describe, expect, it } from "vitest";
 import { CenteredCardLayout } from "./centered-card-layout";
 
 /*
- * REFIT SPEC (Wallow-m5aq.2.13). Pins the pre-refit contract — a full-viewport
- * centring shell wrapping a fixed-width column, with children and the app-owned
- * data-testid landing on the COLUMN — and adds the refit requirement.
- *
- * ONE DELIBERATE BEHAVIOUR DELTA, pinned by its own tests below. The pre-refit
- * component rendered `<div {...props} className="w-full max-w-[420px]" />`: the
- * literal sits AFTER the spread, so a caller `className` was silently DISCARDED.
- * The refit routes it through `cn(centeredCardLayoutColumnRecipe(), className)`,
- * making the prop finally do what its `HTMLAttributes<HTMLDivElement>` type has
- * always advertised. Safe to change: no call site in the repo passes `className`
- * here (wallow-auth's auth-layout.tsx and the minimal-app example pass only
- * children and data-testid), so nothing that ships today moves.
- *
  * The viewport shell stays sealed — a caller styles the column, never the
  * wrapper — which is why this is two recipes rather than one.
  *
@@ -78,8 +65,6 @@ describe("CenteredCardLayout", () => {
   });
 
   it("merges a caller className onto the column instead of discarding it", async () => {
-    // The behaviour delta. Pre-refit the literal className overwrote the prop,
-    // so `gap-4` never reached the DOM at all.
     const { container } = await render(<CenteredCardLayout className="gap-4" />);
 
     expect(classSet(columnOf(container))).toEqual([...COLUMN_CLASSES, "gap-4"].toSorted());

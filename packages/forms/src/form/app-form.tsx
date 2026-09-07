@@ -1,8 +1,5 @@
 /**
- * The form shell: it owns the `<form>` element, the submit boilerplate every
- * hand-written form in the apps repeats (`preventDefault` + `stopPropagation` +
- * `void form.handleSubmit()`), the vertical rhythm, and the testid/pending/error
- * context its children read.
+ * Native form shell with schema-owned validation and shared submit state.
  */
 
 import { type FormEvent, type ReactElement, type ReactNode, useMemo } from "react";
@@ -16,6 +13,7 @@ import type { WallowFormExtras } from "./use-app-form";
  * which is assignable to this narrower type).
  */
 export interface AppFormInstance {
+  /** Validate the form and run its configured submission callback. */
   handleSubmit: () => Promise<void>;
   /**
    * Present when the instance came from `useAppForm`, which is where `pending`
@@ -26,15 +24,17 @@ export interface AppFormInstance {
   readonly wallow?: WallowFormExtras;
 }
 
+/**
+ * Native form shell options. Explicit pending and serverError props override values from
+ * form.wallow.
+ */
 export interface AppFormProps {
   readonly form: AppFormInstance;
   /** The prefix every child derives its testid from, e.g. `"inquiry"`. */
   readonly testIdPrefix: string;
   /**
-   * The `<form>` element's own testid, overriding the derived
-   * `{testIdPrefix}-form`. Three of the five forms being migrated stamp the
-   * element with a prefix their fields do not share (`inquiry-create-form` over
-   * `inquiry-name`), so the derivation alone cannot keep their ids stable.
+   * Override the form element test ID, which defaults to {testIdPrefix}-form. Child IDs still
+   * derive from testIdPrefix.
    */
   readonly testId?: string;
   /**
@@ -55,6 +55,11 @@ export interface AppFormProps {
 /** The default vertical rhythm, replaced wholesale by a caller `className`. */
 const DEFAULT_RHYTHM = "space-y-5";
 
+/**
+ * Render a native form and provide shared state to catalog fields, FormError, and SubmitButton.
+ * Prevents browser submission and native validation, clears previous server errors, then invokes
+ * form.handleSubmit().
+ */
 export function AppForm({
   form,
   testIdPrefix,

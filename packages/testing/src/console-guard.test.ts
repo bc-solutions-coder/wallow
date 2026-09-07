@@ -1,14 +1,7 @@
 /**
- * Specs for `./console-guard` — the guard a browser project installs in its setup
- * file so a `console.error` React writes fails the test that produced it.
- *
- * These run on the NODE project: the guard wraps `globalThis.console`, which is
- * the same object in either project, and nothing here needs a DOM.
- *
- * Every case restores `console` itself, because the subject IS the shared
- * console: `uninstallConsoleGuard()` puts the real methods back AND releases the
- * idempotence latch, without which a later `installConsoleGuard()` would be a
- * no-op and the case after this one would assert against an unguarded console.
+ * Exercise console recording, consumption, and cleanup in Node.
+ * Each case restores the original console methods so later cases can install
+ * the guard independently.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 

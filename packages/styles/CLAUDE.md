@@ -20,7 +20,7 @@ rebrand — this package turns it into theme CSS custom properties at render tim
   constants `appIconUrl`/`forkResolvedBranding` are correct only at the origin root.
   `toRootRelativeAssetUrl` normalises any base shape (`/`, `/auth`, `/auth/`, `auth`).
 - **Fork links** (`forkRepositoryUrl`/`forkDocsUrl`): resolution is env → `branding.json` →
-  upstream constant, blank counting as unset — `branding.json` is `merge=ours`, so a fork
+  upstream constant, blank environment values counting as unset — `branding.json` is `merge=ours`, so a fork
   replaces the file wholesale and a missing key must still resolve. The env record is a
   PARAMETER for the same prebuilt-bundle reason as the base path. Three pure pieces, no
   wiring: `resolveForkLinks(env)`, `forkLinksScript(links)` (the inline `<script>` source,

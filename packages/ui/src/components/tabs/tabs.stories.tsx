@@ -5,12 +5,6 @@ import { expect, fn, userEvent, waitFor } from "storybook/test";
 import { Tabs } from "./tabs";
 
 /*
- * Wallow-m5aq.4.2 — Tabs stories. `@storybook/addon-vitest` turns every export
- * below into a Vitest test case rendered in the same headless Chromium the
- * `browser` project uses, with the real Tailwind pipeline attached (see
- * .storybook/main.ts), so these are the VISUAL half of the component's spec
- * while tabs.test.tsx holds the markup assertions a screenshot cannot make.
- *
  * Nothing about Tabs is portalled, so every play function queries `canvas`.
  *
  * The interaction stories use storybook/test's `userEvent`, which is

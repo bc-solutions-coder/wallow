@@ -1,22 +1,6 @@
 /**
- * The public origin of the deployment's SIGN-IN app (apps/wallow-auth), for
- * pages that link a person over to it — wallow-web's "Preview sign-in" button
- * on the client-branding editor.
- *
- * Resolved from `WALLOW_AUTH_URL` because the two apps share no build: one
- * wallow-web image is run against `https://wallow.dev/auth` in production and
- * `http://localhost:3002` on a laptop, and rebuilding to move a link is not a
- * deployment step anyone should need. The default is the auth app's local dev
- * listener, the same one the backend's `ServiceUrls:AuthUrl` defaults to.
- *
- * The env record is a PARAMETER, never a `process.env` read of this module's
- * own (see this package's CLAUDE.md): the caller is a Start app's `start.ts`,
- * aliased into the client bundle too, so the one read stays inside the
- * server-only callback. The value then crosses to the browser the same way the
- * fork links do — the server renders {@link authUrlScript} into `<head>`, the
- * browser reads it back with {@link readInjectedAuthUrl} — because an href
- * that differs between the SSR pass and the hydrating render is a hydration
- * mismatch.
+ * Resolve the public sign-in app URL from a supplied environment and publish it to the browser
+ * before hydration. The URL can include a deployment base path.
  */
 
 import { publishedGlobalScript, readPublishedGlobal } from "./published-global";
@@ -33,11 +17,9 @@ function stripTrailingSlashes(value: string): string {
 }
 
 /**
- * The sign-in app's public origin for ONE deployment: `WALLOW_AUTH_URL` if the
- * environment names it, else {@link DEFAULT_AUTH_URL}. A variable set to blank
- * counts as unset — that is what an unsubstituted `WALLOW_AUTH_URL=` in a
- * compose env file produces, and a link with no origin is worse than the
- * default one.
+ * Return the trimmed WALLOW_AUTH_URL without trailing slashes. Missing or whitespace-only values
+ * use http://localhost:3002. Accepts a URL with a base path and does not validate its scheme or
+ * host.
  */
 export function resolveAuthUrl(env: Readonly<Record<string, string | undefined>> = {}): string {
   const value: string | undefined = env[AUTH_URL_ENV_KEY];
@@ -55,21 +37,18 @@ export function resolveAuthUrl(env: Readonly<Record<string, string | undefined>>
 export const AUTH_URL_GLOBAL_KEY = "__WALLOW_AUTH_URL__";
 
 /**
- * The source of the inline `<script>` that publishes one deployment's auth
- * origin, rendered in `<head>` so it runs before hydration. The escaping that
- * keeps a hostile URL from ending the element early lives in the shared
- * {@link publishedGlobalScript}.
+ * Create inline script source that publishes the auth app URL on the browser global. Render it
+ * before hydration, then use readInjectedAuthUrl in the browser. Escapes less-than characters
+ * through publishedGlobalScript; does not execute the script.
  */
 export function authUrlScript(url: string): string {
   return publishedGlobalScript(AUTH_URL_GLOBAL_KEY, url);
 }
 
 /**
- * The origin {@link authUrlScript} published, read back off a scope —
- * `globalThis` in a browser — or `undefined` when nothing published one.
- * `undefined` is the answer for anything that is not a non-blank string: the
- * caller's fallback is always usable, so a malformed global costs the
- * deployment's override rather than the href.
+ * Read the auth URL from a supplied browser scope, usually globalThis. Returns undefined when the
+ * published value is missing or not a nonblank string. Does not validate the URL or trim the
+ * returned value.
  */
 export function readInjectedAuthUrl(scope: unknown): string | undefined {
   const injected: unknown = readPublishedGlobal(AUTH_URL_GLOBAL_KEY, scope);

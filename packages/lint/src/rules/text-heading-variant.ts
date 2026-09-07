@@ -1,34 +1,5 @@
 import { defineRule, type Context, type ESTree } from "@oxlint/plugins";
 
-/**
- * The heading contracts `react/forbid-elements` cannot state.
- *
- * Banning raw `<h1>`..`<h6>` moves every heading onto the catalog's `Text`, but says
- * nothing about what `Text` then renders. Three things can still go wrong, and all
- * three used to be asserted by a 523-line disk sweep in `wallow-auth`:
- *
- *   1. `Text` DERIVES its scale from `as` when the caller names no `variant`, and those
- *      defaults are far larger than a card ships: `as="h2"` derives `title` (`text-3xl`)
- *      against the `text-xl` these headings wear. Leaning on the default silently
- *      triples a card heading.
- *   2. A card heading has ONE spelling app-wide (`variant="subheading"`, the 20px step),
- *      and the weight rides along with the step — a `weight` prop is the same decision
- *      made a second time.
- *   3. A screen must not open a SECOND level-1 heading: `AuthLayout` owns the page's one
- *      `<h1>` and it is `FocusOnNavigate`'s route-change focus target.
- *
- * Options are `{ levels: { "<h1..h6>": "<variant>" | false } }`. A level mapped to a
- * variant must carry exactly that variant and no `weight`; a level mapped to `false` is
- * not allowed at that path at all; every level, named or not, must name SOME variant.
- * `auth-layout.tsx` — the one file that legitimately opens the page `<h1>` — relaxes the
- * `h1: false` entry through an override rather than turning the whole rule off, so its
- * heading is still held to naming a variant.
- *
- * Why the sweep is not simply kept: it read files off disk with a regex and a
- * hand-rolled comment stripper, so it judged the app once per `pnpm test` and could be
- * defeated by any spelling its regex did not model. A rule reads the parsed JSX, fires
- * in the editor, and cannot be out-run by formatting.
- */
 const HEADING_LEVELS: ReadonlySet<string> = new Set(["h1", "h2", "h3", "h4", "h5", "h6"]);
 
 type Level = string | false | undefined;
@@ -68,6 +39,12 @@ function stringValue(attribute: ESTree.JSXAttribute | undefined): string | null 
   return value?.type === "Literal" && typeof value.value === "string" ? value.value : null;
 }
 
+/**
+ * Require a variant on Text elements with a literal heading as prop.
+ * The levels option maps headings to a required literal variant or false to ban
+ * that level. A required variant also prohibits weight. Dynamic as values and
+ * elements with other names are not inspected.
+ */
 export const textHeadingVariant = defineRule({
   meta: {
     type: "problem",

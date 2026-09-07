@@ -3,14 +3,7 @@ import { describe, expect, it } from "vitest";
 import { INTERNAL_ORIGIN_ENV_KEY, resolveInternalOrigin } from "./internal-origin";
 
 /**
- * Internal-origin resolution: the override, then `PORT`, then the optional
- * caller-supplied request origin.
- *
- * The bug the logic exists for: `docker/docker-compose.test.yml` publishes
- * wallow-web as `127.0.0.1:5053:3000`, so during SSR the container derives
- * `http://localhost:5053` from the request `Host` and self-fetches it —
- * ECONNREFUSED inside the container, a 500 error boundary, and no
- * `data-app-ready`. `PORT` (3000) is the listener the host actually binds.
+ * Internal-origin resolution precedence: explicit override, PORT, then optional public request origin. A container may listen on a different port from the browser-facing address.
  */
 
 const PUBLISHED_ORIGIN = "http://localhost:5053";

@@ -5,12 +5,6 @@ import { expect, fn, waitFor } from "storybook/test";
 import { Avatar } from "./avatar";
 
 /*
- * Wallow-m5aq.4.3 — Avatar stories. `@storybook/addon-vitest` turns each export
- * below into a Vitest test case rendered in the same headless Chromium the
- * `browser` project uses, but with the real Tailwind pipeline attached
- * (.storybook/preview.css), so this is the only place the circular frame, the
- * clipping and the muted fallback colour can actually be seen.
- *
  * Division of labour with avatar.test.tsx: that file proves WHICH part is
  * mounted, this one proves the mounted part is PAINTED (PaintedByTheDesignTokens
  * reads computed styles, which the `browser` project cannot do because it

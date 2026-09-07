@@ -1,21 +1,6 @@
 /**
- * `renderWithWallow` (Wallow-pu6a.5.1) — the shared component-render seam for
- * specs that need the three things a Wallow screen assumes at runtime: a router
- * (for `useNavigate`/`useSearch`/route context), a TanStack Query cache, and an
- * SDK instance.
- *
- * Today each app hand-rolls its own subset of this — a local `renderRouteAt`
- * inside one spec, a `vi.mock` of the app's SDK facade module in seventeen
- * others. The facade mocks in particular are what this replaces: they stub the
- * app's own module rather than the network, so they stop compiling the moment
- * the facade is deleted (Wallow-pu6a.5.5), and they let a screen's real query
- * pipeline go untested. Here the SDK is REAL and only `fetch` is fake (see
- * `./sdk-harness`).
- *
- * BROWSER ONLY, and therefore on its own `@bc-solutions-coder/testing/render-with-wallow`
- * subpath rather than the `.` barrel: it imports `vitest-browser-react`, which
- * evaluates `vitest/browser` at import time and throws in the plain Node process
- * that loads every app's `vitest.config.ts`. Same rule as `./render`.
+ * Browser-only rendering with a memory router, QueryClientProvider, and SDK harness.
+ * Import from @bc-solutions-coder/testing/render-with-wallow.
  */
 import {
   createQueryClient,
@@ -86,7 +71,7 @@ export interface RenderWithWallowOptions {
    */
   onUnhandledFailure?: ((failure: UnhandledFailure) => void) | undefined;
   /**
-   * Providers the screen reads off context that the seam does not own — an
+   * Additional context providers needed by the screen — an
    * app's failure-message registry, say. Applied inside the query client and
    * outside the router, so the wrapped tree sees the cache and the providers
    * see nothing route-specific.
@@ -109,13 +94,13 @@ export interface RenderWithWallowOptions {
    * `useLoaderData({ from: "__root__" })`, the way an app's real root feeds
    * layout-level state to its screens. Loosely typed on purpose: the root is
    * created here, so a spec cannot name its type, and TanStack validates the
-   * options at runtime. `component` and `notFoundComponent` are the seam's own
+   * options at runtime. `component` and `notFoundComponent` are supplied by this helper
    * and cannot be overridden.
    */
   rootOptions?: Record<string, unknown> | undefined;
 }
 
-/** What {@link renderWithWallow} returns: the render result plus the seams it built. */
+/** What {@link renderWithWallow} returns: the render result plus the router, cache, and harness it uses. */
 export type RenderWithWallowResult = ReturnType<typeof render> & {
   /** The harness governing this render's I/O — program it, then assert on `calls`. */
   readonly harness: SdkHarness;
@@ -126,18 +111,23 @@ export type RenderWithWallowResult = ReturnType<typeof render> & {
 };
 
 /**
- * The production `QueryClient` — the same caches that route an unclaimed
- * failure to `onUnhandledFailure`, and the same no-retry policy on both sides,
- * so a failing request surfaces as an error state on the first attempt. A
- * fresh one per render keeps caches from leaking between specs.
+ * Create a fresh query client using the package's normal cache and error handling.
+ *
+ * Queries and mutations do not retry by default. Pass onUnhandledFailure to observe
+ * failures not handled by a component.
  */
 export function createTestQueryClient(options: CreateQueryClientOptions = {}): QueryClient {
   return createQueryClient(options);
 }
 
 /**
- * Render `ui` inside a memory router + `QueryClientProvider`, with a real SDK
- * bound to a fake transport in the router context.
+ * Render a component with a memory router, query cache, and SDK harness.
+ *
+ * Returns the browser render result plus harness, queryClient, and router. Program
+ * the harness before rendering components that fetch on mount. Supplied routes
+ * are reparented in place; file routes need a RouteMount with their path.
+ *
+ * @throws Error when both queryClient and onUnhandledFailure are supplied.
  */
 export function renderWithWallow(
   ui: ReactNode,
@@ -199,22 +189,9 @@ function isRouteMount(entry: MountableRoute): entry is RouteMount {
 }
 
 /**
- * Point `entry` at `parent`, in place, giving it a path when one was named.
- *
- * A real app route is already parented to its own app's `__root`, and a route
- * only resolves its parent when the router initialises it — so handing one
- * straight to `addChildren` would leave it computing its id and full path from
- * the foreign root. `update()` cannot express this (its `UpdatableRouteOptions`
- * excludes `getParentRoute`, which is why the app-local helper this replaces
- * reached for `as any`), but the option it would assign onto is public and, on
- * an `AnyRoute`, already typed loosely enough to set directly.
- *
- * The path goes on through `Object.assign` because `RouteOptions` is the union
- * `{ path } | { id }` and so exposes neither field for a direct write; `update()`
- * is the same assign behind an equally unhelpful type. Only the path is set — the
- * route derives its id from its parent's id plus that path, and a route carrying
- * both is rejected outright. See {@link RouteMount} for why a file route arrives
- * with no path at all.
+ * Reparent a supplied route in place and assign the path of a RouteMount.
+ * File routes obtain their paths from the generated app route tree, so tests
+ * importing them directly must provide that path themselves.
  */
 function mount(entry: MountableRoute, parent: AnyRoute): AnyRoute {
   const route: AnyRoute = isRouteMount(entry) ? entry.route : entry;

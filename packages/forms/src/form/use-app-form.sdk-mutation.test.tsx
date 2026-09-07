@@ -86,7 +86,9 @@ const organizationSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
 });
 
-/** The create-organization factory uses DefaultError, unlike the registration factory. */
+/**
+ * Exercise the create-organization factory without fixing its inferred error type.
+ */
 function CreateOrganizationHarness(props: {
   readonly sdk: WallowSdk;
   readonly onCreated: (organizationId: string) => void;
@@ -120,10 +122,8 @@ const registerAppSchema = z.object({
 });
 
 /**
- * The register-application shape (`organizationClientsRegisterMutation`), whose
- * `TError` is the operation's own `OrganizationClientsRegisterError` and NOT
- * `DefaultError`. Its presence is what stops the hook from being "fixed" by
- * hardcoding one concrete error type.
+ * Exercise a second generated factory with its operation-specific error type. The hook must infer
+ * each factory rather than pinning a concrete error type.
  */
 function RegisterAppHarness(props: {
   readonly sdk: WallowSdk;

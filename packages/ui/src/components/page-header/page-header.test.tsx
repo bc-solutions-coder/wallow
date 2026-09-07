@@ -5,12 +5,6 @@ import { textRecipe } from "../text/text.styles";
 import { PageHeader } from "./page-header";
 
 /*
- * SPEC (Wallow-lrlm.3.2). PageHeader is the page-level heading block both
- * wallow-web list routes hand-roll today — `dashboard/apps/index.tsx`
- * (`AppsHeader`: an `<h1 class="text-3xl font-bold text-foreground">` beside a
- * trailing CTA) and `dashboard/organizations/index.tsx`
- * (`OrganizationsHeader`: the same row with no CTA).
- *
  * The title and the description are rendered THROUGH `Text`, not as raw
  * `<h1>`/`<p>` tags, so the type scale and the semantic colour stay one
  * decision made in one place. That is asserted here the only way a render can:

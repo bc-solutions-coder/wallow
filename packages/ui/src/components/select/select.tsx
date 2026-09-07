@@ -59,13 +59,6 @@ export type SelectRootProps<
 /** Every Base UI `Select.Portal` prop. This part takes no `className`. */
 export type SelectPortalProps = ComponentProps<typeof BaseSelect.Portal>;
 
-/*
- * `className` is deliberately narrowed back to `string` on every wrapped part:
- * Base UI widens it to `string | ((state) => string | undefined)`, and the
- * callback form cannot be merged with a recipe through `cn()`. Every component
- * in this catalog makes the same narrowing.
- */
-
 /** Every Base UI `Select.Label` prop, with `className` narrowed to `string`. */
 export interface SelectLabelProps
   extends Omit<ComponentProps<typeof BaseSelect.Label>, "className">, SelectLabelRecipeProps {
@@ -192,15 +185,7 @@ function SelectValue({ className, ...rest }: SelectValueProps): ReactElement {
   return <BaseSelect.Value className={cn(selectValueRecipe(), className)} {...rest} />;
 }
 
-/**
- * The chevron `Select.Icon` falls back to when a caller passes no children.
- *
- * Inline SVG on purpose: this package ships no icon library and must not gain
- * one, and the text glyph call sites used to pass sits off the baseline of the
- * `size-4` icon box and renders differently on every platform. `currentColor`
- * and the plain `size-4` box let the icon recipe keep driving both the colour
- * and the `data-[popup-open]:rotate-180` flip.
- */
+/** Default decorative chevron used when Select.Icon receives no children. */
 function DefaultChevron(): ReactElement {
   return (
     <svg
@@ -284,33 +269,85 @@ function SelectSeparator({ className, ...rest }: SelectSeparatorProps): ReactEle
 }
 
 /**
- * The catalog's select, as ONE namespace object whose keys mirror Base UI's
- * nineteen part names 1:1 — the catalog-wide convention for multi-part
- * components, so a caller who knows the Base UI docs already knows this API.
- *
- * A minimal usable select is Root > Trigger(Value, Icon) plus a portalled
- * Positioner > Popup > List > Item(ItemText, ItemIndicator); the rest
- * (Label, Backdrop, Arrow, the scroll arrows, Group/GroupLabel/Separator) are
- * opt-in.
+ * A selectable list with a trigger displaying the current value. Compose Root > Trigger >
+ * Value and Portal > Positioner > Popup > List > Item > ItemText. Root items map stored values
+ * to display labels.
  */
 export const Select = {
+  /**
+   * Owns the component state and provides context to its parts.
+   */
   Root: BaseSelect.Root,
+  /**
+   * Provides the control's accessible label.
+   */
   Label: SelectLabel,
+  /**
+   * Opens or toggles the associated content; render can compose it onto another control.
+   */
   Trigger: SelectTrigger,
+  /**
+   * Displays the current value using the part's children or formatting options.
+   */
   Value: SelectValue,
+  /**
+   * Visual indicator beside the input or selected value.
+   */
   Icon: SelectIcon,
+  /**
+   * Renders popup content outside the parent DOM hierarchy.
+   */
   Portal: BaseSelect.Portal,
+  /**
+   * Covers the surrounding page behind the popup.
+   */
   Backdrop: SelectBackdrop,
+  /**
+   * Positions the popup relative to its anchor; render inside Portal.
+   */
   Positioner: SelectPositioner,
+  /**
+   * The visible popup container; place labeled content and actions inside it.
+   */
   Popup: SelectPopup,
+  /**
+   * Contains selectable items.
+   */
   List: SelectList,
+  /**
+   * Groups one item and its associated content.
+   */
   Item: SelectItem,
+  /**
+   * Displays content when its item is selected.
+   */
   ItemIndicator: SelectItemIndicator,
+  /**
+   * Supplies the item's display text.
+   */
   ItemText: SelectItemText,
+  /**
+   * Draws the popup's pointer toward its anchor.
+   */
   Arrow: SelectArrow,
+  /**
+   * Scrolls the option list downward while active.
+   */
   ScrollDownArrow: SelectScrollDownArrow,
+  /**
+   * Scrolls the option list upward while active.
+   */
   ScrollUpArrow: SelectScrollUpArrow,
+  /**
+   * Groups related items or controls.
+   */
   Group: SelectGroup,
+  /**
+   * Labels a group of items.
+   */
   GroupLabel: SelectGroupLabel,
+  /**
+   * Separates adjacent groups or content.
+   */
   Separator: SelectSeparator,
 };

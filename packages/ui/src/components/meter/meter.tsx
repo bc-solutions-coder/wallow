@@ -110,14 +110,28 @@ function MeterIndicator({ className, ...rest }: MeterIndicatorProps): ReactEleme
 }
 
 /**
- * The catalog's meter, as ONE namespace object whose keys mirror Base UI's five
- * namespace members 1:1 — the catalog-wide convention for multi-part
- * components.
+ * A measurement within a known range. Root owns value and bounds, Label names it, and Track
+ * contains Indicator; Value displays its formatted reading.
  */
 export const Meter = {
+  /**
+   * Owns the component state and provides context to its parts.
+   */
   Root: MeterRoot,
+  /**
+   * Provides the control's accessible label.
+   */
   Label: MeterLabel,
+  /**
+   * Displays the current value using the part's children or formatting options.
+   */
   Value: MeterValue,
+  /**
+   * Provides the full range or scroll track behind the indicator.
+   */
   Track: MeterTrack,
+  /**
+   * Displays the control's current state or selected extent.
+   */
   Indicator: MeterIndicator,
 };

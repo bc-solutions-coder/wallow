@@ -19,39 +19,11 @@ import {
   type DialogViewportRecipeProps,
 } from "./dialog.styles";
 
-/**
- * Four of Base UI's eleven namespace members are re-exported UNWRAPPED, because
- * none of them can carry a recipe:
- *
- *   - `Root` renders no HTML element at all (it is the state container), and it
- *     is generic over the trigger payload type — wrapping it would either drop
- *     the generic or add an element the DOM does not want.
- *   - `Portal` renders only the structural `<div data-base-ui-portal>` Base UI
- *     appends to `<body>`. It accepts a `className` (unlike `Select.Portal`),
- *     but it has no visual role: a recipe here would put a styled box between
- *     the backdrop/popup and the document. The caller's `className` still
- *     reaches the element, because the part is re-exported unchanged.
- *   - `Handle` is a class and `createHandle` a factory — the imperative
- *     open/close API for detached triggers. Neither renders anything.
- *
- * The catalog-wide rule this establishes for every later overlay: a part gets a
- * wrapper plus a recipe only if it renders a VISIBLE element; parts that render
- * no element, a structural container, or no DOM at all are re-exported as-is,
- * so the namespace keys still mirror Base UI 1:1.
- */
-
 /** Every Base UI `Dialog.Root` prop, generic over the trigger payload type. */
 export type DialogRootProps<Payload = unknown> = Parameters<typeof BaseDialog.Root<Payload>>[0];
 
 /** Every Base UI `Dialog.Portal` prop. Re-exported unwrapped, so no recipe props. */
 export type DialogPortalProps = ComponentProps<typeof BaseDialog.Portal>;
-
-/*
- * `className` is deliberately narrowed back to `string` on every wrapped part:
- * Base UI widens it to `string | ((state) => string | undefined)`, and the
- * callback form cannot be merged with a recipe through `cn()`. Every component
- * in this catalog makes the same narrowing.
- */
 
 /** Every Base UI `Dialog.Trigger` prop, with `className` narrowed to `string`. */
 export interface DialogTriggerProps<Payload = unknown>
@@ -128,25 +100,53 @@ function DialogClose({ className, ...rest }: DialogCloseProps): ReactElement {
 }
 
 /**
- * The catalog's dialog, as ONE namespace object whose keys mirror Base UI's
- * eleven namespace members 1:1 — the catalog-wide convention for multi-part
- * components, so a caller who knows the Base UI docs already knows this API.
- *
- * A minimal usable dialog is Root > Trigger plus a portalled Backdrop and
- * Popup(Title, Description, Close); `Viewport` is the opt-in scroll container
- * for dialogs taller than the window, and `Handle`/`createHandle` are the opt-in
- * imperative API for triggers that live outside the Root.
+ * A modal dialog composed from Root, Trigger, and a portalled Backdrop and Popup. Include
+ * Title, Description, and Close; Viewport adds an optional scroll container. createHandle
+ * supports detached triggers.
  */
 export const Dialog = {
+  /**
+   * Owns the component state and provides context to its parts.
+   */
   Root: BaseDialog.Root,
+  /**
+   * Opens or toggles the associated content; render can compose it onto another control.
+   */
   Trigger: DialogTrigger,
+  /**
+   * Renders popup content outside the parent DOM hierarchy.
+   */
   Portal: BaseDialog.Portal,
+  /**
+   * Covers the surrounding page behind the popup.
+   */
   Backdrop: DialogBackdrop,
+  /**
+   * Contains the visible popup region and its layout.
+   */
   Viewport: DialogViewport,
+  /**
+   * The visible popup container; place labeled content and actions inside it.
+   */
   Popup: DialogPopup,
+  /**
+   * Provides the popup's accessible title.
+   */
   Title: DialogTitle,
+  /**
+   * Provides supporting text associated with the control or popup.
+   */
   Description: DialogDescription,
+  /**
+   * Closes the associated popup when activated.
+   */
   Close: DialogClose,
+  /**
+   * Handle class for sharing popup state with detached triggers.
+   */
   Handle: BaseDialog.Handle,
+  /**
+   * Creates a handle that connects a popup to triggers outside its Root.
+   */
   createHandle: BaseDialog.createHandle,
 };

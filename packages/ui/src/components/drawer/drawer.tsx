@@ -27,27 +27,6 @@ import {
   type DrawerViewportRecipeProps,
 } from "./drawer.styles";
 
-/**
- * Six of Base UI's seventeen namespace members are re-exported UNWRAPPED,
- * because none of them can carry a recipe:
- *
- *   - `Root` renders no HTML element at all (it is the state container), and it
- *     is generic over the trigger payload type — wrapping it would either drop
- *     the generic or add an element the DOM does not want.
- *   - `Provider` renders no element either. It is the scope `Indent` and
- *     `IndentBackground` read to learn whether ANY drawer beneath it is open.
- *   - `VirtualKeyboardProvider` renders no element. It opts a drawer into
- *     keyboard-aware focus and scroll handling for software keyboards, and it
- *     MUST sit INSIDE a `Drawer.Root` — see the namespace comment below.
- *   - `Portal` renders only the structural `<div data-base-ui-portal>` Base UI
- *     appends to `<body>`. It accepts a `className`, but it has no visual role:
- *     a recipe here would put a styled box between the backdrop/popup and the
- *     document. The caller's `className` still reaches the element, because the
- *     part is re-exported unchanged.
- *   - `Handle` is a class and `createHandle` a factory — the imperative
- *     open/close API for detached triggers. Neither renders anything.
- */
-
 /** Every Base UI `Drawer.Root` prop, generic over the trigger payload type. */
 export type DrawerRootProps<Payload = unknown> = Parameters<typeof BaseDrawer.Root<Payload>>[0];
 
@@ -61,13 +40,6 @@ export type DrawerVirtualKeyboardProviderProps = ComponentProps<
 
 /** Every Base UI `Drawer.Portal` prop. Re-exported unwrapped, so no recipe props. */
 export type DrawerPortalProps = ComponentProps<typeof BaseDrawer.Portal>;
-
-/*
- * `className` is deliberately narrowed back to `string` on every wrapped part:
- * Base UI widens it to `string | ((state) => string | undefined)`, and the
- * callback form cannot be merged with a recipe through `cn()`. Every component
- * in this catalog makes the same narrowing.
- */
 
 /** Every Base UI `Drawer.Trigger` prop, with `className` narrowed to `string`. */
 export interface DrawerTriggerProps<Payload = unknown>
@@ -204,43 +176,77 @@ function DrawerIndentBackground({ className, ...rest }: DrawerIndentBackgroundPr
 }
 
 /**
- * The catalog's drawer, as ONE namespace object whose keys mirror Base UI's
- * seventeen namespace members 1:1 — the catalog-wide convention for multi-part
- * components, so a caller who knows the Base UI docs already knows this API.
- *
- * A minimal usable drawer is Root > Trigger plus a portalled Backdrop and
- * Viewport(Popup(Content(Title, Description, Close))). The `Viewport` is NOT
- * optional the way `Dialog.Viewport` is: Base UI warns and turns off swipe
- * handling and touch scroll locking without it.
- *
- * The opt-in parts:
- *   - `SwipeArea` adds swipe-to-OPEN from the screen edge;
- *   - `Provider` + `IndentBackground` + `Indent` add the iOS-style effect where
- *     the app UI behind the drawer scales back while it is open;
- *   - `VirtualKeyboardProvider` adds software-keyboard-aware focus and scroll
- *     handling for a sheet containing form fields. It reads the drawer's root
- *     store, so it MUST be rendered INSIDE `Drawer.Root` (measured: placed
- *     outside, it throws "Cannot destructure property 'store' of
- *     useDialogRootContext(...) as it is undefined"). Base UI's published
- *     anatomy does not show it, so this is the placement to copy;
- *   - `Handle`/`createHandle` are the imperative API for detached triggers.
+ * A swipeable sheet. Compose Root with Trigger and Portal > Backdrop plus Viewport > Popup >
+ * Content. Viewport is required for swipe and touch-scroll handling; VirtualKeyboardProvider
+ * belongs inside Root.
  */
 export const Drawer = {
+  /**
+   * Owns the component state and provides context to its parts.
+   */
   Root: BaseDrawer.Root,
+  /**
+   * Shares behavior settings with descendant component roots.
+   */
   Provider: BaseDrawer.Provider,
+  /**
+   * Enables software-keyboard handling; render inside Drawer.Root.
+   */
   VirtualKeyboardProvider: BaseDrawer.VirtualKeyboardProvider,
+  /**
+   * Opens or toggles the associated content; render can compose it onto another control.
+   */
   Trigger: DrawerTrigger,
+  /**
+   * Opens the drawer from an edge swipe; side places the edge strip.
+   */
   SwipeArea: DrawerSwipeArea,
+  /**
+   * Renders popup content outside the parent DOM hierarchy.
+   */
   Portal: BaseDrawer.Portal,
+  /**
+   * Covers the surrounding page behind the popup.
+   */
   Backdrop: DrawerBackdrop,
+  /**
+   * Contains the visible popup region and its layout.
+   */
   Viewport: DrawerViewport,
+  /**
+   * The visible popup container; place labeled content and actions inside it.
+   */
   Popup: DrawerPopup,
+  /**
+   * Contains the component's content.
+   */
   Content: DrawerContent,
+  /**
+   * Provides the popup's accessible title.
+   */
   Title: DrawerTitle,
+  /**
+   * Provides supporting text associated with the control or popup.
+   */
   Description: DrawerDescription,
+  /**
+   * Closes the associated popup when activated.
+   */
   Close: DrawerClose,
+  /**
+   * Scales the page behind open drawers inside a shared Drawer.Provider.
+   */
   Indent: DrawerIndent,
+  /**
+   * Paints the background exposed by Drawer.Indent.
+   */
   IndentBackground: DrawerIndentBackground,
+  /**
+   * Handle class for sharing popup state with detached triggers.
+   */
   Handle: BaseDrawer.Handle,
+  /**
+   * Creates a handle that connects a popup to triggers outside its Root.
+   */
   createHandle: BaseDrawer.createHandle,
 };

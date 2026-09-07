@@ -1,34 +1,5 @@
 /**
- * The caller's address, derived from `X-Forwarded-For` but trusted ONLY when the
- * immediate peer is a configured proxy.
- *
- * A WHATWG `Request` has no socket, so a Start host hands the peer address in on
- * an extra `ip` property. Behind an ingress that peer is the INGRESS, not the
- * caller: every real user shares one address, so a per-IP rate limit degrades to
- * a single global bucket and a stamped client IP names the proxy. The chain the
- * ingress writes carries the real caller, but reading it unconditionally is
- * worse than not reading it at all — any caller can send `X-Forwarded-For` and
- * would then choose their own rate-limit bucket and their own logged address.
- *
- * So the trusted-peer check is the load-bearing part, not the header read.
- * {@link resolveClientAddress} consults the chain only when the peer is inside
- * {@link TrustedProxies}, and otherwise answers with the peer itself. With
- * nothing configured — the default — no chain is ever consulted and the result
- * is exactly the peer address, which is the behaviour that existed before this
- * module and is the right default for a deployment with no proxy in front.
- *
- * The vocabulary is Caddy's on purpose. `docker/caddy/Caddyfile.example` spells
- * the same idea `trusted_proxies static 10.0.0.0/8 172.16.0.0/12`, and an
- * operator configuring the ingress and the app servers should not have to learn
- * two notations for one decision. The two lists are separate settings and must
- * agree: Caddy REPLACES the chain rather than appending to it unless its own
- * `trusted_proxies` is configured, so an outer ingress's entry is only there to
- * be read if Caddy was told to keep it.
- *
- * This module reads no environment of its own, and ships on the SDK's
- * dependency-free `./server/forwarded` subpath so an isomorphic Start entry can
- * import it. {@link createClientAddressResolver} takes the env record as a
- * parameter so the single `process.env` read stays at the call site.
+ * Resolve the client address from the host-provided peer and a configured trusted proxy chain. Forwarded addresses are accepted only through trusted hops; no environment variables are read here.
  */
 
 /** What a proxy chain is written to. Every hop appends the peer it saw. */
@@ -345,13 +316,8 @@ const UNIQUE_LOCAL: readonly string[] = [
 ];
 
 /**
- * Named shorthands for the ranges an operator would otherwise retype.
- *
- * The names are Express's `trust proxy` vocabulary on purpose: anyone who has
- * configured a Node app behind a proxy has met them, and a value that reads the
- * same in both places is one less thing to translate. `private` is the union —
- * everything unroutable — and is what a container network wants, since the
- * ingress reaches the app from whichever bridge subnet the runtime handed out.
+ * Named trusted-proxy ranges. The private preset combines loopback, link-local, and unique-local
+ * address ranges.
  */
 const PRESETS: ReadonlyMap<string, readonly string[]> = new Map([
   ["loopback", LOOPBACK],

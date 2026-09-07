@@ -1,20 +1,9 @@
 import { defineRule } from "@oxlint/plugins";
 
 /**
- * Ban a hand-written `mutationFn`.
- *
- * Every write an app issues goes through a GENERATED `{operation}Mutation()`
- * factory from `@bc-solutions-coder/sdk/query`, which builds the request from the
- * OpenAPI snapshot. A hand-rolled `mutationFn` re-states that request, and the
- * re-statement is where the variables shape and the real endpoint drift apart: a
- * call site still passing a bare body where the factory wants `{ body }` compiles,
- * renders, and sends an empty request.
- *
- * Keyed on the property NAME, which is the whole shape — `mutationFn` is TanStack
- * Query's own option name, so there is no false-positive spelling of it, and both
- * `{ mutationFn: … }` and `{ mutationFn() {} }` are the same offence. Spreading a
- * generated factory (`...accountLoginMutation()`) names no such property and stays
- * legal, which is exactly the shape a screen with its own `onSuccess` needs.
+ * Reject object properties named mutationFn where this rule is enabled.
+ * Use generated SDK mutation options for API writes. The rule matches property
+ * names without checking which library receives the object.
  */
 export const noHandRolledMutation = defineRule({
   meta: {

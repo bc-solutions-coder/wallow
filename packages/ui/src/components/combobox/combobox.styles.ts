@@ -1,25 +1,6 @@
 import { cva, type VariantProps } from "class-variance-authority";
 
-/*
- * One recipe per styled part of the combobox. The class lists are not invented
- * here — combobox.test.tsx declares each part's exact utility set as an
- * order-free `*_CLASSES` constant and asserts it THROUGH the rendered component,
- * so that spec is the source of truth for everything below.
- *
- * One recipe per VISIBLE part — twenty-two of Base UI's twenty-eight namespace
- * members. The other six (`Root`, `Value`, `Collection`, `Portal`, `useFilter`,
- * `useFilteredItems`) render no visible element, so they carry no recipe; see
- * combobox.tsx for that split.
- *
- * No recipe takes a cva VARIANT, for the same reason Select's do not: a combobox
- * has no visual variant axis in this catalog. Open/closed, highlighted, selected,
- * disabled, placeholder, empty-list and clear-visible are all STATES, and Base UI
- * publishes states as `data-*` attributes, so they belong in the base string as
- * `data-[popup-open]:` / `data-[highlighted]:` / … modifiers rather than as cva
- * variants nobody would pass by hand. The `VariantProps` types are still exported
- * so each part's props keep the catalog-wide shape and a later variant axis stays
- * a non-breaking addition.
- */
+/* Recipes style visible component parts. State transitions use Base UI data attributes; state-only roots and structural portals have no recipe. */
 
 /** The field label above the control — Base UI's `Combobox.Label`, a `<div>`. */
 export const comboboxLabelRecipe = cva("text-sm font-medium text-foreground");

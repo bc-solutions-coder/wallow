@@ -5,10 +5,6 @@ import { describe, expect, it, vi } from "vitest";
 import { Switch, type SwitchRootProps } from "./switch";
 
 /*
- * Follows the exemplar spec shape from Wallow-m5aq.2.1 (button.test.tsx):
- * browser project, nothing mocked, recipes asserted THROUGH the component, and
- * class assertions as an order-free SET so tailwind-merge may reorder.
- *
  * ONE DELIBERATE DEPARTURE, and it is not stylistic. The exemplar drives its
  * interaction with `userEvent.click`. A Switch cannot be clicked that way in
  * this project: Tailwind's stylesheet is NOT loaded in the vitest browser

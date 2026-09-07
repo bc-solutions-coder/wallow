@@ -1,18 +1,6 @@
 /**
- * Path routing for the shared SDK harness.
- *
- * `createSdkHarness()` programs ONE responder at a time, which is all a spec
- * driving a single query needs. A screen that reads two or three operations at
- * once (an organization plus its members plus its clients) needs each answered
- * differently, and the alternative — seeding the cache with
- * `queryClient.setQueryData(...)` — is not available: generated keys are flat,
- * and seeding skips the request pipeline the spec exists to exercise.
- *
- * Each entry is keyed `"<METHOD> <path>"` and matched against the request the
- * SDK actually issued, so the generated operation, the interceptors, the
- * response parsing and the React Query cache all run exactly as they do in the
- * app — and an operation the spec forgot to program shows up as an unmatched
- * request instead of silently reading seeded data.
+ * Program an SDK harness with responses selected by HTTP method and pathname suffix.
+ * Unmatched requests return 404 unless a fallback response is supplied.
  */
 import type { SdkCall, SdkHarness } from "@bc-solutions-coder/testing/sdk-harness";
 
@@ -34,8 +22,10 @@ export interface HarnessRouteResponse {
 }
 
 /**
- * Answer this route non-2xx — the branch a spec needs when one operation on a
- * loaded screen must fail while the reads behind it keep succeeding.
+ * Build a route response descriptor with the supplied JSON body and HTTP status.
+ *
+ * Use a non-success status to exercise an operation's error handling. The status
+ * is passed to Response.json without validation by this helper.
  */
 export function failsWith(body: unknown, status: number): HarnessRouteResponse {
   return { [ROUTE_RESPONSE]: true, body, status, settles: true };
@@ -85,11 +75,11 @@ function parse(routes: HarnessRoutes): HarnessRoute[] {
 }
 
 /**
- * Program `harness` to answer each request from `routes`.
+ * Replace a harness's responder with method-and-path routing.
  *
- * @param harness The harness backing the render under test.
- * @param routes Bodies keyed `"<METHOD> <path>"`.
- * @param options See {@link RouteHarnessOptions}.
+ * The first entry with a matching method and pathname suffix wins; query strings
+ * are ignored. Plain values become JSON at status 200. Use failsWith or neverSettles
+ * for other outcomes. Unmatched calls return 404 unless options contains fallback.
  */
 export function routeHarness(
   harness: SdkHarness,

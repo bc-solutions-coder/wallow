@@ -1,11 +1,6 @@
 /**
- * The `beforeLoad` half of the current-user contract: resolve the user (or
- * `null`) into the request's query cache before a route renders, so the gate and
- * the components that follow read ONE answer.
- *
- * `ensureQueryData` rather than `fetchQuery` is the whole point — paired with the
- * query's 30-second `staleTime` it makes a gate on every navigation a cache read
- * instead of a request per route change.
+ * Populate the current-user query when it has no cached data. Existing cached data is returned
+ * without a freshness check.
  */
 import type { QueryClient } from "@bc-solutions-coder/query";
 import type { WallowSdk } from "@bc-solutions-coder/sdk";
@@ -21,11 +16,9 @@ export interface EnsureCurrentUserOptions {
 }
 
 /**
- * Resolve the signed-in user into the query cache, for use in a route's
- * `beforeLoad`.
- *
- * @param options See {@link EnsureCurrentUserOptions}.
- * @returns The signed-in user, or `null` when the visitor is anonymous.
+ * Return the cached current user, or fetch and cache it when absent. A cached null remains an
+ * anonymous result until the cache changes. HTTP 401 resolves to null; other fetch failures
+ * reject.
  */
 export function ensureCurrentUser(options: EnsureCurrentUserOptions): Promise<CurrentUser | null> {
   return options.queryClient.ensureQueryData(currentUserQuery(options.client));

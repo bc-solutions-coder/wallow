@@ -8,31 +8,10 @@ import { darkScheme, lightScheme } from "../../../.storybook/scheme-decorators";
 import { ThemeToggle } from "./theme-toggle";
 
 /*
- * Wallow-lrlm.1.2 — ThemeToggle stories. Each export becomes a Vitest test case
- * in the same headless Chromium the `browser` project uses, but with the real
- * Tailwind pipeline and the fork's real theme attached (.storybook/preview.css +
- * preview.tsx), so this is the only place the control's secondary-token colours
- * can actually be seen — in BOTH schemes.
- *
  * Every story renders the toggle CONTROLLED (`preference` + `mode` supplied), so
  * no story reaches for `localStorage` or a real `ThemeProvider`: the `mode` prop
  * says what the control should show, and the decorator independently puts the
  * page in that scheme.
- *
- * What a WRAPPER cannot do, and why the decorators do not use one
- * (Wallow-lrlm.6.4, fixed in Wallow-lrlm.11): repaint the `--color-*` tokens.
- * `renderThemeStyle` emits `:root` / `.dark` / `.light` blocks carrying the RAW
- * `--sidebar`-style variables, while `@theme` declares
- * `--color-sidebar: var(--sidebar, …)` on `:root` alone — and a `var()` inside a
- * custom property is substituted at computed-value time on the DECLARING element.
- * A `.dark` wrapper rebinds the raw variable for its descendants; the token was
- * already computed at `:root` from the light one, so every utility keeps painting
- * light. The shared `lightScheme`/`darkScheme` decorators therefore stamp the
- * class on `document.documentElement`, where both blocks meet, and remove it on
- * unmount — stories share one document, so the cleanup is what keeps a scheme
- * inside the story that asked for it. Each scheme-scoped story then MEASURES the
- * palette it paints through `expectScheme`, so a wrapper coming back, or a
- * decorator that stopped cleaning up, turns a story red.
  *
  * Callback spies come from `fn()` in `storybook/test` (never `vi.fn()`, which
  * the Interactions panel cannot display).
@@ -124,8 +103,6 @@ export const Cycling: Story = {
 };
 
 /**
- * The toggle on an inverted rail (Wallow-lrlm.6.4).
- *
  * The control hard-codes `variant="secondary"`, so on `bg-sidebar` it was a page
  * chip glued to the rail — L 0.92 on L 0.22 in light mode. `surface` is not one
  * of the props this component owns; it rides `ButtonProps` through the

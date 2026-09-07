@@ -16,33 +16,6 @@ import {
 } from "./tooltip.styles";
 
 /**
- * Five of Base UI's ten namespace members are re-exported UNWRAPPED, because
- * none of them can carry a recipe:
- *
- *   - `Provider` renders no HTML element at all. It supplies the shared
- *     open/close delay to every tooltip beneath it (Base UI's
- *     `FloatingDelayGroup`), so once one tooltip in the group is showing, its
- *     neighbours open instantly. Re-exporting it unwrapped is what keeps its
- *     `delay` / `closeDelay` / `timeout` props reaching Base UI untouched.
- *   - `Root` renders no HTML element either (it is the state container), and it
- *     is generic over the trigger payload type — wrapping it would drop the
- *     generic or add an element the DOM does not want.
- *   - `Portal` renders only the structural `<div data-base-ui-portal>` Base UI
- *     appends to `<body>`. It accepts a `className` (measured: the class lands
- *     on that div), but it has no visual role, so a recipe here would put a
- *     styled box between the positioner and the document. The caller's
- *     `className` still reaches the element, because the part is re-exported
- *     unchanged.
- *   - `Handle` is a class and `createHandle` a factory — the imperative API for
- *     triggers that live outside the Root. Neither renders anything.
- *
- * This is the rule Wallow-m5aq.3.1 (Dialog) established for every overlay: a
- * part gets a wrapper plus a recipe only if it renders a VISIBLE element; parts
- * that render no element, a structural container, or no DOM at all are
- * re-exported as-is, so the namespace keys still mirror Base UI 1:1.
- */
-
-/**
  * Every Base UI `Tooltip.Provider` prop — `delay`, `closeDelay` and `timeout`,
  * all in milliseconds. Surfaced as a named type so a consumer can hold a
  * fork-wide delay policy in one typed object rather than repeating literals.
@@ -54,13 +27,6 @@ export type TooltipRootProps<Payload = unknown> = Parameters<typeof BaseTooltip.
 
 /** Every Base UI `Tooltip.Portal` prop. Re-exported unwrapped, so no recipe props. */
 export type TooltipPortalProps = ComponentProps<typeof BaseTooltip.Portal>;
-
-/*
- * `className` is deliberately narrowed back to `string` on every wrapped part:
- * Base UI widens it to `string | ((state) => string | undefined)`, and the
- * callback form cannot be merged with a recipe through `cn()`. Every component
- * in this catalog makes the same narrowing.
- */
 
 /** Every Base UI `Tooltip.Trigger` prop, with `className` narrowed to `string`. */
 export interface TooltipTriggerProps<Payload = unknown>
@@ -122,33 +88,49 @@ function TooltipViewport({ className, ...rest }: TooltipViewportProps): ReactEle
 }
 
 /**
- * The catalog's tooltip, as ONE namespace object whose keys mirror Base UI's ten
- * namespace members 1:1 — the catalog-wide convention for multi-part components,
- * so a caller who knows the Base UI docs already knows this API.
- *
- * A minimal usable tooltip is Root > Trigger plus a portalled
- * Positioner(Popup); `Arrow` is the opt-in pointer triangle, `Viewport` the
- * opt-in transition container for a popup shared by several triggers, and
- * `Provider` the opt-in delay group that makes neighbouring tooltips open
- * instantly once one of them is showing.
- *
- * ACCESSIBILITY, measured against @base-ui/react 1.6.0 rather than assumed:
- * Base UI wires NO aria on a tooltip. The trigger gets no `aria-describedby`
- * and the popup gets no `role="tooltip"` — the only attributes are the
- * `data-base-ui-tooltip-trigger` identifier and `data-popup-open`. A tooltip
- * here is therefore SUPPLEMENTARY: the trigger must carry its own accessible
- * name (its text, or an `aria-label`), and the popup must not be the only place
- * a piece of information appears.
+ * Supplementary text anchored to a trigger. Compose Root with Trigger and Portal > Positioner
+ * > Popup; Provider shares delay settings. Give the trigger its own accessible name and keep
+ * essential information outside the tooltip.
  */
 export const Tooltip = {
+  /**
+   * Shares behavior settings with descendant component roots.
+   */
   Provider: BaseTooltip.Provider,
+  /**
+   * Owns the component state and provides context to its parts.
+   */
   Root: BaseTooltip.Root,
+  /**
+   * Opens or toggles the associated content; render can compose it onto another control.
+   */
   Trigger: TooltipTrigger,
+  /**
+   * Renders popup content outside the parent DOM hierarchy.
+   */
   Portal: BaseTooltip.Portal,
+  /**
+   * Positions the popup relative to its anchor; render inside Portal.
+   */
   Positioner: TooltipPositioner,
+  /**
+   * The visible popup container; place labeled content and actions inside it.
+   */
   Popup: TooltipPopup,
+  /**
+   * Draws the popup's pointer toward its anchor.
+   */
   Arrow: TooltipArrow,
+  /**
+   * Contains the visible popup region and its layout.
+   */
   Viewport: TooltipViewport,
+  /**
+   * Handle class for sharing popup state with detached triggers.
+   */
   Handle: BaseTooltip.Handle,
+  /**
+   * Creates a handle that connects a popup to triggers outside its Root.
+   */
   createHandle: BaseTooltip.createHandle,
 };

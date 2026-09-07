@@ -26,6 +26,10 @@ export type FailureMessageRegistry = Readonly<
   Partial<Record<FailureCode | (string & {}), FailureMessage>>
 >;
 
+/**
+ * Message overrides and form-level validation messages for resolveFailureMessage. Call-site
+ * messages take precedence over the application registry.
+ */
 export interface ResolveFailureMessageOptions {
   /** Validation messages that could not be placed on fields at this call site. */
   readonly unmatched?: readonly string[] | undefined;
@@ -114,9 +118,11 @@ export function defineFailureMessages(entries: FailureMessageRegistry): FailureM
 }
 
 /**
- * The sentence to show for `error`, which need not be a failure yet: anything
- * else is classified through `toApiFailure` first, so a thrown `Error` is
- * never echoed as its own message.
+ * Resolve a display message after classifying unknown input as ApiFailure. Precedence is call-site
+ * messages, registry, unmatched validation messages, shipped code text, eligible 4xx detail,
+ * shipped status text, fallback, then generic text. Client-code and 5xx details are not shown by
+ * the default resolver. Custom message callbacks control their own output and their exceptions
+ * propagate.
  */
 export function resolveFailureMessage(
   error: unknown,

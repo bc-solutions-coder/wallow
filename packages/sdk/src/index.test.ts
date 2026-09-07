@@ -1,12 +1,6 @@
 /**
- * Public export-surface contract for the package's two entry points.
- *
- * The browser entry (`.` -> src/index.ts) and the server entry (`./server` ->
- * src/server/index.ts) are what consumers import. Deep internal paths are not
- * part of the contract, so everything a consumer needs must be reachable from
- * these two modules. These tests pin that surface: value exports at runtime,
- * type exports via `tsc --noEmit`, and the browser/server split (no server-only
- * symbol may leak into the browser bundle).
+ * Verify value and type exports from the browser and server entrypoints and keep server-only
+ * symbols out of the browser entry.
  */
 
 import { execFileSync } from "node:child_process";
@@ -61,10 +55,7 @@ const BROWSER_VALUE_EXPORTS: readonly string[] = [
 ];
 
 /**
- * Symbols the hand-written query layer / client singleton used to export
- * (Wallow-pu6a.5.5). They are deleted, not deprecated: a consumer reaching for
- * one must get a build error rather than a silently unconfigured module-global
- * client, so the browser entry has to keep NOT exporting them.
+ * Unsupported singleton and convenience exports must remain absent from the browser entry.
  */
 const DELETED_LEGACY_SYMBOLS: readonly string[] = [
   "client",
@@ -74,17 +65,12 @@ const DELETED_LEGACY_SYMBOLS: readonly string[] = [
   "createConfiguredOnce",
   "createMfaClient",
   "getSsrRequestContext",
-  // The imperative navigation/fetch helpers Wallow-j7qk retired: login is a
-  // plain `loginRedirect()` link and the current user comes from
-  // `getCurrentUser`/`currentUserQuery`. Only `logout` remains imperative —
-  // `/bff/logout` is CSRF-gated, so it cannot be a link.
+  // Use loginRedirect for login navigation and getCurrentUser/currentUserQuery for user data.
+  // Logout requires a CSRF-protected request.
   "getUser",
   "login",
-  // The browser claim-bag readers (`claims.ts`), deleted with them (Wallow-j7qk
-  // item 2): the ONE user model at the app boundary is the typed `CurrentUser`,
-  // so role gating goes through `@bc-solutions-coder/auth`'s
-  // `hasRole`/`isAdmin`, and OIDC claim decoding is internal to the server
-  // entry (`server/claims.ts`).
+  // Consumers use typed CurrentUser data and role helpers from @bc-solutions-coder/auth. Raw OIDC
+  // claim decoding belongs to the server entry.
   "getOrgId",
   "getOrgName",
   "getRoles",
@@ -92,7 +78,7 @@ const DELETED_LEGACY_SYMBOLS: readonly string[] = [
   "isAdmin",
   "isGlobalAdmin",
   "isOperator",
-  // The module-scope CSRF token store (Wallow-j7qk item 5): process-global
+  // The module-scope CSRF token store: process-global
   // during SSR — the exact cross-user hazard `create-sdk.ts` exists to prevent
   // — and strictly redundant in the browser, where the BFF's non-HttpOnly
   // double-submit cookie is the ONE token source (`readCsrfCookie`).
@@ -102,10 +88,8 @@ const DELETED_LEGACY_SYMBOLS: readonly string[] = [
   // Every operation's failure path raises an `ApiFailure`, so nothing unwraps.
   "unwrap",
   "wireSsrCookieInterceptor",
-  // The SDK has no error type of its own: `ApiFailure` / `isApiFailure` come
-  // from `@bc-solutions-coder/api-errors`. Deleted, not aliased: a consumer
-  // importing these must get a build error, not a second failure type that the
-  // package's brand check would not recognise.
+  // ApiFailure and isApiFailure come from @bc-solutions-coder/api-errors, which owns the shared
+  // failure brand.
   "isWallowError",
   "WallowError",
 ];

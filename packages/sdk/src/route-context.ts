@@ -1,34 +1,5 @@
 /**
- * SSR-safe auth guard (Wallow-pu6a.5.6).
- *
- * Route files used to hand-roll the unauthenticated redirect inline;
- * {@link requireAuth}/{@link loginRedirect} are that guard extracted from
- * wallow-web's `/dashboard` route. (A companion `WallowRouterContext` interface
- * used to live here too — each app declares its own `RouterContext` in
- * `__root.tsx` instead, and adoption was offered and declined, so Wallow-j7qk
- * deleted it.)
- *
- * SSR SAFETY IS THE WHOLE POINT (Wallow-zyxe). A guard runs in `beforeLoad`,
- * which executes during a full-page server render as well as in the browser, so
- * it may never navigate by assigning to the global `location` — Node has none,
- * and the SDK's since-deleted browser-only `login()` helper turned a gated SSR
- * load into an HTTP 500 for exactly that reason. Nothing in this module reads `location`,
- * `document`, or `window`; it only BUILDS a redirect target and hands it to the
- * router's own `redirect()`, which the SSR request handler turns into a 307 and
- * the client router turns into a navigation.
- *
- * Two properties are structural rather than incidental:
- *
- *   - the target is an `href`, never a `to`. `/bff/login` is a BFF endpoint, not
- *     a route in the app's route tree, so a `to` (or a relative `href` without
- *     `reloadDocument`) is committed against the route tree and lands on a
- *     not-found match instead of reaching the BFF.
- *   - `reloadDocument` is baked in by {@link loginRedirect} rather than left to
- *     each call site, because forgetting it is the same bug in a quieter form.
- *
- * The router itself is NOT imported here. `redirect` is injected by the caller,
- * so the SDK gains no dependency on `@tanstack/react-router` and the guard stays
- * unit-testable without a router.
+ * SSR-safe authentication guards with an injected router redirect. Full-document href navigation sends login requests to the BFF outside the application route tree.
  */
 import type { WallowUser } from "./auth";
 

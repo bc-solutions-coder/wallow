@@ -10,17 +10,11 @@ import { textHeadingVariant } from "./rules/text-heading-variant.ts";
 import { zoneDag } from "./rules/zone-dag.ts";
 
 /**
- * Wallow's own oxlint rules — the ones with no native equivalent.
+ * Wallow lint rules for oxlint and ESLint-compatible consumers.
  *
- * Registration constraints (which config may load this, and why not the root one)
- * live in `packages/lint/CLAUDE.md`. Read that before moving this entry anywhere.
- *
- * The `.ts` extensions above are MANDATORY. oxlint loads this file as plain Node ESM,
- * which rejects an extensionless relative specifier with `ERR_MODULE_NOT_FOUND` — and
- * TypeScript typechecks either spelling clean, so the failure only appears at lint time.
- *
- * `eslintCompatPlugin` adds a delegating `create` to every rule defined with
- * `createOnce`, which is what keeps this plugin usable from ESLint as well as oxlint.
+ * Register this plugin once as wallow in the root oxlint configuration. Nested
+ * configs inherit that registration. Relative imports retain .ts extensions
+ * because oxlint loads this entry directly through Node ESM.
  */
 export default eslintCompatPlugin(
   definePlugin({

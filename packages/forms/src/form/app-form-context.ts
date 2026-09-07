@@ -1,11 +1,5 @@
 /**
- * What the `AppForm` shell publishes to every component rendered inside it:
- * `FormError`, `SubmitButton`, and (from Wallow-ov6w.2.4) every catalog field.
- *
- * The prefix lives here rather than being threaded through each child's props
- * because every testid in a form derives from ONE value — see `core/test-id.ts`
- * — so a migrated form declares it once on the shell and its Playwright ids stay
- * byte-identical.
+ * Share the form prefix, pending state, and banner text with fields and submit controls.
  */
 
 import { createContext, useContext } from "react";

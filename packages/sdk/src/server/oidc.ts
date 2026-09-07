@@ -1,12 +1,5 @@
 /**
- * OIDC helpers for the BFF: discovery (backed by openid-client), authorization
- * URL building, authorization-code exchange, and refresh-token rotation.
- *
- * Discovery resolves the issuer metadata via openid-client's `discovery()` and
- * exposes both the advertised endpoint strings (consumed by the still
- * native-fetch grant helpers below) and the resolved openid-client
- * `Configuration` handle (for the openid-client-backed call sites migrated in
- * later tasks).
+ * OIDC discovery, authorization URLs, token grants, and user information through openid-client. Browser redirects use the public issuer; server calls retain the discovered endpoint addresses.
  */
 import {
   allowInsecureRequests,
@@ -38,10 +31,8 @@ export interface DiscoveryDoc {
   /** Whether the issuer advertises OIDC back-channel logout support. */
   backchannel_logout_supported?: boolean;
   /**
-   * Handle to the resolved openid-client {@link Configuration}. Optional so that
-   * plain endpoint-only doc literals (used by the still native-fetch grant
-   * helpers and their tests) continue to typecheck. Populated by
-   * {@link discover}.
+   * Resolved openid-client configuration populated by discover. Endpoint-only metadata objects may
+   * omit it.
    */
   configuration?: Configuration;
 }
@@ -88,20 +79,8 @@ export interface ExchangeCodeParams {
 const discoveryCache = new Map<string, DiscoveryDoc>();
 
 /**
- * Decide whether openid-client may perform plain-HTTP (insecure) requests for
- * the given discovery URL.
- *
- * The decision must be reachable at RUNTIME in a bundled server: the SDK's
- * server entry is bundled into each app's nitro production build, where
- * Vite's bundler (Rolldown) statically folds build-time environment reads to
- * literals and then constant-folds the branch away entirely. The signal this reads is
- * therefore a value only known at runtime, never a bundler-substitutable one.
- *
- * The signal is the configured discovery URL itself: plain HTTP is permitted
- * exactly when the OP is reached over plain HTTP, which is the actual intent.
- * An HTTPS issuer keeps openid-client's transport check on.
- *
- * @param metadataUrl Absolute URL the discovery document is fetched from.
+ * Allow insecure OIDC requests only when the configured discovery URL uses HTTP. The URL is
+ * evaluated at runtime so bundled server builds retain the configured transport policy.
  */
 export function shouldAllowInsecureRequests(metadataUrl: string): boolean {
   return new URL(metadataUrl).protocol === "http:";
@@ -111,24 +90,8 @@ export function shouldAllowInsecureRequests(metadataUrl: string): boolean {
 const NO_EXPIRY_SECONDS = 0;
 
 /**
- * Rebase an endpoint onto the FULL public issuer URL — origin *and* path prefix —
- * preserving the endpoint's own path and query.
- *
- * Used to pin the browser-facing endpoints when discovery is fetched from a
- * server-reachable internal host. Rebasing onto the issuer's origin alone is not
- * enough behind a path-based reverse proxy: with issuer `https://wallow.dev/api`
- * the browser must be sent to `https://wallow.dev/api/connect/authorize`, never
- * `https://wallow.dev/connect/authorize`. Taking the issuer's `origin` (rather
- * than assigning `URL.host`) also drops the internal port, which a bare host
- * assignment would otherwise leave in place.
- *
- * The issuer path is prepended only when the endpoint does not already carry it,
- * so a provider running with a matching PathBase (advertising `/api/connect/*`)
- * is not double-prefixed. A trailing slash on the issuer is ignored.
- *
- * @param endpoint Endpoint to rebase: an absolute URL, or a root-relative path
- *   resolved against the issuer's origin.
- * @param issuer Public issuer URL the browser reaches.
+ * Pin a browser endpoint to the public issuer origin and path prefix while preserving its query.
+ * Do not duplicate an issuer prefix already present in the endpoint path.
  */
 function rebaseToIssuer(endpoint: string, issuer: string): string {
   const source: URL = new URL(endpoint, issuer);
@@ -142,27 +105,9 @@ function rebaseToIssuer(endpoint: string, issuer: string): string {
 }
 
 /**
- * Point an openid-client-built URL at the browser-facing endpoint recorded on the
- * discovery document, keeping the query openid-client encoded exactly as it built it.
- *
- * openid-client builds authorization and end-session URLs from the
- * {@link Configuration}'s own `serverMetadata()`, which holds the RAW discovery
- * response. Under a split horizon that metadata names the internal host, so the
- * URL handed to the browser would be an unreachable container address — the
- * rebasing {@link discover} performed would never reach the user agent. The
- * endpoint strings on the {@link DiscoveryDoc} are the browser-facing ones, so
- * they, not the Configuration, decide where the user agent is sent.
- *
- * The Configuration itself is deliberately left un-rebased: the backchannel
- * token and userinfo calls read from it and must keep reaching the internal host
- * directly rather than hairpinning back through the public proxy.
- *
- * Origin components are replaced individually — including an explicit `port`
- * reset — because assigning `URL.host` a host without a port leaves the previous
- * port in place, which would leak the internal port into the redirect.
- *
- * @param built URL as openid-client constructed it, carrying the request parameters.
- * @param browserEndpoint Browser-facing endpoint from the discovery document.
+ * Replace the browser destination while preserving the query encoded by openid-client. Keep
+ * Configuration metadata unchanged so token and user information calls can reach internal
+ * endpoints.
  */
 function pinToBrowserEndpoint(built: URL, browserEndpoint: string | undefined): string {
   if (browserEndpoint === undefined || browserEndpoint === "") {

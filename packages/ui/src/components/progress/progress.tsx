@@ -113,14 +113,28 @@ function ProgressIndicator({ className, ...rest }: ProgressIndicatorProps): Reac
 }
 
 /**
- * The catalog's progress bar, as ONE namespace object whose keys mirror Base
- * UI's five namespace members 1:1 — the catalog-wide convention for multi-part
- * components.
+ * Progress toward completion. Root owns the value or indeterminate state, Label names it,
+ * Track contains Indicator, and Value displays the formatted reading.
  */
 export const Progress = {
+  /**
+   * Owns the component state and provides context to its parts.
+   */
   Root: ProgressRoot,
+  /**
+   * Provides the control's accessible label.
+   */
   Label: ProgressLabel,
+  /**
+   * Displays the current value using the part's children or formatting options.
+   */
   Value: ProgressValue,
+  /**
+   * Provides the full range or scroll track behind the indicator.
+   */
   Track: ProgressTrack,
+  /**
+   * Displays the control's current state or selected extent.
+   */
   Indicator: ProgressIndicator,
 };

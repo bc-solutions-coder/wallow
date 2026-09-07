@@ -11,6 +11,10 @@ const EMPTY_REGISTRY: FailureMessageRegistry = {};
 
 const FailureMessagesContext = createContext<FailureMessageRegistry>(EMPTY_REGISTRY);
 
+/**
+ * An application message registry and the descendants that use it. A nested provider replaces
+ * the parent registry.
+ */
 export interface FailureMessagesProviderProps {
   /** The app's registry, from `defineFailureMessages`. */
   readonly registry: FailureMessageRegistry;

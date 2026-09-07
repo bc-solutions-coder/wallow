@@ -1,22 +1,7 @@
 /**
- * The unharnessed-request guard a browser project installs once, in its setup
- * file.
- *
- * `createSdkHarness()` injects its transport into `createWallowSdk` and never
- * touches the global, which is what keeps two concurrent specs from seeing each
- * other's calls. The corollary is that anything arriving at `globalThis.fetch`
- * is traffic NO harness owns — a screen reaching past the router-context SDK, an
- * operation the spec forgot to program, a component fetching on mount.
- *
- * Unguarded, that request leaves for the real network. In CI there is nothing
- * behind the URL, so it fails as a hang and gets blamed on the assertion that
- * happened to be waiting; on a developer's machine with `pnpm backend` running
- * it SUCCEEDS, and the spec passes against a live database. Both readings are
- * wrong in a way the report cannot show.
- *
- * So an escape is answered rather than forwarded: a 503 whose body names the
- * request. Answering matters as much as recording — a request left to hang turns
- * the failure back into a timeout on some later line.
+ * Record and reject unowned global fetch requests with a 503 response.
+ * Install in browser setup alongside a per-test SDK harness. Requests used by
+ * the same-origin Vite/Vitest runtime pass through to the original fetch.
  */
 
 import { vi } from "vitest";
@@ -136,13 +121,10 @@ export interface ConsumeNetworkEscapeOptions {
 }
 
 /**
- * Wait for at least one escape, then take everything the record holds at that
- * moment out of it and return it.
+ * Wait for a rejected request, then drain all entries currently recorded.
  *
- * Consuming rather than clearing is what keeps "a spec that forgot to assert
- * still fails" true: an entry nobody reads is still there for the project's
- * `afterEach`. Only what was READ is removed, by count rather than by emptying
- * the array, so a request issued while this awaited survives to fail the test.
+ * Rejects when no entry arrives before the configured timeout. Later requests
+ * remain recorded for the next assertion.
  */
 export async function consumeNetworkEscapes(
   options: ConsumeNetworkEscapeOptions = {},

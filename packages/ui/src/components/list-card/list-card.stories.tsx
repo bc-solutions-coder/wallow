@@ -7,15 +7,6 @@ import { darkScheme, lightScheme } from "../../../.storybook/scheme-decorators";
 import { ListCard } from "./list-card";
 
 /*
- * Wallow-lrlm.3.5 — ListCard stories. Each export becomes a Vitest test case in
- * the same headless Chromium the `browser` project uses, but with the real
- * Tailwind pipeline and the fork's real theme attached (.storybook/preview.css +
- * preview.tsx). Since the `browser` project loads no Tailwind, this is the only
- * place the card's clipped corners, its row hairlines and the rows' hover
- * treatment can actually be seen — and the only place dark-mode correctness is
- * checkable, which matters here: the row hover moved off `bg-background/50` onto
- * the `muted` token precisely so it reads correctly in both schemes.
- *
  * ListCard is not interactive beyond its scheme, so the only `play` a story
  * carries is `expectScheme`, which measures that the scheme it claims is the
  * scheme it paints. The assertions about markup and class strings that a
@@ -27,7 +18,7 @@ import { ListCard } from "./list-card";
  * `.storybook/scheme-decorators.tsx` for why, and never reintroduce one.
  */
 
-/** One organization row's cells, spelled with the tokens the app uses today. */
+/** One organization row's cells, spelled with the tokens the app uses. */
 function OrganizationCells({ name, members }: { name: string; members: number }): ReactElement {
   return (
     <>

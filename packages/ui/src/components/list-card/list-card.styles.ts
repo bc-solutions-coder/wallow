@@ -11,12 +11,7 @@ import { cva, type VariantProps } from "class-variance-authority";
  * rather than a card that happens to hold a list.
  */
 
-/**
- * The card surface — the outer `<div>` the caller's props land on. Reproduced
- * verbatim from the string `OrganizationList` and `AppList` hand-roll today, so
- * the F5 migration lands without a visual diff. `overflow-hidden` is
- * load-bearing: it is what clips the first and last rows to the rounded corners.
- */
+/** Bordered list-card surface with clipped overflow; caller attributes apply to this outer div. */
 export const listCardRecipe = cva(
   "bg-card rounded-lg shadow-sm border border-border overflow-hidden",
 );

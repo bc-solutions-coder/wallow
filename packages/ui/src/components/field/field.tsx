@@ -17,40 +17,16 @@ import {
   type FieldRootRecipeProps,
 } from "./field.styles";
 
-/**
- * The Field anatomy, on Base UI's `Field` parts.
- *
- * `Field` is BOTH the field row component and the namespace holding the parts:
- * calling it renders `Field.Root`, so the 22 pre-rebuild `<Field>` call sites
- * keep working untouched, while `Field.Label` / `Field.Control` /
- * `Field.Description` / `Field.Error` / `Field.Item` / `Field.Validity` expose
- * the rest of Base UI's anatomy under the names Base UI itself uses.
- *
- * What the rebuild buys, and the pre-rebuild `<div className="space-y-2">`
- * could not do: the root publishes the field's state to every part beneath it
- * as `data-*` attributes, and it associates the label with the control (and the
- * description and error message with both) so callers no longer have to keep an
- * `htmlFor`/`id` pair in sync by hand.
- *
- * Every part narrows `className` back to `string`: Base UI widens it to
- * `string | ((state) => string | undefined)`, and the callback form cannot be
- * merged with a recipe through `cn()`. The whole catalog makes this narrowing,
- * so a caller's `className` always means "utilities merged over the recipe,
- * last one wins".
- */
+/** Field and Field.Root share the same container. Its parts associate labels, descriptions, and errors with the control through Base UI context. */
 
-/**
- * The field row's props. Base UI's `Field.Root` renders a `div`, so this stays
- * assignable from the pre-rebuild `HTMLAttributes<HTMLDivElement>` alias every
- * call site was written against, and adds the field-level controls Base UI
- * brings (`name`, `disabled`, `invalid`, `validate`, `validationMode`).
- */
 export interface FieldRootProps
   extends Omit<ComponentProps<typeof BaseField.Root>, "className">, FieldRootRecipeProps {
   readonly className?: string;
 }
 
-/** The pre-rebuild export name for the field row's props, kept for compat. */
+/**
+ * Props shared by Field and Field.Root; both render the same field container.
+ */
 export type FieldProps = FieldRootProps;
 
 /** The label's props. Base UI's `Field.Label` renders a `label`. */
@@ -123,16 +99,37 @@ function FieldValidity(props: FieldValidityProps): ReactElement {
 }
 
 /**
- * The field row, and the namespace its parts hang off. `Field` and `Field.Root`
- * are the same component on purpose — the former is the compat name, the latter
- * the Base UI part name — so a fork can write either.
+ * A field container with associated Label, Control, Description, Error, Item, and Validity
+ * parts. Field itself renders Field.Root. A name connects the field to Form values and server
+ * errors.
  */
 export const Field = Object.assign(FieldRoot, {
+  /**
+   * Owns the component state and provides context to its parts.
+   */
   Root: FieldRoot,
+  /**
+   * Provides the control's accessible label.
+   */
   Label: FieldLabel,
+  /**
+   * The interactive control connected to Root state.
+   */
   Control: FieldControl,
+  /**
+   * Provides supporting text associated with the control or popup.
+   */
   Description: FieldDescription,
+  /**
+   * Displays the field's matching validation or server error.
+   */
   Error: FieldError,
+  /**
+   * Groups one item and its associated content.
+   */
   Item: FieldItem,
+  /**
+   * Exposes field validation state to a render-prop child.
+   */
   Validity: FieldValidity,
 });

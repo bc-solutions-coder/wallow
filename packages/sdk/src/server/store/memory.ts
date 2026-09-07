@@ -1,11 +1,5 @@
 /**
- * In-process {@link RedisLike} backed by a `Map`, honouring the `ex` and `nx`
- * flags the SDK's stores and locks rely on.
- *
- * It is the default token cache of the service client when no shared store is
- * supplied: one process, one cache. It is NOT a session store — a session
- * cached only in one process is exactly what `ValkeySessionStore` exists to
- * avoid — so it is deliberately absent from the `./server` barrel.
+ * Instance-local RedisLike map with expiration and conditional writes. Used as the service client’s default token cache; it provides no cross-process sharing or durable session storage.
  */
 
 import { type RedisLike } from "./types";

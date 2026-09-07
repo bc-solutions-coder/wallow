@@ -8,11 +8,6 @@ import { darkScheme, lightScheme } from "../../../.storybook/scheme-decorators";
 import { ListRow } from "./list-row";
 
 /*
- * Wallow-lrlm.3.5 — ListRow stories. Each export becomes a Vitest test case in
- * the same headless Chromium the `browser` project uses, but with the real
- * Tailwind pipeline and the fork's real theme attached, which is the only place
- * the row's hover and focus treatments render at all.
- *
  * Every story is framed inside a real `ListCard`: a row is a `<li>`, and the
  * hairline dividers, the clipped corners and the full-bleed `px-6` cells only
  * mean anything against the surface they were extracted from.
@@ -35,7 +30,7 @@ const inListCard: Decorator = (Story) => (
   </ListCard>
 );
 
-/** One organization row's cells, spelled with the tokens the app uses today. */
+/** One organization row's cells, spelled with the tokens the app uses. */
 function OrganizationCells(): ReactElement {
   return (
     <>

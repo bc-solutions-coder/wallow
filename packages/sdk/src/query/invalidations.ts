@@ -1,25 +1,5 @@
 /**
- * Curated invalidation filters over the GENERATED query keys (Wallow-pu6a.5.2).
- *
- * hey-api's `@tanstack/react-query` plugin emits a FLAT single-segment key —
- * `[{ _id, baseUrl, tags?, body?, headers?, path?, query? }]` — where `_id` is
- * the operation name and `tags` are the operation's OpenAPI tags. There is no
- * hierarchical prefix to sweep by, so TanStack's usual "invalidate the parent
- * key" trick has nothing to match: `{ queryKey: ['orgs'] }` is not a prefix of
- * anything the generator produces.
- *
- * These two predicates are the supported replacement. Both return TanStack
- * `QueryFilters`, so they compose with the normal call:
- *
- * ```ts
- * await queryClient.invalidateQueries(queriesWithTag("Organizations"));
- * await queryClient.invalidateQueries(
- *   queriesForOperation(organizationsGetByIdQueryKey({ client, path: { id } })),
- * );
- * ```
- *
- * This module is the ONLY hand-written file on the `./query` entry; everything
- * else it exposes is re-exported straight from `src/generated`.
+ * Match generated query keys by operation or OpenAPI tag. Generated keys contain one object segment, so these filters match metadata across request arguments.
  */
 import type { Query, QueryFilters, QueryKey } from "@tanstack/react-query";
 

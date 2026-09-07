@@ -1,23 +1,6 @@
 import { cva, type VariantProps } from "class-variance-authority";
 
-/*
- * One recipe per styled part of the dialog. The class lists are not invented
- * here — dialog.test.tsx declares each part's exact utility set as a top-of-file
- * `*_CLASSES` constant and asserts it as an order-free set through the rendered
- * component, so that spec is the source of truth for everything below.
- *
- * One recipe per part that renders a VISIBLE element. `Root` renders no element,
- * and `Portal` renders only the structural container Base UI appends to `<body>`,
- * so neither has a recipe (see dialog.tsx for why they are re-exported unwrapped).
- *
- * No recipe takes a cva VARIANT. A dialog has no visual variant axis in this
- * catalog: open/closed and the entering/exiting transition phases are all
- * STATES, and Base UI publishes states as `data-*` attributes, so they belong in
- * the base string as `data-[starting-style]:` / `data-[ending-style]:` /
- * `data-[disabled]:` modifiers rather than as cva variants nobody would pass by
- * hand. The `VariantProps` types are still exported so each part's props keep the
- * catalog-wide shape and a later variant axis stays a non-breaking addition.
- */
+/* Recipes style visible component parts. State transitions use Base UI data attributes; state-only roots and structural portals have no recipe. */
 
 /**
  * The button that opens the dialog — Base UI's `Dialog.Trigger`, a `<button>`.

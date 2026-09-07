@@ -41,15 +41,8 @@ function derive(testId: string | undefined, part: string): string | undefined {
 }
 
 /**
- * The empty-state card both wallow-web list components hand-roll today. The
- * surface is the real `Card` — the spacing block goes in through its `spacing`
- * slot so a caller `className` still merges last and wins — and the copy goes
- * through `Text`, which keeps the type scale and the semantic colour one
- * decision made in one place. `variant="subheading"` is load-bearing: `as="h2"`
- * alone would derive the larger `title` scale.
- *
- * Every optional slot is omitted entirely when its prop is absent, so an unused
- * slot leaves no empty element behind to collect the column gap.
+ * Renders an empty-state card with an h2 message and optional decorative icon, description,
+ * and action. Omitted optional sections render no wrapper.
  */
 export function EmptyState({
   icon,

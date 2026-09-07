@@ -5,10 +5,7 @@ import { RadioGroup } from "../radio-group";
 import { Radio } from "./radio";
 
 /*
- * Radio behavioural spec (Wallow-m5aq.2.6), shaped after the Wallow-m5aq.2.1
- * Button exemplar:
- *
- *   1. Runs in the vitest BROWSER project — real headless Chromium, real Base UI,
+ * 1. Runs in the vitest BROWSER project — real headless Chromium, real Base UI,
  *      real DOM. Nothing is mocked.
  *   2. The recipes are asserted THROUGH the component, never by importing
  *      `radioRootRecipe` and inspecting its return value: a recipe unit test
@@ -19,7 +16,7 @@ import { Radio } from "./radio";
  *      only for the edges a screenshot cannot make: state data-attributes, the
  *      caller-className override, indicator mounting, and the `render` prop.
  *
- * ANATOMY, verified against @base-ui/react 1.6.0 in this browser (not guessed):
+ * ANATOMY, verified against Base UI in this browser (not guessed):
  *   <div role="radiogroup">                        <- RadioGroup
  *     <span role="radio" data-unchecked|data-checked>  <- Radio.Root
  *       <span data-checked>                            <- Radio.Indicator

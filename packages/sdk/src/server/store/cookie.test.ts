@@ -112,26 +112,7 @@ async function flushMicrotasks(): Promise<void> {
 }
 
 /**
- * The in-process refresh mutex (Wallow-vufu.5.3).
- *
- * `withRefreshLock` is a no-op passthrough today, so two requests arriving in
- * the same Node process for the same session (two browser tabs, one expired
- * access token) both run the refresh callback, and both spend the SAME one-time
- * OIDC refresh token — the second spend fails or invalidates the token family.
- *
- * Serializing the callbacks is not enough to fix that: the caller
- * (`refreshUnderLock` in proxy.ts) captures `session.refreshToken` BEFORE taking
- * the lock, so a second callback that runs afterwards still presents the token
- * the first one just spent. The lock must therefore COALESCE: while a refresh is
- * in flight for a ref, a second caller joins it and observes the first call's
- * result instead of running its own callback. That is the cookie store's
- * equivalent of the Valkey store's "lock held → re-read the peer's write"; the
- * cookie IS the state, so there is nothing to re-read and the in-flight promise
- * is the only handle on the peer's result.
- *
- * For this store the `ref` argument is the sealed cookie string itself, so two
- * concurrent requests carrying the same browser session present an identical ref
- * and coalesce, while distinct sessions carry distinct refs and never interact.
+ * Coalesce concurrent refreshes for the same sealed session reference within one process. Different references remain independent, and waiting callers do not spend the refresh token again.
  */
 describe("CookieSessionStore — in-process refresh mutex", () => {
   it("coalesces concurrent locks for the same ref: the callback runs once and both callers get its result", async () => {

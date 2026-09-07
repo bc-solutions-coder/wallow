@@ -6,16 +6,11 @@ import { Autocomplete } from "./autocomplete";
 import type { AutocompleteRootProps } from "./autocomplete";
 
 /*
- * Wallow-m5aq.4.6 — Autocomplete stories, the visual half of the component's
- * spec (autocomplete.test.tsx holds the markup assertions a screenshot cannot
- * make). Rendered by `@storybook/addon-vitest` in the same headless Chromium the
- * `browser` project uses, with the real Tailwind pipeline attached.
- *
  * These are deliberately NOT a copy of combobox.stories.tsx. Twenty of the
  * twenty-three members here ARE the combobox's parts — same function objects,
  * same recipes — so re-photographing all of them would only duplicate coverage.
  * What these stories show instead is the three things an autocomplete does
- * differently, each of them measured against @base-ui/react 1.6.0:
+ * differently, each of them measured against Base UI:
  *
  *   - the value it commits is the TEXT in the input, not an item object, so
  *     `Autocomplete.Value` echoes what was typed and there is no tick and no

@@ -19,41 +19,6 @@ import {
   type AlertDialogViewportRecipeProps,
 } from "./alert-dialog.styles";
 
-/**
- * `@base-ui/react/alert-dialog` is mostly `@base-ui/react/dialog` wearing a
- * different name: `alert-dialog/index.parts.d.ts` re-exports Dialog's own
- * runtime for Backdrop, Close, Description, Popup, Portal, Title and Viewport,
- * and `AlertDialogTrigger` is literally `DialogTrigger`. Only `Root` is its own
- * component, and all it does is call Dialog's `useRenderDialogRoot(props,
- * 'alert-dialog')`, which forces three invariants a plain dialog only defaults
- * to (measured in useRenderDialogRoot.mjs):
- *
- *   - `modal` is forced true and the prop is removed from the type;
- *   - `disablePointerDismissal` is forced true and the prop is removed, so
- *     PRESSING THE BACKDROP DOES NOT CLOSE AN ALERT DIALOG — the behaviour that
- *     makes this a separate component rather than a Dialog preset;
- *   - the popup's role becomes `alertdialog` instead of `dialog`.
- *
- * Escape still closes: `useDialogRoot`'s `escapeKey` is independent of
- * `disablePointerDismissal`.
- *
- * This component nevertheless wraps the Base UI parts itself rather than
- * re-exporting the Dialog component's wrappers. Sharing wrappers would share
- * RECIPES, and the recipe layer is exactly what a fork restyles — an alert has
- * to stay independently themable from a dialog even though the two run the same
- * code underneath.
- */
-
-/*
- * Four of the eleven namespace members are re-exported UNWRAPPED, on the same
- * rule the Dialog exemplar set: a part gets a wrapper plus a recipe only if it
- * renders a VISIBLE element. `Root` renders no element and is generic over the
- * trigger payload, `Portal` renders only the structural container Base UI
- * appends to `<body>`, and `Handle`/`createHandle` are the imperative open/close
- * API for detached triggers and render no DOM at all. Keeping all four means
- * this namespace's keys still mirror Base UI's 1:1.
- */
-
 /** Every Base UI `AlertDialog.Root` prop, generic over the trigger payload type. */
 export type AlertDialogRootProps<Payload = unknown> = Parameters<
   typeof BaseAlertDialog.Root<Payload>
@@ -61,13 +26,6 @@ export type AlertDialogRootProps<Payload = unknown> = Parameters<
 
 /** Every Base UI `AlertDialog.Portal` prop. Re-exported unwrapped, so no recipe props. */
 export type AlertDialogPortalProps = ComponentProps<typeof BaseAlertDialog.Portal>;
-
-/*
- * `className` is deliberately narrowed back to `string` on every wrapped part:
- * Base UI widens it to `string | ((state) => string | undefined)`, and the
- * callback form cannot be merged with a recipe through `cn()`. Every component
- * in this catalog makes the same narrowing.
- */
 
 /** Every Base UI `AlertDialog.Trigger` prop, with `className` narrowed to `string`. */
 export interface AlertDialogTriggerProps<Payload = unknown>
@@ -178,26 +136,53 @@ function AlertDialogClose({ className, variant, ...rest }: AlertDialogCloseProps
 }
 
 /**
- * The catalog's alert dialog, as ONE namespace object whose keys mirror Base
- * UI's eleven namespace members 1:1 — the catalog-wide convention for multi-part
- * components, so a caller who knows the Base UI docs already knows this API.
- *
- * Reach for this over `Dialog` whenever the user must answer the question before
- * carrying on: it cannot be dismissed by pressing outside, and it announces
- * itself as `role="alertdialog"`. A minimal alert is Root > Trigger plus a
- * portalled Backdrop and Popup(Title, Description, Close, Close) — one `Close`
- * for the cancel and one carrying the caller's `onClick` for the confirm.
+ * A modal confirmation dialog that ignores outside presses. Compose Root and Trigger with
+ * Portal containing Backdrop and Popup, then Title, Description, and Close actions. Escape can
+ * dismiss it.
  */
 export const AlertDialog = {
+  /**
+   * Owns the component state and provides context to its parts.
+   */
   Root: BaseAlertDialog.Root,
+  /**
+   * Opens or toggles the associated content; render can compose it onto another control.
+   */
   Trigger: AlertDialogTrigger,
+  /**
+   * Renders popup content outside the parent DOM hierarchy.
+   */
   Portal: BaseAlertDialog.Portal,
+  /**
+   * Covers the surrounding page behind the popup.
+   */
   Backdrop: AlertDialogBackdrop,
+  /**
+   * Contains the visible popup region and its layout.
+   */
   Viewport: AlertDialogViewport,
+  /**
+   * The visible popup container; place labeled content and actions inside it.
+   */
   Popup: AlertDialogPopup,
+  /**
+   * Provides the popup's accessible title.
+   */
   Title: AlertDialogTitle,
+  /**
+   * Provides supporting text associated with the control or popup.
+   */
   Description: AlertDialogDescription,
+  /**
+   * Closes the associated popup when activated.
+   */
   Close: AlertDialogClose,
+  /**
+   * Handle class for sharing popup state with detached triggers.
+   */
   Handle: BaseAlertDialog.Handle,
+  /**
+   * Creates a handle that connects a popup to triggers outside its Root.
+   */
   createHandle: BaseAlertDialog.createHandle,
 };

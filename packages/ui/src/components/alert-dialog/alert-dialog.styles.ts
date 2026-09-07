@@ -2,33 +2,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 
 import { buttonRecipe } from "../button/button.styles";
 
-/*
- * One recipe per styled part of the alert dialog. The class lists are not
- * invented here — alert-dialog.test.tsx declares each part's exact utility set
- * as a top-of-file `*_CLASSES` constant and asserts it as an order-free set
- * through the rendered component, so that spec is the source of truth for
- * everything below.
- *
- * One recipe per part that renders a VISIBLE element. `Root` renders no element,
- * `Portal` renders only the structural container Base UI appends to `<body>`,
- * and `Handle`/`createHandle` render no DOM at all, so none of them has a recipe
- * (see alert-dialog.tsx for why they are re-exported unwrapped).
- *
- * Trigger, backdrop, viewport, title and description are byte-identical to the
- * Dialog exemplar's recipes — same tokens, same reasoning. They are duplicated
- * rather than imported from ../dialog/dialog.styles deliberately: the recipe
- * layer is exactly what a fork restyles, so an alert has to stay independently
- * themable from a dialog even though the two run the same Base UI code
- * underneath. The popup and the close are where the two genuinely diverge.
- *
- * Only the close recipe takes a cva VARIANT. Open/closed and the entering and
- * exiting transition phases are STATES, and Base UI publishes states as `data-*`
- * attributes, so they belong in the base strings as `data-[starting-style]:` /
- * `data-[ending-style]:` / `data-[disabled]:` modifiers rather than as cva
- * variants nobody would pass by hand. The `VariantProps` types are still
- * exported for every part so each one keeps the catalog-wide prop shape and a
- * later variant axis stays a non-breaking addition.
- */
+/* Recipes style visible component parts. State transitions use Base UI data attributes; state-only roots and structural portals have no recipe. */
 
 /**
  * The button that opens the alert dialog — Base UI's `AlertDialog.Trigger`, a
@@ -130,6 +104,10 @@ export type AlertDialogDescriptionRecipeProps = VariantProps<typeof alertDialogD
  *
  * `defaultVariants` is `secondary`, not the button's `primary`: the unmarked
  * button in an alert's footer is the cancel.
+ */
+/**
+ * Builds alert-dialog close button classes from the button recipe with automatic width.
+ * Defaults to secondary; primary and destructive mark confirmation actions.
  */
 export const alertDialogCloseRecipe = cva("", {
   variants: {

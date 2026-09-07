@@ -1,17 +1,12 @@
-// The one entry `@bc-solutions-coder/forms` publishes, so this barrel IS the
-// package's contract: a form may reach only what appears below. Ordered by
-// source folder (core -> form -> fields) so it reads against `ls src`.
-//
-// Deliberately absent: the shared TanStack bindings (`fieldContext`,
-// `formContext`, `useFieldContext`, `useFormContext`, `useTanstackAppForm`), the
-// shell's own React context (`AppFormContext`, `useAppFormContext`) and the
-// field-part helpers (`CatalogFieldLabel`, `CatalogFieldError`,
-// `useCatalogField`, `firstErrorMessage`). Those are internal — a caller that
-// re-ran `createFormHook` or read `testIdPrefix` directly would build fields
-// bound to a context no `AppForm` publishes. `src/index.test.ts` pins both
-// directions.
+/**
+ * Public form hooks, shell components, field catalog, and test ID helpers. Internal contexts and
+ * registration hooks are not exported.
+ */
 
-export { withForm } from "./core/form-hook";
+export {
+  /** Build a reusable form section bound to the parent form and this package's registered fields. */
+  withForm,
+} from "./core/form-hook";
 export { fieldErrorTestId, fieldTestId } from "./core/test-id";
 export { AppForm, type AppFormInstance, type AppFormProps } from "./form/app-form";
 export type { AppFormContextValue } from "./form/app-form-context";

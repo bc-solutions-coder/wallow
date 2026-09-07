@@ -6,9 +6,6 @@ import { Input } from "../input/input";
 import { Fieldset } from "./fieldset";
 
 /*
- * Fieldset is NEW in the Base UI rebuild — there is no pre-rebuild component to
- * stay compatible with, so every assertion here is about Base UI's contract.
- *
  * Two of them are measured facts that read as surprises, and are pinned for
  * exactly that reason:
  *   - `Fieldset.Legend` renders a `<div>`, not a `<legend>`, and is tied to the

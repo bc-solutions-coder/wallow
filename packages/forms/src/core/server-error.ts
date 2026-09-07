@@ -1,19 +1,6 @@
 /**
- * Splitting a failed submit into the two surfaces a form has for it: the
- * per-field messages that belong next to an input, and the one banner sentence
- * that belongs above the form.
- *
- * The API answers a validation failure with RFC 7807 problem details whose
- * `errors` member keys messages by property name — the SDK's interceptor
- * carries that through as `ApiFailure.fieldErrors`, and
- * `@bc-solutions-coder/api-errors`' `splitFieldErrors` reconciles the API's
- * property names with the form's camelCase field names. The banner is never
- * assembled here: it is a failure message, resolved through the registry by
- * `useFailureMessage` in the hook, so an app's own wording and the shipped
- * defaults both apply to a form exactly as they apply to every other surface.
- *
- * Layer 0 of the package: `src/core/` imports nothing from `src/fields/` or
- * `src/form/`.
+ * Normalize submit failures and separate matched field messages from banner context. The form
+ * hook resolves banner text through the app message registry.
  */
 
 import {

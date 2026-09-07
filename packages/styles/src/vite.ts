@@ -1,16 +1,6 @@
 /**
- * Vite authoring surface for `@bc-solutions-coder/styles` — the `./vite` subpath.
- *
- * A consuming app's whole Tailwind + brand-assets wiring collapses into a single
- * {@link wallowStyles} call in its Vite `plugins` array. This module owns the
- * `@tailwindcss/vite` plugin registration, the `publicDir = brandAssetsDir`
- * wiring, and the {@link THEME_MODULE_ID} virtual stylesheet, so no app has to
- * repeat any of them.
- *
- * Deliberately a SEPARATE subpath from the package's main entry (like `./assets`):
- * this is node-only Vite plugin-authoring code and must never bundle into a
- * consumer's browser build, so it stays off `./index.ts`.
- *
+ * Vite plugins for Tailwind, shared public assets, and the virtual fork-theme stylesheet. This
+ * Node-only entry belongs in build configuration.
  */
 import tailwindcss from "@tailwindcss/vite";
 import type { Plugin, PluginOption, UserConfig } from "vite";
@@ -32,37 +22,10 @@ export const brandAssetsPlugin: Plugin = {
 };
 
 /**
- * Import specifier for the fork theme as a stylesheet — the custom-property
- * values (`:root` / `.dark` / `.light`) that `./styles.css`'s Tailwind colour
- * tokens read.
- *
- * `./styles.css` maps every colour token onto a VALUELESS custom property
- * (`--color-sidebar: var(--sidebar, var(--foreground))`), so without this module
- * `var(--sidebar)` is invalid-at-computed-value-time: a `bg-sidebar` element
- * paints transparent and its text falls back to inherited black. That makes a
- * rendered-colour assertion structurally incapable of catching a contrast
- * defect, which is why a test harness needs the theme and not just the
- * utilities.
- *
- * It is a VIRTUAL module rather than a JS import of `renderThemeStyle` for one
- * concrete reason. `@bc-solutions-coder/styles` is a LINKED workspace package, so
- * importing it from a Vitest setup file is Vite's first sight of that dependency:
- * Vite re-optimizes the dep graph mid-run and reloads the page, and the reload
- * hands the specs a SECOND `@tanstack/react-router` instance, after which a
- * `redirect` thrown through one module copy no longer satisfies `isRedirect`
- * from the other. A virtual id lives outside `node_modules`, so the optimizer
- * never scans it and there is nothing to discover — immune by construction
- * rather than immune by having remembered to list it in `optimizeDeps`.
- *
- * It is also NOT a generated `theme.css` file on disk: the root `pnpm check`
- * runs `test` BEFORE `build`, so a build-time artifact would be stale exactly
- * when it matters. Serving it from the plugin means the bytes are rendered from
- * `packages/styles/branding.json` on every request.
- *
- * The `.css` suffix is load-bearing twice over: Vite routes the module through
- * its CSS pipeline (so a bare `import` injects a `<style>`), and TypeScript's
- * `vite/client` `declare module "*.css"` wildcard matches it, so a consumer
- * needs no ambient declaration of its own.
+ * Virtual stylesheet import that supplies the resolved fork palette for :root, .dark, and .light.
+ * With wallowStyles installed, import virtual:wallow-theme.css when the document does not already
+ * render renderThemeStyle output. The shared styles.css maps tokens but does not supply palette
+ * values.
  */
 export const THEME_MODULE_ID = "virtual:wallow-theme.css";
 
@@ -87,9 +50,9 @@ export const forkThemePlugin: Plugin = {
 };
 
 /**
- * The complete set of Vite plugins a Wallow frontend needs for styling: the
- * Tailwind v4 plugin, the brand-assets plugin, and the virtual fork theme
- * ({@link THEME_MODULE_ID}, which nothing imports unless it asks for it).
+ * Return the fork-theme plugin, Tailwind plugin collection, and shared-assets plugin for a Vite
+ * plugins array. Sets publicDir to the package brand assets and serves virtual:wallow-theme.css.
+ * Consumers still import styles.css and declare their own Tailwind source scan.
  */
 export function wallowStyles(): PluginOption[] {
   return [forkThemePlugin, tailwindcss(), brandAssetsPlugin];

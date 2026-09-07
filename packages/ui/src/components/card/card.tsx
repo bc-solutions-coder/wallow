@@ -3,35 +3,33 @@ import type { HTMLAttributes, ReactElement } from "react";
 import { cn } from "../../core/cn";
 import { cardRecipe, cardTitleRecipe } from "./card.styles";
 
+/**
+ * Div attributes for a bordered card, with an optional replacement spacing class list.
+ */
 export interface CardProps extends HTMLAttributes<HTMLDivElement> {
   /**
-   * The padding/vertical-rhythm block, overridable to cover the two measured
-   * outliers (LoginScreen uses `p-6 space-y-4`, RegisterForm's first card uses a
-   * bare `p-6`). Defaults to the dominant `p-6 space-y-6` recipe. It stays a
-   * free-form string rather than a cva variant because call sites pass arbitrary
-   * combinations, and it merges BETWEEN the recipe and `className` so a caller
-   * can still override it.
+   * Replacement padding and vertical-spacing utilities. Defaults to p-6 space-y-6 and merges
+   * before className.
    */
   readonly spacing?: string;
 }
 
 /**
- * The shared card surface. Sourced from 14x
- * `rounded-lg border border-border bg-card p-6 space-y-6` in wallow-auth. The
- * `spacing` slot swaps the padding/rhythm block; children and data-testid pass
- * through; a caller `className` is merged over both, last value winning.
+ * Renders a bordered card with default padding and vertical spacing. spacing replaces that
+ * spacing block; className overrides the result.
  */
 export function Card({ spacing = "p-6 space-y-6", className, ...rest }: CardProps): ReactElement {
   return <div className={cn(cardRecipe(), spacing, className)} {...rest} />;
 }
 
 /**
- * The card heading. Sourced from 15x `text-lg font-semibold text-card-foreground`
- * in wallow-auth; renders an `<h2>`. children and data-testid pass through; a
- * caller `className` is merged over the recipe.
+ * Heading attributes for the card's h2 title.
  */
 export type CardTitleProps = HTMLAttributes<HTMLHeadingElement>;
 
+/**
+ * Renders an h2 using the card title scale and foreground color.
+ */
 export function CardTitle({ className, ...rest }: CardTitleProps): ReactElement {
   return <h2 className={cn(cardTitleRecipe(), className)} {...rest} />;
 }

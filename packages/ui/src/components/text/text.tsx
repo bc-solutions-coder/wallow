@@ -51,10 +51,18 @@ const AS_DEFAULT_VARIANT: Record<TextAs, NonNullable<TextRecipeProps["variant"]>
  */
 export type TextProps = Omit<HTMLAttributes<HTMLElement>, "className"> &
   TextRecipeProps & {
+    /**
+     * HTML element to render; defaults to p. An explicit variant changes the visual scale without
+     * changing this element.
+     */
     as?: TextAs;
     className?: string;
   };
 
+/**
+ * Renders semantic text with a configurable visual scale. as defaults to p and chooses the
+ * default variant; an explicit variant overrides that scale.
+ */
 export function Text({
   as = "p",
   variant,

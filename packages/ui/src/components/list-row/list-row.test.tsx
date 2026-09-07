@@ -4,12 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ListRow } from "./list-row";
 
 /*
- * SPEC (Wallow-lrlm.3.5). `ListRow` is the inner half of the list shape both
- * wallow-web list features hand-roll verbatim today (`OrganizationRow` in
- * `features/organizations/components/OrganizationList.tsx`, `AppRow` in
- * `features/apps/components/AppList.tsx`):
- *
- *   <li data-testid="organization-item"
+ * <li data-testid="organization-item"
  *       className="flex items-center justify-between px-6 py-4 hover:bg-background/50">
  *
  * Two deliberate departures from that literal string, both pinned below:

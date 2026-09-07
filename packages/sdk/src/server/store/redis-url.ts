@@ -1,19 +1,7 @@
 /**
- * A {@link RedisLike} that connects ITSELF from a `REDIS_URL`, through the
- * SDK's optional `redis` peer, the first time it is used.
- *
- * This is what lets a host go from cookie sessions to Valkey-backed ones with
- * one environment variable and no code: `createWallowBffServer` reads
- * `REDIS_URL` and hands it here. The connection is deferred for two reasons.
- * Construction stays synchronous, so the preset can be built at module load
- * without an `await`; and `redis` is loaded with a dynamic `import()`, so a
- * host that never sets `REDIS_URL` never needs the package installed — the
- * import only runs on a store that is actually in use, and a missing package
- * surfaces there as a readable error naming what to install.
- *
- * A failed connection is NOT cached: the next call retries, so a Valkey that
- * was not up yet when the first request arrived is recoverable without a
- * restart.
+ * Connect a RedisLike store lazily through the optional redis peer. Construction stays
+ * synchronous and hosts without Redis do not load the peer. Failed connections are retried on the
+ * next call.
  */
 
 import { createRedisAdapter, type NodeRedisClient } from "./redis-adapter";

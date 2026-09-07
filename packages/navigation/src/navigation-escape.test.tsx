@@ -9,15 +9,8 @@ import { render } from "vitest-browser-react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 /**
- * The guard that turns a leaked navigation into an assertion instead of a casualty.
- *
- * Unguarded, a hand-off out of the test iframe kills the runner mid-file and the
- * error names whichever file was loading next — so this package reports a
- * neighbour's death rather than the leak. Every provocation below is deliberate:
- * the real trigger is a race, and a spec must never wait on one.
- *
- * `installNavigationEscapeGuard()` is not called here. The project's setup file
- * owns that call, and this spec is the proof it happened.
+ * Verify that the project setup catches navigation escapes without letting the test iframe leave
+ * its page. Each escape is triggered deliberately.
  */
 
 /** The destination the runner has actually been observed leaking to. */

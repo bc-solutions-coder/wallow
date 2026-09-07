@@ -25,6 +25,9 @@ export const ClientErrorCode = {
   BFF_SESSION_MISSING: "Bff.SessionMissing",
 } as const;
 
+/**
+ * Union of the client and BFF failure code values in ClientErrorCode.
+ */
 export type ClientErrorCode = (typeof ClientErrorCode)[keyof typeof ClientErrorCode];
 
 /** Every code a failure can carry by name: the API catalogue plus the client's own. */

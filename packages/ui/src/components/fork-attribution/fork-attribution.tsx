@@ -1,5 +1,8 @@
 import type { ReactElement } from "react";
 
+/**
+ * Fork name, icon, and optional repository destination for the attribution footer.
+ */
 export interface ForkAttributionProps {
   /** The fork's display name, emphasised inside the "A {appName} App" sentence. */
   readonly appName: string;
@@ -31,10 +34,8 @@ function ForkAttributionText({ appName }: { readonly appName: string }) {
 }
 
 /**
- * The "A {fork} App" attribution generalized from wallow-auth's `auth-layout.tsx`
- * (`ForkAttribution`/`ForkIcon`/`ForkAttributionText`). With a repository URL it
- * renders an external link; without one (or with an empty string) it renders a
- * plain inline group.
+ * Shows the fork name and icon. A nonempty repositoryUrl makes the attribution a link that
+ * opens in a new tab; otherwise it renders a plain group.
  */
 export function ForkAttribution({
   appName,

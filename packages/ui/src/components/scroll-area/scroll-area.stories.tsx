@@ -5,13 +5,6 @@ import { expect, waitFor } from "storybook/test";
 import { ScrollArea } from "./scroll-area";
 
 /*
- * Wallow-m5aq.4.5 — Scroll Area stories. `@storybook/addon-vitest` turns every
- * export below into a Vitest test case rendered in the same headless Chromium the
- * `browser` project uses, with the real Tailwind pipeline attached (see
- * .storybook/main.ts), so these are the VISUAL half of the component's spec
- * while scroll-area.test.tsx holds the markup assertions a screenshot cannot
- * make.
- *
  * Nothing about Scroll Area is portalled, so every play function queries `canvas`.
  *
  * The subject fixes the area's outer size in the story rather than leaving it to

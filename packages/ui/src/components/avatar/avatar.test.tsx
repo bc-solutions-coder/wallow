@@ -4,10 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { Avatar, type AvatarFallbackProps, type AvatarImageProps } from "./avatar";
 
 /*
- * Avatar behavioural spec (Wallow-m5aq.4.3), shaped after the Wallow-m5aq.2.1
- * Button exemplar:
- *
- *   1. Runs in the vitest BROWSER project — real headless Chromium, real Base UI,
+ * 1. Runs in the vitest BROWSER project — real headless Chromium, real Base UI,
  *      real DOM. Nothing is mocked, and in particular nothing here is a fake
  *      image: every `src` below is a `data:` URI, so the load and the failure
  *      are both the browser's own and no network is touched.
@@ -18,9 +15,6 @@ import { Avatar, type AvatarFallbackProps, type AvatarImageProps } from "./avata
  *      `cn()`/tailwind-merge is free to reorder.
  *   4. Stories carry the visual coverage (see avatar.stories.tsx); this file is
  *      only for the edges a screenshot cannot make.
- *
- * ANATOMY, measured against @base-ui/react 1.6.0 in this browser (not guessed —
- * every line below came off a throwaway probe run before this spec was written):
  *
  *   <span>                          <- Avatar.Root
  *     <img alt src>                 <- Avatar.Image,    ONLY once decoded

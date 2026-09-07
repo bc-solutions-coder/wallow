@@ -2,9 +2,6 @@ import { expect, screen } from "storybook/test";
 import type { ReactElement } from "react";
 
 /*
- * Wallow-io5f — the assertion a title-bearing story makes about its own type
- * step: the heading it renders sits on the catalog-wide standard, 20px.
- *
  * WHY THIS EXISTS. The catalog spells a title with SIX recipes. Four of them —
  * `cardTitleRecipe`, `dialogTitleRecipe`, `alertDialogTitleRecipe`,
  * `drawerTitleRecipe` — are the "names the surface" kind and hard-coded

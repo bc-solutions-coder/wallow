@@ -6,14 +6,7 @@ import { userEvent } from "vitest/browser";
 import { Checkbox } from "./checkbox";
 
 /*
- * Wallow-m5aq.2.5 — Checkbox. Follows the exemplar spec shape (Wallow-m5aq.2.1,
- * see button.test.tsx): browser vitest project, nothing mocked, the recipe
- * asserted THROUGH the component rather than by importing the recipe, and class
- * assertions written as an ORDER-FREE SET because cn()/tailwind-merge may
- * reorder.
- *
- * Base UI's actual `Checkbox` DOM was measured against the installed 1.6.0
- * before these assertions were written, so they pin observed behaviour:
+ * These assertions cover Base UI's checkbox structure and state attributes:
  *
  *   <span role="checkbox" tabindex="0" aria-checked="false" data-unchecked>…</span>
  *   <input type="checkbox" aria-hidden="true" tabindex="-1" …>   <-- SIBLING, not a child

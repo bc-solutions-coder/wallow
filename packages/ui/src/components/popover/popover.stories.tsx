@@ -5,12 +5,6 @@ import { expect, fn, screen, userEvent, waitFor } from "storybook/test";
 import { Popover } from "./popover";
 
 /*
- * Wallow-m5aq.3.3 — Popover stories. `@storybook/addon-vitest` turns every export
- * below into a Vitest test case rendered in the same headless Chromium the
- * `browser` project uses, with the real Tailwind pipeline attached (see
- * .storybook/main.ts), so these are the VISUAL half of the component's spec
- * while popover.test.tsx holds the markup assertions a screenshot cannot make.
- *
  * Two things belong HERE rather than in popover.test.tsx:
  *
  *   - PRESSING THE BACKDROP. The backdrop carries no inline geometry, so in the

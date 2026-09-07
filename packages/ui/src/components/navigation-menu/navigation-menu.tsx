@@ -44,13 +44,6 @@ import {
  * still mirror Base UI 1:1.
  */
 
-/*
- * `className` is deliberately narrowed back to `string` on every wrapped part:
- * Base UI widens it to `string | ((state) => string | undefined)`, and the
- * callback form cannot be merged with a recipe through `cn()`. Every component
- * in this catalog makes the same narrowing.
- */
-
 /**
  * Every Base UI `NavigationMenu.Root` prop, generic over the item-value type and
  * with `className` narrowed to `string`.
@@ -263,42 +256,60 @@ function NavigationMenuViewport({ className, ...rest }: NavigationMenuViewportPr
 }
 
 /**
- * The catalog's navigation menu, as ONE namespace object whose keys mirror Base
- * UI's thirteen namespace members 1:1 — the catalog-wide convention for
- * multi-part components, so a caller who knows the Base UI docs already knows
- * this API.
- *
- * A minimal usable menu is Root > List > Item, where an Item holds either a bare
- * `Link` (a flat row that navigates) or a `Trigger` + `Content` pair (a row that
- * opens a panel), plus a portalled Positioner > Popup > Viewport for the panels
- * to appear in. Everything else is opt-in: `Icon` for the trigger's chevron,
- * `Backdrop` for a full-window outside-press catcher, and `Arrow` for a pointer
- * at the anchor.
- *
- * TWO THINGS DIFFER FROM `Menu` AND WILL SURPRISE ANYONE COMING FROM IT:
- *
- *   1. ONE POPUP SERVES EVERY ITEM. `Content` is authored inside its `Item` but
- *      Base UI MOVES it into the shared `Viewport` while that item is active, so
- *      the panel's padding belongs on `Content` and the card's paint on `Popup`.
- *   2. THE MENU OPENS ON HOVER after `Root`'s `delay` (50ms by default), not
- *      only on press. There is no prop to turn that off.
- *
- * `Root` is generic over the item-value type: `<NavigationMenu.Root<Section>>`
- * types `value`, `defaultValue` and `onValueChange` together, and inference from
- * `defaultValue` usually means the annotation can be left off.
+ * Site navigation with optional popup content. Root contains List and Item parts; links
+ * navigate directly and Trigger opens Content through the shared popup structure.
  */
 export const NavigationMenu = {
+  /**
+   * Owns the component state and provides context to its parts.
+   */
   Root: NavigationMenuRoot,
+  /**
+   * Contains selectable items.
+   */
   List: NavigationMenuList,
+  /**
+   * Groups one item and its associated content.
+   */
   Item: NavigationMenuItem,
+  /**
+   * Opens or toggles the associated content; render can compose it onto another control.
+   */
   Trigger: NavigationMenuTrigger,
+  /**
+   * Visual indicator beside the input or selected value.
+   */
   Icon: NavigationMenuIcon,
+  /**
+   * Contains the component's content.
+   */
   Content: NavigationMenuContent,
+  /**
+   * A navigation link within the composite widget.
+   */
   Link: NavigationMenuLink,
+  /**
+   * Renders popup content outside the parent DOM hierarchy.
+   */
   Portal: BaseNavigationMenu.Portal,
+  /**
+   * Covers the surrounding page behind the popup.
+   */
   Backdrop: NavigationMenuBackdrop,
+  /**
+   * Positions the popup relative to its anchor; render inside Portal.
+   */
   Positioner: NavigationMenuPositioner,
+  /**
+   * The visible popup container; place labeled content and actions inside it.
+   */
   Popup: NavigationMenuPopup,
+  /**
+   * Draws the popup's pointer toward its anchor.
+   */
   Arrow: NavigationMenuArrow,
+  /**
+   * Contains the visible popup region and its layout.
+   */
   Viewport: NavigationMenuViewport,
 };

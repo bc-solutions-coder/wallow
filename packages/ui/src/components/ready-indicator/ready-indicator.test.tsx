@@ -4,11 +4,6 @@ import { describe, expect, it, vi } from "vitest";
 import { READY_ATTRIBUTE, ReadyIndicator } from "./ready-indicator";
 
 /**
- * The generalized spec for the shared ReadyIndicator (Wallow-0q2s.6.2). It merges
- * the two near-identical per-app specs (apps/{wallow-auth,wallow-web}) into one
- * suite parameterized over the injected `testId` prop, proving the prop drives the
- * `data-testid` the two app copies previously hard-coded (`auth-ready`/`web-ready`).
- *
  * Assertions go through `document.body.matches(selector)` rather than
  * `getAttribute`, because the selector is the actual contract: E2E waits on
  * `[data-app-ready='true']` exactly as it waited on `[data-blazor-ready='true']`.

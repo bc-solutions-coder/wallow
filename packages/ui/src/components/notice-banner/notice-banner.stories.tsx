@@ -4,12 +4,6 @@ import { Text } from "../text";
 import { NoticeBanner } from "./notice-banner";
 
 /*
- * The visual half of NoticeBanner's spec (Wallow-86os). The banner is not
- * interactive, so no `play`; these stories exist so a reviewer can judge the two
- * tints against the fork's real palette, which is the one thing
- * `notice-banner.test.tsx` cannot do — the `browser` project loads no Tailwind,
- * so it can assert the class names but not that success reads as green.
- *
  * The children are composed with `Text` rather than passed as a bare string
  * because that is what every real call site does: this component owns no
  * typography, deliberately.

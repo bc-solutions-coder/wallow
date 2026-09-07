@@ -5,24 +5,10 @@ import { userEvent } from "vitest/browser";
 import { Slider, type SliderRootProps } from "./slider";
 
 /*
- * Follows the exemplar spec shape from Wallow-m5aq.2.1 (button.test.tsx):
- * browser project, nothing mocked, recipes asserted THROUGH the component, and
- * class assertions as an order-free SET so tailwind-merge may reorder.
- *
  * ONE DEPARTURE, forced by how a slider is built. Every interaction here is a
  * KEYBOARD interaction on the thumb's hidden `<input type="range">`, never a
  * press or a drag on the control. Two reasons, both measured against the real
  * (unstyled) Base UI part before this spec was written:
- *
- * 1. Tailwind's stylesheet is NOT loaded in the vitest browser project
- *    (Wallow-m5aq.2.7 proved this wave-wide), so an unstyled control is a 0x0
- *    box and Playwright's actionability check refuses to press it —
- *    `userEvent.click` would hang for the full timeout no matter how correct
- *    the component is.
- * 2. A drag is worse than merely unclickable: Base UI computes the new value
- *    from the control's `getBoundingClientRect()`, so on a 0x0 control every
- *    pointer position maps to the same value and the assertion would be
- *    meaningless even if the events landed.
  *
  * The keyboard path needs no hit area and exercises the same value pipeline
  * (`onValueChange` -> `Slider.Value` -> the indicator's inline size), so it is

@@ -6,21 +6,7 @@ import { forkResolvedBranding, renderThemeStyle } from "./branding";
 import { brandAssetsPlugin, forkThemePlugin, THEME_MODULE_ID, wallowStyles } from "./vite";
 
 /**
- * The `./vite` subpath is the one place a Wallow app's Tailwind + brand-assets
- * wiring lives. These tests pin the behaviours apps depend on by CALLING the
- * plugin hooks: the fork-theme plugin is ordered ahead of Tailwind's, it claims
- * exactly the virtual theme id and nothing else, it serves the fork's real
- * palette, and the brand-assets plugin contributes `publicDir` through its
- * `config()` hook.
- *
- * Four specs that used to follow asserted the PACKAGING instead — that
- * `exports["./vite"]` equalled an exact `{ types, import }` object, that the
- * Tailwind deps sat in `dependencies` rather than `devDependencies`, and that
- * `vite.config.ts` and `tsconfig.build.json` each contained the string
- * `src/vite.ts`. That is `publint` + `@arethetypeswrong/cli` territory, and
- * `pnpm check:exports` already covers this package — against the BUILT artifact,
- * which a source-text read cannot see. Restating it here only meant a build
- * restructure had to be spelled two ways before it could be tried once.
+ * Exercise Vite plugin hooks for ordering, virtual theme resolution, stylesheet output, and the shared public asset directory.
  */
 /**
  * `tailwindcss()` returns a nested `PluginOption` (an array of Vite plugins), so

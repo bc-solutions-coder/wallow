@@ -6,10 +6,7 @@ import { userEvent } from "vitest/browser";
 import { Accordion } from "./accordion";
 
 /*
- * Accordion behavioural spec (Wallow-m5aq.4.1). Shaped after the Wallow-m5aq.2.1
- * Button and Wallow-m5aq.3.1 Dialog exemplars:
- *
- *   1. Runs in the vitest BROWSER project — real headless Chromium, real Base UI,
+ * 1. Runs in the vitest BROWSER project — real headless Chromium, real Base UI,
  *      real DOM. Nothing is mocked.
  *   2. Recipes are asserted THROUGH the component, never by importing
  *      `accordionPanelRecipe` and inspecting its return value: a recipe unit
@@ -21,7 +18,7 @@ import { Accordion } from "./accordion";
  *   4. Stories carry the visual coverage (see accordion.stories.tsx); this file
  *      is only for the edges a screenshot cannot make.
  *
- * ANATOMY, measured against @base-ui/react 1.6.0 in this browser (not guessed):
+ * ANATOMY, measured against Base UI in this browser (not guessed):
  *
  *   <div data-orientation="vertical" dir="ltr">                <- Accordion.Root
  *     <div data-index="0" data-closed data-hidden>             <- Accordion.Item

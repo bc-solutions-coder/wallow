@@ -7,25 +7,6 @@ import {
   type ThemeMode,
 } from "./theme-provider";
 
-/*
- * Wallow-lrlm.1.2 — the PURE half of theme activation. This is a `*.test.ts`, so
- * it runs in the vitest NODE project (`src/**\/*.test.ts`), which is exactly
- * what makes the resolution order provable: `prefers-color-scheme` cannot be
- * emulated from a vitest browser spec, so the precedence table would otherwise
- * only ever be exercised at whatever colour scheme the CI machine happens to
- * report. Feeding `resolveThemeMode` its three inputs directly covers all of it.
- *
- * The order under test, lowest priority first (the bead's acceptance criterion):
- *
- *   1. `packages/styles/branding.json`'s `theme.defaultMode`   — the fork's own choice
- *   2. `prefers-color-scheme`                       — what the OS asks for
- *   3. the visitor's persisted `localStorage` value — what they clicked
- *
- * `systemMode: null` is the OS stating NO preference (neither media query
- * matches). That case is the only thing that gives `defaultMode` a job, so it is
- * pinned rather than folded into "light".
- */
-
 /** Every input combination, as a table, so the precedence is read as one block. */
 const PRECEDENCE_TABLE: {
   readonly stored: string | null;

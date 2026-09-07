@@ -1,14 +1,9 @@
 import { defineConfig } from "@hey-api/openapi-ts";
 
 /**
- * Emits `ErrorCode` — and nothing else — from the SDK's committed OpenAPI
- * snapshot. The snapshot is owned by `packages/sdk` (its drift and autoregen
- * workflows keep it in step with the API); this package only reads it, so the
- * two generated outputs can never disagree about the catalogue.
- *
- * Every operation is excluded, and any `parser.filters` value prunes the
- * resources no kept operation references (`orphans` defaults to `false`), so
- * the schema include list is the whole output.
+ * Generate the ErrorCode schema from the SDK OpenAPI snapshot, with operations excluded.
+ * The TypeScript plugin can also emit document-level helper types such as ClientOptions.
+ * Only the intended API types are re-exported by the package entry.
  */
 export default defineConfig({
   input: "../sdk/openapi/v1.json",

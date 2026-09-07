@@ -10,34 +10,9 @@ import { useAppFormContext } from "./app-form-context";
 import { FormError } from "./form-error";
 import { SubmitButton } from "./submit-button";
 
-/*
- * The AppForm shell + the two components that read its context, in the browser
- * project (real headless Chromium, nothing mocked — the ui Button and
- * ErrorBanner render for real, per .claude/rules/TESTING.md).
- *
- * What is pinned here, and why each case exists:
- *
- *   1. The `<form>` element itself: its derived `{prefix}-form` testid, the
- *      EXPLICIT testId override that beats the derivation, `noValidate`, and the
- *      vertical rhythm. The override is not a nicety: three of the five forms
- *      this package is replacing stamp the element with a prefix their fields do
- *      not share — `inquiry-create-form` alongside `inquiry-name`,
- *      `organization-create-form` alongside `organization-name` — and those ids
- *      are pinned by existing component specs and Playwright suites that must
- *      keep passing unchanged.
- *   2. The submit boilerplate the shell absorbs: `preventDefault` (a form that
- *      navigates loses the SPA) and `stopPropagation` (a form nested in another
- *      handler must not double-submit). Both are asserted through real events
- *      rather than by reading the source.
- *   3. `SubmitButton` and `FormError` reading `pending`/`serverError` off the
- *      context instead of props — that is the whole reason the shell publishes a
- *      context — plus their own testId overrides, which the same three forms
- *      need (`organization-create-submit`, `app-register-error`).
- *
- * The shell is driven by a REAL TanStack form built in `Harness` below: the
- * catalog fields do not exist yet (Wallow-ov6w.2.4), so submission is driven
- * through the shell's own submit button, which is exactly how a migrated form
- * will drive it.
+/**
+ * Exercise native submission handling, test IDs, validation ownership, and shared pending/error
+ * context with a real form in Chromium.
  */
 
 interface HarnessValues {
@@ -118,7 +93,7 @@ describe("AppForm", () => {
     });
 
     it("turns off the browser's own validation so the schema owns the messages", async () => {
-      // The fields validate through zod (Wallow-ov6w.2.3). Left on, a
+      // The fields validate through the schema. Left on, a
       // `type="email"` control would double-validate and show a native bubble
       // that no spec can read.
       const { container } = await render(<Harness />);
@@ -133,9 +108,7 @@ describe("AppForm", () => {
     });
 
     it("lets a caller className replace the default rhythm", async () => {
-      // The migrated forms are not uniform — `space-y-4`, `space-y-5` and
-      // `space-y-6` all appear today — so the default has to be replaceable
-      // rather than merely appended to.
+      // A supplied className replaces the default spacing rather than appending to it.
       const { container } = await render(<Harness className="space-y-6" />);
 
       const form = byTestId(container, "demo-form");

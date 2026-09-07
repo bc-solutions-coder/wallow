@@ -14,69 +14,22 @@ import { useNavStore } from "./nav-store";
 import { useIsDesktop } from "./use-is-desktop";
 
 /**
- * The shell's primary navigation — the rail and the drawer. Not exported: it is
- * rendered by `AppShell`, which owns the controls that drive it.
- *
- * THREE MODES, TWO AXES. Nav state is read from `useNavStore`, never from props:
- * the controls that flip it live in `AppShell`'s main column, so the two share
- * only the store.
- *
- *   desktop expanded  (isNavCollapsed === false) — `w-64` rail, icon + label.
- *   desktop icon rail (isNavCollapsed === true)  — `w-16` rail, icon ONLY, with
- *                       the label moved to `aria-label`. It is NOT hidden text:
- *                       rendering the label and letting the rail clip it into
- *                       "Settin" / "Sign O" is the bug this component exists for.
- *   mobile drawer     (below `md`, isMobileNavOpen) — no rail exists at all; the
- *                       drawer is a temporary sheet over the page with the full
- *                       expanded content, dismissed by backdrop, nav link, or
- *                       Escape.
- *
- * Those three are the states a visitor can be IN. Before them sits one render in
- * which the width is not yet known — `useIsDesktop() === undefined` on the
- * server and through hydration — and it is resolved by CSS, not by picking a
- * mode; see `NavRail`'s `hideBelowMd`.
- *
- * `data-nav-open` (the inverse of `isNavCollapsed`) stays the attribute styling
- * and the specs key off. Collapsing stays presentational: the aside stays
- * mounted, so the links and the toggle's `aria-controls` target
- * `#{testIdPrefix}-nav` keep their identity across both desktop states.
+ * Render the shared destination list as a desktop rail or mobile drawer. The desktop rail
+ * preserves its element identity when collapsed. Before hydration determines the viewport,
+ * responsive CSS controls rail visibility.
  */
 
-/*
- * The rail's palette is NAMED, not mixed. `bg-foreground text-background` used to
- * invert the two page colours, which only lands on a sidebar by coincidence — in
- * dark mode it painted a glaring light rail against a dark page.
- * `--color-sidebar` / `--color-sidebar-foreground` / `--color-sidebar-accent`
- * name the surface instead, so both modes are deliberate and a fork rebrands the
- * rail from `branding.json`.
- *
- * WHO OWNS A ROW'S COLOUR. Not this file, for the rows that are catalog
- * components. A destination is a `NavigationMenu.Link`, so what rendered was
- * `twMerge(navigationMenuLinkRecipe(), itemClass)` and the recipe painted from
- * the PAGE palette — which left this file naming one class per recipe colour
- * purely to out-rank it. twMerge only drops a class the caller CONFLICTS with,
- * variant included, so the day the list lost its `hover:text-sidebar-foreground`
- * entry the recipe's `hover:text-accent-foreground` stood back up and hovered
- * labels fell to 1.27:1 in light mode, with the suite still green. A list you can
- * silently drop an entry from is not a mechanism. The catalog now takes
- * `surface="sidebar"` and paints its own inverted rest/hover/active states, so
- * `navRowClass` is GEOMETRY ONLY and `shell-source.test.ts` holds it there.
+/**
+ * NavigationMenu.Link owns sidebar colors through surface="sidebar". Row classes here supply
+ * layout only, so hover and active colors remain consistent with the component recipe.
  */
 const navRowClass =
   "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium whitespace-nowrap no-underline";
 const navRowIconOnlyClass = `${navRowClass} justify-center`;
 
 /**
- * The geometry a footer control needs to sit flush with the destination rows.
- *
- * Exported because the footer is a caller's slot: its control is not a
- * `NavigationMenu.Link`, so it gets none of the catalog's row treatment and
- * would otherwise have to re-derive this. GEOMETRY ONLY — no colour. A footer
- * control on the inverted rail states its own rest/hover pair, because what it
- * is (a button, an anchor, a menu trigger) decides which palette applies.
- *
- * @param showLabel The mode the slot was handed: `false` is the collapsed icon
- *   rail, which centres its single glyph.
+ * Return layout classes matching destination rows, centered when showLabel is false. This helper
+ * supplies no colors; footer controls must choose their own sidebar surface styles.
  */
 export function navRowClassName(showLabel: boolean): string {
   return showLabel ? navRowClass : navRowIconOnlyClass;
@@ -86,23 +39,9 @@ const activeItemClass = "bg-sidebar-accent text-sidebar-foreground";
 const iconClass = "size-5 shrink-0";
 
 /**
- * One nav destination — a `NavigationMenu.Item` (`<li>`) holding a
- * `NavigationMenu.Link` (`<a>`), which is the flat "row that navigates" shape
- * Base UI supports directly inside an item.
- *
- * The routing still belongs to TanStack: `render` hands the anchor over to the
- * router `Link`, so `to` resolves and `activeProps` supplies active-route
- * styling, while the catalog contributes the list semantics and the row's own
- * inverted palette.
- *
- * The accessible name always comes from the destination's `label`, whether or
- * not it is also rendered, which is what makes "same icon, same name in all three
- * modes" structural rather than hand-maintained. The icon is decorative
- * (`aria-hidden`) precisely because the name is on the item.
- *
- * `surface="sidebar"` is what tells the catalog it is being composed onto the
- * inverted rail. Nothing in the DOM could say so on its own, which is why it is
- * a prop and not something the recipe sniffs.
+ * Compose a sidebar NavigationMenu link with TanStack Router for navigation and active-route
+ * styling. The destination label supplies the accessible name even when only the decorative icon
+ * is visible.
  */
 function NavItem(props: {
   destination: NavDestination;
@@ -129,13 +68,8 @@ function NavItem(props: {
 }
 
 /**
- * The destination list. Extracted from both the rail and the drawer so the two
- * cannot drift, and so neither exceeds oxlint's `react/jsx-max-depth` budget.
- *
- * `NavigationMenu.Root` is the `<nav>` landmark and `NavigationMenu.List` the
- * `<ul>` inside it, so the destinations announce as ONE list of N items rather
- * than N loose links — and a gated-away destination shrinks the count instead of
- * leaving an empty row behind, because the gate drops the whole `Item`.
+ * Render one navigation list shared by the rail and drawer. A hidden destination removes its
+ * entire list item.
  */
 function NavDestinationList(props: {
   destinations: readonly NavDestination[];
@@ -173,15 +107,9 @@ function NavThemeToggle(props: { showLabel: boolean }) {
 }
 
 /**
- * The caller-supplied band below the theme toggle.
- *
- * `footer` is a SLOT rather than a built-in sign-out row for one concrete
- * reason: the only sign-out this repo has POSTs to the BFF through
- * `@bc-solutions-coder/sdk`, and building it in would give this package an `sdk`
- * edge for one button. The app owns the button, its error handling and its
- * testid; the package owns the band it sits in — the separator and the padding
- * that make it sit flush with the rows above — and hands down `showLabel` so the
- * control can match the destination rows in both desktop modes.
+ * Footer content is supplied by the app so sign-out and other actions can use the app
+ * authentication and error handling. The shell supplies spacing; showLabel lets the content adapt
+ * to the icon rail.
  */
 function NavFooter(props: { children?: ReactNode; showLabel: boolean }) {
   if (props.children === undefined) {
@@ -215,16 +143,9 @@ interface NavContentProps {
 }
 
 /**
- * The persistent desktop rail — expanded or narrowed to icons, never absent.
- *
- * `hideBelowMd` is the pre-hydration treatment: while `useIsDesktop` still
- * answers `undefined` the rail is emitted but left to the `md` media query, so a
- * phone's FIRST PAINT already omits it. `display: none` is not a half measure —
- * it takes the rail out of the layout, the tab order and the accessibility tree
- * exactly as not rendering it would, for the one render before the real viewport
- * is known. Once it is known the rail is either mounted unconditionally visible
- * or not mounted at all, which is why this stays a pre-hydration escape hatch
- * rather than the steady state.
+ * Keep the desktop rail mounted through collapse changes. Before the viewport is observed,
+ * hideBelowMd delegates visibility to CSS; display:none also removes it from keyboard navigation
+ * and the accessibility tree.
  */
 function NavRail(props: NavContentProps & { hideBelowMd?: boolean }) {
   const isNavCollapsed = useNavStore((state) => state.isNavCollapsed);

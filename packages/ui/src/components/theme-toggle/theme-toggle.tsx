@@ -6,22 +6,7 @@ import { Tooltip } from "../tooltip";
 import { cn } from "../../core/cn";
 import { themeToggleRecipe, type ThemeToggleRecipeProps } from "./theme-toggle.styles";
 
-/**
- * The control that changes the fork's theme (Wallow-lrlm.1.2).
- *
- * THREE STATES, NOT TWO — `light -> dark -> system -> light`. A two-state
- * `aria-pressed` toggle can express "I want dark" but has no way back to
- * "follow the OS": once pressed, the choice is pinned forever. Since the
- * persisted value is a {@link ThemePreference} and `"system"` is its default,
- * the control has to be able to return there, so it cycles rather than toggles
- * and carries NO `aria-pressed` (which is a two-state attribute and would
- * misreport the third). The current state is announced through the accessible
- * name and exposed to tests as `data-theme-preference`.
- *
- * It composes `../button` — a deliberate catalog reuse, so the toggle inherits
- * the button recipe's box, focus ring and disabled treatment rather than
- * forking them.
- */
+/** ThemeToggle cycles through light, dark, and system preferences. Its accessible name describes the next action. */
 
 /** The cycle order a press walks, pinned so the spec and the component agree. */
 export const THEME_PREFERENCE_CYCLE = ["light", "dark", "system"] as const;
@@ -83,6 +68,10 @@ function nextPreference(current: ThemePreference): ThemePreference {
   return THEME_PREFERENCE_CYCLE[(index + 1) % THEME_PREFERENCE_CYCLE.length] ?? "light";
 }
 
+/**
+ * Button attributes and optional controlled theme state. Supply preference and
+ * onPreferenceChange together to manage the selection outside ThemeProvider.
+ */
 export interface ThemeToggleProps
   extends
     Omit<ButtonProps, "className" | "children" | "onClick" | "variant">,
@@ -93,10 +82,8 @@ export interface ThemeToggleProps
    */
   readonly className?: string;
   /**
-   * The preference to display. Omitted, the toggle reads the nearest
-   * {@link ThemeProvider} — which is how both apps use it. Supplying it makes
-   * the control fully controlled, which is what lets a story render the
-   * `light` / `dark` / `system` faces without touching the real document.
+   * Preference to display. Omit it to read from ThemeProvider; pair a supplied value with
+   * onPreferenceChange for controlled use.
    */
   readonly preference?: ThemePreference;
   /**

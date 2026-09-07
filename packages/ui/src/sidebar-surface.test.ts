@@ -12,19 +12,6 @@ import {
 import { cn } from "./core/cn";
 
 /**
- * The `surface` axis, across every recipe that has one (Wallow-lrlm.6.4).
- *
- * THE DEFECT THIS AXIS EXISTS FOR. Three catalog components render inside
- * `AppNav`'s rail — `ThemeToggle`, `NavigationMenu.Link`,
- * `ErrorBanner` — and every one of them paints from the PAGE palette, because
- * no recipe knew it could be composed onto an inverted surface. The consumer's
- * only recourse was to out-merge the recipe class by class through
- * `tailwind-merge`, and that is not a mechanism, it is a race: `twMerge` drops a
- * recipe class only when the caller supplies one that conflicts AT THE SAME
- * VARIANT, so an unmodified `text-sidebar-foreground` left the link recipe's
- * `hover:text-accent-foreground` standing and a hovered nav label went to 1.27:1
- * while the whole suite stayed green (Wallow-lrlm.5.4).
- *
  * WHY THIS FILE ASSERTS CLASS STRINGS WHEN THE REST OF THE EPIC DOES NOT. A
  * class string is blind to what a component PAINTS, which is why the legibility
  * half of this bead is measured in Chromium against the real fork theme
@@ -232,7 +219,7 @@ describe("the page-surface detector", () => {
 describe("navigationMenuLinkRecipe — surface", () => {
   it("keeps the page palette on the page arm", () => {
     // The default is what every existing consumer renders, and it must go on
-    // painting exactly as it does today. This also anchors the file: the
+    // painting exactly as it does. This also anchors the file: the
     // detector demonstrably finds real page colours in a real recipe.
     const page: string = cn(navigationMenuLinkRecipe());
 
@@ -272,10 +259,6 @@ describe("navigationMenuLinkRecipe — surface", () => {
   });
 
   it("leaves no inert page-surface active treatment on the sidebar arm", () => {
-    // Base UI sets `data-active` only when its own `active` prop is passed, and
-    // wallow-web never passes it (TanStack's `activeProps` is a className merge),
-    // so this pair does nothing on the rail today — while remaining a latent
-    // light block that lights up the moment anything sets the attribute.
     const sidebar: string = cn(navigationMenuLinkRecipe({ surface: "sidebar" }));
 
     expect(sidebar).not.toContain("data-[active]:bg-accent");
@@ -285,13 +268,8 @@ describe("navigationMenuLinkRecipe — surface", () => {
 
 describe("navigationMenuTriggerRecipe — surface", () => {
   /*
-   * The Link's sibling (Wallow-lrlm.10). A trigger is not a button in a toolbar,
-   * it is a NAV ROW that happens to open a panel and has to sit flush beside the
-   * `Link` rows in the same list — so the two recipes carry the same row shape,
-   * and from here the same surface axis, spelled in the same two palettes.
-   *
    * NOT a live defect when this was filed: no app renders a trigger, so nothing
-   * on a rail paints wrong today. It is closed anyway because a trigger dropped
+   * on a rail paints wrong. It is closed anyway because a trigger dropped
    * into a sidebar reproduces exactly the defect the Link's axis just fixed, and
    * because a reader who has seen the Link recipe will assume this one matches.
    *
@@ -304,7 +282,7 @@ describe("navigationMenuTriggerRecipe — surface", () => {
    */
   it("keeps the page palette on the page arm", () => {
     // The default is what every existing consumer renders, and it must go on
-    // painting exactly as it does today.
+    // painting exactly as it does.
     const page: string = cn(navigationMenuTriggerRecipe());
 
     expect(pageSurfaceColorUtilities(page)).toEqual(
@@ -421,10 +399,6 @@ describe("errorBannerRecipe — surface", () => {
   });
 
   it("paints something different on the rail", () => {
-    // A 10% destructive tint under destructive text reads on the page background
-    // and all but vanishes on an L 0.20-0.22 rail. Whether the replacement is
-    // legible is MEASURED in wallow-web; all this asserts is that the two arms
-    // are not the same banner, so a `surface` that changed nothing cannot pass.
     expect(cn(errorBannerRecipe({ surface: "sidebar" }))).not.toBe(cn(errorBannerRecipe()));
     expect(cn(errorBannerTextRecipe({ surface: "sidebar" }))).not.toBe(cn(errorBannerTextRecipe()));
   });

@@ -1,34 +1,24 @@
 import type { ReactElement } from "react";
 
+/**
+ * App-resolved theme CSS and the optional compiled stylesheet URL for the document head.
+ */
 export interface DocumentStylesProps {
   /**
-   * The fork's resolved theme, already serialized to a CSS string by the app
-   * (i.e. `renderThemeStyle(branding)` output). It is passed in as data rather
-   * than computed here so packages/ui never imports `@bc-solutions-coder/styles`
-   * nor an app-local `../lib/branding` — the same props-only rule
-   * `fork-attribution.tsx` follows. The string is a plain text child (React
-   * escapes nothing into it and no markup is interpolated); it is generated
-   * from `packages/styles/branding.json` at build time, never from request input.
+   * Theme CSS prepared by the app, for example with renderThemeStyle from the styles package.
+   * Supply trusted generated CSS, not request input.
    */
   readonly themeCss: string;
   /**
-   * The compiled stylesheet href, or `null` when none should be linked.
-   * REQUIRED with no default — a deliberate drift guard so a consuming app
-   * cannot forget it and still compile. The dev/prod choice
-   * (`import.meta.env.DEV ? null : "/client.css"`) must be made in the app
-   * shell and passed in, never read via `import.meta.env` inside this library:
-   * packages/ui ships a prebuilt dist bundle, so that check would bake in the
-   * library's own build env instead of the consuming app's.
+   * Compiled app stylesheet URL, or null to omit the link. Decide development versus production
+   * behavior in the consuming app.
    */
   readonly stylesheetHref: string | null;
 }
 
 /**
- * The document `<head>` theme + stylesheet delivery block shared by both apps'
- * `__root.tsx`: the fork's theme CSS in a `<style>`, and — when a non-null
- * `stylesheetHref` is given — a `<link rel="stylesheet">` to the compiled entry
- * CSS. Centralizing it here is the structural fix for wallow-web's missing
- * `/client.css` link (Wallow-w6s6.3).
+ * Renders theme CSS and an optional stylesheet link in the document head. Supply
+ * stylesheetHref from the app's own build environment; null omits the link.
  */
 export function DocumentStyles({ themeCss, stylesheetHref }: DocumentStylesProps): ReactElement {
   return (

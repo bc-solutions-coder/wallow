@@ -50,8 +50,7 @@ export type AccordionHeaderRecipeProps = VariantProps<typeof accordionHeaderReci
  * The button that opens a panel — Base UI's `Accordion.Trigger`, a `<button>`.
  *
  * `data-[disabled]:` is the only state modifier here. The trigger's OPEN state is
- * published as `data-panel-open`, never `data-open` (measured against Base UI
- * 1.6.0), so a `data-[open]:` modifier on this recipe would silently never fire —
+ * published as `data-panel-open`, so a `data-[open]:` modifier would not match —
  * and the open affordance belongs to the chevron a caller renders inside anyway.
  */
 export const accordionTriggerRecipe = cva(

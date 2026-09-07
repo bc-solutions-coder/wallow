@@ -1,15 +1,6 @@
 /**
- * Role and permission membership over the resolved {@link CurrentUser}.
- *
- * These read the TYPED arrays `UsersController.GetCurrentUser` answers with
- * (`roles`, `permissions`) — the ONE user model at the app boundary. The SDK's
- * browser claim-bag readers that used to sit beside these (a second `hasRole`
- * over a free-form `WallowUser`) are deleted (Wallow-j7qk); OIDC claim decoding
- * is internal to the SDK's server entry (`server/claims.ts`) and never an app
- * concern.
- *
- * They are read-only conveniences for gating UI, NOT an authorization decision —
- * the API re-checks every role and permission on every request.
+ * Read roles and permissions from the current user to control UI visibility. These helpers do not
+ * authorize requests; the API checks access independently.
  */
 import type { CurrentUser } from "./current-user";
 
@@ -17,15 +8,8 @@ import type { CurrentUser } from "./current-user";
 const ADMIN_ROLE: string = "admin";
 
 /**
- * Whether the user holds `role`, compared case-INSENSITIVELY.
- *
- * `ClaimsPrincipalExtensions.GetRoles()` deduplicates with
- * `StringComparer.OrdinalIgnoreCase`, so a case-sensitive check here would hide
- * a control from a user the API would let through. {@link isAdmin} is defined
- * over this function, so the two agree about any user by construction.
- *
- * @param user The resolved user, or `null`/`undefined` when anonymous.
- * @param role The role name to look for. A blank name is never held.
+ * Return whether the user has the named role, ignoring case and trimming the requested name.
+ * Anonymous users, missing roles, and blank names return false.
  */
 export function hasRole(user: CurrentUser | null | undefined, role: string): boolean {
   const wanted: string = role.trim().toLowerCase();
@@ -37,25 +21,16 @@ export function hasRole(user: CurrentUser | null | undefined, role: string): boo
 }
 
 /**
- * Whether the user holds the `admin` role — {@link hasRole} with the one role
- * name the apps actually gate on, so call sites read as intent rather than a
- * string literal.
- *
- * @param user The resolved user, or `null`/`undefined` when anonymous.
+ * Return whether the user has the admin organization role, ignoring case. This does not imply
+ * global administrator authority.
  */
 export function isAdmin(user: CurrentUser | null | undefined): boolean {
   return hasRole(user, ADMIN_ROLE);
 }
 
 /**
- * Whether the user holds `permission`, compared case-SENSITIVELY.
- *
- * `PermissionAuthorizationHandler` decides with a plain
- * `permissions.Contains(requirement.Permission)` — ordinal. A lenient check here
- * would render a control the next request refuses.
- *
- * @param user The resolved user, or `null`/`undefined` when anonymous.
- * @param permission The permission name to look for. A blank name is never held.
+ * Return whether the user has the exact permission name after trimming the requested name.
+ * Permission matching is case-sensitive; anonymous users and blank names return false.
  */
 export function hasPermission(user: CurrentUser | null | undefined, permission: string): boolean {
   const wanted: string = permission.trim();
@@ -67,12 +42,8 @@ export function hasPermission(user: CurrentUser | null | undefined, permission: 
 }
 
 /**
- * Whether the user holds the platform operator's own authority — the
- * `is_global_admin` claim `GetCurrentUser` surfaces as `isGlobalAdmin`. The
- * authority is minted at sign-in and never derived from organization roles, so
- * neither {@link hasRole} nor {@link isAdmin} implies it.
- *
- * @param user The resolved user, or `null`/`undefined` when anonymous.
+ * Return whether the API identifies the user as a global administrator. Organization roles do not
+ * imply this authority; anonymous users return false.
  */
 export function isGlobalAdmin(user: CurrentUser | null | undefined): boolean {
   return user?.isGlobalAdmin === true;
