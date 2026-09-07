@@ -48,3 +48,10 @@ job; optional secret declarations alone do not fix it. The caller now inherits i
 secrets. Only the main job requests `production`; the PR/local job still requests no environment.
 Hosted signed remote-hit evidence remains open, along with restricted network grants awaiting
 the owner's scope clarification. Publication remains disabled until its separate acceptance.
+
+PR #285 merged as `7c32c632`. Main run `34169495616` confirms production secrets are
+present and the Tailscale connection succeeds. Its JS job passes using restored GitHub
+cache outputs, but the endpoint probe returns unavailable, so this is not remote-cache
+acceptance. The endpoint responds HTTP 200 from the owner's machine. Probe diagnostics
+now report only HTTP status or error category, without endpoint or exception text, to
+distinguish malformed configuration from hosted transport failure on the next main run.

@@ -1,5 +1,7 @@
 import unittest
-from cache import select_cache
+from unittest.mock import patch
+import urllib.error
+from cache import reachable, select_cache
 
 
 class CacheTests(unittest.TestCase):
@@ -18,3 +20,24 @@ class CacheTests(unittest.TestCase):
         self.assertEqual(mode, 'local:rw')
         for secret in ['https://cache.example.test', 'test-value', 'test-signing-key']:
             self.assertNotIn(secret, reason)
+
+    def test_probe_reports_safe_transport_category_without_endpoint_or_error_text(self):
+        reports = []
+        with patch('cache.urllib.request.urlopen', side_effect=urllib.error.URLError(OSError('private-host secret-value'))):
+            self.assertFalse(reachable('http://private-host:3000', reports.append))
+        self.assertEqual(reports, ['Remote cache probe: transport failure (OSError)'])
+
+    def test_probe_rejects_malformed_configuration_without_network_access(self):
+        for url in ['private-host:3000', 'http://name:secret@private-host', 'http://private-host?token=secret', 'http://private-host/secret value', 'http://private host:3000', 'http://private-host/secret\nvalue']:
+            with self.subTest(url=url), patch('cache.urllib.request.urlopen') as request:
+                reports = []
+                self.assertFalse(reachable(url, reports.append))
+                request.assert_not_called()
+                self.assertEqual(reports, ['Remote cache probe: invalid endpoint configuration'])
+
+    def test_probe_reports_http_status_and_preserves_authenticated_server_reachability(self):
+        for status in [401, 403, 404, 500]:
+            reports = []
+            with self.subTest(status=status), patch('cache.urllib.request.urlopen', side_effect=urllib.error.HTTPError('http://private-host', status, 'secret', {}, None)):
+                self.assertEqual(reachable('http://private-host', reports.append), status in (401, 403))
+                self.assertEqual(reports, [f'Remote cache probe: HTTP {status}'])
