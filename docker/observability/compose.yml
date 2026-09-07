@@ -1,0 +1,34 @@
+name: wallow-observability
+
+services:
+  garage:
+    image: dxflrs/garage:v2.2.0@sha256:45a61ce3f7c9c24fc23d9ed2b09b27ed560ab87b34605d175d5c588f539c24e4
+    command: ["/garage", "server"]
+    restart: unless-stopped
+    environment:
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:?Run python3 setup.py first}
+    volumes:
+      - ./garage.toml:/etc/garage.toml:ro
+      - garage_meta:/var/lib/garage/meta
+      - garage_data:/var/lib/garage/data
+    networks: [storage]
+    healthcheck:
+      test: ["CMD", "/garage", "stats"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  storage:
+    internal: true
+
+volumes:
+  garage_meta:
+  garage_data:
