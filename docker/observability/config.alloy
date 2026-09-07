@@ -1,0 +1,290 @@
+otelcol.auth.bearer "gateway" {
+  token = sys.env("GATEWAY_COLLECTOR_SECRET")
+}
+
+otelcol.receiver.otlp "gateway" {
+  http {
+    endpoint = "0.0.0.0:4318"
+    include_metadata = true
+    max_request_body_size = "1MiB"
+    auth = otelcol.auth.bearer.gateway.handler
+  }
+  output {
+    logs = [otelcol.processor.attributes.trusted.input]
+    traces = [otelcol.processor.attributes.trusted.input]
+    metrics = [otelcol.processor.attributes.trusted.input]
+  }
+}
+
+otelcol.processor.attributes "trusted" {
+  action {
+    key = "__trusted_registration"
+    action = "delete"
+  }
+  action {
+    key = "__trusted_registration"
+    action = "upsert"
+    from_context = "metadata.x-wallow-registration"
+  }
+  action {
+    key = "__trusted_application"
+    action = "delete"
+  }
+  action {
+    key = "__trusted_application"
+    action = "upsert"
+    from_context = "metadata.x-wallow-application"
+  }
+  action {
+    key = "__trusted_service"
+    action = "delete"
+  }
+  action {
+    key = "__trusted_service"
+    action = "upsert"
+    from_context = "metadata.x-wallow-service"
+  }
+  action {
+    key = "__trusted_environment"
+    action = "delete"
+  }
+  action {
+    key = "__trusted_environment"
+    action = "upsert"
+    from_context = "metadata.x-wallow-environment"
+  }
+  action {
+    key = "__trusted_release"
+    action = "delete"
+  }
+  action {
+    key = "__trusted_release"
+    action = "upsert"
+    from_context = "metadata.x-wallow-release"
+  }
+  output {
+    logs = [otelcol.processor.filter.attributed.input]
+    traces = [otelcol.processor.filter.attributed.input]
+    metrics = [otelcol.processor.filter.attributed.input]
+  }
+}
+
+otelcol.processor.filter "attributed" {
+  error_mode = "propagate"
+  logs {
+    log_record = [`attributes["__trusted_registration"] == nil or attributes["__trusted_registration"] == "" or attributes["__trusted_application"] == nil or attributes["__trusted_application"] == "" or attributes["__trusted_service"] == nil or attributes["__trusted_service"] == "" or attributes["__trusted_environment"] == nil or attributes["__trusted_environment"] == "" or attributes["__trusted_release"] == nil or attributes["__trusted_release"] == ""`]
+  }
+  traces {
+    span = [`attributes["__trusted_registration"] == nil or attributes["__trusted_registration"] == "" or attributes["__trusted_application"] == nil or attributes["__trusted_application"] == "" or attributes["__trusted_service"] == nil or attributes["__trusted_service"] == "" or attributes["__trusted_environment"] == nil or attributes["__trusted_environment"] == "" or attributes["__trusted_release"] == nil or attributes["__trusted_release"] == ""`]
+  }
+  metrics {
+    datapoint = [`attributes["__trusted_registration"] == nil or attributes["__trusted_registration"] == "" or attributes["__trusted_application"] == nil or attributes["__trusted_application"] == "" or attributes["__trusted_service"] == nil or attributes["__trusted_service"] == "" or attributes["__trusted_environment"] == nil or attributes["__trusted_environment"] == "" or attributes["__trusted_release"] == nil or attributes["__trusted_release"] == ""`]
+  }
+  output {
+    logs = [otelcol.processor.transform.identity.input]
+    traces = [otelcol.processor.transform.identity.input]
+    metrics = [otelcol.processor.transform.identity.input]
+  }
+}
+
+otelcol.processor.transform "identity" {
+  error_mode = "propagate"
+  log_statements {
+    context = "log"
+    statements = [
+      `set(resource.attributes["wallow.registration_id"], attributes["__trusted_registration"])`,
+      `set(resource.attributes["wallow.application_id"], attributes["__trusted_application"])`,
+      `set(resource.attributes["service.name"], attributes["__trusted_service"])`,
+      `set(resource.attributes["deployment.environment.name"], attributes["__trusted_environment"])`,
+      `set(resource.attributes["service.version"], attributes["__trusted_release"])`,
+      `set(resource.attributes["service.namespace"], attributes["__trusted_application"])`,
+      `delete_key(attributes, "wallow.registration_id")`,
+      `delete_key(attributes, "wallow.application_id")`,
+      `delete_key(attributes, "service.name")`,
+      `delete_key(attributes, "service.namespace")`,
+      `delete_key(attributes, "service.version")`,
+      `delete_key(attributes, "deployment.environment")`,
+      `delete_key(attributes, "deployment.environment.name")`,
+      `delete_key(attributes, "service_name")`,
+      `delete_key(attributes, "service_namespace")`,
+      `delete_key(attributes, "service_version")`,
+      `delete_key(attributes, "deployment_environment_name")`,
+      `delete_key(attributes, "wallow_application_id")`,
+      `delete_key(attributes, "wallow_registration_id")`,
+      `delete_matching_keys(resource.attributes, "^__trusted_")`,
+      `delete_key(attributes, "__trusted_registration")`,
+      `delete_key(attributes, "__trusted_application")`,
+      `delete_key(attributes, "__trusted_service")`,
+      `delete_key(attributes, "__trusted_environment")`,
+      `delete_key(attributes, "__trusted_release")`,
+    ]
+  }
+  trace_statements {
+    context = "span"
+    statements = [
+      `set(resource.attributes["wallow.registration_id"], attributes["__trusted_registration"])`,
+      `set(resource.attributes["wallow.application_id"], attributes["__trusted_application"])`,
+      `set(resource.attributes["service.name"], attributes["__trusted_service"])`,
+      `set(resource.attributes["deployment.environment.name"], attributes["__trusted_environment"])`,
+      `set(resource.attributes["service.version"], attributes["__trusted_release"])`,
+      `set(resource.attributes["service.namespace"], attributes["__trusted_application"])`,
+      `delete_key(attributes, "wallow.registration_id")`,
+      `delete_key(attributes, "wallow.application_id")`,
+      `delete_key(attributes, "service.name")`,
+      `delete_key(attributes, "service.namespace")`,
+      `delete_key(attributes, "service.version")`,
+      `delete_key(attributes, "deployment.environment")`,
+      `delete_key(attributes, "deployment.environment.name")`,
+      `delete_key(attributes, "service_name")`,
+      `delete_key(attributes, "service_namespace")`,
+      `delete_key(attributes, "service_version")`,
+      `delete_key(attributes, "deployment_environment_name")`,
+      `delete_key(attributes, "wallow_application_id")`,
+      `delete_key(attributes, "wallow_registration_id")`,
+      `delete_matching_keys(resource.attributes, "^__trusted_")`,
+      `delete_key(attributes, "__trusted_registration")`,
+      `delete_key(attributes, "__trusted_application")`,
+      `delete_key(attributes, "__trusted_service")`,
+      `delete_key(attributes, "__trusted_environment")`,
+      `delete_key(attributes, "__trusted_release")`,
+    ]
+  }
+  metric_statements {
+    context = "datapoint"
+    statements = [
+      `set(resource.attributes["wallow.registration_id"], attributes["__trusted_registration"])`,
+      `set(resource.attributes["wallow.application_id"], attributes["__trusted_application"])`,
+      `set(resource.attributes["service.name"], attributes["__trusted_service"])`,
+      `set(resource.attributes["deployment.environment.name"], attributes["__trusted_environment"])`,
+      `set(resource.attributes["service.version"], attributes["__trusted_release"])`,
+      `set(resource.attributes["service.namespace"], attributes["__trusted_application"])`,
+      `delete_key(attributes, "wallow.registration_id")`,
+      `delete_key(attributes, "wallow.application_id")`,
+      `delete_key(attributes, "service.name")`,
+      `delete_key(attributes, "service.namespace")`,
+      `delete_key(attributes, "service.version")`,
+      `delete_key(attributes, "deployment.environment")`,
+      `delete_key(attributes, "deployment.environment.name")`,
+      `delete_key(attributes, "service_name")`,
+      `delete_key(attributes, "service_namespace")`,
+      `delete_key(attributes, "service_version")`,
+      `delete_key(attributes, "deployment_environment_name")`,
+      `delete_key(attributes, "wallow_application_id")`,
+      `delete_key(attributes, "wallow_registration_id")`,
+      `delete_matching_keys(resource.attributes, "^__trusted_")`,
+      `delete_key(attributes, "__trusted_registration")`,
+      `delete_key(attributes, "__trusted_application")`,
+      `delete_key(attributes, "__trusted_service")`,
+      `delete_key(attributes, "__trusted_environment")`,
+      `delete_key(attributes, "__trusted_release")`,
+    ]
+  }
+  output {
+    logs = [otelcol.processor.memory_limiter.bounded.input]
+    traces = [otelcol.processor.memory_limiter.bounded.input]
+    metrics = [otelcol.processor.memory_limiter.bounded.input]
+  }
+}
+
+otelcol.processor.memory_limiter "bounded" {
+  check_interval = "1s"
+  limit = "850MiB"
+  spike_limit = "150MiB"
+  output {
+    logs = [otelcol.exporter.otlphttp.loki.input]
+    traces = [otelcol.exporter.otlphttp.tempo.input]
+    metrics = [otelcol.exporter.otlphttp.prometheus.input]
+  }
+}
+
+otelcol.exporter.otlphttp "loki" {
+  client {
+    endpoint = "http://loki:3100/otlp"
+    timeout = "5s"
+    compression = "none"
+  }
+  sending_queue {
+    enabled = true
+    sizer = "bytes"
+    queue_size = 67108864
+    num_consumers = 2
+    block_on_overflow = false
+  }
+  retry_on_failure {
+    initial_interval = "500ms"
+    max_interval = "5s"
+    max_elapsed_time = "30s"
+  }
+}
+
+otelcol.exporter.otlphttp "tempo" {
+  client {
+    endpoint = "http://tempo:4318"
+    timeout = "5s"
+    compression = "none"
+  }
+  sending_queue {
+    enabled = true
+    sizer = "bytes"
+    queue_size = 67108864
+    num_consumers = 2
+    block_on_overflow = false
+  }
+  retry_on_failure {
+    initial_interval = "500ms"
+    max_interval = "5s"
+    max_elapsed_time = "30s"
+  }
+}
+
+otelcol.exporter.otlphttp "prometheus" {
+  client {
+    endpoint = "http://prometheus:9090/api/v1/otlp"
+    timeout = "5s"
+    compression = "none"
+  }
+  sending_queue {
+    enabled = true
+    sizer = "bytes"
+    queue_size = 67108864
+    num_consumers = 2
+    block_on_overflow = false
+  }
+  retry_on_failure {
+    initial_interval = "500ms"
+    max_interval = "5s"
+    max_elapsed_time = "30s"
+  }
+}
+
+faro.receiver "gateway" {
+  extra_log_labels = {
+    app_name = "",
+    app_namespace = "",
+    app_environment = "",
+    app_version = "",
+  }
+  server {
+    listen_address = "0.0.0.0"
+    listen_port = 12347
+    api_key = sys.env("GATEWAY_COLLECTOR_SECRET")
+    max_allowed_payload_size = "1MiB"
+    include_metadata = true
+  }
+  output {
+    logs = [loki.write.faro.receiver]
+    traces = [otelcol.processor.attributes.trusted.input]
+  }
+}
+
+loki.write "faro" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+    batch_size = "1MiB"
+    batch_wait = "1s"
+    remote_timeout = "5s"
+    min_backoff_period = "500ms"
+    max_backoff_period = "5s"
+    max_backoff_retries = 3
+  }
+}

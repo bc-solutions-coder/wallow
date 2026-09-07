@@ -76,6 +76,12 @@ def main():
                                 "GF_ANALYTICS_REPORTING_ENABLED=false",
                                 "GF_SECURITY_ADMIN_USER=operator",
                                 f"GF_SECURITY_ADMIN_PASSWORD={secrets.token_urlsafe(32)}"])
+    gateway = ROOT / "gateway.local"
+    if not gateway.exists():
+        write_private(gateway, [f"GATEWAY_MANAGEMENT_SECRET={secrets.token_urlsafe(32)}"])
+    collector = ROOT / "collector.local"
+    if not collector.exists():
+        write_private(collector, [f"GATEWAY_COLLECTOR_SECRET={secrets.token_urlsafe(32)}"])
     target = ROOT / "credentials.local"
     write_private(target, credentials)
     subprocess.run(compose + ["--profile", "query", "up", "-d"], cwd=ROOT, check=True)

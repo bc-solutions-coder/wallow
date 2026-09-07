@@ -11,6 +11,7 @@
     <Project Path="src/Wallow.Modules.Registry/Wallow.Modules.Registry.csproj" />
     <Project Path="src/Wallow.SeederService/Wallow.SeederService.csproj" />
     <Project Path="src/Wallow.ServiceDefaults/Wallow.ServiceDefaults.csproj" />
+    <Project Path="src/Wallow.TelemetryGateway/Wallow.TelemetryGateway.csproj" />
   </Folder>
   <Folder Name="/src/Modules/" />
   <Folder Name="/src/Modules/ApiKeys/">
@@ -66,6 +67,7 @@
     <Project Path="tests/Wallow.SeederService.Tests/Wallow.SeederService.Tests.csproj" />
     <Project Path="tests/Wallow.Shared.Infrastructure.Tests/Wallow.Shared.Infrastructure.Tests.csproj" />
     <Project Path="tests/Wallow.Shared.Kernel.Tests/Wallow.Shared.Kernel.Tests.csproj" />
+    <Project Path="tests/Wallow.TelemetryGateway.Tests/Wallow.TelemetryGateway.Tests.csproj" />
     <Project Path="tests/Wallow.Tests.Common/Wallow.Tests.Common.csproj" />
   </Folder>
   <Folder Name="/tests/Benchmarks/">

@@ -40,3 +40,11 @@ ingester:
     dir: /var/lib/loki/wal
     replay_memory_ceiling: 256MB
     flush_on_shutdown: true
+distributor:
+  otlp_config:
+    default_resource_attributes_as_index_labels:
+      - service.name
+      - service.namespace
+      - deployment.environment.name
+      - service.version
+      - wallow.application_id

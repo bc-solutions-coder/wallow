@@ -120,3 +120,98 @@ Record the exact Wallow Compose command and project name with the query output.
 
 This proves local persistence and query behavior. It does not prove Debian mount readiness,
 quotas, retention under sustained workload, deployed Pangolin trust, or application integration.
+
+## Gateway and collector
+
+Prepare two additional directories on the mounted disk:
+
+```sh
+sudo mkdir -p /srv/observability/{gateway,alloy}
+sudo chown 1654:1654 /srv/observability/gateway
+python3 observability/setup.py
+docker compose --env-file observability/.env -f observability/compose.yml \
+  --profile query --profile ingestion up -d --build
+```
+
+Alloy runs as root and the gateway as the .NET image's UID 1654. Setup generates
+`gateway.local` with the management credential and `collector.local` with a separate
+internal collector credential. Reruns retain both. Only gateway and Alloy receive the
+collector credential. Neither management nor collector credentials belong in application
+configuration. Setup still starts the storage/query profile by default; the ingestion
+profile adds the gateway and Alloy. Include both profiles when stopping the entire project.
+
+The gateway has two listeners, neither published on the host:
+
+- `gateway:8081` accepts authenticated `PUT /control/v1/registrations/{registrationId}`.
+- `gateway:8080` accepts authenticated `POST /faro`, `/v1/logs`, `/v1/traces` and `/v1/metrics`.
+
+The control API takes a complete desired registration with `revision`, `clientId`,
+`applicationId`, `browserService`, `serverService`, `environments`, `state`, `credentials`
+and optional `rotation`. States are `Enabled`, `Disabled` or `Deleted`. Credential entries
+contain only `id` and a 64-character hexadecimal SHA-256 `verifier`. Credential IDs may
+contain ASCII letters, digits, hyphens and underscores, but no dots. Rotation identifies
+`operationId`, `previousCredentialId` and `newCredentialId`, with both credential verifiers
+included in the complete update. Application grouping is authorized by the management caller.
+
+The response contains the committed revision, acknowledgement time and rotation deadline.
+Identical retries return the original response. Conflicting/stale updates return 409,
+and deletion permanently prevents resurrection. Rotation retires the previous credential
+24 hours after its first acknowledgement; retrying an operation cannot extend that deadline.
+Omitting a credential revokes it permanently. Disablement also revokes current credentials;
+re-enabling requires a new credential ID and secret. Suspension should not send disablement.
+
+Application servers authenticate with `Authorization: Bearer credentialId.secret`, set
+`X-Wallow-Environment` to an authorized environment and optionally `X-Wallow-Release` to a
+bounded release identifier. The gateway replaces identity headers and Faro app metadata.
+It never forwards application credentials to Alloy. OTLP supports JSON and protobuf;
+Faro supports JSON. Compression is rejected. Limits are 1 MiB per ingestion body,
+64 KiB per control body, 16 concurrent forwards, 10 batches/second per registration with
+burst 20, and 50 batches/second globally with burst 100. A body-read/export budget is five
+seconds. Overload returns 429 and collector outages return 503.
+
+SQLite registration state, credential verifiers, rotation deadlines and deletion records
+live beneath the gateway data directory. Established ingestion uses only that local registry
+and the independent collector/storage services. Registration UI, durable Wallow outbox,
+SDK initialization and Pangolin routing are subsequent integration work.
+
+### Gateway verification
+
+In a disposable deployment, run these from `docker/`. The seed fixture provisions two
+registrations through HTTP, forges identity in headers/resources/Faro metadata, and sends
+JSON and protobuf logs, traces and metrics plus Faro logs. It prints only query identifiers.
+Plaintext application credentials remain inside the fixture process.
+
+```sh
+evidence=$(docker run --rm -i --env-file observability/gateway.local \
+  --network observability-proof_storage python:3.13-alpine python - \
+  < observability/verify-gateway-seed.py)
+docker run --rm -i --network observability-proof_storage python:3.13-alpine \
+  python - "$evidence" < observability/verify-gateway-query.py
+docker run --rm -i --env-file observability/collector.local \
+  --network observability-proof_storage python:3.13-alpine python - \
+  < observability/verify-collector-boundaries.py
+```
+
+The collector-boundary fixture checks 401 responses without the internal credential and
+an increased dropped-record counter for an authenticated request missing trusted metadata.
+The internal collector credential authenticates gateway-to-Alloy traffic in addition to
+network isolation. Application credentials cannot access Alloy directly.
+
+For restart/outage proof, mount `verify-gateway-seed.py` into the Python container and run
+it with `--wait-for-restart`, keeping standard input open. After it prints its evidence,
+recreate the gateway, or tear down the separate disposable Wallow project, then type
+`continue`. The still-running producer sends new logs using its existing credentials.
+Pass the first evidence line to `verify-gateway-query.py` with `--after-restart` to assert
+those new logs are queryable. These are verification fixtures, not application setup tools.
+
+Backend behavior checks:
+
+```sh
+# From the repository root:
+./scripts/run-tests.sh api/tests/Wallow.TelemetryGateway.Tests
+```
+
+They exercise HTTP listeners and real SQLite files, including retry after restart,
+conflicts, persisted deletion, revocation, rotation deadlines across restart, unsupported
+protocols, oversized bodies, credential separation, and one registration exhausting its
+rate allowance while another remains admitted.
