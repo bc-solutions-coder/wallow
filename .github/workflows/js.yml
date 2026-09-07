@@ -84,6 +84,10 @@ jobs:
         run: pnpm check:external-consumer
         env:
           CI_PACKAGE_DIR: ${{ github.workspace }}/.ci-artifacts/packages
+      - name: Verify isolated telemetry artifact
+        run: ./scripts/check-telemetry-artifact.sh
+        env:
+          CI_PACKAGE_DIR: ${{ github.workspace }}/.ci-artifacts/packages
       - name: Verify fork consumer
         env:
           CI_PACKAGE_DIR: ${{ github.workspace }}/.ci-artifacts/packages
