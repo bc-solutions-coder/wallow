@@ -23,7 +23,7 @@ Record exact commit/run links and any failures. Test routing for docs/full, rena
 
 ## Integration notes
 
-Rebased onto main `7df0a560`. Main added independent telemetry publication to the retired package publisher; the publication pause takes precedence. Shared validation packs telemetry once and runs its isolated artifact consumer against that exact tarball. Unit three must restore telemetry alongside SDK/api-errors, including its browser tests and isolated artifact check.
+Shared validation merged through PR #282 as `93324e75`; #228 is closed as superseded. Main added independent telemetry publication to the retired package publisher; the publication pause takes precedence. Shared validation packs telemetry once and runs its isolated artifact consumer against that exact tarball. Unit three (#283, draft PR #284) must restore telemetry alongside SDK/api-errors, including its browser tests and isolated artifact check.
 
 ## Cache verification progress
 
@@ -37,5 +37,14 @@ Actual Turbo 2.10.8 against server 2.12.0 at digest
 passed signed cold-build, verified remote-hit, tampered signature/body, unsigned artifact,
 wrong client key and unavailable-server cases using disposable credentials. The remote hit
 executed no build; every negative case rebuilt successfully. A local-only run without a signing
-key also passed. This does not prove hosted main or the deployed server configuration: live
-server setup, network grants and hosted signed-hit/cold evidence remain open.
+key also passed. The deployed server now stores signed metadata in persistent storage.
+Public fork and complete private main/PR graphs passed. Main now requires an up-to-date
+GitHub Actions `CI / required` check, PR-only squash merges, and no bypass.
+
+The first merged main run (`34167983277`) completed its JS checks using a cold local fallback,
+but its reusable job received empty environment secrets. A disposable canary isolated the
+cause: caller `secrets: inherit` is required for environment-secret hydration in the reusable
+job; optional secret declarations alone do not fix it. The caller now inherits its available
+secrets. Only the main job requests `production`; the PR/local job still requests no environment.
+Hosted signed remote-hit evidence remains open, along with restricted network grants awaiting
+the owner's scope clarification. Publication remains disabled until its separate acceptance.

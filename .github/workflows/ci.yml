@@ -686,6 +686,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.route == 'full'
     uses: ./.github/workflows/js.yml
+    secrets: inherit
   codeql:
     needs: changes
     if: needs.changes.outputs.route == 'full' && needs.changes.outputs.profile == 'codeql'
