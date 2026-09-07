@@ -5,9 +5,10 @@ from dataclasses import asdict
 import json
 import os
 from pathlib import Path
+import tempfile
 
 from publication import PublicationError, matches
-from publication_artifacts import select_artifact
+from publication_artifacts import select_artifact, unpack_payload
 from publication_github import GitHub
 
 
@@ -28,7 +29,28 @@ def resolve(client, context, run_id, attempt):
     producer, jobs = client.producer(run_id, attempt)
     artifacts = client.list(f'/actions/runs/{producer.run_id}/artifacts', 'artifacts')
     route, selected = candidate_artifacts(producer, jobs, artifacts)
-    return {'schema': 1, 'controller_sha': controller_sha, 'producer': asdict(producer), 'route': route, 'artifacts': selected}
+    registration = select_artifact(artifacts, producer, 'producer-registration')
+    with tempfile.TemporaryDirectory(prefix='wallow-registration-') as directory:
+        root = Path(directory)
+        archive = client.download(registration, root / 'registration.zip')
+        payload = unpack_payload(archive, root / 'verified', registration, producer, 'registration.json', 'registration', 'publication', 1024 * 1024)
+        record = json.loads(payload.read_text())
+    validate_registration(record, producer, route, selected)
+    return {'schema': 1, 'controller_sha': controller_sha, 'producer': asdict(producer), 'route': route, 'artifacts': selected, 'registration': asdict(registration), 'inputs': record}
+
+
+def validate_registration(record, producer, route, artifacts):
+    expected = {'schema', 'producer', 'route', 'artifacts', 'component_versions', 'input_sha256', 'catalog'}
+    if not isinstance(record, dict) or set(record) != expected or type(record['schema']) is not int or record['schema'] != 1:
+        raise PublicationError('Invalid immutable producer registration')
+    if record['producer'] != asdict(producer) or record['route'] != route or record['artifacts'] != artifacts:
+        raise PublicationError('Registered producer or artifacts differ from current GitHub evidence')
+    versions, fingerprints, catalog = record['component_versions'], record['input_sha256'], record['catalog']
+    if not isinstance(versions, dict) or not versions or not isinstance(catalog, dict) or not isinstance(fingerprints, dict) or not fingerprints:
+        raise PublicationError('Registration lacks source versions or build inputs')
+    for path, digest in fingerprints.items():
+        if not isinstance(path, str) or path.startswith('/') or any(part in ('', '.', '..') for part in path.split('/')) or not matches(r'[0-9a-f]{64}', digest):
+            raise PublicationError('Invalid registered build input fingerprint')
 
 
 def main():

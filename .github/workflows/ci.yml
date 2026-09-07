@@ -744,6 +744,34 @@ jobs:
         run:
           python3 scripts/ci/validation.py gate --route "$ROUTE" --profile "$PROFILE" --needs-json "$RESULTS" --common changes,policy,docs,security
           --full build,unit-tests,integration-tests,cross-tenant-tests,docker-images-app,docker-images-infra,e2e-tests,merge-coverage,js,openapi,codeql
+  register-publication:
+    needs: [changes, required]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Register exact validated publication inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ROUTE: ${{ needs.changes.outputs.route }}
+        run: |
+          mkdir .ci-registration
+          python3 scripts/ci/registration.py --route "$ROUTE" --output .ci-registration/registration.json
+          python3 scripts/ci/validation.py seal --file .ci-registration/registration.json --manifest .ci-registration/registration.json.json --kind registration --variant publication
+      - name: Retain immutable producer registration
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: producer-registration-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-registration/*
+          if-no-files-found: error
+          retention-days: 30
+          include-hidden-files: true
 defaults:
   run:
     shell: bash
