@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net;
 using System.Text.Json;
@@ -17,7 +18,8 @@ public sealed class IndependentTelemetryTests
     [Fact]
     public async Task HttpFailure_ExportsCorrelatedSanitizedSignals_WithoutFollowingCollectorRedirects()
     {
-        List<JsonElement> received = [];
+        ConcurrentQueue<JsonElement> received = new();
+        TaskCompletionSource metricReceived = new(TaskCreationOptions.RunContinuationsAsynchronously);
         WebApplicationBuilder receiverBuilder = WebApplication.CreateSlimBuilder();
         receiverBuilder.WebHost.UseUrls("http://127.0.0.1:0");
         await using WebApplication receiver = receiverBuilder.Build();
@@ -25,7 +27,11 @@ public sealed class IndependentTelemetryTests
         {
             context.Request.Headers.Authorization.ToString().Should().Be("Bearer test.credential");
             using JsonDocument document = await JsonDocument.ParseAsync(context.Request.Body);
-            if (received.Count < 100) { received.Add(document.RootElement.Clone()); }
+            if (received.Count < 100) { received.Enqueue(document.RootElement.Clone()); }
+            if (context.Request.RouteValues["signal"]?.ToString() == "metrics")
+            {
+                metricReceived.TrySetResult();
+            }
             return Results.Ok();
         });
         await receiver.StartAsync();
@@ -65,6 +71,8 @@ public sealed class IndependentTelemetryTests
         using IDisposable suppression = SuppressInstrumentationScope.Begin();
         using HttpResponseMessage result = await caller.GetAsync(application.Urls.Single() + "/failure");
         result.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+        await telemetry.FlushAsync(CancellationToken.None);
+        await metricReceived.Task.WaitAsync(TimeSpan.FromSeconds(10));
         await telemetry.FlushAsync(CancellationToken.None);
         string wire = JsonSerializer.Serialize(received);
         wire.Contains("0123456789abcdef0123456789abcdef", StringComparison.Ordinal).Should().BeTrue("the incoming trace is preserved");
