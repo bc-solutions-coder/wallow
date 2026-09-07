@@ -79,6 +79,16 @@
       "tracking": "https://github.com/bc-solutions-coder/wallow/issues/281",
       "created": "2026-09-07T20:10:41Z",
       "expires": "2026-10-06T20:10:41Z"
+    },
+    {
+      "scanner": "devskim",
+      "id": "DS173237",
+      "scope": "api/tests/Wallow.Api.Tests/IndependentTelemetryTests.cs",
+      "owner": "bc-solutions-coder",
+      "reason": "Deterministic public trace-ID fixture supplied in traceparent and asserted in emitted telemetry; this value is not a credential.",
+      "tracking": "https://github.com/bc-solutions-coder/wallow/issues/281",
+      "created": "2026-09-07T20:10:41Z",
+      "expires": "2026-10-06T20:10:41Z"
     }
   ]
 }
