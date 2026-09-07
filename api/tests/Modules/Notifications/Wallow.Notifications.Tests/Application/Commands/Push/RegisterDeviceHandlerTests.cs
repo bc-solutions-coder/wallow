@@ -17,7 +17,7 @@ public class RegisterDeviceHandlerTests
     {
         _deviceRegistrationRepository.RegisterAsync(Arg.Any<DeviceRegistration>(), Arg.Any<CancellationToken>()).Returns(true);
         _timeProvider.GetUtcNow().Returns(DateTimeOffset.UtcNow);
-        _handler = new RegisterDeviceHandler(_deviceRegistrationRepository, _timeProvider);
+        _handler = new RegisterDeviceHandler(_deviceRegistrationRepository, _timeProvider, Substitute.For<IWebPushConfiguration>());
     }
 
     [Fact]

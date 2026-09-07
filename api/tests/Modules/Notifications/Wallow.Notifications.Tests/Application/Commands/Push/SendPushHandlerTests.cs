@@ -18,6 +18,7 @@ public class SendPushHandlerTests
     private readonly IDeviceRegistrationRepository _deviceRegistrationRepository = Substitute.For<IDeviceRegistrationRepository>();
     private readonly IMessageBus _messageBus = Substitute.For<IMessageBus>();
     private readonly TimeProvider _timeProvider = Substitute.For<TimeProvider>();
+    private readonly IWebPushConfiguration _webPush = Substitute.For<IWebPushConfiguration>();
     private readonly SendPushHandler _handler;
 
     public SendPushHandlerTests()
@@ -28,7 +29,31 @@ public class SendPushHandlerTests
             _pushMessageRepository,
             _deviceRegistrationRepository,
             _messageBus,
-            _timeProvider);
+            _timeProvider, _webPush);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task RetiredSigningKey_DoesNotBlockOtherEligibleDevices(bool hasHealthyDevice)
+    {
+        UserId user = UserId.New();
+        TenantId tenant = TenantId.New();
+        DeviceRegistration retired = DeviceRegistration.RegisterWebPush(user, tenant,
+            new WebPushSubscription("https://push.example.com/old", new WebPushSubscriptionKeys("key", "auth")), "old", DateTimeOffset.UtcNow);
+        DeviceRegistration current = DeviceRegistration.RegisterWebPush(user, tenant,
+            new WebPushSubscription("https://push.example.com/current", new WebPushSubscriptionKeys("key", "auth")), "current", DateTimeOffset.UtcNow);
+        _preferenceChecker.IsChannelEnabledAsync(user, ChannelType.Push, "Alert", Arg.Any<CancellationToken>()).Returns(true);
+        _deviceRegistrationRepository.GetActiveByUserAsync(user, Arg.Any<CancellationToken>())
+            .Returns(hasHealthyDevice ? new List<DeviceRegistration> { retired, current } : new List<DeviceRegistration> { retired });
+        _webPush.IsAvailableAsync("current", Arg.Any<CancellationToken>()).Returns(true);
+
+        Result result = await _handler.Handle(new SendPushCommand(user, tenant, "Title", "Body", "Alert"), CancellationToken.None);
+
+        result.IsSuccess.Should().Be(hasHealthyDevice);
+        await _messageBus.Received(hasHealthyDevice ? 1 : 0).PublishAsync(Arg.Is<object>(message =>
+            message is Wallow.Notifications.Application.Channels.Push.Commands.DeliverPush.DeliverPushCommand
+            && ((Wallow.Notifications.Application.Channels.Push.Commands.DeliverPush.DeliverPushCommand)message).DeviceRegistrationId == current.Id));
     }
 
     [Fact]

@@ -39,13 +39,13 @@ public class PushMessageTests
     }
 
     [Fact]
-    public void MarkDelivered_SetsStatusAndRaisesEvent()
+    public void MarkAccepted_SetsStatusAndRaisesEvent()
     {
         PushMessage message = CreatePushMessage();
 
-        message.MarkDelivered(TimeProvider.System);
+        message.MarkAccepted(TimeProvider.System);
 
-        message.Status.Should().Be(PushStatus.Delivered);
+        message.Status.Should().Be(PushStatus.Accepted);
         message.DomainEvents.Should().ContainSingle()
             .Which.Should().BeOfType<PushMessageSentDomainEvent>();
     }

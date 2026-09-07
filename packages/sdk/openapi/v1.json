@@ -12794,6 +12794,273 @@
         }
       }
     },
+    "/v1/admin/push/config/web-push/keys": {
+      "get": {
+        "tags": [
+          "Admin - Push Configuration"
+        ],
+        "operationId": "PushConfigurationGetWebPushKeys",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WebPushKeyVersion"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin - Push Configuration"
+        ],
+        "operationId": "PushConfigurationRotateWebPushKey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RotateWebPushKeyRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RotateWebPushKeyRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/RotateWebPushKeyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebPushPublicKey"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/push/config/web-push/keys/{keyId}": {
+      "delete": {
+        "tags": [
+          "Admin - Push Configuration"
+        ],
+        "operationId": "PushConfigurationRetireWebPushKey",
+        "parameters": [
+          {
+            "name": "keyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "content": {
+              "application/json": { }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/admin/push/config": {
       "get": {
         "tags": [
@@ -13156,6 +13423,96 @@
         }
       }
     },
+    "/v1/push/web-push/public-key": {
+      "get": {
+        "tags": [
+          "Push Devices"
+        ],
+        "operationId": "PushDevicesGetWebPushPublicKey",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebPushPublicKey"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/push/devices": {
       "post": {
         "tags": [
@@ -13447,6 +13804,16 @@
           "required": true
         },
         "responses": {
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "204": {
             "description": "No Content",
             "content": {
@@ -16712,6 +17079,12 @@
           "registeredAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "signingKeyId": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -16840,7 +17213,10 @@
           "Storage.QuotaExceeded",
           "Tenant.Required",
           "TenantPushConfiguration.NotFound",
-          "Validation.Failed"
+          "Validation.Failed",
+          "WebPush.InvalidConfiguration",
+          "WebPush.InvalidSubscription",
+          "WebPush.Unavailable"
         ],
         "type": "string",
         "description": "Machine-readable code identifying why a request failed. Each code has exactly one owning catalog and a fixed HTTP status.",
@@ -16964,7 +17340,10 @@
           "The upload would exceed the tenant storage quota",
           "An organization is required to do this.",
           "Push configuration not found for this tenant and platform",
-          "The request is invalid."
+          "The request is invalid.",
+          "The Web Push key configuration is invalid; retained key identities cannot be replaced or revived",
+          "The browser subscription or signing key is invalid or unavailable",
+          "Web Push is not configured or enabled for this organization"
         ]
       },
       "FileMetadataResponse": {
@@ -18123,8 +18502,7 @@
       },
       "RegisterDeviceRequest": {
         "required": [
-          "platform",
-          "token"
+          "platform"
         ],
         "type": "object",
         "properties": {
@@ -18132,7 +18510,26 @@
             "$ref": "#/components/schemas/PushPlatform"
           },
           "token": {
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "subscription": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WebPushSubscription"
+              }
+            ]
+          },
+          "signingKeyId": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -18319,6 +18716,17 @@
         },
         "description": "Rotates a client's secret. `RevokeActiveTokens` additionally ends every token the client\nwas already issued, so a compromise response cuts every live session in the same step."
       },
+      "RotateWebPushKeyRequest": {
+        "required": [
+          "subject"
+        ],
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string"
+          }
+        }
+      },
       "ScopeInfo": {
         "required": [
           "name",
@@ -18387,6 +18795,12 @@
           },
           "notificationType": {
             "type": "string"
+          },
+          "clickPath": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -18987,6 +19401,83 @@
           "rememberMe": {
             "type": "boolean",
             "default": false
+          }
+        }
+      },
+      "WebPushKeyVersion": {
+        "required": [
+          "keyId",
+          "publicKey",
+          "retired",
+          "current"
+        ],
+        "type": "object",
+        "properties": {
+          "keyId": {
+            "type": "string"
+          },
+          "publicKey": {
+            "type": "string"
+          },
+          "retired": {
+            "type": "boolean"
+          },
+          "current": {
+            "type": "boolean"
+          }
+        }
+      },
+      "WebPushPublicKey": {
+        "required": [
+          "keyId",
+          "publicKey"
+        ],
+        "type": "object",
+        "properties": {
+          "keyId": {
+            "type": "string"
+          },
+          "publicKey": {
+            "type": "string"
+          }
+        }
+      },
+      "WebPushSubscription": {
+        "required": [
+          "endpoint",
+          "keys"
+        ],
+        "type": "object",
+        "properties": {
+          "endpoint": {
+            "type": "string"
+          },
+          "keys": {
+            "$ref": "#/components/schemas/WebPushSubscriptionKeys"
+          },
+          "expirationTime": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        }
+      },
+      "WebPushSubscriptionKeys": {
+        "required": [
+          "p256dh",
+          "auth"
+        ],
+        "type": "object",
+        "properties": {
+          "p256dh": {
+            "type": "string"
+          },
+          "auth": {
+            "type": "string"
           }
         }
       }

@@ -15,6 +15,7 @@ public class DeliverPushHandlerTests
     private readonly IPushMessageRepository _pushMessageRepository = Substitute.For<IPushMessageRepository>();
     private readonly IDeviceRegistrationRepository _devices = Substitute.For<IDeviceRegistrationRepository>();
     private readonly TimeProvider _timeProvider = Substitute.For<TimeProvider>();
+    private readonly Wolverine.IMessageBus _bus = Substitute.For<Wolverine.IMessageBus>();
     private readonly DeliverPushHandler _handler;
 
 #pragma warning disable CA2000 // LoggerFactory disposal not needed in tests
@@ -27,9 +28,32 @@ public class DeliverPushHandlerTests
             _devices,
             _timeProvider,
             LoggerFactory.Create(b => b.AddSimpleConsole().SetMinimumLevel(LogLevel.Trace))
-                .CreateLogger<DeliverPushHandler>());
+                .CreateLogger<DeliverPushHandler>(), _bus);
     }
 #pragma warning restore CA2000
+
+    [Theory]
+    [InlineData(true, false, 0, true, false)]
+    [InlineData(false, true, 0, false, true)]
+    [InlineData(false, true, 2, false, false)]
+    public async Task Failure_DeactivatesOnlyExpiredSubscriptionsAndBoundsRetries(bool expired, bool retryable, int attempt, bool deactivated, bool scheduled)
+    {
+        PushMessage message = PushMessage.Create(TenantId.New(), UserId.New(), "Title", "Body", _timeProvider);
+        _pushMessageRepository.GetByIdAsync(message.Id, Arg.Any<CancellationToken>()).Returns(message);
+        DeviceRegistration device = RegisterDevice(message, PushPlatform.WebPush);
+        IPushProvider provider = Substitute.For<IPushProvider>();
+        provider.SendAsync(message, device.Token, Arg.Any<CancellationToken>())
+            .Returns(new PushDeliveryResult(false, "Failure", expired, retryable, TimeSpan.FromSeconds(120)));
+        _pushProviderFactory.GetProviderAsync(device).Returns(provider);
+
+        await _handler.Handle(new DeliverPushCommand(message.Id, device.Id, message.TenantId.Value, attempt), CancellationToken.None);
+
+        device.IsActive.Should().Be(!deactivated);
+        await _devices.Received(deactivated ? 1 : 0).SaveDeactivationAsync(device, Arg.Any<CancellationToken>());
+        await _bus.Received(scheduled ? 1 : 0).PublishAsync(
+            Arg.Is<DeliverPushCommand>(next => next.DeviceRegistrationId == device.Id && next.Attempt == attempt + 1),
+            Arg.Is<Wolverine.DeliveryOptions>(options => options.ScheduleDelay == TimeSpan.FromSeconds(120)));
+    }
 
     [Fact]
     public async Task Handle_WhenPushMessageNotFound_LogsAndReturns()
@@ -45,7 +69,7 @@ public class DeliverPushHandlerTests
 
         await _handler.Handle(command, CancellationToken.None);
 
-        await _pushProviderFactory.DidNotReceive().GetProviderAsync(Arg.Any<PushPlatform>());
+        await _pushProviderFactory.DidNotReceive().GetProviderAsync(Arg.Any<Wallow.Notifications.Domain.Channels.Push.DeviceRegistration>());
     }
 
     [Fact]
@@ -63,14 +87,14 @@ public class DeliverPushHandlerTests
         provider.SendAsync(Arg.Any<PushMessage>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new PushDeliveryResult(true, null));
 
-        _pushProviderFactory.GetProviderAsync(PushPlatform.Fcm).Returns(provider);
+        _pushProviderFactory.GetProviderAsync(Arg.Any<Wallow.Notifications.Domain.Channels.Push.DeviceRegistration>()).Returns(provider);
 
         DeviceRegistration device = RegisterDevice(pushMessage, PushPlatform.Fcm);
         DeliverPushCommand command = new(pushMessage.Id, device.Id, tenantId.Value);
 
         await _handler.Handle(command, CancellationToken.None);
 
-        pushMessage.Status.Should().Be(PushStatus.Delivered);
+        pushMessage.Status.Should().Be(PushStatus.Accepted);
         _pushMessageRepository.Received(1).Update(pushMessage);
         await _pushMessageRepository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
@@ -90,7 +114,7 @@ public class DeliverPushHandlerTests
         provider.SendAsync(Arg.Any<PushMessage>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(new PushDeliveryResult(false, "Token expired"));
 
-        _pushProviderFactory.GetProviderAsync(PushPlatform.Apns).Returns(provider);
+        _pushProviderFactory.GetProviderAsync(Arg.Any<Wallow.Notifications.Domain.Channels.Push.DeviceRegistration>()).Returns(provider);
 
         DeviceRegistration device = RegisterDevice(pushMessage, PushPlatform.Apns);
         DeliverPushCommand command = new(pushMessage.Id, device.Id, tenantId.Value);
@@ -116,7 +140,7 @@ public class DeliverPushHandlerTests
         provider.SendAsync(Arg.Any<PushMessage>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns<Task<PushDeliveryResult>>(Task.FromException<PushDeliveryResult>(new InvalidOperationException("Network failure")));
 
-        _pushProviderFactory.GetProviderAsync(PushPlatform.Fcm).Returns(provider);
+        _pushProviderFactory.GetProviderAsync(Arg.Any<Wallow.Notifications.Domain.Channels.Push.DeviceRegistration>()).Returns(provider);
 
         DeviceRegistration device = RegisterDevice(pushMessage, PushPlatform.Fcm);
         DeliverPushCommand command = new(pushMessage.Id, device.Id, tenantId.Value);

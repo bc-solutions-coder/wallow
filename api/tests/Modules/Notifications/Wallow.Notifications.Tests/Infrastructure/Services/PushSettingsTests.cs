@@ -11,7 +11,6 @@ public class PushSettingsTests
 
         settings.Fcm.Should().NotBeNull();
         settings.Apns.Should().NotBeNull();
-        settings.WebPush.Should().NotBeNull();
     }
 
     [Fact]
@@ -36,16 +35,6 @@ public class PushSettingsTests
         settings.Apns.UseSandbox.Should().BeFalse();
     }
 
-    [Fact]
-    public void PushSettings_WebPush_CanBeSetAndRetrieved()
-    {
-        WebPushDefaults webPush = new() { Subject = "mailto:test@test.com", VapidPublicKey = "pub", VapidPrivateKey = "priv" };
-        PushSettings settings = new() { WebPush = webPush };
-
-        settings.WebPush.Subject.Should().Be("mailto:test@test.com");
-        settings.WebPush.VapidPublicKey.Should().Be("pub");
-        settings.WebPush.VapidPrivateKey.Should().Be("priv");
-    }
 
     [Fact]
     public void FcmDefaults_DefaultValues_AreEmptyStrings()
@@ -67,13 +56,4 @@ public class PushSettingsTests
         defaults.UseSandbox.Should().BeTrue();
     }
 
-    [Fact]
-    public void WebPushDefaults_DefaultValues_AreEmptyStrings()
-    {
-        WebPushDefaults defaults = new();
-
-        defaults.Subject.Should().BeEmpty();
-        defaults.VapidPublicKey.Should().BeEmpty();
-        defaults.VapidPrivateKey.Should().BeEmpty();
-    }
 }

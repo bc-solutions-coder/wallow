@@ -21,7 +21,7 @@ public class PushConfigurationControllerTests
     public PushConfigurationControllerTests()
     {
         _tenantContext.TenantId.Returns(TenantId.New());
-        _controller = new PushConfigurationController(_bus, _tenantContext);
+        _controller = new PushConfigurationController(_bus, _tenantContext, Substitute.For<Wallow.Notifications.Application.Channels.Push.Interfaces.IWebPushConfiguration>());
     }
 
     [Fact]

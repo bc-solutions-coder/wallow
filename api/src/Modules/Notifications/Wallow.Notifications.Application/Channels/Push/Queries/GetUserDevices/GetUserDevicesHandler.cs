@@ -22,7 +22,7 @@ public sealed class GetUserDevicesHandler(IDeviceRegistrationRepository deviceRe
             r.Platform,
             r.Token,
             r.IsActive,
-            r.RegisteredAt)).ToList();
+            r.RegisteredAt, r.SigningKeyId)).ToList();
 
         return Result.Success<IReadOnlyList<DeviceRegistrationDto>>(dtos);
     }

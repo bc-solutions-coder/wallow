@@ -30,8 +30,20 @@ namespace Wallow.Notifications.Api.Controllers;
 public class PushDevicesController(
     IMessageBus bus,
     ICurrentUserService currentUserService,
-    ITenantContext tenantContext) : ControllerBase
+    ITenantContext tenantContext,
+    Application.Channels.Push.Interfaces.IWebPushConfiguration webPushConfiguration) : ControllerBase
 {
+    [HttpGet("web-push/public-key")]
+    [ProducesResponseType(typeof(Application.Channels.Push.Interfaces.WebPushPublicKey), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> GetWebPushPublicKey(CancellationToken cancellationToken)
+    {
+        if (currentUserService.GetCurrentUserId() is null) { return this.Problem(SharedErrors.Unauthenticated); }
+        _ = TenantScope.Require(tenantContext.TenantId);
+        Application.Channels.Push.Interfaces.WebPushPublicKey? key = await webPushConfiguration.GetCurrentKeyAsync(cancellationToken);
+        return key is null ? this.Problem(Domain.Errors.NotificationsErrors.WebPushUnavailable) : Ok(key);
+    }
+
     [HttpPost("devices")]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -51,7 +63,7 @@ public class PushDevicesController(
                 new UserId(userId.Value),
                 new TenantId(tenantContext.TenantId.Value),
                 request.Platform,
-                request.Token),
+                request.Token, request.Subscription, request.SigningKeyId),
             cancellationToken);
 
         if (result.IsFailure)
@@ -105,6 +117,7 @@ public class PushDevicesController(
     }
 
     [HttpPost("send")]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> SendPush(
@@ -123,7 +136,7 @@ public class PushDevicesController(
                 new TenantId(tenantContext.TenantId.Value),
                 request.Title,
                 request.Body,
-                request.NotificationType),
+                request.NotificationType, request.ClickPath),
             cancellationToken);
 
         if (result.IsFailure)
@@ -140,5 +153,5 @@ public class PushDevicesController(
         dto.Platform,
         dto.Token,
         dto.IsActive,
-        dto.RegisteredAt);
+        dto.RegisteredAt, dto.SigningKeyId);
 }

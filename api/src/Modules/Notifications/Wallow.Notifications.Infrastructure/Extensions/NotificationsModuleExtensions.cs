@@ -152,6 +152,9 @@ public static partial class NotificationsModuleExtensions
         services.Configure<PushSettings>(configuration.GetSection("PushSettings"));
         services.AddSingleton<IPushCredentialEncryptor, PushCredentialEncryptor>();
         services.AddScoped<IPushProviderFactory, PushProviderFactory>();
+        services.AddScoped<IWebPushConfiguration, WebPushConfiguration>();
+        services.AddHttpClient("Push_WebPush").ConfigurePrimaryHttpMessageHandler(WebPushTransport.CreateHandler)
+            .RemoveAllLoggers();
 
         return services;
     }

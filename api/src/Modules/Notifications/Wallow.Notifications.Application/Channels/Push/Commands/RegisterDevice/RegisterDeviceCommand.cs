@@ -1,3 +1,4 @@
+using Wallow.Notifications.Domain.Channels.Push;
 using Wallow.Notifications.Domain.Channels.Push.Enums;
 using Wallow.Shared.Kernel.Identity;
 
@@ -7,4 +8,6 @@ public sealed record RegisterDeviceCommand(
     UserId UserId,
     TenantId TenantId,
     PushPlatform Platform,
-    string Token);
+    string? Token = null,
+    WebPushSubscription? Subscription = null,
+    string? SigningKeyId = null);

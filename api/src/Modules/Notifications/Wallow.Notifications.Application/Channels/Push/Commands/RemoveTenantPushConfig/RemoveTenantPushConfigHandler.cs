@@ -9,6 +9,10 @@ public sealed class RemoveTenantPushConfigHandler(ITenantPushConfigurationReposi
         RemoveTenantPushConfigCommand command,
         CancellationToken cancellationToken)
     {
+        if (command.Platform == Domain.Channels.Push.Enums.PushPlatform.WebPush)
+        {
+            return Result.Failure(Domain.Errors.NotificationsErrors.WebPushInvalidConfiguration);
+        }
         await configurationRepository.DeleteByPlatformAsync(
             command.Platform,
             cancellationToken);

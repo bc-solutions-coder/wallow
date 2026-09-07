@@ -366,6 +366,7 @@ export type DeviceRegistrationResponse = {
   token: string;
   isActive: boolean;
   registeredAt: string;
+  signingKeyId?: null | string;
 };
 
 /**
@@ -378,7 +379,7 @@ export type EnrollmentPolicy = number;
 /**
  * Machine-readable code identifying why a request failed. Each code has exactly one owning catalog and a fixed HTTP status.
  */
-export type ErrorCode = 'Announcement.NotDismissible' | 'Announcement.NotFound' | 'ApiKeys.ApiKeyAlreadyRevoked' | 'ApiKeys.ApiKeyDisplayNameRequired' | 'ApiKeys.CreateFailed' | 'ApiKeys.HashedKeyRequired' | 'ApiKeys.Invalid' | 'ApiKeys.LimitReached' | 'ApiKeys.NotFound' | 'ApiKeys.OrganizationRequired' | 'ApiKeys.ScopeExceedsPermissions' | 'ApiKeys.ServiceAccountIdRequired' | 'Auth.ClientIdInvalid' | 'Auth.EmailClaimMissing' | 'Auth.EmailNotConfirmed' | 'Auth.EmailTaken' | 'Auth.EmailUnchanged' | 'Auth.Forbidden' | 'Auth.InvalidCredentials' | 'Auth.LockedOut' | 'Auth.OtpInvalid' | 'Auth.PasswordsDoNotMatch' | 'Auth.ProviderRequired' | 'Auth.ProviderUnsupported' | 'Auth.TicketAlreadyUsed' | 'Auth.TicketInvalid' | 'Auth.TokenExpired' | 'Auth.TokenInvalid' | 'Auth.Unauthenticated' | 'Branding.ClientBrandingClientIdRequired' | 'Branding.ClientBrandingDisplayNameRequired' | 'Bucket.AlreadyExists' | 'Bucket.NotEmpty' | 'Bucket.NotFound' | 'Changelog.NotFound' | 'DeviceRegistration.Conflict' | 'DeviceRegistration.NotFound' | 'Email.InvalidEmailAddress' | 'File.ContentTypeNotAllowed' | 'File.ExceedsUploadLimit' | 'File.ExtensionNotAllowed' | 'File.FailedSecurityScan' | 'File.NotAvailable' | 'File.NotFound' | 'File.NotUploaded' | 'File.SignatureInvalid' | 'File.TooLarge' | 'Http.ClientError' | 'Http.MethodNotAllowed' | 'Http.NotFound' | 'Identity.AlreadyAMember' | 'Identity.ClientAlreadySuspended' | 'Identity.ClientAlreadySuspendedByPlatform' | 'Identity.ClientIdRequired' | 'Identity.ClientIdTaken' | 'Identity.ClientNameRequired' | 'Identity.ClientNameUnusable' | 'Identity.ClientNotSuspended' | 'Identity.ClientNotSuspendedByPlatform' | 'Identity.ClientOrganizationRequired' | 'Identity.DenialCooldown' | 'Identity.EmailRequired' | 'Identity.ExpiryMustBeFuture' | 'Identity.FirstNameRequired' | 'Identity.InvitationEmailMismatch' | 'Identity.InvitationEmailNotVerified' | 'Identity.InvitationEmailRequired' | 'Identity.InvitationExpired' | 'Identity.InvitationNotFound' | 'Identity.InvitationNotPending' | 'Identity.LastNameRequired' | 'Identity.LastOwner' | 'Identity.MemberNotFound' | 'Identity.MembershipNotActive' | 'Identity.MembershipNotDenied' | 'Identity.MembershipNotPending' | 'Identity.MembershipNotReinstatable' | 'Identity.MembershipNotSuspended' | 'Identity.MfaGraceDeadlineMustBeFuture' | 'Identity.NoPendingEmailChange' | 'Identity.OrganizationAlreadyActive' | 'Identity.OrganizationAlreadyInactive' | 'Identity.OrganizationAlreadySuspendedByPlatform' | 'Identity.OrganizationNameMismatch' | 'Identity.OrganizationNameRequired' | 'Identity.OrganizationNotFound' | 'Identity.OrganizationNotSuspendedByPlatform' | 'Identity.OrganizationSlugRequired' | 'Identity.OrganizationSuspendedByPlatform' | 'Identity.PlatformOnlyScope' | 'Identity.PlatformSuspensionReasonRequired' | 'Identity.ReservedRoleName' | 'Identity.RoleNotFound' | 'Identity.ScopeCategoryRequired' | 'Identity.ScopeCodeRequired' | 'Identity.ScopeDisplayNameRequired' | 'Identity.UnknownScope' | 'Identity.UserIdRequired' | 'Identity.UserNotFound' | 'Inquiries.InvalidStatusTransition' | 'Inquiry.NotFound' | 'Mfa.CodeInvalid' | 'Mfa.EnrollmentTokenInvalid' | 'Mfa.LockedOut' | 'Mfa.NotEnabled' | 'Mfa.PasswordInvalid' | 'Mfa.SessionMissing' | 'Mfa.UpdateFailed' | 'Notification.AccessDenied' | 'Notification.NotFound' | 'RateLimit.Exceeded' | 'Server.Error' | 'Settings.SystemKeyBlocked' | 'Settings.UnknownKey' | 'Setup.Required' | 'Sms.InvalidPhoneNumber' | 'Storage.QuotaExceeded' | 'Tenant.Required' | 'TenantPushConfiguration.NotFound' | 'Validation.Failed';
+export type ErrorCode = 'Announcement.NotDismissible' | 'Announcement.NotFound' | 'ApiKeys.ApiKeyAlreadyRevoked' | 'ApiKeys.ApiKeyDisplayNameRequired' | 'ApiKeys.CreateFailed' | 'ApiKeys.HashedKeyRequired' | 'ApiKeys.Invalid' | 'ApiKeys.LimitReached' | 'ApiKeys.NotFound' | 'ApiKeys.OrganizationRequired' | 'ApiKeys.ScopeExceedsPermissions' | 'ApiKeys.ServiceAccountIdRequired' | 'Auth.ClientIdInvalid' | 'Auth.EmailClaimMissing' | 'Auth.EmailNotConfirmed' | 'Auth.EmailTaken' | 'Auth.EmailUnchanged' | 'Auth.Forbidden' | 'Auth.InvalidCredentials' | 'Auth.LockedOut' | 'Auth.OtpInvalid' | 'Auth.PasswordsDoNotMatch' | 'Auth.ProviderRequired' | 'Auth.ProviderUnsupported' | 'Auth.TicketAlreadyUsed' | 'Auth.TicketInvalid' | 'Auth.TokenExpired' | 'Auth.TokenInvalid' | 'Auth.Unauthenticated' | 'Branding.ClientBrandingClientIdRequired' | 'Branding.ClientBrandingDisplayNameRequired' | 'Bucket.AlreadyExists' | 'Bucket.NotEmpty' | 'Bucket.NotFound' | 'Changelog.NotFound' | 'DeviceRegistration.Conflict' | 'DeviceRegistration.NotFound' | 'Email.InvalidEmailAddress' | 'File.ContentTypeNotAllowed' | 'File.ExceedsUploadLimit' | 'File.ExtensionNotAllowed' | 'File.FailedSecurityScan' | 'File.NotAvailable' | 'File.NotFound' | 'File.NotUploaded' | 'File.SignatureInvalid' | 'File.TooLarge' | 'Http.ClientError' | 'Http.MethodNotAllowed' | 'Http.NotFound' | 'Identity.AlreadyAMember' | 'Identity.ClientAlreadySuspended' | 'Identity.ClientAlreadySuspendedByPlatform' | 'Identity.ClientIdRequired' | 'Identity.ClientIdTaken' | 'Identity.ClientNameRequired' | 'Identity.ClientNameUnusable' | 'Identity.ClientNotSuspended' | 'Identity.ClientNotSuspendedByPlatform' | 'Identity.ClientOrganizationRequired' | 'Identity.DenialCooldown' | 'Identity.EmailRequired' | 'Identity.ExpiryMustBeFuture' | 'Identity.FirstNameRequired' | 'Identity.InvitationEmailMismatch' | 'Identity.InvitationEmailNotVerified' | 'Identity.InvitationEmailRequired' | 'Identity.InvitationExpired' | 'Identity.InvitationNotFound' | 'Identity.InvitationNotPending' | 'Identity.LastNameRequired' | 'Identity.LastOwner' | 'Identity.MemberNotFound' | 'Identity.MembershipNotActive' | 'Identity.MembershipNotDenied' | 'Identity.MembershipNotPending' | 'Identity.MembershipNotReinstatable' | 'Identity.MembershipNotSuspended' | 'Identity.MfaGraceDeadlineMustBeFuture' | 'Identity.NoPendingEmailChange' | 'Identity.OrganizationAlreadyActive' | 'Identity.OrganizationAlreadyInactive' | 'Identity.OrganizationAlreadySuspendedByPlatform' | 'Identity.OrganizationNameMismatch' | 'Identity.OrganizationNameRequired' | 'Identity.OrganizationNotFound' | 'Identity.OrganizationNotSuspendedByPlatform' | 'Identity.OrganizationSlugRequired' | 'Identity.OrganizationSuspendedByPlatform' | 'Identity.PlatformOnlyScope' | 'Identity.PlatformSuspensionReasonRequired' | 'Identity.ReservedRoleName' | 'Identity.RoleNotFound' | 'Identity.ScopeCategoryRequired' | 'Identity.ScopeCodeRequired' | 'Identity.ScopeDisplayNameRequired' | 'Identity.UnknownScope' | 'Identity.UserIdRequired' | 'Identity.UserNotFound' | 'Inquiries.InvalidStatusTransition' | 'Inquiry.NotFound' | 'Mfa.CodeInvalid' | 'Mfa.EnrollmentTokenInvalid' | 'Mfa.LockedOut' | 'Mfa.NotEnabled' | 'Mfa.PasswordInvalid' | 'Mfa.SessionMissing' | 'Mfa.UpdateFailed' | 'Notification.AccessDenied' | 'Notification.NotFound' | 'RateLimit.Exceeded' | 'Server.Error' | 'Settings.SystemKeyBlocked' | 'Settings.UnknownKey' | 'Setup.Required' | 'Sms.InvalidPhoneNumber' | 'Storage.QuotaExceeded' | 'Tenant.Required' | 'TenantPushConfiguration.NotFound' | 'Validation.Failed' | 'WebPush.InvalidConfiguration' | 'WebPush.InvalidSubscription' | 'WebPush.Unavailable';
 
 export type FileMetadataResponse = {
   id: string;
@@ -733,7 +734,9 @@ export type RedirectUriValidationResponse = {
 
 export type RegisterDeviceRequest = {
   platform: PushPlatform;
-  token: string;
+  token?: null | string;
+  subscription?: null | WebPushSubscription;
+  signingKeyId?: null | string;
 };
 
 /**
@@ -801,6 +804,10 @@ export type RotateOrganizationClientSecretRequest = {
   revokeActiveTokens?: boolean;
 };
 
+export type RotateWebPushKeyRequest = {
+  subject: string;
+};
+
 export type ScopeInfo = {
   name: string;
   description: null | string;
@@ -820,6 +827,7 @@ export type SendPushRequest = {
   title: string;
   body: string;
   notificationType: string;
+  clickPath?: null | string;
 };
 
 export type SessionDto = {
@@ -992,6 +1000,29 @@ export type VerifyOtpRequest = {
   email: string;
   code: string;
   rememberMe?: boolean;
+};
+
+export type WebPushKeyVersion = {
+  keyId: string;
+  publicKey: string;
+  retired: boolean;
+  current: boolean;
+};
+
+export type WebPushPublicKey = {
+  keyId: string;
+  publicKey: string;
+};
+
+export type WebPushSubscription = {
+  endpoint: string;
+  keys: WebPushSubscriptionKeys;
+  expirationTime?: null | number | string;
+};
+
+export type WebPushSubscriptionKeys = {
+  p256dh: string;
+  auth: string;
 };
 
 export type AdminAnnouncementsGetAllAnnouncementsData = {
@@ -7038,6 +7069,141 @@ export type NotificationsMarkAllAsReadResponses = {
   204: unknown;
 };
 
+export type PushConfigurationGetWebPushKeysData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/v1/admin/push/config/web-push/keys';
+};
+
+export type PushConfigurationGetWebPushKeysErrors = {
+  /**
+   * Bad Request
+   */
+  400: ProblemDetails;
+  /**
+   * Unauthorized
+   */
+  401: ProblemDetails;
+  /**
+   * Forbidden
+   */
+  403: ProblemDetails;
+  /**
+   * Not Found
+   */
+  404: ProblemDetails;
+  /**
+   * Too Many Requests
+   */
+  429: ProblemDetails;
+  /**
+   * Internal Server Error
+   */
+  500: ProblemDetails;
+};
+
+export type PushConfigurationGetWebPushKeysError = PushConfigurationGetWebPushKeysErrors[keyof PushConfigurationGetWebPushKeysErrors];
+
+export type PushConfigurationGetWebPushKeysResponses = {
+  /**
+   * OK
+   */
+  200: Array<WebPushKeyVersion>;
+};
+
+export type PushConfigurationGetWebPushKeysResponse = PushConfigurationGetWebPushKeysResponses[keyof PushConfigurationGetWebPushKeysResponses];
+
+export type PushConfigurationRotateWebPushKeyData = {
+  body: RotateWebPushKeyRequest;
+  path?: never;
+  query?: never;
+  url: '/v1/admin/push/config/web-push/keys';
+};
+
+export type PushConfigurationRotateWebPushKeyErrors = {
+  /**
+   * Bad Request
+   */
+  400: HttpValidationProblemDetails;
+  /**
+   * Unauthorized
+   */
+  401: ProblemDetails;
+  /**
+   * Forbidden
+   */
+  403: ProblemDetails;
+  /**
+   * Not Found
+   */
+  404: ProblemDetails;
+  /**
+   * Too Many Requests
+   */
+  429: ProblemDetails;
+  /**
+   * Internal Server Error
+   */
+  500: ProblemDetails;
+};
+
+export type PushConfigurationRotateWebPushKeyError = PushConfigurationRotateWebPushKeyErrors[keyof PushConfigurationRotateWebPushKeyErrors];
+
+export type PushConfigurationRotateWebPushKeyResponses = {
+  /**
+   * OK
+   */
+  200: WebPushPublicKey;
+};
+
+export type PushConfigurationRotateWebPushKeyResponse = PushConfigurationRotateWebPushKeyResponses[keyof PushConfigurationRotateWebPushKeyResponses];
+
+export type PushConfigurationRetireWebPushKeyData = {
+  body?: never;
+  path: {
+    keyId: string;
+  };
+  query?: never;
+  url: '/v1/admin/push/config/web-push/keys/{keyId}';
+};
+
+export type PushConfigurationRetireWebPushKeyErrors = {
+  /**
+   * Bad Request
+   */
+  400: HttpValidationProblemDetails;
+  /**
+   * Unauthorized
+   */
+  401: ProblemDetails;
+  /**
+   * Forbidden
+   */
+  403: ProblemDetails;
+  /**
+   * Not Found
+   */
+  404: ProblemDetails;
+  /**
+   * Too Many Requests
+   */
+  429: ProblemDetails;
+  /**
+   * Internal Server Error
+   */
+  500: ProblemDetails;
+};
+
+export type PushConfigurationRetireWebPushKeyError = PushConfigurationRetireWebPushKeyErrors[keyof PushConfigurationRetireWebPushKeyErrors];
+
+export type PushConfigurationRetireWebPushKeyResponses = {
+  /**
+   * No Content
+   */
+  204: unknown;
+};
+
 export type PushConfigurationGetTenantPushConfigData = {
   body?: never;
   path?: never;
@@ -7218,6 +7384,55 @@ export type PushConfigurationRemoveTenantPushConfigResponses = {
   204: unknown;
 };
 
+export type PushDevicesGetWebPushPublicKeyData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/v1/push/web-push/public-key';
+};
+
+export type PushDevicesGetWebPushPublicKeyErrors = {
+  /**
+   * Bad Request
+   */
+  400: ProblemDetails;
+  /**
+   * Unauthorized
+   */
+  401: ProblemDetails;
+  /**
+   * Forbidden
+   */
+  403: ProblemDetails;
+  /**
+   * Not Found
+   */
+  404: ProblemDetails;
+  /**
+   * Conflict
+   */
+  409: ProblemDetails;
+  /**
+   * Too Many Requests
+   */
+  429: ProblemDetails;
+  /**
+   * Internal Server Error
+   */
+  500: ProblemDetails;
+};
+
+export type PushDevicesGetWebPushPublicKeyError = PushDevicesGetWebPushPublicKeyErrors[keyof PushDevicesGetWebPushPublicKeyErrors];
+
+export type PushDevicesGetWebPushPublicKeyResponses = {
+  /**
+   * OK
+   */
+  200: WebPushPublicKey;
+};
+
+export type PushDevicesGetWebPushPublicKeyResponse = PushDevicesGetWebPushPublicKeyResponses[keyof PushDevicesGetWebPushPublicKeyResponses];
+
 export type PushDevicesGetUserDevicesData = {
   body?: never;
   path?: never;
@@ -7379,6 +7594,10 @@ export type PushDevicesSendPushErrors = {
    * Not Found
    */
   404: ProblemDetails;
+  /**
+   * Conflict
+   */
+  409: ProblemDetails;
   /**
    * Too Many Requests
    */

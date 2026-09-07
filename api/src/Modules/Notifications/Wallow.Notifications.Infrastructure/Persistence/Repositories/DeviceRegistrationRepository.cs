@@ -25,13 +25,19 @@ public sealed class DeviceRegistrationRepository(NotificationsDbContext context)
     public async Task<bool> RegisterAsync(DeviceRegistration registration, CancellationToken cancellationToken = default)
     {
         TenantId tenantId = TenantScope.Require(context.CurrentTenantId);
+        string? subscription = registration.Subscription is null ? null : System.Text.Json.JsonSerializer.Serialize(registration.Subscription, System.Text.Json.JsonSerializerOptions.Web);
         int affected = await context.Database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO notifications.device_registrations AS device
-                (id, tenant_id, user_id, platform, token, is_active, registered_at)
+                (id, tenant_id, user_id, platform, token, is_active, registered_at, subscription, signing_key_id)
             VALUES ({registration.Id.Value}, {tenantId.Value}, {registration.UserId.Value},
-                {registration.Platform.ToString()}, {registration.Token}, {registration.IsActive}, {registration.RegisteredAt})
+                {registration.Platform.ToString()}, {registration.Token}, {registration.IsActive}, {registration.RegisteredAt}, {subscription}, {registration.SigningKeyId})
             ON CONFLICT (token, tenant_id) DO UPDATE
-            SET id = CASE WHEN device.user_id = EXCLUDED.user_id THEN device.id ELSE EXCLUDED.id END,
+            SET id = CASE WHEN device.user_id = EXCLUDED.user_id
+                    AND device.subscription IS NOT DISTINCT FROM EXCLUDED.subscription
+                    AND device.signing_key_id IS NOT DISTINCT FROM EXCLUDED.signing_key_id
+                    AND (device.platform <> 'WebPush' OR device.is_active) THEN device.id ELSE EXCLUDED.id END,
+                subscription = EXCLUDED.subscription,
+                signing_key_id = EXCLUDED.signing_key_id,
                 user_id = EXCLUDED.user_id,
                 platform = EXCLUDED.platform,
                 is_active = EXCLUDED.is_active,

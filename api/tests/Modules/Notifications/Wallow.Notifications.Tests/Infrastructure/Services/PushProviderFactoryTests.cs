@@ -40,7 +40,7 @@ public sealed class PushProviderFactoryTests : IDisposable
             .GetByPlatformAsync(PushPlatform.Fcm, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<TenantPushConfiguration?>(null));
 
-        IPushProvider result = await _sut.GetProviderAsync(PushPlatform.Fcm);
+        IPushProvider result = await _sut.GetProviderAsync(Wallow.Notifications.Domain.Channels.Push.DeviceRegistration.Register(UserId.New(), TenantId.New(), PushPlatform.Fcm, "token", DateTimeOffset.UtcNow));
 
         result.Should().BeOfType<LogPushProvider>();
     }
@@ -56,7 +56,7 @@ public sealed class PushProviderFactoryTests : IDisposable
             .GetByPlatformAsync(PushPlatform.Fcm, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<TenantPushConfiguration?>(config));
 
-        IPushProvider result = await _sut.GetProviderAsync(PushPlatform.Fcm);
+        IPushProvider result = await _sut.GetProviderAsync(Wallow.Notifications.Domain.Channels.Push.DeviceRegistration.Register(UserId.New(), TenantId.New(), PushPlatform.Fcm, "token", DateTimeOffset.UtcNow));
 
         result.Should().BeOfType<LogPushProvider>();
     }
@@ -71,7 +71,7 @@ public sealed class PushProviderFactoryTests : IDisposable
             .GetByPlatformAsync(PushPlatform.Fcm, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<TenantPushConfiguration?>(config));
 
-        IPushProvider result = await _sut.GetProviderAsync(PushPlatform.Fcm);
+        IPushProvider result = await _sut.GetProviderAsync(Wallow.Notifications.Domain.Channels.Push.DeviceRegistration.Register(UserId.New(), TenantId.New(), PushPlatform.Fcm, "token", DateTimeOffset.UtcNow));
 
         result.Should().BeOfType<FcmPushProvider>();
     }
@@ -86,7 +86,7 @@ public sealed class PushProviderFactoryTests : IDisposable
             .GetByPlatformAsync(PushPlatform.Apns, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<TenantPushConfiguration?>(config));
 
-        IPushProvider result = await _sut.GetProviderAsync(PushPlatform.Apns);
+        IPushProvider result = await _sut.GetProviderAsync(Wallow.Notifications.Domain.Channels.Push.DeviceRegistration.Register(UserId.New(), TenantId.New(), PushPlatform.Apns, "token", DateTimeOffset.UtcNow));
 
         result.Should().BeOfType<ApnsPushProvider>();
     }
@@ -101,7 +101,7 @@ public sealed class PushProviderFactoryTests : IDisposable
             .GetByPlatformAsync(PushPlatform.WebPush, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<TenantPushConfiguration?>(config));
 
-        IPushProvider result = await _sut.GetProviderAsync(PushPlatform.WebPush);
+        IPushProvider result = await _sut.GetProviderAsync(Wallow.Notifications.Domain.Channels.Push.DeviceRegistration.Register(UserId.New(), TenantId.New(), PushPlatform.WebPush, "token", DateTimeOffset.UtcNow));
 
         result.Should().BeOfType<WebPushPushProvider>();
     }
@@ -116,7 +116,7 @@ public sealed class PushProviderFactoryTests : IDisposable
             .GetByPlatformAsync(PushPlatform.Fcm, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<TenantPushConfiguration?>(config));
 
-        await _sut.GetProviderAsync(PushPlatform.Fcm);
+        await _sut.GetProviderAsync(Wallow.Notifications.Domain.Channels.Push.DeviceRegistration.Register(UserId.New(), TenantId.New(), PushPlatform.Fcm, "token", DateTimeOffset.UtcNow));
 
         _encryptor.Received(1).Decrypt("encrypted-blob");
     }
@@ -132,7 +132,7 @@ public sealed class PushProviderFactoryTests : IDisposable
             .GetByPlatformAsync(unknownPlatform, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<TenantPushConfiguration?>(config));
 
-        IPushProvider result = await _sut.GetProviderAsync(unknownPlatform);
+        IPushProvider result = await _sut.GetProviderAsync(Wallow.Notifications.Domain.Channels.Push.DeviceRegistration.Register(UserId.New(), TenantId.New(), unknownPlatform, "token", DateTimeOffset.UtcNow));
 
         result.Should().BeOfType<LogPushProvider>();
     }
@@ -147,7 +147,7 @@ public sealed class PushProviderFactoryTests : IDisposable
             .GetByPlatformAsync(PushPlatform.Apns, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<TenantPushConfiguration?>(config));
 
-        await _sut.GetProviderAsync(PushPlatform.Apns);
+        await _sut.GetProviderAsync(Wallow.Notifications.Domain.Channels.Push.DeviceRegistration.Register(UserId.New(), TenantId.New(), PushPlatform.Apns, "token", DateTimeOffset.UtcNow));
 
         _httpClientFactory.Received(1).CreateClient("Push_Apns");
     }

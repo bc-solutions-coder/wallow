@@ -31,6 +31,7 @@ public sealed class TenantPushConfigurationConfiguration : IEntityTypeConfigurat
 
         builder.Property(e => e.EncryptedCredentials)
             .HasColumnName("encrypted_credentials")
+            .IsConcurrencyToken()
             .IsRequired();
 
         builder.Property(e => e.IsEnabled)

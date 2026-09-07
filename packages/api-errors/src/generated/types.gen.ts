@@ -487,7 +487,19 @@ TENANT_PUSH_CONFIGURATION_NOT_FOUND: 'TenantPushConfiguration.NotFound',
     /**
    * The request is invalid.
    */
-VALIDATION_FAILED: 'Validation.Failed'
+VALIDATION_FAILED: 'Validation.Failed',
+    /**
+   * The Web Push key configuration is invalid; retained key identities cannot be replaced or revived
+   */
+WEB_PUSH_INVALID_CONFIGURATION: 'WebPush.InvalidConfiguration',
+    /**
+   * The browser subscription or signing key is invalid or unavailable
+   */
+WEB_PUSH_INVALID_SUBSCRIPTION: 'WebPush.InvalidSubscription',
+    /**
+   * Web Push is not configured or enabled for this organization
+   */
+WEB_PUSH_UNAVAILABLE: 'WebPush.Unavailable'
 } as const;
 
 /**

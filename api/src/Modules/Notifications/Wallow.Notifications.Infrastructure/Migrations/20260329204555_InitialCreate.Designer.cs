@@ -21,7 +21,7 @@ namespace Wallow.Notifications.Infrastructure.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("notifications")
-                .HasAnnotation("ProductVersion", "10.0.4")
+                .HasAnnotation("ProductVersion", "10.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -241,14 +241,23 @@ namespace Wallow.Notifications.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("registered_at");
 
+                    b.Property<string>("SigningKeyId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("signing_key_id");
+
+                    b.Property<string>("Subscription")
+                        .HasColumnType("text")
+                        .HasColumnName("subscription");
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
 
                     b.Property<string>("Token")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)")
                         .HasColumnName("token");
 
                     b.Property<Guid>("UserId")
@@ -275,6 +284,11 @@ namespace Wallow.Notifications.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("body");
+
+                    b.Property<string>("ClickPath")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)")
+                        .HasColumnName("click_path");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -347,6 +361,7 @@ namespace Wallow.Notifications.Infrastructure.Migrations
                         .HasColumnName("created_by");
 
                     b.Property<string>("EncryptedCredentials")
+                        .IsConcurrencyToken()
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("encrypted_credentials");

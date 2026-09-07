@@ -44,7 +44,9 @@ namespace Wallow.Notifications.Infrastructure.Migrations
                     tenant_id = table.Column<Guid>(type: "uuid", nullable: false),
                     user_id = table.Column<Guid>(type: "uuid", nullable: false),
                     platform = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    token = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
+                    token = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: false),
+                    subscription = table.Column<string>(type: "text", nullable: true),
+                    signing_key_id = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
                     is_active = table.Column<bool>(type: "boolean", nullable: false),
                     registered_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
@@ -134,6 +136,7 @@ namespace Wallow.Notifications.Infrastructure.Migrations
                     tenant_id = table.Column<Guid>(type: "uuid", nullable: false),
                     recipient_id = table.Column<Guid>(type: "uuid", nullable: false),
                     title = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
+                    click_path = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: true),
                     body = table.Column<string>(type: "text", nullable: false),
                     status = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
                     failure_reason = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true),

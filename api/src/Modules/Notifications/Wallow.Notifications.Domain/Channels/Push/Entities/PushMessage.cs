@@ -14,6 +14,7 @@ public sealed class PushMessage : AggregateRoot<PushMessageId>, ITenantScoped
     public UserId RecipientId { get; private set; }
     public string Title { get; private set; } = null!;
     public string Body { get; private set; } = null!;
+    public string? ClickPath { get; private set; }
     public PushStatus Status { get; private set; }
     public string? FailureReason { get; private set; }
     public int RetryCount { get; private set; }
@@ -51,11 +52,15 @@ public sealed class PushMessage : AggregateRoot<PushMessageId>, ITenantScoped
         return new PushMessage(tenantId, recipientId, title, body, timeProvider);
     }
 
-    public void MarkDelivered(TimeProvider timeProvider)
+    public void SetClickPath(string? clickPath)
     {
-        Status = PushStatus.Delivered;
-        SetUpdated(timeProvider.GetUtcNow());
+        ClickPath = clickPath;
+    }
 
+    public void MarkAccepted(TimeProvider timeProvider)
+    {
+        Status = PushStatus.Accepted;
+        SetUpdated(timeProvider.GetUtcNow());
         RaiseDomainEvent(new PushMessageSentDomainEvent(Id));
     }
 

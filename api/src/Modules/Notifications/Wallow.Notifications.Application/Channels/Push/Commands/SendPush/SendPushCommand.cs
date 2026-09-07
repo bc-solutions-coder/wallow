@@ -7,4 +7,5 @@ public sealed record SendPushCommand(
     TenantId TenantId,
     string Title,
     string Body,
-    string NotificationType);
+    string NotificationType,
+    string? ClickPath = null);

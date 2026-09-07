@@ -14,7 +14,8 @@ public sealed class SendPushHandler(
     IPushMessageRepository pushMessageRepository,
     IDeviceRegistrationRepository deviceRegistrationRepository,
     IMessageBus messageBus,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    IWebPushConfiguration webPushConfiguration)
 {
     public async Task<Result> Handle(
         SendPushCommand command,
@@ -31,6 +32,22 @@ public sealed class SendPushHandler(
             return Result.Success();
         }
 
+        IReadOnlyList<DeviceRegistration> devices = await deviceRegistrationRepository
+            .GetActiveByUserAsync(command.RecipientId, cancellationToken);
+        List<DeviceRegistration> eligibleDevices = [];
+        foreach (DeviceRegistration device in devices)
+        {
+            if (device.Platform != Domain.Channels.Push.Enums.PushPlatform.WebPush
+                || await webPushConfiguration.IsAvailableAsync(device.SigningKeyId, cancellationToken))
+            {
+                eligibleDevices.Add(device);
+            }
+        }
+        if (devices.Count > 0 && eligibleDevices.Count == 0)
+        {
+            return Result.Failure(Domain.Errors.NotificationsErrors.WebPushUnavailable);
+        }
+
         PushMessage pushMessage = PushMessage.Create(
             command.TenantId,
             command.RecipientId,
@@ -38,13 +55,12 @@ public sealed class SendPushHandler(
             command.Body,
             timeProvider);
 
+        pushMessage.SetClickPath(command.ClickPath);
         pushMessageRepository.Add(pushMessage);
         await pushMessageRepository.SaveChangesAsync(cancellationToken);
 
-        IReadOnlyList<DeviceRegistration> devices = await deviceRegistrationRepository
-            .GetActiveByUserAsync(command.RecipientId, cancellationToken);
 
-        foreach (DeviceRegistration device in devices)
+        foreach (DeviceRegistration device in eligibleDevices)
         {
             DeliverPushCommand deliverCommand = new(
                 pushMessage.Id,

@@ -8,4 +8,5 @@ public sealed record DeviceRegistrationResponse(
     PushPlatform Platform,
     string Token,
     bool IsActive,
-    DateTimeOffset RegisteredAt);
+    DateTimeOffset RegisteredAt,
+    string? SigningKeyId = null);

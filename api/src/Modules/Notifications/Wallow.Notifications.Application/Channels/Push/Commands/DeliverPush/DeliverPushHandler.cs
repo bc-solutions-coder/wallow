@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Wallow.Notifications.Application.Channels.Push.Interfaces;
 using Wallow.Notifications.Domain.Channels.Push;
 using Wallow.Notifications.Domain.Channels.Push.Entities;
+using Wolverine;
 
 namespace Wallow.Notifications.Application.Channels.Push.Commands.DeliverPush;
 
@@ -10,7 +11,8 @@ public sealed partial class DeliverPushHandler(
     IPushMessageRepository pushMessageRepository,
     IDeviceRegistrationRepository deviceRegistrationRepository,
     TimeProvider timeProvider,
-    ILogger<DeliverPushHandler> logger)
+    ILogger<DeliverPushHandler> logger,
+    IMessageBus messageBus)
 {
     public async Task Handle(
         DeliverPushCommand command,
@@ -32,24 +34,35 @@ public sealed partial class DeliverPushHandler(
             return;
         }
 
+        TimeSpan? retryDelay = null;
         try
         {
-            IPushProvider provider = await pushProviderFactory.GetProviderAsync(device.Platform);
+            IPushProvider provider = await pushProviderFactory.GetProviderAsync(device);
 
             PushDeliveryResult result = await provider.SendAsync(
                 pushMessage, device.Token, cancellationToken);
 
             if (result.Success)
             {
-                pushMessage.MarkDelivered(timeProvider);
+                pushMessage.MarkAccepted(timeProvider);
                 LogPushDelivered(logger, command.PushMessageId.Value);
             }
             else
             {
+                if (result.SubscriptionExpired)
+                {
+                    device.Deactivate();
+                    await deviceRegistrationRepository.SaveDeactivationAsync(device, cancellationToken);
+                }
                 pushMessage.MarkFailed(result.ErrorMessage ?? "Unknown error", timeProvider);
+                if (result.Retryable && command.Attempt < 2)
+                {
+                    retryDelay = result.RetryAfter ?? TimeSpan.FromSeconds(30 * (command.Attempt + 1));
+                }
                 LogPushFailed(logger, command.PushMessageId.Value, result.ErrorMessage ?? "Unknown error");
             }
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception ex)
         {
             pushMessage.MarkFailed(ex.Message, timeProvider);
@@ -61,6 +74,10 @@ public sealed partial class DeliverPushHandler(
             pushMessageRepository.Update(pushMessage);
             await pushMessageRepository.SaveChangesAsync(cancellationToken);
         }
+        if (retryDelay is TimeSpan delay)
+        {
+            await messageBus.PublishAsync(command with { Attempt = command.Attempt + 1 }, new DeliveryOptions { ScheduleDelay = delay });
+        }
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Skipping push for unavailable device registration {DeviceRegistrationId}")]
@@ -69,7 +86,7 @@ public sealed partial class DeliverPushHandler(
     [LoggerMessage(Level = LogLevel.Warning, Message = "Push message {PushMessageId} not found")]
     private static partial void LogPushMessageNotFound(ILogger logger, Guid pushMessageId);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Push message {PushMessageId} delivered successfully")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "Push message {PushMessageId} accepted by push provider")]
     private static partial void LogPushDelivered(ILogger logger, Guid pushMessageId);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Push message {PushMessageId} delivery failed: {Reason}")]

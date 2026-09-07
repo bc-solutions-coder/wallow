@@ -5,4 +5,5 @@ namespace Wallow.Notifications.Application.Channels.Push.Commands.DeliverPush;
 public sealed record DeliverPushCommand(
     PushMessageId PushMessageId,
     DeviceRegistrationId DeviceRegistrationId,
-    Guid TenantId);
+    Guid TenantId,
+    int Attempt = 0);

@@ -18,7 +18,7 @@ public class UpsertTenantPushConfigHandlerTests
     {
         _timeProvider.GetUtcNow().Returns(DateTimeOffset.UtcNow);
         _credentialEncryptor.Encrypt(Arg.Any<string>()).Returns("encrypted-creds");
-        _handler = new UpsertTenantPushConfigHandler(_configRepository, _credentialEncryptor, _timeProvider);
+        _handler = new UpsertTenantPushConfigHandler(_configRepository, _credentialEncryptor, _timeProvider, Substitute.For<IWebPushConfiguration>());
     }
 
     [Fact]

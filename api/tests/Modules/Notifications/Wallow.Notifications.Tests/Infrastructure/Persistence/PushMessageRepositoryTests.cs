@@ -60,14 +60,14 @@ public sealed class PushMessageRepositoryTests : RepositoryTestBase
         _repository.Add(message);
         await Context.SaveChangesAsync();
 
-        message.MarkDelivered(TimeProvider.System);
+        message.MarkAccepted(TimeProvider.System);
         message.ClearDomainEvents();
         _repository.Update(message);
         await Context.SaveChangesAsync();
 
         PushMessage? result = await _repository.GetByIdAsync(message.Id);
         result.Should().NotBeNull();
-        result!.Status.Should().Be(PushStatus.Delivered);
+        result!.Status.Should().Be(PushStatus.Accepted);
     }
 
     [Fact]

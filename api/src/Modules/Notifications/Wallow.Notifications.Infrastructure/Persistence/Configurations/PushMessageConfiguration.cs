@@ -33,6 +33,8 @@ public sealed class PushMessageConfiguration : IEntityTypeConfiguration<PushMess
             .HasMaxLength(500)
             .IsRequired();
 
+        builder.Property(e => e.ClickPath).HasColumnName("click_path").HasMaxLength(2048);
+
         builder.Property(e => e.Body)
             .HasColumnName("body")
             .IsRequired();

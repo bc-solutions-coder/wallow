@@ -12,6 +12,8 @@ public sealed class DeviceRegistration : Entity<DeviceRegistrationId>, ITenantSc
     public UserId UserId { get; private set; }
     public PushPlatform Platform { get; private set; }
     public string Token { get; private set; } = null!;
+    public WebPushSubscription? Subscription { get; private set; }
+    public string? SigningKeyId { get; private set; }
     public bool IsActive { get; private set; }
     public DateTimeOffset RegisteredAt { get; private set; }
 
@@ -42,6 +44,17 @@ public sealed class DeviceRegistration : Entity<DeviceRegistrationId>, ITenantSc
         DateTimeOffset registeredAt)
     {
         return new DeviceRegistration(userId, tenantId, platform, token, registeredAt);
+    }
+
+    public static DeviceRegistration RegisterWebPush(UserId userId, TenantId tenantId,
+        WebPushSubscription subscription, string signingKeyId, DateTimeOffset registeredAt)
+    {
+        DeviceRegistration registration = new(userId, tenantId, PushPlatform.WebPush, subscription.Endpoint, registeredAt)
+        {
+            Subscription = subscription,
+            SigningKeyId = signingKeyId,
+        };
+        return registration;
     }
 
     public void Deactivate()

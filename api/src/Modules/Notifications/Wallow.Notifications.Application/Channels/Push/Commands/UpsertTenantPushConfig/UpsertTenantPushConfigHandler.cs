@@ -7,7 +7,8 @@ namespace Wallow.Notifications.Application.Channels.Push.Commands.UpsertTenantPu
 public sealed class UpsertTenantPushConfigHandler(
     ITenantPushConfigurationRepository configurationRepository,
     IPushCredentialEncryptor credentialEncryptor,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    IWebPushConfiguration webPushConfiguration)
 {
     public async Task<Result> Handle(
         UpsertTenantPushConfigCommand command,
@@ -18,6 +19,12 @@ public sealed class UpsertTenantPushConfigHandler(
         TenantPushConfiguration? existing = await configurationRepository.GetByPlatformAsync(
             command.Platform,
             cancellationToken);
+
+        if (command.Platform == Domain.Channels.Push.Enums.PushPlatform.WebPush
+            && !await webPushConfiguration.ValidateReplacementAsync(command.RawCredentials, existing?.EncryptedCredentials, cancellationToken))
+        {
+            return Result.Failure(Domain.Errors.NotificationsErrors.WebPushInvalidConfiguration);
+        }
 
         if (existing is not null)
         {

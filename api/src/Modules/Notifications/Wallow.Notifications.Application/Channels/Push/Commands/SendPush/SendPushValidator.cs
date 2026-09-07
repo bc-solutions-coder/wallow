@@ -6,6 +6,10 @@ public sealed class SendPushValidator : AbstractValidator<SendPushCommand>
 {
     public SendPushValidator()
     {
+        RuleFor(x => x.ClickPath).Must(path => path is null ||
+            (path.Length <= 2048 && path.StartsWith('/') && !path.StartsWith("//", StringComparison.Ordinal)
+                && !path.Contains('\\', StringComparison.Ordinal) && !path.Any(char.IsControl)))
+            .WithMessage("Click destination must be a local absolute path");
         RuleFor(x => x.RecipientId.Value)
             .NotEmpty().WithMessage("Recipient is required");
 

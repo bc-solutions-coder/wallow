@@ -7,6 +7,15 @@ namespace Wallow.Notifications.Domain.Errors;
 /// </summary>
 public static class NotificationsErrors
 {
+    public static readonly ErrorCatalogEntry WebPushInvalidSubscription = new(
+        "WebPush.InvalidSubscription", ErrorKind.Validation, "The browser subscription or signing key is invalid or unavailable");
+
+    public static readonly ErrorCatalogEntry WebPushInvalidConfiguration = new(
+        "WebPush.InvalidConfiguration", ErrorKind.Validation, "The Web Push key configuration is invalid; retained key identities cannot be replaced or revived");
+
+    public static readonly ErrorCatalogEntry WebPushUnavailable = new(
+        "WebPush.Unavailable", ErrorKind.Conflict, "Web Push is not configured or enabled for this organization");
+
     public static readonly ErrorCatalogEntry NotificationNotFound = new(
         "Notification.NotFound", ErrorKind.NotFound, "Notification not found");
 

@@ -6,8 +6,8 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Wallow.Notifications.Application.Channels.Push.Interfaces;
+using Wallow.Notifications.Domain.Channels.Push;
 using Wallow.Notifications.Domain.Channels.Push.Entities;
-using Wallow.Notifications.Domain.Channels.Push.Enums;
 using Wallow.Notifications.Domain.Channels.Push.Identity;
 using Wallow.Notifications.Domain.Preferences;
 using Wallow.Notifications.Domain.Preferences.Entities;
@@ -335,7 +335,7 @@ public sealed class RecordingPushProvider : IPushProviderFactory, IPushProvider
 {
     public Channel<RecordedPush> Deliveries { get; } = Channel.CreateUnbounded<RecordedPush>();
 
-    public Task<IPushProvider> GetProviderAsync(PushPlatform platform) => Task.FromResult<IPushProvider>(this);
+    public Task<IPushProvider> GetProviderAsync(DeviceRegistration device) => Task.FromResult<IPushProvider>(this);
 
     public Task<PushDeliveryResult> SendAsync(PushMessage message, string deviceToken, CancellationToken cancellationToken = default)
     {

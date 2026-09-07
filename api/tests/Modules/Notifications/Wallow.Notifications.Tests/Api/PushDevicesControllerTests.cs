@@ -23,7 +23,7 @@ public class PushDevicesControllerTests
     public PushDevicesControllerTests()
     {
         _tenantContext.TenantId.Returns(TenantId.New());
-        _controller = new PushDevicesController(_bus, _currentUserService, _tenantContext);
+        _controller = new PushDevicesController(_bus, _currentUserService, _tenantContext, Substitute.For<Wallow.Notifications.Application.Channels.Push.Interfaces.IWebPushConfiguration>());
     }
 
     [Fact]

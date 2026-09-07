@@ -610,3 +610,7 @@ The generated client is wired to the BFF at construction time through
 `src/runtime-config.ts` — that is why generated operations already target `/api`
 with `credentials: "include"`, and why they reject with an `ApiFailure` rather
 than resolving an `{ data, error }` envelope.
+
+## Browser Web Push
+
+See the [browser Web Push guide](../../docs/development/browser-push.md) for organization key provisioning, typed subscriptions, service-worker integration and rotation. Use `pushDevicesGetWebPushPublicKey`, `pushDevicesRegisterDevice`, `pushDevicesDeregisterDevice` and `pushDevicesSendPush` through your request-scoped SDK client. `resolveWebPushClickUrl` confines notification navigation to the consumer origin.

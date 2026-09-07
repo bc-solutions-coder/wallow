@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Wallow.Notifications.Application.Channels.Push.Interfaces;
+using Wallow.Notifications.Domain.Channels.Push;
 using Wallow.Notifications.Domain.Channels.Push.Enums;
 
 namespace Wallow.Notifications.Infrastructure.Services;
@@ -10,8 +11,9 @@ public sealed class PushProviderFactory(
     IHttpClientFactory httpClientFactory,
     ILoggerFactory loggerFactory) : IPushProviderFactory
 {
-    public async Task<IPushProvider> GetProviderAsync(PushPlatform platform)
+    public async Task<IPushProvider> GetProviderAsync(DeviceRegistration device)
     {
+        PushPlatform platform = device.Platform;
         Domain.Channels.Push.Entities.TenantPushConfiguration? config = await configurationRepository
             .GetByPlatformAsync(platform);
 
@@ -24,11 +26,11 @@ public sealed class PushProviderFactory(
             {
                 PushPlatform.Fcm => new FcmPushProvider(httpClient, credentials, loggerFactory.CreateLogger<FcmPushProvider>()),
                 PushPlatform.Apns => new ApnsPushProvider(httpClient, loggerFactory.CreateLogger<ApnsPushProvider>()),
-                PushPlatform.WebPush => new WebPushPushProvider(httpClient, loggerFactory.CreateLogger<WebPushPushProvider>()),
+                PushPlatform.WebPush => new WebPushPushProvider(httpClient, credentials, device),
                 _ => new LogPushProvider(loggerFactory.CreateLogger<LogPushProvider>())
             };
         }
 
-        return new LogPushProvider(loggerFactory.CreateLogger<LogPushProvider>());
+        return platform == PushPlatform.WebPush ? new UnavailableWebPushProvider() : new LogPushProvider(loggerFactory.CreateLogger<LogPushProvider>());
     }
 }

@@ -36,8 +36,14 @@ public sealed class DeviceRegistrationConfiguration : IEntityTypeConfiguration<D
 
         builder.Property(e => e.Token)
             .HasColumnName("token")
-            .HasMaxLength(500)
+            .HasMaxLength(2048)
             .IsRequired();
+
+        builder.Property(e => e.Subscription)
+            .HasColumnName("subscription")
+            .HasConversion(value => System.Text.Json.JsonSerializer.Serialize(value, System.Text.Json.JsonSerializerOptions.Web),
+                value => System.Text.Json.JsonSerializer.Deserialize<Wallow.Notifications.Domain.Channels.Push.WebPushSubscription>(value, System.Text.Json.JsonSerializerOptions.Web));
+        builder.Property(e => e.SigningKeyId).HasColumnName("signing_key_id").HasMaxLength(100);
 
         builder.Property(e => e.IsActive)
             .HasColumnName("is_active")
