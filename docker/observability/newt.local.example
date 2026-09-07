@@ -1,0 +1,5 @@
+# A separate Pangolin site owned by observability. Never reuse Wallow's site credentials.
+PANGOLIN_ENDPOINT=https://pangolin.example.invalid
+NEWT_ID=
+NEWT_SECRET=
+HEALTH_FILE=/tmp/healthy

@@ -1,0 +1,67 @@
+services:
+  newt:
+    image: fosrl/newt:1.16.0@sha256:345fdeb369be6608d82c41d70637636c78b2c04a6112ff6ec20fc21c48afc899
+    restart: unless-stopped
+    mem_limit: 128m
+    env_file: [./newt.local]
+    networks:
+      operator_edge:
+        ipv4_address: ${OPERATOR_PROXY_PEER:?Set verified Newt address}
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: "3" }
+  operator:
+    build:
+      context: ../..
+      dockerfile: api/src/Wallow.TelemetryGateway/Dockerfile
+    restart: unless-stopped
+    mem_limit: 128m
+    environment:
+      GATEWAY_ROLE: operator
+      OPERATOR_PROXY_PEER: ${OPERATOR_PROXY_PEER:?Set verified Newt address}
+      OPERATOR_IDENTITY_HEADER: ${OPERATOR_IDENTITY_HEADER:?Set verified identity header}
+    volumes:
+      - ./operators.local.json:/etc/observability/operators.json:ro
+    networks:
+      operator_edge:
+        ipv4_address: ${OPERATOR_BOUNDARY_EDGE:?Set boundary edge address}
+      operator_grafana:
+        ipv4_address: ${OPERATOR_BOUNDARY_GRAFANA:?Set boundary Grafana address}
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: "3" }
+  gateway:
+    networks:
+      storage: {}
+      operator_edge:
+        ipv4_address: ${OPERATOR_INGESTION_PEER:?Set credential-authenticated ingress address}
+  grafana:
+    networks:
+      storage: {}
+      operator_grafana:
+        ipv4_address: ${OPERATOR_GRAFANA_PEER:?Set Grafana address}
+    environment:
+      GF_SERVER_ROOT_URL: ${OPERATOR_GRAFANA_URL:?Set HTTPS Grafana URL}
+      GF_AUTH_PROXY_ENABLED: "true"
+      GF_AUTH_PROXY_HEADER_NAME: X-WEBAUTH-USER
+      GF_AUTH_PROXY_HEADER_PROPERTY: username
+      GF_AUTH_PROXY_WHITELIST: ${OPERATOR_BOUNDARY_GRAFANA:?Set boundary Grafana address}
+      GF_AUTH_PROXY_AUTO_SIGN_UP: "true"
+      GF_AUTH_PROXY_ENABLE_LOGIN_TOKEN: "false"
+      GF_AUTH_PROXY_HEADERS: ""
+      GF_USERS_AUTO_ASSIGN_ORG_ROLE: Viewer
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_AUTH_BASIC_ENABLED: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_LIVE_MAX_CONNECTIONS: "0"
+      GF_SECURITY_COOKIE_SECURE: "true"
+networks:
+  operator_edge:
+    ipam:
+      config:
+        - subnet: ${OPERATOR_EDGE_SUBNET:?Set non-overlapping edge subnet}
+  operator_grafana:
+    internal: true
+    ipam:
+      config:
+        - subnet: ${OPERATOR_GRAFANA_SUBNET:?Set non-overlapping Grafana subnet}

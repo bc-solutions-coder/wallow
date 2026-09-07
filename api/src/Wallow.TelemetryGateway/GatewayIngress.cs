@@ -12,7 +12,7 @@ public static class GatewayIngress
 {
     private static readonly JsonSerializerOptions _faroJson = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
-    public static WebApplication Create(string databasePath, Uri collector, TimeProvider clock, Uri? faroCollector = null, string? collectorSecret = null)
+    public static WebApplication Create(string databasePath, Uri collector, TimeProvider clock, Uri? faroCollector = null, string? collectorSecret = null, GatewayHealth? health = null)
     {
         WebApplicationBuilder builder = WebApplication.CreateSlimBuilder();
         builder.WebHost.UseUrls("http://127.0.0.1:0");
@@ -31,6 +31,7 @@ public static class GatewayIngress
             client.MaxResponseContentBufferSize = 64 * 1024;
         });
         WebApplication app = builder.Build();
+        health?.Observe(app);
         foreach (string route in new[] { "/v1/logs", "/v1/traces", "/v1/metrics", "/faro" })
         {
             app.MapPost(route, async (HttpContext context, RegistryDb db, IHttpClientFactory clients, PartitionedRateLimiter<Guid> limits) =>

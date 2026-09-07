@@ -47,6 +47,7 @@ pairs=(
   "docker-compose.test.yml:.env.example"
   "turbo-cache/docker-compose.yml:turbo-cache/.env.example"
   "observability/compose.yml:observability/.env.example"
+  "observability/compose.operator.yml:observability/.env.operator.example"
 )
 
 failed=0
