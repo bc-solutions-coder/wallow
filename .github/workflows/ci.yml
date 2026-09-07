@@ -489,6 +489,9 @@ jobs:
     if: needs.changes.outputs.route == 'full'
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
       - name: Setup .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
@@ -514,20 +517,9 @@ jobs:
       - name: Merge coverage reports
         run: reportgenerator -reports:"./coverage/**/coverage.cobertura.xml" -targetdir:"./coverage/merged" -reporttypes:"Cobertura;HtmlSummary"
       - name: Enforce coverage threshold
-        run: |
-          LINE_RATE=$(grep -oP 'line-rate="\K[^"]+' ./coverage/merged/Cobertura.xml | head -1)
-          if [ -z "$LINE_RATE" ]; then
-            echo "::error::Failed to extract line-rate from Cobertura.xml"
-            exit 1
-          fi
-          PERCENT=$(awk "BEGIN {printf \"%.1f\", ${LINE_RATE} * 100}")
-          echo "Line coverage: ${PERCENT}%"
-          MIN=90
-          if [ "$(awk "BEGIN {print (${LINE_RATE} * 100 < $MIN)}")" = "1" ]; then
-            echo "::error::Coverage ${PERCENT}% is below minimum threshold of ${MIN}%"
-            exit 1
-          fi
+        run: python3 scripts/ci/coverage_gate.py ./coverage/merged/Cobertura.xml
       - name: Upload merged coverage report
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: coverage-report-${{ github.run_id }}-${{ github.run_attempt }}
@@ -609,6 +601,10 @@ jobs:
           path: .ci-artifacts/docs
           if-no-files-found: error
           retention-days: 30
+      - name: Set up QEMU for docs package updates
+        uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a
+        with:
+          platforms: arm64
       - name: Package validated docs site
         run: |-
           docker build --platform linux/amd64 -f docker/docs/Dockerfile.ci -t wallow-docs:test .
