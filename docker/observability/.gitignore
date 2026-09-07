@@ -1,2 +1,5 @@
 credentials.local.tmp
 __pycache__/
+
+*.local
+*.local.tmp
