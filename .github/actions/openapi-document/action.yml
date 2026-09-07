@@ -3,11 +3,8 @@ description: >-
   Emits the API's OpenAPI document at build time and reports whether the committed
   packages/sdk snapshot has drifted from it.
 
-# Two workflows react to the same fact and must therefore derive it the same way:
-# openapi-drift.yml fails a pull request whose snapshot is stale, and
-# openapi-autoregen.yml opens a fix-up PR when a stale snapshot reaches main. The
-# emission recipe and the definition of "drift" live here so the check and the fix
-# can never disagree.
+# Used by openapi-drift.yml to compare the backend contract with the committed
+# SDK snapshot without repository-write credentials.
 #
 # The document is emitted by Microsoft.Extensions.ApiDescription.Server
 # (dotnet-getdocument) rather than scraped from a live API over HTTP, so this needs
@@ -55,12 +52,12 @@ runs:
   using: composite
   steps:
     - name: Setup .NET
-      uses: actions/setup-dotnet@v6
+      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
       with:
         dotnet-version: "10.0.x"
 
     - name: Cache NuGet packages
-      uses: actions/cache@v6
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
       with:
         path: ~/.nuget/packages
         key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
