@@ -45,3 +45,19 @@ digest. The prepared-image verifier checks that digest, each compressed blob dig
 and each bounded decompressed layer against the original inspected export. The actual
 prepared manifest digest is `sha256:79612b00f51c982577cd7e1ddeca491198cd22f7ebbdc74c339a3c208271d9a4`.
 Registry copy/readback and fresh scanning remain separate acceptance requirements.
+
+An isolated local registry round trip now passes for the actual Garage AMD64 and ARM64
+variants. `skopeo copy --preserve-digests` uploaded prepared directories, then downloaded
+them into fresh directories. The verifier matched the exact manifest, configuration,
+compressed layer digests/sizes and decompressed layer identities on readback. AMD64 used
+the manifest above; ARM64 used
+`sha256:960955c7e194fa5970ef8d23666bb46f322ee3653055b091f873d0d72adf916c`.
+The registry was isolated on an internal Docker network without host ports and removed
+afterward. This proves byte-preserving transport, not hosted authentication, multi-platform
+index publication, authorization, conflict/retry handling or fresh scanning.
+
+The manifest-list builder now requires exactly one verified AMD64 manifest and one
+verified ARM64 manifest, preserving their digest and byte size in deterministic output.
+The actual Garage variants produce index digest
+`sha256:d14e9e43f268e7db861aec70e5e17cf363b06d8465b7cbb9149cef8a14c41410`.
+This index has not yet been published or read back from a registry.
