@@ -32,11 +32,13 @@ def verify_images(client, plan, catalog):
         expected = {tag: platform for image in catalog['images'] if image['bundle'] == bundle for platform, tag in image['tags'].items()}
         if not expected:
             raise PublicationError('Required image bundle has no catalog images')
+        companions = {image['tag']: image['platform'] for image in catalog['validation_only_images'] if image['bundle'] == bundle}
         item = bundles[bundle]
         artifact = Artifact(**{key: item[key] for key in ('id', 'name', 'digest', 'size')})
         with tempfile.TemporaryDirectory(prefix='wallow-image-inspection-') as directory:
             root = Path(directory)
             archive = client.download(artifact, root / 'artifact.zip')
             payload = unpack_payload(archive, root / 'verified', artifact, producer, item['payload'], 'images', item['variant'], 8 * 1024**3)
-            verified[bundle] = {'artifact_id': artifact.id, 'images': inspect_images(payload, expected)}
+            inspected = inspect_images(payload, expected | companions)
+            verified[bundle] = {'artifact_id': artifact.id, 'images': {tag: inspected[tag] for tag in expected}}
     return verified

@@ -134,5 +134,12 @@
     "bundle": "docs",
     "payload": "site.tar.gz",
     "variant": "docfx"
-  }
+  },
+  "validation_only_images": [
+    {
+      "bundle": "app",
+      "platform": "linux/amd64",
+      "tag": "wallow-bff-example:test"
+    }
+  ]
 }

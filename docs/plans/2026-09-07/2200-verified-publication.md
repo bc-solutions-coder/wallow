@@ -78,3 +78,12 @@ large bundles. All 87 helper tests pass, including real sealed ZIP/TAR fixtures 
 transport, catalog drift, missing/extra/duplicate bundles, altered seals, unexpected tags,
 download tampering, transport failure, and cleanup. Actionlint passes. Hosted execution
 and registry publication remain separate acceptance work.
+
+The app producer also exports `wallow-bff-example:test` as an AMD64 validation companion.
+The catalog now lists it explicitly under `validation_only_images`, separate from images
+with publication destinations. Inspection requires and verifies this companion alongside
+publishable images, then excludes it from the returned publication inventory. Unknown
+extra tags still fail. Catalog validation rejects duplicate tags, overlap with publishable
+images, unsupported platforms/bundles, and publication fields on companion entries.
+Real archive tests cover accepted/excluded companions, unexpected companion tags, and
+incorrect companion architecture. All 88 helper tests pass.

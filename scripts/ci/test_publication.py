@@ -75,6 +75,7 @@ class CatalogTests(unittest.TestCase):
     def setUp(self):
         self.catalog = {
             'schema': 1,
+            'validation_only_images': [],
             'default_branch': 'main',
             'producer_workflow': '.github/workflows/ci.yml',
             'package_registry': 'https://npm.pkg.github.com',
@@ -88,6 +89,18 @@ class CatalogTests(unittest.TestCase):
         }
         self.release = {'release-type': 'simple', 'packages': {'.': {}, 'packages/sdk': {'release-type': 'node', 'package-name': '@example/sdk', 'component': 'sdk', 'include-component-in-tag': True}}}
         self.manifests = {'packages/sdk': {'name': '@example/sdk', 'publishConfig': {'registry': 'https://npm.pkg.github.com'}}}
+
+    def test_validation_only_images_are_exact_and_disjoint_from_publishable_images(self):
+        companion = {'bundle': 'app', 'platform': 'linux/amd64', 'tag': 'example:test'}
+        self.catalog['validation_only_images'] = [companion]
+        validate_catalog(self.catalog, self.release, self.manifests)
+        for change in [{'tag': 'candidate:test'}, {'platform': 'linux/s390x'}, {'bundle': 'unknown'}, {'tag': '*'}, {'repository_suffix': '-example'}]:
+            self.catalog['validation_only_images'] = [companion | change]
+            with self.subTest(change=change), self.assertRaises(PublicationError):
+                validate_catalog(self.catalog, self.release, self.manifests)
+        self.catalog['validation_only_images'] = [companion, companion]
+        with self.assertRaises(PublicationError):
+            validate_catalog(self.catalog, self.release, self.manifests)
 
     def test_fork_catalog_resolves_only_fork_owned_registry_names(self):
         catalog = validate_catalog(self.catalog, self.release, self.manifests)
