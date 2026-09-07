@@ -1,5 +1,10 @@
 # Versioning Guide
 
+> Automated release PRs, image/package publishing, and docs deployment are paused
+> while the CI lifecycle is migrated. Validation remains available. The workflows
+> described below document the prior release flow; they are not active publication
+> entry points. The replacement will publish verified artifacts from isolated jobs.
+
 Wallow uses automated semantic versioning driven by [Conventional Commits](https://www.conventionalcommits.org/) and [release-please](https://github.com/googleapis/release-please). Versions flow through assemblies, Docker images, and git tags with zero manual intervention.
 
 ## Commit Message Format

@@ -30,7 +30,7 @@ jobs:
     steps:
       - name: Classify changed paths
         id: filter
-        uses: dorny/paths-filter@v4
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         with:
           # Load-bearing, and NOT the default: under the default `some`, a
           # negated pattern is inert — `code`'s `'**'` would match a docs-only
@@ -70,8 +70,9 @@ jobs:
 
     steps:
       # Full history: git-restore-mtime needs each file's last-touching commit.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       # MSBuild's up-to-date check is mtime-based, and a fresh checkout stamps
@@ -83,15 +84,15 @@ jobs:
       # accepted pre-release; the escape hatch is bumping the cache namespace
       # (build-v3 -> build-v4) to force a cold build.
       - name: Restore source file mtimes
-        uses: chetan/git-restore-mtime-action@v2
+        uses: chetan/git-restore-mtime-action@d186aca54f8760da4dec55313195e51ed3ebb0b3 # v2
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: "10.0.x"
 
       - name: Cache NuGet packages
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
@@ -99,7 +100,7 @@ jobs:
             nuget-${{ runner.os }}-
 
       - name: Restore previous build output
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
             **/bin/Release
@@ -118,7 +119,7 @@ jobs:
         run: dotnet format api/Wallow.slnx --verify-no-changes --no-restore
 
       - name: Cache build output
-        uses: actions/cache/save@v6
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
             **/bin/Release
@@ -131,15 +132,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: "10.0.x"
 
       - name: Cache NuGet packages
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
@@ -147,7 +150,7 @@ jobs:
             nuget-${{ runner.os }}-
 
       - name: Restore build output
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
             **/bin/Release
@@ -163,7 +166,7 @@ jobs:
 
       - name: Upload unit test coverage
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: coverage-unit
           path: ./TestResults/**/coverage.cobertura.xml
@@ -191,7 +194,9 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Start Valkey with password
         run: |
@@ -211,12 +216,12 @@ jobs:
           done
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: "10.0.x"
 
       - name: Cache NuGet packages
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
@@ -224,7 +229,7 @@ jobs:
             nuget-${{ runner.os }}-
 
       - name: Restore build output
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
             **/bin/Release
@@ -243,7 +248,7 @@ jobs:
 
       - name: Upload integration test coverage
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: coverage-integration
           path: ./TestResults/**/coverage.cobertura.xml
@@ -277,7 +282,9 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Start Valkey with password
         run: |
@@ -297,12 +304,12 @@ jobs:
           done
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: "10.0.x"
 
       - name: Cache NuGet packages
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
@@ -310,7 +317,7 @@ jobs:
             nuget-${{ runner.os }}-
 
       - name: Restore build output
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
             **/bin/Release
@@ -338,15 +345,17 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: "10.0.x"
 
       - name: Cache NuGet packages
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
@@ -354,7 +363,7 @@ jobs:
             nuget-${{ runner.os }}-
 
       - name: Restore build output
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
             **/bin/Release
@@ -373,7 +382,7 @@ jobs:
       # execute an arm64 binary if a runtime stage ever grows a RUN step, instead
       # of failing with "exec format error".
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
+        uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a # v4
         with:
           platforms: arm64
 
@@ -444,7 +453,7 @@ jobs:
             | gzip > /tmp/wallow-images-app.tar.gz
 
       - name: Cache app images
-        uses: actions/cache/save@v6
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: /tmp/wallow-images-app.tar.gz
           key: images-app-${{ github.sha }}
@@ -456,7 +465,9 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Build infra images
         run: |
@@ -470,7 +481,7 @@ jobs:
             | gzip > /tmp/wallow-images-infra.tar.gz
 
       - name: Cache infra images
-        uses: actions/cache/save@v6
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: /tmp/wallow-images-infra.tar.gz
           key: images-infra-${{ github.sha }}
@@ -482,17 +493,19 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Restore app images
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: /tmp/wallow-images-app.tar.gz
           key: images-app-${{ github.sha }}
           fail-on-cache-miss: true
 
       - name: Restore infra images
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: /tmp/wallow-images-infra.tar.gz
           key: images-infra-${{ github.sha }}
@@ -510,7 +523,7 @@ jobs:
         run: corepack enable
 
       - name: Set up Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: ".nvmrc"
           cache: "pnpm"
@@ -540,7 +553,7 @@ jobs:
 
       - name: Upload wallow-auth Playwright report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: playwright-report-wallow-auth
           path: apps/wallow-auth/playwright-report
@@ -552,7 +565,7 @@ jobs:
       # covers them.
       - name: Upload wallow-web Playwright report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: playwright-report-wallow-web
           path: apps/wallow-web/playwright-report
@@ -577,13 +590,15 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Enable corepack
         run: corepack enable
 
       - name: Set up Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: ".nvmrc"
           cache: "pnpm"
@@ -612,19 +627,19 @@ jobs:
 
     steps:
       - name: Setup .NET
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: "10.0.x"
 
       - name: Download unit test coverage
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: coverage-unit
           path: ./coverage/unit
         continue-on-error: true
 
       - name: Download integration test coverage
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: coverage-integration
           path: ./coverage/integration
@@ -669,7 +684,7 @@ jobs:
 
       - name: Upload merged coverage report
         if: steps.check-coverage.outputs.has_coverage == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: coverage-report
           path: ./coverage/merged
