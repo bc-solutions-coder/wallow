@@ -24,6 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\..\src\Wallow.TelemetryGateway\Wallow.TelemetryGateway.csproj" Aliases="telemetry" />
     <ProjectReference Include="..\..\..\..\src\Wallow.Api\Wallow.Api.csproj" />
     <ProjectReference Include="..\..\..\..\src\Modules\Identity\Wallow.Identity.Domain\Wallow.Identity.Domain.csproj" />
     <ProjectReference Include="..\..\..\..\src\Modules\Identity\Wallow.Identity.Application\Wallow.Identity.Application.csproj" />

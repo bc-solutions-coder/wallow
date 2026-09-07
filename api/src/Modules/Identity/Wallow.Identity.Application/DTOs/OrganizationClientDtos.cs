@@ -20,7 +20,8 @@ public sealed record OrganizationClientDto(
     DateTimeOffset? LastRotatedAt,
     DateTimeOffset? PlatformSuspendedAt = null,
     string? PlatformSuspensionReason = null,
-    int? RefreshTokenLifetime = null);
+    int? RefreshTokenLifetime = null,
+    TelemetryStatusDto? Telemetry = null);
 
 /// <summary>
 /// Registration or rotation result. The secret is disclosed here and cannot be read back.
@@ -30,7 +31,8 @@ public sealed record OrganizationClientRegistrationResult(
     OrganizationClientDto Client,
     string ClientSecret,
     string? Issuer,
-    string? ApiBaseUrl);
+    string? ApiBaseUrl,
+    TelemetryConfigurationDto? Telemetry = null);
 
 /// <summary>
 /// Mutable OAuth client configuration. A null refresh-token lifetime preserves current
@@ -58,4 +60,5 @@ public sealed record RegisterClientInput(
     string Name,
     ClientConfigurationInput Configuration,
     string? BrandingDisplayName = null,
-    string? BrandingTagline = null);
+    string? BrandingTagline = null,
+    bool EnableObservability = false);

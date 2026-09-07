@@ -41,6 +41,32 @@ public class ApplicationRegistrationTests(WallowApiFactory factory) : IdentityIn
     }
 
     [Fact]
+    public async Task ObservabilityRegistration_RevealsSeparateSecretOnce_AndReportsMissingConfiguration()
+    {
+        Guid orgId = await OrganizationOwnedBySomeoneElseAsync("Telemetry Org");
+        await ActAsEnrolledAsync(orgId, "manager");
+        HttpResponseMessage response = await Client.PostAsJsonAsync(
+            $"/identity/organizations/{orgId}/clients",
+            new
+            {
+                kind = "application",
+                name = "Observed",
+                redirectUris = _portalRedirects,
+                postLogoutRedirectUris = Array.Empty<string>(),
+                scopes = _portalScopes,
+                enableObservability = true
+            });
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        JsonElement body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        string clientId = body.GetProperty("client").GetProperty("clientId").GetString()!;
+        string credential = body.GetProperty("telemetry").GetProperty("credential").GetString()!;
+        credential.Should().NotBeNullOrWhiteSpace().And.NotBe(body.GetProperty("clientSecret").GetString());
+        body.GetProperty("client").GetProperty("telemetry").GetProperty("status").GetString().Should().Be("action-required");
+        string fetched = await Client.GetStringAsync($"/identity/organizations/{orgId}/clients/{clientId}");
+        fetched.Should().NotContain(credential).And.NotContain("verifier");
+    }
+
+    [Fact]
     public async Task Member_CannotRegisterAnApplication()
     {
         Guid orgId = await OrganizationOwnedBySomeoneElseAsync("Member Org");

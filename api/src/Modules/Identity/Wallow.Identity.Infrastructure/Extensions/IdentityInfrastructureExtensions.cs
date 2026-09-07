@@ -412,6 +412,14 @@ public static class IdentityInfrastructureExtensions
         services.AddScoped<IOrganizationService, OrganizationService>();
         services.AddScoped<IOrganizationAccessPolicy, OrganizationAccessPolicy>();
         services.AddScoped<IOrganizationClientService, OrganizationClientService>();
+        services.AddScoped<TelemetryProvisioner>();
+        services.AddHttpClient("telemetry-control", client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(5);
+                client.MaxResponseContentBufferSize = 64 * 1024;
+            })
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        services.AddHostedService<TelemetryReconciliationService>();
         services.AddScoped<ITestSupportService, TestSupportService>();
         services.AddScoped<IAuthorizeContextService, AuthorizeContextService>();
         services.AddScoped<IClientTenantResolver, ClientTenantResolver>();

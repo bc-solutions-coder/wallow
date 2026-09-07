@@ -381,6 +381,18 @@ IDENTITY_SCOPE_CODE_REQUIRED: 'Identity.ScopeCodeRequired',
    */
 IDENTITY_SCOPE_DISPLAY_NAME_REQUIRED: 'Identity.ScopeDisplayNameRequired',
     /**
+   * Observability is already enabled. Rotate the credential if the secret was lost.
+   */
+IDENTITY_TELEMETRY_ALREADY_ENABLED: 'Identity.TelemetryAlreadyEnabled',
+    /**
+   * Wait for acknowledgement and any previous credential overlap to end before rotating.
+   */
+IDENTITY_TELEMETRY_CHANGE_PENDING: 'Identity.TelemetryChangePending',
+    /**
+   * The application no longer exists.
+   */
+IDENTITY_TELEMETRY_CLIENT_NOT_FOUND: 'Identity.TelemetryClientNotFound',
+    /**
    * One or more requested scopes do not exist.
    */
 IDENTITY_UNKNOWN_SCOPE: 'Identity.UnknownScope',

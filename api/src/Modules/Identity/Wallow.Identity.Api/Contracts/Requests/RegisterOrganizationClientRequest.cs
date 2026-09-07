@@ -15,7 +15,8 @@ public record RegisterOrganizationClientRequest(
     string? BackchannelLogoutUri = null,
     bool BackchannelLogoutSessionRequired = false,
     RegisterOrganizationClientBranding? Branding = null,
-    int? RefreshTokenLifetime = null);
+    int? RefreshTokenLifetime = null,
+    bool EnableObservability = false);
 
 /// <summary>
 /// Initial application display name and tagline. Omitted display name uses the client name;

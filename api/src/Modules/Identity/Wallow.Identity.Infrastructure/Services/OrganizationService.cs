@@ -515,6 +515,8 @@ public sealed partial class OrganizationService(
             {
                 await using IDbContextTransaction transaction = await dbContext.Database.BeginTransactionAsync(token);
 
+                await TelemetryOwnership.LockOrganizationAsync(dbContext, organizationId, token);
+
                 // Snapshot clients inside the transaction, after the preliminary checks.
                 IReadOnlyList<RegisteredClient> boundClients =
                     await registeredClients.ListByOrganizationAsync(organizationId, token);
@@ -538,6 +540,11 @@ public sealed partial class OrganizationService(
                         .Where(s => clientIds.Contains(s.ClientId))
                         .ExecuteDeleteAsync(token);
                 }
+
+                List<TelemetryRegistration> telemetry = await dbContext.TelemetryRegistrations.AsTracking()
+                    .Where(e => e.OrganizationId == organizationId).ToListAsync(token);
+                foreach (TelemetryRegistration registration in telemetry) { registration.Revoke(deleted: true, timeProvider); }
+                await dbContext.SaveChangesAsync(token);
 
                 await dbContext.RegisteredClients
                     .Where(c => c.OrganizationId == organizationId)

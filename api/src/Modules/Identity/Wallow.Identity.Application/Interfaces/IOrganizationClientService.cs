@@ -19,6 +19,10 @@ public interface IOrganizationClientService
         ClientActorContext actor,
         CancellationToken ct = default);
 
+    Task<TelemetryEnableResult?> RotateTelemetryAsync(Guid organizationId, string clientId, CancellationToken ct = default);
+    Task<TelemetryStatusDto?> RevokeTelemetryAsync(Guid organizationId, string clientId, CancellationToken ct = default);
+    Task<TelemetryEnableResult?> EnableTelemetryAsync(Guid organizationId, string clientId, CancellationToken ct = default);
+
     Task<IReadOnlyList<OrganizationClientDto>> ListAsync(Guid organizationId, CancellationToken ct = default);
 
     Task<OrganizationClientDto?> GetAsync(Guid organizationId, string clientId, CancellationToken ct = default);

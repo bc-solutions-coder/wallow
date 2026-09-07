@@ -12,6 +12,14 @@ namespace Wallow.Identity.Domain.Errors;
 /// </remarks>
 public static class IdentityErrors
 {
+    public static readonly ErrorCatalogEntry TelemetryClientNotFound = new(
+        "Identity.TelemetryClientNotFound", ErrorKind.NotFound, "The application no longer exists.");
+
+    public static readonly ErrorCatalogEntry TelemetryChangePending = new(
+        "Identity.TelemetryChangePending", ErrorKind.BusinessRule, "Wait for acknowledgement and any previous credential overlap to end before rotating.");
+
+    public static readonly ErrorCatalogEntry TelemetryAlreadyEnabled = new(
+        "Identity.TelemetryAlreadyEnabled", ErrorKind.BusinessRule, "Observability is already enabled. Rotate the credential if the secret was lost.");
 
 
     public static readonly ErrorCatalogEntry UserNotFound = new(

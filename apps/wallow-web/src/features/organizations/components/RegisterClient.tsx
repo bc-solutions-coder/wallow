@@ -1,3 +1,4 @@
+import { telemetryEnvBlock, telemetryStatusLabel } from "./telemetry-config";
 /**
  * The register-client stepper and the one-time reveal that follows it, for
  * both kinds: an application walks Basics → Redirects → Scopes → Branding, a
@@ -112,6 +113,7 @@ interface RegisterValues {
   scopes: string[];
   brandingDisplayName: string;
   brandingTagline: string;
+  enableObservability: boolean;
 }
 
 /**
@@ -170,6 +172,7 @@ function registerSchemaFor(kind: ClientKind): z.ZodType<RegisterValues, Register
       .string()
       .refine((value) => !isReservedDisplayName(value), RESERVED_DISPLAY_NAME_MESSAGE),
     brandingTagline: z.string(),
+    enableObservability: z.boolean(),
   });
 }
 
@@ -184,6 +187,7 @@ const STEP_OF_FIELD: Record<keyof RegisterValues, Step> = {
   scopes: "scopes",
   brandingDisplayName: "branding",
   brandingTagline: "branding",
+  enableObservability: "basics",
 };
 
 function isFieldName(name: string): name is keyof RegisterValues {
@@ -236,6 +240,7 @@ function toRegisterBody(kind: ClientKind, values: RegisterValues) {
     ? {
         kind,
         name: values.name,
+        ...(values.enableObservability ? { enableObservability: true } : {}),
         // Left blank, the server applies its per-client default.
         refreshTokenLifetime: lifetime === "" ? undefined : Number(lifetime),
         redirectUris: toUriList(values.redirectUris),
@@ -255,6 +260,7 @@ function toRegisterBody(kind: ClientKind, values: RegisterValues) {
     : {
         kind,
         name: values.name,
+        ...(values.enableObservability ? { enableObservability: true } : {}),
         redirectUris: [],
         postLogoutRedirectUris: [],
         scopes: values.scopes,
@@ -281,6 +287,7 @@ function useRegisterClientForm(
       scopes: [...KINDS[kind].defaultScopes],
       brandingDisplayName: "",
       brandingTagline: "",
+      enableObservability: false,
     },
     mutation: organizationClientsRegisterMutation({ client: sdk.client }),
     // Field by field, never a spread: the URI lists arrive as strings and an
@@ -344,6 +351,13 @@ function BasicsStep(props: Stepper) {
       <MutedText>
         The client id is derived from the organization and this name. Neither can be changed after
         registration.
+      </MutedText>
+      <form.AppField name="enableObservability">
+        {(field) => <field.CheckboxField label="Enable observability" />}
+      </form.AppField>
+      <MutedText>
+        Collect application logs, errors and request traces. Setup continues automatically if
+        collection is temporarily unavailable.
       </MutedText>
       {kind === "application" ? <LifetimeBasics form={form} /> : null}
     </div>
@@ -737,6 +751,9 @@ function buildEnvBlock(kind: ClientKind, result: OrganizationClientRegistrationR
           `OIDC_SERVICE_SCOPES=${client.scopes.join(" ")}`,
           `BFF_API_BASE_URL=${result.apiBaseUrl}`,
         ];
+  if (result.telemetry) {
+    lines.push(telemetryEnvBlock(result.telemetry));
+  }
   return lines.join("\n");
 }
 
@@ -840,6 +857,14 @@ export function RegistrationReveal(props: {
       >
         {env}
       </pre>
+      {result.telemetry ? (
+        <MutedText>
+          Observability: {telemetryStatusLabel(result.client.telemetry?.status ?? "pending")}
+        </MutedText>
+      ) : null}
+      {result.client.telemetry?.failure ? (
+        <MutedText>{result.client.telemetry.failure}</MutedText>
+      ) : null}
       <RevealActions kind={kind} env={env} onDone={onDone} />
     </Card>
   );

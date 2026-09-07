@@ -72,18 +72,43 @@ const registered = {
   apiBaseUrl: "https://api.example",
 };
 
+const telemetryConfiguration = {
+  endpoint: "https://telemetry.example.com",
+  credential: "telemetry-id.server-secret",
+  environment: "production",
+  release: "unknown",
+};
+
 /** The transport backing each render, rebuilt per test. */
 let harness: SdkHarness;
 
-function seedLoadedOrg(clients: readonly unknown[] = []): void {
+function seedLoadedOrg(clients: readonly unknown[] = [], registration: unknown = registered): void {
   routeHarness(
     harness,
     {
       "GET /v1/identity/organizations/o1": org,
       "GET /v1/identity/organizations/o1/members": [],
       "GET /v1/identity/organizations/o1/clients": clients,
-      "POST /v1/identity/organizations/o1/clients": registered,
+      "POST /v1/identity/organizations/o1/clients": registration,
       "GET /v1/identity/scopes": scopes,
+      "POST /v1/identity/organizations/o1/clients/app-acme-dashboard/observability/rotate": {
+        status: { status: "pending-rotation", revision: 2, acknowledgedRevision: 1 },
+        configuration: { ...telemetryConfiguration, credential: "replacement.new-secret" },
+      },
+      "POST /v1/identity/organizations/o1/clients/app-acme-dashboard/observability/revoke": {
+        status: "pending-revocation",
+        revision: 2,
+        acknowledgedRevision: 1,
+      },
+      "POST /v1/identity/organizations/o1/clients/app-acme-dashboard/observability/disable": {
+        status: "pending-revocation",
+        revision: 2,
+        acknowledgedRevision: 1,
+      },
+      "POST /v1/identity/organizations/o1/clients/app-acme-dashboard/observability": {
+        status: { status: "pending", revision: 1, acknowledgedRevision: 0 },
+        configuration: telemetryConfiguration,
+      },
     },
     { fallback: [] },
   );
@@ -255,5 +280,137 @@ describe("OrganizationDetail register-application stepper", () => {
     await expectSwept(invalidateSpy, organizationClientsListQueryKey({ path: { orgId: "o1" } }));
     const membersKey = organizationsGetMembersQueryKey({ path: { id: "o1" } });
     expect(invalidateSpy.mock.calls.some((call) => sweeps(call[0], membersKey))).toBe(false);
+  });
+  it("opts into observability and includes the separate one-time server configuration", async () => {
+    seedLoadedOrg([], {
+      ...registered,
+      client: {
+        ...application,
+        telemetry: { status: "pending", revision: 1, acknowledgedRevision: 0 },
+      },
+      telemetry: {
+        endpoint: "https://telemetry.example.com",
+        credential: "telemetry-id.server-secret",
+        environment: "production",
+        release: "unknown",
+      },
+    });
+    renderWithWallow(<OrganizationDetail orgId="o1" />, { harness });
+    await openStepper();
+    const checkbox = page.getByRole("checkbox", { name: "Enable observability" });
+    await expect.element(checkbox).not.toBeChecked();
+    await userEvent.click(checkbox);
+    await fillRequiredAndReachScopes();
+    await userEvent.click(page.getByTestId("organization-detail-register-submit"));
+    await expect
+      .poll(
+        () =>
+          harness.calls.find((call) => call.method === "POST" && call.path.endsWith("/clients"))
+            ?.body,
+      )
+      .toMatchObject({ enableObservability: true });
+    await expect
+      .element(page.getByTestId("organization-detail-register-env"))
+      .toHaveTextContent("WALLOW_TELEMETRY_CREDENTIAL=telemetry-id.server-secret");
+    await expect
+      .element(page.getByTestId("organization-detail-register-env"))
+      .toHaveTextContent("WALLOW_TELEMETRY_ENDPOINT=https://telemetry.example.com");
+    await expect
+      .element(page.getByText("Observability: Pending", { exact: true }))
+      .toBeInTheDocument();
+  });
+  it("enables an existing application and clears the one-time reveal when dismissed", async () => {
+    seedLoadedOrg([application]);
+    renderWithWallow(<OrganizationDetail orgId="o1" />, { harness });
+    await userEvent.click(page.getByRole("button", { name: "Enable observability", exact: true }));
+    await expect.element(page.getByRole("dialog")).toBeInTheDocument();
+    await userEvent.click(page.getByRole("button", { name: "Copy server configuration" }));
+    expect(await navigator.clipboard.readText()).toContain(
+      "WALLOW_TELEMETRY_CREDENTIAL=telemetry-id.server-secret",
+    );
+    await userEvent.click(page.getByRole("button", { name: "Done", exact: true }));
+    await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+    expect(
+      page.getByText("WALLOW_TELEMETRY_CREDENTIAL=telemetry-id.server-secret").elements(),
+    ).toHaveLength(0);
+  });
+
+  it("shows acknowledged collection and permanent provisioning failures in the ledger", async () => {
+    seedLoadedOrg([
+      { ...application, telemetry: { status: "active", revision: 1, acknowledgedRevision: 1 } },
+      {
+        ...serviceAccount,
+        telemetry: {
+          status: "action-required",
+          revision: 1,
+          acknowledgedRevision: 0,
+          failure: "Provisioning was rejected. Contact the platform operator.",
+        },
+      },
+    ]);
+    renderWithWallow(<OrganizationDetail orgId="o1" />, { harness });
+    await expect
+      .element(page.getByText("Observability: Active", { exact: true }))
+      .toBeInTheDocument();
+    await expect
+      .element(page.getByText("Observability: Action required", { exact: true }))
+      .toBeInTheDocument();
+    await expect
+      .element(
+        page.getByText("Provisioning was rejected. Contact the platform operator.", {
+          exact: true,
+        }),
+      )
+      .toBeInTheDocument();
+  });
+  it.each(["pending", "action-required"])(
+    "refreshes %s provisioning without navigation",
+    async (status) => {
+      seedLoadedOrg([
+        { ...application, telemetry: { status, revision: 1, acknowledgedRevision: 0 } },
+      ]);
+      renderWithWallow(<OrganizationDetail orgId="o1" />, { harness });
+      await expect
+        .element(
+          page.getByText(
+            status === "pending" ? "Observability: Pending" : "Observability: Action required",
+            { exact: true },
+          ),
+        )
+        .toBeInTheDocument();
+      seedLoadedOrg([
+        { ...application, telemetry: { status: "active", revision: 1, acknowledgedRevision: 1 } },
+      ]);
+      await expect
+        .poll(() => page.getByText("Observability: Active", { exact: true }).elements().length, {
+          timeout: 10000,
+        })
+        .toBe(1);
+    },
+    15000,
+  );
+  it("reveals a rotated credential once and submits immediate revocation separately", async () => {
+    seedLoadedOrg([
+      { ...application, telemetry: { status: "active", revision: 1, acknowledgedRevision: 1 } },
+    ]);
+    renderWithWallow(<OrganizationDetail orgId="o1" />, { harness });
+    await userEvent.click(
+      page.getByRole("button", { name: "Rotate telemetry credential", exact: true }),
+    );
+    await expect.element(page.getByRole("dialog")).toBeInTheDocument();
+    await userEvent.click(page.getByRole("button", { name: "Copy server configuration" }));
+    expect(await navigator.clipboard.readText()).toContain("replacement.new-secret");
+    await userEvent.click(page.getByRole("button", { name: "Done", exact: true }));
+    await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+    await userEvent.click(
+      page.getByRole("button", { name: "Revoke telemetry credential", exact: true }),
+    );
+    await expect
+      .poll(() =>
+        harness.calls.some(
+          (call) => call.method === "POST" && call.path.endsWith("/observability/revoke"),
+        ),
+      )
+      .toBe(true);
   });
 });

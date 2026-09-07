@@ -13,11 +13,11 @@ Wayfinder decisions and #240 already approve design and public testing seams.
    Test ordering, replay, persistence, authentication, attribution and limits through HTTP.
 3. Completed — #247: installable telemetry package with explicit Node initialization, bounded export
    and bundled maintained logger. Verify a packed external Node consumer.
-4. #248: transactional registration desired state and outbox, retries and one-time reveal.
+4. Completed — #248: transactional registration desired state and outbox, retries and one-time reveal.
    Exercise existing organization-client integration and rendered registration seams.
 5. #249: browser entry and same-origin session-aware relay, sanitization and owned-route
    propagation. Exercise external browser consumers and login/context transitions.
-6. #250: acknowledged rotation, revocation and deletion with persisted deadlines. Test
+6. Completed — #250: acknowledged rotation, revocation and deletion with persisted deadlines. Test
    the public gateway boundary with a controllable clock and restart.
 7. #251: correlated browser/Node/API failure and Grafana investigation views. Query actual
    logs, spans and metrics, including forged identity and sensitive-marker attempts.

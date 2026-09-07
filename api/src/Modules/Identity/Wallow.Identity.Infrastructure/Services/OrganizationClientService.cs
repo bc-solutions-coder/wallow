@@ -83,6 +83,8 @@ public sealed partial class OrganizationClientService(
         RegisteredClient record = RegisteredClient.Create(
             clientId, organizationId, input.Name, input.Kind, actor.ActorId, timeProvider);
 
+        TelemetryConfigurationDto? telemetryConfiguration = null;
+
         // Application, registration and branding event share the Identity transaction/outbox.
         try
         {
@@ -102,8 +104,13 @@ public sealed partial class OrganizationClientService(
                 },
                 async token =>
                 {
+                    await TelemetryOwnership.RequireOrganizationAsync(dbContext, organizationId, token);
                     await applicationManager.CreateAsync(descriptor, token);
                     registeredClients.Add(record);
+                    if (input.EnableObservability)
+                    {
+                        telemetryConfiguration = CreateTelemetry(record);
+                    }
                     await registeredClients.SaveChangesAsync(token);
                 },
                 ct);
@@ -117,10 +124,11 @@ public sealed partial class OrganizationClientService(
         LogClientRegistered(clientId, organizationId, actor.ActorId);
 
         return new OrganizationClientRegistrationResult(
-            ToDto(record, descriptor),
+            await ToDtoAsync(record, descriptor, ct),
             clientSecret,
             ResolveIssuer(),
-            TrimmedOrNull(serviceUrls.Value.ApiUrl));
+            TrimmedOrNull(serviceUrls.Value.ApiUrl),
+            telemetryConfiguration);
     }
 
     public async Task<IReadOnlyList<OrganizationClientDto>> ListAsync(Guid organizationId, CancellationToken ct = default)
@@ -132,7 +140,7 @@ public sealed partial class OrganizationClientService(
             OpenIddictApplicationDescriptor? descriptor = await DescriptorOfAsync(record, ct);
             if (descriptor is not null)
             {
-                result.Add(ToDto(record, descriptor));
+                result.Add(await ToDtoAsync(record, descriptor, ct));
             }
         }
 
@@ -148,7 +156,7 @@ public sealed partial class OrganizationClientService(
         }
 
         OpenIddictApplicationDescriptor? descriptor = await DescriptorOfAsync(record, ct);
-        return descriptor is null ? null : ToDto(record, descriptor);
+        return descriptor is null ? null : await ToDtoAsync(record, descriptor, ct);
     }
 
     public async Task<OrganizationClientDto?> UpdateAsync(
@@ -182,7 +190,7 @@ public sealed partial class OrganizationClientService(
         ApplyConfiguration(descriptor, record.Kind, configuration);
 
         await applicationManager.UpdateAsync(application, descriptor, ct);
-        return ToDto(record, descriptor);
+        return await ToDtoAsync(record, descriptor, ct);
     }
 
     public async Task<OrganizationClientRegistrationResult?> RotateSecretAsync(
@@ -238,7 +246,7 @@ public sealed partial class OrganizationClientService(
         LogClientSecretRotated(record.ClientId, organizationId, actor.ActorId, revokeActiveTokens);
 
         return new OrganizationClientRegistrationResult(
-            ToDto(record, descriptor),
+            await ToDtoAsync(record, descriptor, ct),
             clientSecret,
             ResolveIssuer(),
             TrimmedOrNull(serviceUrls.Value.ApiUrl));
@@ -278,7 +286,7 @@ public sealed partial class OrganizationClientService(
             ct);
 
         LogClientSuspended(record.ClientId, organizationId);
-        return ToDto(record, descriptor);
+        return await ToDtoAsync(record, descriptor, ct);
     }
 
     public async Task<OrganizationClientDto?> ReinstateAsync(
@@ -309,7 +317,7 @@ public sealed partial class OrganizationClientService(
             ct);
 
         LogClientReinstated(record.ClientId, organizationId);
-        return ToDto(record, descriptor);
+        return await ToDtoAsync(record, descriptor, ct);
     }
 
     public async Task<OrganizationClientDto?> SuspendByPlatformAsync(
@@ -355,7 +363,7 @@ public sealed partial class OrganizationClientService(
             ct);
 
         LogClientSuspendedByPlatform(record.ClientId, organizationId, actor.ActorId);
-        return ToDto(record, descriptor);
+        return await ToDtoAsync(record, descriptor, ct);
     }
 
     public async Task<OrganizationClientDto?> ReinstateByPlatformAsync(
@@ -386,7 +394,7 @@ public sealed partial class OrganizationClientService(
             ct);
 
         LogClientReinstatedByPlatform(record.ClientId, organizationId);
-        return ToDto(record, descriptor);
+        return await ToDtoAsync(record, descriptor, ct);
     }
 
     public async Task<bool> DeleteAsync(
@@ -416,6 +424,7 @@ public sealed partial class OrganizationClientService(
             },
             async token =>
             {
+                await TelemetryOwnership.LockOrganizationAsync(dbContext, organizationId, token);
                 await accessRevoker.RevokeClientAsync(record.ClientId, token);
 
                 if (application is not null)
@@ -424,6 +433,8 @@ public sealed partial class OrganizationClientService(
                     await applicationManager.DeleteAsync(application, token);
                 }
 
+                TelemetryRegistration? telemetry = await dbContext.TelemetryRegistrations.AsTracking().FirstOrDefaultAsync(e => e.Id == record.Id, token);
+                telemetry?.Revoke(deleted: true, timeProvider);
                 registeredClients.Remove(record);
                 await registeredClients.SaveChangesAsync(token);
             },
@@ -582,7 +593,7 @@ public sealed partial class OrganizationClientService(
     private static bool IsUniqueViolation(DbUpdateException exception) =>
         exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation };
 
-    private static OrganizationClientDto ToDto(RegisteredClient record, OpenIddictApplicationDescriptor descriptor) =>
+    private async Task<OrganizationClientDto> ToDtoAsync(RegisteredClient record, OpenIddictApplicationDescriptor descriptor, CancellationToken ct) =>
         new(
             record.ClientId,
             record.Name,
@@ -603,7 +614,8 @@ public sealed partial class OrganizationClientService(
             record.LastRotatedAt,
             record.PlatformSuspendedAt,
             record.PlatformSuspensionReason,
-            descriptor.GetRefreshTokenLifetimeSeconds());
+            descriptor.GetRefreshTokenLifetimeSeconds(),
+            await TelemetryStatusAsync(record.Id, ct));
 
     /// <summary>
     /// Resolves the configured issuer, falling back to the service auth URL.

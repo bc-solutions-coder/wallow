@@ -33,6 +33,9 @@ describe("api.ts re-exports the SDK organizations query surface", () => {
     expect(api.organizationsReactivateMutation).toBe(query.organizationsReactivateMutation);
     expect(api.organizationClientsListOptions).toBe(query.organizationClientsListOptions);
     expect(api.organizationClientsListQueryKey).toBe(query.organizationClientsListQueryKey);
+    expect(api.organizationClientsEnableObservabilityMutation).toBe(
+      query.organizationClientsEnableObservabilityMutation,
+    );
     expect(api.organizationClientsRegisterMutation).toBe(query.organizationClientsRegisterMutation);
     expect(api.organizationClientsSuspendMutation).toBe(query.organizationClientsSuspendMutation);
     expect(api.organizationClientsReinstateMutation).toBe(

@@ -589,7 +589,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -3317,7 +3317,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -3673,7 +3673,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "400": {
@@ -3759,7 +3759,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "400": {
@@ -3940,7 +3940,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "400": {
@@ -4026,7 +4026,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "400": {
@@ -4323,7 +4323,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -4503,7 +4503,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -4686,7 +4686,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -6339,7 +6339,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -7206,7 +7206,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -7404,7 +7404,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -7502,7 +7502,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -7849,7 +7849,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -7957,7 +7957,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -8065,7 +8065,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -8173,7 +8173,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -8281,7 +8281,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -8380,7 +8380,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "422": {
@@ -8479,7 +8479,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -8568,7 +8568,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -8672,7 +8672,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "403": {
@@ -8769,7 +8769,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "403": {
@@ -9281,7 +9281,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -9385,7 +9385,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -10032,7 +10032,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "409": {
@@ -10518,7 +10518,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -10607,7 +10607,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -10711,7 +10711,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "400": {
@@ -10808,7 +10808,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -11769,7 +11769,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -11847,7 +11847,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "401": {
@@ -12121,7 +12121,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -12209,7 +12209,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "400": {
@@ -12305,7 +12305,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "400": {
@@ -12403,7 +12403,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -12491,7 +12491,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "400": {
@@ -12686,7 +12686,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "401": {
@@ -12858,7 +12858,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -12961,7 +12961,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "401": {
@@ -13136,7 +13136,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "401": {
@@ -13229,7 +13229,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "401": {
@@ -13529,7 +13529,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -13837,7 +13837,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -13926,7 +13926,7 @@
           "302": {
             "description": "Found",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "404": {
@@ -14619,7 +14619,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "400": {
@@ -14705,7 +14705,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "400": {
@@ -14886,7 +14886,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "400": {
@@ -14972,7 +14972,7 @@
           "204": {
             "description": "No Content",
             "content": {
-              "application/json": { }
+              "application/json": {}
             }
           },
           "400": {
@@ -15007,6 +15007,410 @@
           },
           "404": {
             "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/identity/organizations/{orgId}/clients/{clientId}/observability": {
+      "post": {
+        "tags": [
+          "Organization Clients"
+        ],
+        "summary": "Enable observability for an existing organization client.",
+        "description": "Requires OrganizationClientsManage. Reveals a separate server ingestion credential once.\n            Provisioning runs asynchronously; a temporary gateway outage does not fail this operation.",
+        "operationId": "OrganizationClientsEnableObservability",
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelemetryEnableResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/identity/organizations/{orgId}/clients/{clientId}/observability/rotate": {
+      "post": {
+        "tags": [
+          "Organization Clients"
+        ],
+        "summary": "Rotate an observability credential with a 24-hour overlap after acknowledgement.",
+        "description": "Requires OrganizationClientsManage. Reveals the replacement secret once.",
+        "operationId": "OrganizationClientsRotateObservability",
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelemetryEnableResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/identity/organizations/{orgId}/clients/{clientId}/observability/revoke": {
+      "post": {
+        "tags": [
+          "Organization Clients"
+        ],
+        "summary": "Revoke all observability credentials for an organization client.",
+        "description": "Requires OrganizationClientsManage. Returns pending revocation until gateway acknowledgement.",
+        "operationId": "OrganizationClientsRevokeObservability",
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelemetryStatusDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/identity/organizations/{orgId}/clients/{clientId}/observability/disable": {
+      "post": {
+        "tags": [
+          "Organization Clients"
+        ],
+        "summary": "Disable new telemetry collection while preserving stored history.",
+        "description": "Requires OrganizationClientsManage. Revokes ingestion when the gateway acknowledges the change.",
+        "operationId": "OrganizationClientsDisableObservability",
+        "parameters": [
+          {
+            "name": "orgId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelemetryStatusDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -16185,7 +16589,10 @@
           "Validation.Failed",
           "WebPush.InvalidConfiguration",
           "WebPush.InvalidSubscription",
-          "WebPush.Unavailable"
+          "WebPush.Unavailable",
+          "Identity.TelemetryAlreadyEnabled",
+          "Identity.TelemetryChangePending",
+          "Identity.TelemetryClientNotFound"
         ],
         "type": "string",
         "description": "Machine-readable code identifying why a request failed. Each code has exactly one owning catalog and a fixed HTTP status.",
@@ -16309,7 +16716,10 @@
           "The request is invalid.",
           "The Web Push key configuration is invalid; retained key identities cannot be replaced or revived",
           "The browser subscription or signing key is invalid or unavailable",
-          "Web Push is not configured or enabled for this organization"
+          "Web Push is not configured or enabled for this organization",
+          "Observability is already enabled. Rotate the credential if the secret was lost.",
+          "Wait for acknowledgement and any previous credential overlap to end before rotating.",
+          "The application no longer exists."
         ]
       },
       "FileMetadataResponse": {
@@ -16896,6 +17306,16 @@
           },
           "apiBaseUrl": {
             "type": "string"
+          },
+          "telemetry": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TelemetryConfigurationDto"
+              }
+            ]
           }
         },
         "description": "Registration or rotation response revealing the new secret, issuer, and API base URL.\nRead endpoints do not return the stored secret."
@@ -17009,6 +17429,16 @@
             ],
             "description": "Per-client refresh-token lifetime in seconds, or null when no parseable setting is present.",
             "format": "int32"
+          },
+          "telemetry": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TelemetryStatusDto"
+              }
+            ]
           }
         }
       },
@@ -17579,6 +18009,10 @@
               "string"
             ],
             "format": "int32"
+          },
+          "enableObservability": {
+            "type": "boolean",
+            "default": false
           }
         },
         "description": "Organization client registration: application or service-account. Both require scopes.\nApplications require an absolute, fragment-free HTTPS or loopback HTTP redirect;\nservice accounts ignore URI fields. Name and client id cannot be changed here after registration.\nRefreshTokenLifetime is seconds for future application refresh tokens, defaulting to one day."
@@ -18371,6 +18805,88 @@
             "type": "string"
           }
         }
+      },
+      "TelemetryConfigurationDto": {
+        "required": [
+          "endpoint",
+          "credential",
+          "environment",
+          "release"
+        ],
+        "type": "object",
+        "properties": {
+          "endpoint": {
+            "type": "string"
+          },
+          "credential": {
+            "type": "string"
+          },
+          "environment": {
+            "type": "string"
+          },
+          "release": {
+            "type": "string"
+          }
+        },
+        "description": "One-time server configuration. Read APIs never return Credential."
+      },
+      "TelemetryEnableResult": {
+        "required": [
+          "status",
+          "configuration"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/TelemetryStatusDto"
+          },
+          "configuration": {
+            "$ref": "#/components/schemas/TelemetryConfigurationDto"
+          }
+        }
+      },
+      "TelemetryStatusDto": {
+        "required": [
+          "status",
+          "revision",
+          "acknowledgedRevision",
+          "failure"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "revision": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "acknowledgedRevision": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "failure": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "previousCredentialExpiresAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
       }
     },
     "securitySchemes": {
@@ -18384,7 +18900,7 @@
   },
   "security": [
     {
-      "Bearer": [ ]
+      "Bearer": []
     }
   ],
   "tags": [

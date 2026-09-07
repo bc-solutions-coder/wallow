@@ -57,6 +57,10 @@ public sealed class OrganizationClientServiceTests : IDisposable
         IOrganizationRepository organizations = Substitute.For<IOrganizationRepository>();
         Organization organization = Organization.Create(
             new TenantId(_organizationId), "Acme", "acme", _actorId, TimeProvider.System);
+        _organizationId = organization.Id.Value;
+        _dbContext.SetTenant(new TenantId(_organizationId));
+        _dbContext.Organizations.Add(organization);
+        _dbContext.SaveChanges();
         organizations.GetByIdAsync(Arg.Any<OrganizationId>(), Arg.Any<CancellationToken>())
             .Returns(organization);
 

@@ -30,7 +30,7 @@ namespace Wallow.Identity.Api.Controllers;
 [Tags("Organization Clients")]
 [Produces("application/json")]
 [Consumes("application/json")]
-public class OrganizationClientsController(
+public partial class OrganizationClientsController(
     IOrganizationClientService clients,
     ITenantContext tenantContext,
     IOrganizationAccessPolicy accessPolicy,
@@ -109,7 +109,7 @@ public class OrganizationClientsController(
         // Registration and its outbox event commit together in the service.
         OrganizationClientRegistrationResult result = await clients.RegisterAsync(
             orgId,
-            new RegisterClientInput(kind.Value, request.Name.Trim(), configuration, brandingDisplayName, brandingTagline),
+            new RegisterClientInput(kind.Value, request.Name.Trim(), configuration, brandingDisplayName, brandingTagline, request.EnableObservability),
             Actor(),
             ct);
 
@@ -470,6 +470,7 @@ public class OrganizationClientsController(
             ClientSecret = result.ClientSecret,
             Issuer = result.Issuer ?? RequestOrigin(),
             ApiBaseUrl = result.ApiBaseUrl ?? RequestOrigin(),
+            Telemetry = result.Telemetry,
         };
 
     // Use the request origin when the service supplies no configured endpoint.

@@ -1,3 +1,4 @@
+import { ClientObservability } from "./ClientObservability";
 /**
  * The organization's registered clients: an Applications ledger and a Service
  * accounts ledger, each with its own register flow. Renders
@@ -422,6 +423,7 @@ function ClientRow(props: {
       </Text>
       <Badge variant={STATUS_VARIANT[client.status] ?? "neutral"}>{client.status}</Badge>
       <ClientProvenance name={name} client={client} nameOf={nameOf} />
+      <ClientObservability orgId={orgId} client={client} />
       {typeof client.platformSuspendedAt === "string" ? (
         <Text
           as="span"
@@ -653,12 +655,22 @@ function KindLedger(props: {
   );
 }
 
+const TELEMETRY_POLL_MS = 5000;
+
 export function OrganizationClients(props: { orgId: string }) {
   const { orgId } = props;
   const { sdk } = useRouteContext({ from: "__root__" });
-  const { data, isError, error, refetch } = useQuery(
-    organizationClientsListOptions({ client: sdk.client, path: { orgId } }),
-  );
+  const { data, isError, error, refetch } = useQuery({
+    ...organizationClientsListOptions({ client: sdk.client, path: { orgId } }),
+    refetchInterval: (query) =>
+      query.state.data?.some(
+        (client) =>
+          client.telemetry?.status.startsWith("pending") ||
+          client.telemetry?.status === "action-required",
+      )
+        ? TELEMETRY_POLL_MS
+        : false,
+  });
   // The member list `OrganizationDetail` already reads — shared cache entry,
   // no second request — names the people behind the created/rotated ids.
   // Silent by design: if that read fails the rows fall back to the raw user

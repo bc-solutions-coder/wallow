@@ -171,6 +171,11 @@ for trx in "$TRX_DIR"/*.trx; do
 
     printf "%-55s %s  (passed: %d, failed: %d, skipped: %d)\n" "$ASSEMBLY" "$STATUS" "$PASSED" "$FAILED" "$SKIPPED"
 
+    # Preserve failure details before the temporary TRX files are removed.
+    if [[ "$FAILED" -gt 0 ]]; then
+        sed -n '/<ErrorInfo>/,/<\/ErrorInfo>/p' "$trx"
+    fi
+
     # Collect failed test names
     if [[ "$FAILED" -gt 0 ]]; then
         FAILS=$(grep -o 'testName="[^"]*"' "$trx" | while read -r line; do

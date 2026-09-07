@@ -43,6 +43,7 @@ public record OrganizationClientResponse
     /// Per-client refresh-token lifetime in seconds, or null when no parseable setting is present.
     /// </summary>
     public int? RefreshTokenLifetime { get; init; }
+    public TelemetryStatusDto? Telemetry { get; init; }
 
     /// <summary>The kind a request names, or <see langword="null"/> when it names neither.</summary>
     public static RegisteredClientKind? ParseKind(string? kind) =>
@@ -75,6 +76,7 @@ public record OrganizationClientResponse
             PlatformSuspendedAt = dto.PlatformSuspendedAt,
             PlatformSuspensionReason = dto.PlatformSuspensionReason,
             RefreshTokenLifetime = dto.RefreshTokenLifetime,
+            Telemetry = dto.Telemetry,
         };
     }
 }
@@ -89,4 +91,5 @@ public record OrganizationClientRegistrationResponse
     public required string ClientSecret { get; init; }
     public required string Issuer { get; init; }
     public required string ApiBaseUrl { get; init; }
+    public TelemetryConfigurationDto? Telemetry { get; init; }
 }
