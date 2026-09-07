@@ -52,7 +52,7 @@ test("signed-out landing shows the return link for an allow-listed redirect uri"
   );
   await expect(page.locator("[data-app-ready='true']")).toBeAttached();
 
-  await expect(page.getByTestId("logout-confirm-heading")).toHaveText("Signed out");
+  await expect(page.getByTestId("logout-confirm-heading")).toHaveText("You're signed out");
 
   // The link is gated on the server's allow-list answer; an allowed origin flips
   // it visible.
@@ -73,6 +73,6 @@ test("signed-out landing withholds the return link for a rejected redirect uri",
   // link stays absent because the server refused the origin (fail-closed). The
   // allow-listed case above proves the backend is genuinely discriminating and
   // this absence is not just an unreachable API.
-  await expect(page.getByTestId("logout-confirm-heading")).toHaveText("Signed out");
+  await expect(page.getByTestId("logout-confirm-heading")).toHaveText("You're signed out");
   await expect(page.getByTestId("logout-return-link")).toHaveCount(0);
 });

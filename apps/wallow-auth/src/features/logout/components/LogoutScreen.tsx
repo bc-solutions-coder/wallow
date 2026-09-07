@@ -1,11 +1,13 @@
 import { buildConnectLogoutUrl, validateRedirectUriArgs } from "@bc-solutions-coder/sdk";
-import { Card, MutedText, Text } from "@bc-solutions-coder/ui";
+import { Button, Card, MutedText, Text } from "@bc-solutions-coder/ui";
 import { useQuery } from "@bc-solutions-coder/query";
 import { useRouteContext } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { accountValidateRedirectUriOptions } from "../api";
 import { BASE_PATH, toAppHref } from "@shared/lib/base-path";
 import { isRedirectUriAllowed } from "@shared/lib/return-url";
+import { LogoutIllustration } from "./LogoutIllustration";
+import "./logout.css";
 
 /**
  * The Logout screen (Wallow-vec7.3.5).
@@ -109,7 +111,7 @@ function CardHeading({ signedOut }: { readonly signedOut: boolean }) {
       exactly the same text.
     */
     <Text as="h2" variant="subheading" color="onCard" data-testid="logout-confirm-heading">
-      {signedOut ? "Signed out" : "Sign out"}
+      {signedOut ? "You're signed out" : "Sign out"}
     </Text>
   );
 }
@@ -129,13 +131,13 @@ function ConfirmStep({ postLogoutRedirectUri }: { readonly postLogoutRedirectUri
   return (
     <div className="space-y-4">
       <MutedText>Are you sure you want to sign out?</MutedText>
-      <a
-        href={logoutUrl}
+      <Button
+        nativeButton={false}
+        render={<a href={logoutUrl} />}
         data-testid="logout-confirm-button"
-        className="inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
       >
         Sign out
-      </a>
+      </Button>
     </div>
   );
 }
@@ -149,13 +151,9 @@ function ConfirmStep({ postLogoutRedirectUri }: { readonly postLogoutRedirectUri
  */
 function ReturnLink({ uri }: { readonly uri: string }) {
   return (
-    <a
-      href={uri}
-      data-testid="logout-return-link"
-      className="mt-4 inline-flex w-full items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-    >
+    <Button nativeButton={false} render={<a href={uri} />} data-testid="logout-return-link">
       Return to application
-    </a>
+    </Button>
   );
 }
 
@@ -167,7 +165,7 @@ function ReturnLink({ uri }: { readonly uri: string }) {
 function SignedOutLanding({ returnUri }: { readonly returnUri?: string }) {
   return (
     <div className="space-y-4">
-      <MutedText>You have been successfully signed out.</MutedText>
+      <MutedText>See you next time.</MutedText>
       {returnUri === undefined ? null : <ReturnLink uri={returnUri} />}
     </div>
   );
@@ -180,7 +178,7 @@ function LogoutFooter() {
       <a
         href={toAppHref("/login")}
         data-testid="logout-back-link"
-        className="text-sm text-muted-foreground hover:text-foreground"
+        className="inline-flex min-h-10 items-center rounded-md px-3 text-sm text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring motion-safe:transition-colors"
       >
         Back to sign in
       </a>
@@ -244,7 +242,8 @@ export function LogoutScreen({ postLogoutRedirectUri, signedOut }: LogoutScreenP
     validation.data === true ? postLogoutRedirectUri : undefined;
 
   return (
-    <Card>
+    <Card className="logout-card text-center" spacing="p-6 space-y-4">
+      <LogoutIllustration signedOut={isSignedOut} />
       <CardHeading signedOut={isSignedOut} />
       {isSignedOut ? (
         <SignedOutLanding returnUri={returnUri} />

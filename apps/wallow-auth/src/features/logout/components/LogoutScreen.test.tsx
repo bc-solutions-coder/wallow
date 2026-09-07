@@ -189,7 +189,7 @@ describe("LogoutScreen — the confirm step", () => {
     // Anchored on the confirm step being present: telling a user who has NOT
     // signed out that they have is the failure this pins.
     await expect.element(page.getByTestId("logout-confirm-heading")).toHaveTextContent("Sign out");
-    expect(page.getByText("You have been successfully signed out.").query()).toBeNull();
+    expect(page.getByText("See you next time.").query()).toBeNull();
     expect(page.getByTestId("logout-return-link").query()).toBeNull();
   });
 
@@ -232,7 +232,7 @@ describe("LogoutScreen — signed_out is an exact string match", () => {
 
     await expect
       .element(page.getByTestId("logout-confirm-heading"))
-      .toHaveTextContent("Signed out");
+      .toHaveTextContent("You're signed out");
     expect(page.getByTestId("logout-confirm-button").query()).toBeNull();
   });
 });
@@ -243,15 +243,13 @@ describe("LogoutScreen — the signed-out landing", () => {
 
     await expect
       .element(page.getByTestId("logout-confirm-heading"))
-      .toHaveTextContent("Signed out");
+      .toHaveTextContent("You're signed out");
   });
 
   it("confirms the sign-out succeeded", async () => {
     await renderWithClient(<LogoutScreen signedOut="true" />);
 
-    await expect
-      .element(page.getByText("You have been successfully signed out."))
-      .toBeInTheDocument();
+    await expect.element(page.getByText("See you next time.")).toBeInTheDocument();
   });
 
   it("does not offer to sign the user out again", async () => {
@@ -261,7 +259,7 @@ describe("LogoutScreen — the signed-out landing", () => {
     // dead end. Anchored on the landing actually rendering.
     await expect
       .element(page.getByTestId("logout-confirm-heading"))
-      .toHaveTextContent("Signed out");
+      .toHaveTextContent("You're signed out");
     expect(page.getByTestId("logout-confirm-button").query()).toBeNull();
     expect(page.getByText("Are you sure you want to sign out?").query()).toBeNull();
   });
@@ -323,7 +321,7 @@ describe("LogoutScreen — the signed-out landing", () => {
     // satisfy this.
     await expect
       .element(page.getByTestId("logout-confirm-heading"))
-      .toHaveTextContent("Signed out");
+      .toHaveTextContent("You're signed out");
     expect(page.getByTestId("logout-return-link").query()).toBeNull();
     expect(container.innerHTML).not.toContain("evil.test");
   });
@@ -337,10 +335,8 @@ describe("LogoutScreen — the signed-out landing", () => {
     // without waiting on a check that has nothing to do with it.
     await expect
       .element(page.getByTestId("logout-confirm-heading"))
-      .toHaveTextContent("Signed out");
-    await expect
-      .element(page.getByText("You have been successfully signed out."))
-      .toBeInTheDocument();
+      .toHaveTextContent("You're signed out");
+    await expect.element(page.getByText("See you next time.")).toBeInTheDocument();
   });
 
   it("skips validation entirely when no redirect URI was supplied", async () => {
@@ -348,7 +344,7 @@ describe("LogoutScreen — the signed-out landing", () => {
 
     await expect
       .element(page.getByTestId("logout-confirm-heading"))
-      .toHaveTextContent("Signed out");
+      .toHaveTextContent("You're signed out");
     expect(harness.calls).toHaveLength(0);
     expect(page.getByTestId("logout-return-link").query()).toBeNull();
   });
@@ -358,7 +354,7 @@ describe("LogoutScreen — the signed-out landing", () => {
 
     await expect
       .element(page.getByTestId("logout-confirm-heading"))
-      .toHaveTextContent("Signed out");
+      .toHaveTextContent("You're signed out");
     expect(harness.calls).toHaveLength(0);
   });
 });
@@ -431,9 +427,7 @@ describe("LogoutScreen — the validation response is untyped and must fail clos
       expect(validationCalls()).not.toHaveLength(0);
     });
     expect(page.getByTestId("logout-error").query()).toBeNull();
-    await expect
-      .element(page.getByText("You have been successfully signed out."))
-      .toBeInTheDocument();
+    await expect.element(page.getByText("See you next time.")).toBeInTheDocument();
   });
 });
 
@@ -512,7 +506,7 @@ describe("/logout route", () => {
 
     await expect
       .element(page.getByTestId("logout-confirm-heading"))
-      .toHaveTextContent("Signed out");
+      .toHaveTextContent("You're signed out");
     await vi.waitFor(() => {
       expect(probedUris()).toEqual([REDIRECT_URI]);
     });

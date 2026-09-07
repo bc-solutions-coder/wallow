@@ -1,0 +1,122 @@
+.logout-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.logout-card::before {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  content: "";
+  background: linear-gradient(90deg, transparent, var(--primary), transparent);
+}
+
+.logout-illustration {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 144px;
+  height: 144px;
+  margin: 4px auto 20px;
+}
+
+.logout-orbit {
+  position: absolute;
+  inset: 0;
+  border: 1px solid color-mix(in oklab, var(--primary) 22%, transparent);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in oklab, var(--primary) 10%, transparent),
+    transparent 70%
+  );
+}
+
+.logout-orbit::after {
+  position: absolute;
+  top: 18px;
+  right: 17px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary);
+  content: "";
+}
+
+.logout-icon {
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 96px;
+  border: 1px solid color-mix(in oklab, var(--primary) 32%, var(--border));
+  border-radius: 32px;
+  background: color-mix(in oklab, var(--primary) 14%, var(--card));
+  color: var(--card-foreground);
+  box-shadow: 0 8px 24px color-mix(in oklab, var(--primary) 10%, transparent);
+}
+
+.logout-icon svg {
+  width: 48px;
+  height: 48px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .logout-card {
+    animation: logout-enter 420ms ease-out both;
+  }
+
+  .logout-icon {
+    animation: logout-enter 560ms 80ms ease-out both;
+  }
+
+  .logout-orbit {
+    animation: logout-orbit 1400ms ease-out both;
+  }
+
+  .logout-arrow {
+    animation: logout-arrow 800ms 350ms ease-in-out 2;
+  }
+
+  .logout-check {
+    stroke-dasharray: 1;
+    animation: logout-check 500ms 250ms ease-out both;
+  }
+}
+
+@keyframes logout-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes logout-orbit {
+  from {
+    opacity: 0;
+    transform: rotate(-45deg) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(0) scale(1);
+  }
+}
+
+@keyframes logout-arrow {
+  50% {
+    transform: translateX(3px);
+  }
+}
+
+@keyframes logout-check {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
