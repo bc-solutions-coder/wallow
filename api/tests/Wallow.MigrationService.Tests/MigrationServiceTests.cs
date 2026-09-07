@@ -15,7 +15,6 @@ public sealed class MigrationServiceTests : IDisposable
     private readonly IMigrationRunner _authAuditRunner;
     private readonly IMigrationRunner _brandingRunner;
     private readonly IMigrationRunner _notificationsRunner;
-    private readonly IMigrationRunner _announcementsRunner;
     private readonly IMigrationRunner _storageRunner;
     private readonly IMigrationRunner _apiKeysRunner;
     private readonly IMigrationRunner _inquiriesRunner;
@@ -35,12 +34,11 @@ public sealed class MigrationServiceTests : IDisposable
         _authAuditRunner = CreateMockRunner("AuthAudit");
         _brandingRunner = CreateMockRunner("Branding");
         _notificationsRunner = CreateMockRunner("Notifications");
-        _announcementsRunner = CreateMockRunner("Announcements");
         _storageRunner = CreateMockRunner("Storage");
         _apiKeysRunner = CreateMockRunner("ApiKeys");
         _inquiriesRunner = CreateMockRunner("Inquiries");
 
-        _featureRunners = [_brandingRunner, _notificationsRunner, _announcementsRunner, _storageRunner, _apiKeysRunner, _inquiriesRunner];
+        _featureRunners = [_brandingRunner, _notificationsRunner, _storageRunner, _apiKeysRunner, _inquiriesRunner];
 
         CoreMigrationRunners coreRunners = new([_identityRunner, _auditRunner, _authAuditRunner]);
         FeatureMigrationRunners featureRunners = new(_featureRunners);
@@ -101,11 +99,10 @@ public sealed class MigrationServiceTests : IDisposable
         _migrationOrder.Should().Contain("AuthAudit");
         _migrationOrder.Should().Contain("Branding");
         _migrationOrder.Should().Contain("Notifications");
-        _migrationOrder.Should().Contain("Announcements");
         _migrationOrder.Should().Contain("Storage");
         _migrationOrder.Should().Contain("ApiKeys");
         _migrationOrder.Should().Contain("Inquiries");
-        _migrationOrder.Should().HaveCount(9);
+        _migrationOrder.Should().HaveCount(8);
     }
 
     [Fact]
@@ -152,7 +149,6 @@ public sealed class MigrationServiceTests : IDisposable
         await _authAuditRunner.Received(1).MigrateAsync(Arg.Any<CancellationToken>());
         await _brandingRunner.Received(1).MigrateAsync(Arg.Any<CancellationToken>());
         await _notificationsRunner.Received(1).MigrateAsync(Arg.Any<CancellationToken>());
-        await _announcementsRunner.Received(1).MigrateAsync(Arg.Any<CancellationToken>());
         await _storageRunner.Received(1).MigrateAsync(Arg.Any<CancellationToken>());
         await _apiKeysRunner.Received(1).MigrateAsync(Arg.Any<CancellationToken>());
         await _inquiriesRunner.Received(1).MigrateAsync(Arg.Any<CancellationToken>());

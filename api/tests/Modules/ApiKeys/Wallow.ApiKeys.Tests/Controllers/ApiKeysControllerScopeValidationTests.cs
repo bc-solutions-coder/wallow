@@ -40,8 +40,6 @@ public class ApiKeysControllerScopeValidationTests
             new Claim("permission", PermissionType.StorageWrite),
             new Claim("permission", PermissionType.InquiriesRead),
             new Claim("permission", PermissionType.InquiriesWrite),
-            new Claim("permission", PermissionType.AnnouncementRead),
-            new Claim("permission", PermissionType.AnnouncementManage),
             new Claim("permission", PermissionType.UsersRead),
             new Claim("permission", PermissionType.UsersUpdate),
             new Claim("permission", PermissionType.NotificationRead),

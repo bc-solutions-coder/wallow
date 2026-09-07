@@ -134,7 +134,7 @@ the API touches `Database.MigrateAsync()`.
    project.
 3. Groups them into `CoreMigrationRunners` (`ModuleMigrations.CreateRunners(isCore: true, …)` — that
    is Identity — plus the two auditing contexts) and `FeatureMigrationRunners`
-   (`CreateRunners(isCore: false, …)` — the other six modules).
+   (`CreateRunners(isCore: false, …)` — the other five modules).
 4. Runs `MigrationWorker`, which migrates core contexts **sequentially**, then all feature
    contexts **in parallel** via `Task.WhenAll`, and finally calls
    `lifetime.StopApplication()` so the process exits.
@@ -224,7 +224,6 @@ dotnet ef migrations add AddSubmissionStatusField \
 | Identity | `identity` | Yes | Yes |
 | Storage | `storage` | Yes | Yes |
 | Notifications | `notifications` | Yes | Yes |
-| Announcements | `announcements` | Yes | Yes |
 | Inquiries | `inquiries` | Yes | Yes |
 | ApiKeys | `apikeys` | Yes | Yes |
 | Branding | `branding` | Yes | Yes |

@@ -1,0 +1,121 @@
+name: wallow-observability
+
+services:
+  garage:
+    image: dxflrs/garage:v2.2.0@sha256:45a61ce3f7c9c24fc23d9ed2b09b27ed560ab87b34605d175d5c588f539c24e4
+    command: ["/garage", "server"]
+    restart: unless-stopped
+    environment:
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:?Run python3 setup.py first}
+    volumes:
+      - ./garage.toml:/etc/garage.toml:ro
+      - type: bind
+        source: ${OBSERVABILITY_DATA_DIR:-/srv/observability}/garage
+        target: /var/lib/garage
+        bind:
+          create_host_path: false
+    networks: [storage]
+    healthcheck:
+      test: ["CMD", "/garage", "stats"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  loki:
+    image: grafana/loki:3.7.7@sha256:d70e4659623f3e109af669cae76fe2a5dd5be54e2298fe8aed380d982fbc2500
+    restart: unless-stopped
+    profiles: [query]
+    networks: [storage]
+    mem_limit: 1280m
+    command: ["-config.file=/etc/loki.yml", "-config.expand-env=true"]
+    env_file: [./loki.local]
+    volumes:
+      - ./loki.yml:/etc/loki.yml:ro
+      - type: bind
+        source: ${OBSERVABILITY_DATA_DIR:-/srv/observability}/loki
+        target: /var/lib/loki
+        bind:
+          create_host_path: false
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  tempo:
+    image: grafana/tempo:2.10.8@sha256:f0561deb1c68ec44d6e6e7e4487f30106c4e5e768642077695b37958b105812a
+    restart: unless-stopped
+    profiles: [query]
+    networks: [storage]
+    mem_limit: 1024m
+    command: ["-config.file=/etc/tempo.yml", "-config.expand-env=true"]
+    env_file: [./tempo.local]
+    volumes:
+      - ./tempo.yml:/etc/tempo.yml:ro
+      - type: bind
+        source: ${OBSERVABILITY_DATA_DIR:-/srv/observability}/tempo
+        target: /var/lib/tempo
+        bind:
+          create_host_path: false
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  prometheus:
+    image: prom/prometheus:v3.14.0@sha256:5ce7540c3c00ef4ab0c9d2c995c6a5b9c421f44b4a115d97a2c7af3b1c21cbb0
+    restart: unless-stopped
+    profiles: [query]
+    networks: [storage]
+    mem_limit: 1024m
+    command:
+      [
+        "--config.file=/etc/prometheus.yml",
+        "--storage.tsdb.path=/prometheus",
+        "--storage.tsdb.retention.time=30d",
+        "--storage.tsdb.retention.size=8GB",
+      ]
+    volumes:
+      - ./prometheus.yml:/etc/prometheus.yml:ro
+      - type: bind
+        source: ${OBSERVABILITY_DATA_DIR:-/srv/observability}/prometheus
+        target: /prometheus
+        bind:
+          create_host_path: false
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  grafana:
+    image: grafana/grafana:13.2.1@sha256:f772d434e8fab0049deb2b1b30abd43342bcfca1537614aa8d36080232cf4283
+    restart: unless-stopped
+    profiles: [query]
+    networks: [storage]
+    mem_limit: 512m
+    env_file: [./grafana.local]
+    volumes:
+      - ./datasources.yml:/etc/grafana/provisioning/datasources/observability.yml:ro
+      - type: bind
+        source: ${OBSERVABILITY_DATA_DIR:-/srv/observability}/grafana
+        target: /var/lib/grafana
+        bind:
+          create_host_path: false
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  storage:
+    internal: true

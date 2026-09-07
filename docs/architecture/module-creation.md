@@ -16,7 +16,7 @@ Before creating a new module:
 - Identify primary entities and their relationships
 - Determine if the module needs database persistence (EF Core) or is stateless
 
-> **Current modules:** Identity, Storage, Notifications, Announcements, Inquiries, ApiKeys, Branding. New modules should complement these existing capabilities.
+> **Current modules:** Identity, Storage, Notifications, Inquiries, ApiKeys, Branding. New modules should complement these existing capabilities.
 
 ---
 
@@ -168,8 +168,7 @@ Module registration is handled by the module's `IWallowModule` implementation an
 > **Exception in the tree:** `Wallow.Identity.Api` does reference `Wallow.Identity.Infrastructure`,
 > because its controllers reach ASP.NET Core Identity services that Infrastructure hosts. It is the
 > only module that does, and new modules should not copy it. Some module Api projects also take
-> additional *shared* projects — Announcements takes `Shared.Infrastructure`, ApiKeys takes
-> `Shared.Contracts` and `Shared.Kernel` — which the rule above does not forbid.
+> additional *shared* projects — ApiKeys takes `Shared.Contracts` and `Shared.Kernel` — which the rule above does not forbid.
 
 ---
 
@@ -363,7 +362,7 @@ owns the multi-tenancy machinery: `ApplyTenantQueryFilters` walks the model and 
 tracks the current tenant through `SetTenant`/`CurrentTenantId`. You call it; you do not reimplement
 it. `NoTracking` is the repo-wide default — mutations attach explicitly.
 
-All six non-Identity modules extend this base class. Identity is the exception only because it must
+All five non-Identity modules extend this base class. Identity is the exception only because it must
 extend `AspNetIdentityDbContext`, so it implements `ITenantAwareContext` directly instead.
 
 See `InquiriesDbContext` for the reference implementation this snippet is drawn from.
@@ -743,7 +742,7 @@ All of these live under `api/src/Shared/`.
 
 *Reference implementation: the Inquiries module (`api/src/Modules/Inquiries/`) — with the
 command-handler caveat noted in [Step 4](#handler-shape--the-folder-decides). Current modules:
-Identity, Storage, Notifications, Announcements, Inquiries, ApiKeys, Branding.*
+Identity, Storage, Notifications, Inquiries, ApiKeys, Branding.*
 
 ## Related Documentation
 

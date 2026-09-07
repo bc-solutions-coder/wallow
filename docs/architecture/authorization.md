@@ -144,9 +144,9 @@ holds which entry is a property of the membership, not of the user.
 |------|-------------|
 | `admin` | All permissions (explicitly listed) |
 | `manager` | User read, organization management, API keys, configuration, inquiries read |
-| `user` | Organization read, messaging, notifications, announcements read, storage, API key read/create, inquiries write |
+| `user` | Organization read, messaging, notifications, storage, API key read/create, inquiries write |
 
-> **Note:** `PermissionType` is a static class with string constants (not a numeric enum). Permissions are grouped by domain area. The current active modules are: Identity, Storage, Notifications, Announcements, Inquiries, ApiKeys, and Branding.
+> **Note:** `PermissionType` is a static class with string constants (not a numeric enum). Permissions are grouped by domain area. The current active modules are: Identity, Storage, Notifications, Inquiries, ApiKeys, and Branding.
 
 ---
 

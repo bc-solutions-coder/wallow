@@ -167,7 +167,7 @@ For the full step-by-step guide to creating a new module, see the [Developer Gui
 
 **Which modules skip CQRS?** Two: **Branding** (`DTOs/` + `Interfaces/` only) and **ApiKeys** (`Interfaces/` only). Both go straight to a service or repository because the command/query split would be ceremony without benefit. Every other module -- Identity included -- has `Commands/` and `Queries/` with Wolverine handlers; Identity's cover setup, service accounts and API scopes, while ASP.NET Core Identity remains the source of truth for user accounts themselves. See [API Development](../development/api-development.md) for when each shape applies.
 
-**Where is email handling?** In the Notifications module. It consumes events from Identity, Announcements, and Inquiries to send transactional emails.
+**Where is email handling?** In the Notifications module. It consumes events from Identity and Inquiries to send transactional emails.
 
 **Which module is the best example?** Notifications. Multi-channel delivery, full CQRS, FluentValidation, Value Objects (`EmailAddress`, `EmailContent`), strongly-typed IDs, integration events, provider pattern, and comprehensive tests.
 

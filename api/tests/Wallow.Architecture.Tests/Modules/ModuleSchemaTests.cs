@@ -319,7 +319,6 @@ public sealed class ModuleSchemaHostsFixture : IDisposable
         ["FeatureManagement:Modules.Identity"] = "true",
         ["FeatureManagement:Modules.Branding"] = "true",
         ["FeatureManagement:Modules.Notifications"] = "true",
-        ["FeatureManagement:Modules.Announcements"] = "true",
         ["FeatureManagement:Modules.Storage"] = "true",
         ["FeatureManagement:Modules.ApiKeys"] = "true",
         ["FeatureManagement:Modules.Inquiries"] = "true",

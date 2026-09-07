@@ -1,4 +1,3 @@
-using Wallow.Shared.Contracts.Announcements.Events;
 using Wallow.Shared.Contracts.Delivery.Events;
 using Wallow.Shared.Contracts.Identity.Events;
 using Wallow.Shared.Contracts.Inquiries.Events;
@@ -258,31 +257,6 @@ public class ContractEventsTests
     }
 
 
-
-    [Fact]
-    public void AnnouncementPublishedEvent_WithAllProperties_HasCorrectValues()
-    {
-        Guid announcementId = Guid.NewGuid();
-        List<Guid> targetUsers = [Guid.NewGuid(), Guid.NewGuid()];
-
-        AnnouncementPublishedEvent evt = new()
-        {
-            AnnouncementId = announcementId,
-            TenantId = Guid.NewGuid(),
-            Title = "System Maintenance",
-            Content = "Scheduled downtime tonight",
-            Type = "warning",
-            Target = "all",
-            TargetValue = null,
-            IsPinned = true,
-            TargetUserIds = targetUsers
-        };
-
-        evt.AnnouncementId.Should().Be(announcementId);
-        evt.Title.Should().Be("System Maintenance");
-        evt.IsPinned.Should().BeTrue();
-        evt.TargetUserIds.Should().HaveCount(2);
-    }
 
 
 

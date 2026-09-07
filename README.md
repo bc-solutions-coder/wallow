@@ -24,7 +24,7 @@ to `main` are expected.*
 ## What is Wallow?
 
 Wallow is the infrastructure layer SaaS products keep rebuilding: identity and RBAC,
-multi-tenant data isolation, notifications, announcements, file storage, API keys, and
+multi-tenant data isolation, notifications, file storage, API keys, and
 per-client branding. You fork this repo, keep all of that, and write only your product's
 modules and screens.
 

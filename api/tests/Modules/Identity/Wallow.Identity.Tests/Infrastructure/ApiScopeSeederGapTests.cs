@@ -33,12 +33,12 @@ public sealed class ApiScopeSeederGapTests : IDisposable
     }
 
     [Fact]
-    public async Task SeedAsync_WhenEmpty_SeedsExactlyElevenScopes()
+    public async Task SeedAsync_WhenEmpty_SeedsExactlyTwentyOneScopes()
     {
         await _seeder.SeedAsync(_dbContext);
 
         int count = await _dbContext.ApiScopes.IgnoreQueryFilters().CountAsync();
-        count.Should().Be(24);
+        count.Should().Be(21);
     }
 
     [Fact]
@@ -55,7 +55,7 @@ public sealed class ApiScopeSeederGapTests : IDisposable
         await _seeder.SeedAsync(_dbContext);
 
         int totalCount = await _dbContext.ApiScopes.IgnoreQueryFilters().CountAsync();
-        totalCount.Should().Be(24);
+        totalCount.Should().Be(21);
 
 
         int usersReadCount = await _dbContext.ApiScopes
@@ -79,7 +79,7 @@ public sealed class ApiScopeSeederGapTests : IDisposable
         await _seeder.SeedAsync(_dbContext);
 
         int totalCount = await _dbContext.ApiScopes.IgnoreQueryFilters().CountAsync();
-        totalCount.Should().Be(24);
+        totalCount.Should().Be(21);
     }
 
     [Fact]
@@ -107,9 +107,6 @@ public sealed class ApiScopeSeederGapTests : IDisposable
             "apikeys.manage",
             "storage.read",
             "storage.write",
-            "announcements.read",
-            "announcements.manage",
-            "changelog.manage",
             "notifications.read",
             "notifications.write",
             "configuration.read",
@@ -132,7 +129,7 @@ public sealed class ApiScopeSeederGapTests : IDisposable
             .ToListAsync();
 
         categories.Should().BeEquivalentTo([
-            "Identity", "Storage", "Announcements", "Notifications", "Configuration", "Inquiries", "Platform"
+            "Identity", "Storage", "Notifications", "Configuration", "Inquiries", "Platform"
         ]);
     }
 
@@ -177,7 +174,7 @@ public sealed class ApiScopeSeederGapTests : IDisposable
         await _seeder.SeedAsync(_dbContext, cts.Token);
 
         int count = await _dbContext.ApiScopes.IgnoreQueryFilters().CountAsync();
-        count.Should().Be(24);
+        count.Should().Be(21);
     }
 
     [Fact]

@@ -6,8 +6,8 @@ This guide covers database development patterns and practices in Wallow. The pla
 
 | Approach | Technology | Use Case | Modules |
 |----------|------------|----------|---------|
-| **Writes** | EF Core + PostgreSQL | CRUD, change tracking, domain events | Identity, Storage, Notifications, Announcements, Inquiries, ApiKeys, Branding |
-| **Reads** | EF Core `NoTracking` via `IReadDbContext<T>` | Projections, reporting, replica routing | The same seven modules |
+| **Writes** | EF Core + PostgreSQL | CRUD, change tracking, domain events | Identity, Storage, Notifications, Inquiries, ApiKeys, Branding |
+| **Reads** | EF Core `NoTracking` via `IReadDbContext<T>` | Projections, reporting, replica routing | The same six modules |
 
 All modules share a single PostgreSQL instance but use separate schemas for isolation.
 
@@ -273,7 +273,6 @@ Each module uses its own PostgreSQL schema:
 | Identity | `identity` |
 | Storage | `storage` |
 | Notifications | `notifications` |
-| Announcements | `announcements` |
 | Inquiries | `inquiries` |
 | ApiKeys | `apikeys` |
 | Branding | `branding` |

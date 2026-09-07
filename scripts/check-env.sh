@@ -46,6 +46,7 @@ pairs=(
   "docker-compose.pangolin.yml:.env.pangolin.example"
   "docker-compose.test.yml:.env.example"
   "turbo-cache/docker-compose.yml:turbo-cache/.env.example"
+  "observability/compose.yml:observability/.env.example"
 )
 
 failed=0

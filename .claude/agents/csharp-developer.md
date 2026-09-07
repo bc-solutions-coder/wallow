@@ -176,7 +176,7 @@ public class SubmitInquiryHandlerTests
 ./scripts/run-tests.sh              # All tests
 ./scripts/run-tests.sh inquiries    # Module tests
 ./scripts/run-tests.sh identity     # Module tests
-# Supported: identity, storage, notifications, announcements, inquiries,
+# Supported: identity, storage, notifications, inquiries,
 #            apikeys, branding, api, arch (or architecture), seeder,
 #            migrations, shared, kernel, integration
 # `integration` is the only argument that does not append

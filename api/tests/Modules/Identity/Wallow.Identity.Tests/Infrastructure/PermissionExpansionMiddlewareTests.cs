@@ -129,7 +129,7 @@ public class PermissionExpansionMiddlewareTests
         {
             new Claim("org_id", TenantId),
             new Claim("azp", "sa-test"),
-            new Claim("scope", "announcements.read announcements.manage changelog.manage notifications.read notifications.write")
+            new Claim("scope", "notifications.read notifications.write")
         };
 
         ClaimsIdentity identity = new(claims, "Bearer");
@@ -145,9 +145,6 @@ public class PermissionExpansionMiddlewareTests
 
 
         List<string> permissions = context.User.FindAll("permission").Select(c => c.Value).ToList();
-        permissions.Should().Contain(PermissionType.AnnouncementRead);
-        permissions.Should().Contain(PermissionType.AnnouncementManage);
-        permissions.Should().Contain(PermissionType.ChangelogManage);
         permissions.Should().Contain(PermissionType.NotificationRead);
         permissions.Should().Contain(PermissionType.NotificationsWrite);
     }

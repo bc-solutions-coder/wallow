@@ -28,7 +28,7 @@ public class ArchiveNotificationHandlerTests
         TenantId tenantId = TenantId.New();
         Guid userId = Guid.NewGuid();
         Notification notification = Notification.Create(
-            tenantId, userId, NotificationType.Announcement, "Title", "Body", _timeProvider);
+            tenantId, userId, NotificationType.SystemAlert, "Title", "Body", _timeProvider);
 
         _notificationRepository
             .GetByIdAsync(notification.Id, Arg.Any<CancellationToken>())

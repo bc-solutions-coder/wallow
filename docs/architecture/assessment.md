@@ -109,7 +109,7 @@ the one module that departs from it.
 
 ### Aggregates (8/10)
 
-Strong in traditional modules (Notifications, Storage, Announcements). Aggregates protect invariants and raise domain events.
+Strong in traditional modules (Notifications, Storage). Aggregates protect invariants and raise domain events.
 
 ### Entities vs Value Objects (8/10)
 
@@ -148,7 +148,7 @@ Wallow uses three distinct architectural patterns. Understanding these is essent
 
 ### Pattern 1: Traditional DDD
 
-**Used by:** Notifications, Announcements, Storage, Inquiries.
+**Used by:** Notifications, Storage, Inquiries.
 
 ```
 Domain:         Aggregates with behavior, Value Objects, Domain Events
@@ -229,7 +229,6 @@ in a lower tier is not worse code; it is a module where less DDD machinery was w
 
 | Module | Pattern | DDD Score | Notes |
 |--------|---------|-----------|-------|
-| **Announcements** | Traditional | 7/10 | Broadcast announcements with targeting rules. |
 | **Storage** | Traditional (simple) | 6/10 | Raw file abstraction. `RetentionPolicy` Value Object. |
 
 ### Tier 3: Pragmatic Trade-offs
@@ -460,7 +459,7 @@ ApiKeys.
 
 ---
 
-*This assessment covers the 7 core modules in the Wallow platform: Identity, Storage, Notifications, Announcements, Inquiries, ApiKeys, and Branding. Sections 3 and 4 score five of them in depth; ApiKeys and Branding are covered as the Direct Service pattern rather than scored on DDD, which they deliberately do not use. Notifications is the most complete traditional DDD example with strong Value Object adoption, Identity demonstrates the External Adapter pattern, and cross-cutting capabilities (Auditing, Background Jobs) live in separate Shared projects.*
+*This assessment covers the 6 core modules in the Wallow platform: Identity, Storage, Notifications, Inquiries, ApiKeys, and Branding. Sections 3 and 4 score four of them in depth; ApiKeys and Branding are covered as the Direct Service pattern rather than scored on DDD, which they deliberately do not use. Notifications is the most complete traditional DDD example with strong Value Object adoption, Identity demonstrates the External Adapter pattern, and cross-cutting capabilities (Auditing, Background Jobs) live in separate Shared projects.*
 
 ## Related Documentation
 

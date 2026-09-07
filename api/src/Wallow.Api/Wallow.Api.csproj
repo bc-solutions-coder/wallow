@@ -102,7 +102,6 @@
     <!-- Module Api projects -->
     <ProjectReference Include="..\Modules\Branding\Wallow.Branding.Api\Wallow.Branding.Api.csproj" />
     <ProjectReference Include="..\Modules\Notifications\Wallow.Notifications.Api\Wallow.Notifications.Api.csproj" />
-    <ProjectReference Include="..\Modules\Announcements\Wallow.Announcements.Api\Wallow.Announcements.Api.csproj" />
     <ProjectReference Include="..\Modules\Identity\Wallow.Identity.Api\Wallow.Identity.Api.csproj" />
     <ProjectReference Include="..\Modules\Storage\Wallow.Storage.Api\Wallow.Storage.Api.csproj" />
     <ProjectReference Include="..\Modules\Inquiries\Wallow.Inquiries.Api\Wallow.Inquiries.Api.csproj" />
@@ -111,7 +110,6 @@
     <!-- Module Infrastructure projects -->
     <ProjectReference Include="..\Modules\Branding\Wallow.Branding.Infrastructure\Wallow.Branding.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Notifications\Wallow.Notifications.Infrastructure\Wallow.Notifications.Infrastructure.csproj" />
-    <ProjectReference Include="..\Modules\Announcements\Wallow.Announcements.Infrastructure\Wallow.Announcements.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Identity\Wallow.Identity.Infrastructure\Wallow.Identity.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Storage\Wallow.Storage.Infrastructure\Wallow.Storage.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Inquiries\Wallow.Inquiries.Infrastructure\Wallow.Inquiries.Infrastructure.csproj" />

@@ -19,12 +19,6 @@
     <Project Path="src/Modules/ApiKeys/Wallow.ApiKeys.Domain/Wallow.ApiKeys.Domain.csproj" />
     <Project Path="src/Modules/ApiKeys/Wallow.ApiKeys.Infrastructure/Wallow.ApiKeys.Infrastructure.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/Announcements/">
-    <Project Path="src/Modules/Announcements/Wallow.Announcements.Api/Wallow.Announcements.Api.csproj" />
-    <Project Path="src/Modules/Announcements/Wallow.Announcements.Application/Wallow.Announcements.Application.csproj" />
-    <Project Path="src/Modules/Announcements/Wallow.Announcements.Domain/Wallow.Announcements.Domain.csproj" />
-    <Project Path="src/Modules/Announcements/Wallow.Announcements.Infrastructure/Wallow.Announcements.Infrastructure.csproj" />
-  </Folder>
   <Folder Name="/src/Modules/Branding/">
     <Project Path="src/Modules/Branding/Wallow.Branding.Api/Wallow.Branding.Api.csproj" />
     <Project Path="src/Modules/Branding/Wallow.Branding.Application/Wallow.Branding.Application.csproj" />
@@ -80,9 +74,6 @@
   <Folder Name="/tests/Modules/" />
   <Folder Name="/tests/Modules/ApiKeys/">
     <Project Path="tests/Modules/ApiKeys/Wallow.ApiKeys.Tests/Wallow.ApiKeys.Tests.csproj" />
-  </Folder>
-  <Folder Name="/tests/Modules/Announcements/">
-    <Project Path="tests/Modules/Announcements/Wallow.Announcements.Tests/Wallow.Announcements.Tests.csproj" />
   </Folder>
   <Folder Name="/tests/Modules/Branding/">
     <Project Path="tests/Modules/Branding/Wallow.Branding.Tests/Wallow.Branding.Tests.csproj" />

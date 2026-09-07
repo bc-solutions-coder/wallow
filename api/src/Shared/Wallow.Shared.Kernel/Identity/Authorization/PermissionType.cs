@@ -56,13 +56,8 @@ public static class PermissionType
     public const string ConfigurationRead = "ConfigurationRead";
     public const string ConfigurationManage = "ConfigurationManage";
 
-    // Announcements and Notifications
     public const string NotificationRead = "NotificationRead";
     public const string EmailPreferenceManage = "EmailPreferenceManage";
-    public const string AnnouncementRead = "AnnouncementRead";
-    public const string AnnouncementManage = "AnnouncementManage";
-
-    public const string ChangelogManage = "ChangelogManage";
 
     // Push notifications
     public const string PushRead = "PushRead";

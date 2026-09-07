@@ -594,7 +594,7 @@ For the messaging model itself, see the [Messaging Guide](../architecture/messag
 
 Add custom telemetry for:
 
-- **Business-critical operations**: Inquiry submission, announcement publishing
+- **Business-critical operations**: Inquiry submission, file upload
 - **External integrations**: Third-party API calls, webhook processing
 - **Long-running operations**: Batch processing, data migrations
 - **Resource-intensive operations**: Report generation, file processing
@@ -871,7 +871,7 @@ To add a panel: **Grafana** > **Dashboards** > **New Dashboard** > **Add visuali
 **Prometheus** data source > enter the PromQL query > choose a visualization (Stat for counters, Time
 Series for rates, Heatmap for histograms).
 
-> **Current modules:** Identity, Storage, Notifications, Announcements, Inquiries, ApiKeys, Branding.
+> **Current modules:** Identity, Storage, Notifications, Inquiries, ApiKeys, Branding.
 > Use these module names in your metrics and traces.
 
 ## Related Documentation

@@ -233,7 +233,7 @@ api/src/Modules/Inquiries/Wallow.Inquiries.Api/
     └── InquiriesController.cs
 ```
 
-Larger modules split by direction (Identity, Storage, Announcements) or by feature area
+Larger modules split by direction (Identity, Storage) or by feature area
 (Notifications):
 
 ```

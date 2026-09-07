@@ -29,8 +29,6 @@ restating it, because partial copies have drifted.
 - *Membership and access*: `OrganizationMemberAddedEvent`, `OrganizationMemberRemovedEvent`,
   `MembershipTransitionedEvent`, `AccessRequestedEvent`, `InvitationCreatedEvent`
 
-**Announcements**: `AnnouncementPublishedEvent`.
-
 **Inquiries**: `InquirySubmittedEvent`, `InquiryStatusChangedEvent`, `InquiryCommentAddedEvent`.
 
 **Delivery** (`EmailSentEvent`, `PushSentEvent`, `SmsSentEvent`) and **Notifications** (`NotificationCreatedEvent`) are contract namespaces, not modules. These events are declared but nothing publishes or consumes them yet.
@@ -68,7 +66,7 @@ record that lives in Contracts while its handler and validator live in `Wallow.S
 
 ## Other Contracts
 
-Additional contract subdirectories exist for: Annotations, Announcements, ApiKeys, Delivery, Identity, Inquiries, Notifications, Realtime, Setup, and Storage.
+Additional contract subdirectories exist for: Annotations, ApiKeys, Delivery, Identity, Inquiries, Notifications, Realtime, Setup, and Storage.
 
 ## Conventions
 

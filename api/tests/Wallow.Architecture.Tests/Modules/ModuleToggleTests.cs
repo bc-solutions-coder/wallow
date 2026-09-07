@@ -5,8 +5,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Hosting.Internal;
 using NSubstitute;
 using StackExchange.Redis;
-using Wallow.Announcements.Infrastructure.Persistence;
 using Wallow.Identity.Infrastructure.Persistence;
+using Wallow.Inquiries.Infrastructure.Persistence;
 using Wallow.Notifications.Infrastructure.Persistence;
 using Wallow.Storage.Infrastructure.Persistence;
 
@@ -23,7 +23,6 @@ public class ModuleToggleTests
             {
                 ["FeatureManagement:Modules.Identity"] = "false",
                 ["FeatureManagement:Modules.Notifications"] = "true",
-                ["FeatureManagement:Modules.Announcements"] = "true",
                 ["FeatureManagement:Modules.Storage"] = "true",
                 ["FeatureManagement:Modules.Inquiries"] = "true",
                 ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test",
@@ -50,7 +49,7 @@ public class ModuleToggleTests
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["FeatureManagement:Modules.Storage"] = "false",
-                ["FeatureManagement:Modules.Announcements"] = "false",
+                ["FeatureManagement:Modules.Inquiries"] = "false",
                 ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test",
             })
             .Build();
@@ -59,8 +58,8 @@ public class ModuleToggleTests
 
         services.Should().NotContain(sd => sd.ServiceType == typeof(StorageDbContext),
             "Storage is an optional module and should not be registered when its feature flag is false");
-        services.Should().NotContain(sd => sd.ServiceType == typeof(AnnouncementsDbContext),
-            "Announcements is an optional module and should not be registered when its feature flag is false");
+        services.Should().NotContain(sd => sd.ServiceType == typeof(InquiriesDbContext),
+            "Inquiries is an optional module and should not be registered when its feature flag is false");
     }
 
     [Fact]
@@ -72,7 +71,6 @@ public class ModuleToggleTests
             {
                 ["FeatureManagement:Modules.Identity"] = "true",
                 ["FeatureManagement:Modules.Notifications"] = "true",
-                ["FeatureManagement:Modules.Announcements"] = "true",
                 ["FeatureManagement:Modules.Storage"] = "true",
                 ["FeatureManagement:Modules.Inquiries"] = "true",
                 ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Database=test",
@@ -85,8 +83,8 @@ public class ModuleToggleTests
             "Identity module should be registered by default");
         services.Should().Contain(sd => sd.ServiceType == typeof(NotificationsDbContext),
             "Notifications module should be registered by default");
-        services.Should().Contain(sd => sd.ServiceType == typeof(AnnouncementsDbContext),
-            "Announcements module should be registered by default");
+        services.Should().Contain(sd => sd.ServiceType == typeof(InquiriesDbContext),
+            "Inquiries module should be registered by default");
         services.Should().Contain(sd => sd.ServiceType == typeof(StorageDbContext),
             "Storage module should be registered by default");
     }
