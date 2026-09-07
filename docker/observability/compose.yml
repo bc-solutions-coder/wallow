@@ -9,8 +9,11 @@ services:
       GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:?Run python3 setup.py first}
     volumes:
       - ./garage.toml:/etc/garage.toml:ro
-      - garage_meta:/var/lib/garage/meta
-      - garage_data:/var/lib/garage/data
+      - type: bind
+        source: ${OBSERVABILITY_DATA_DIR:-/srv/observability}/garage
+        target: /var/lib/garage
+        bind:
+          create_host_path: false
     networks: [storage]
     healthcheck:
       test: ["CMD", "/garage", "stats"]
@@ -28,7 +31,3 @@ services:
 networks:
   storage:
     internal: true
-
-volumes:
-  garage_meta:
-  garage_data:

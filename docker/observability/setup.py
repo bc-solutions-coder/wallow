@@ -19,6 +19,7 @@ def main():
     env = ROOT / ".env"
     if not env.exists():
         with env.open("x") as stream:
+            stream.write("OBSERVABILITY_DATA_DIR=/srv/observability\n")
             stream.write(f"GARAGE_RPC_SECRET={secrets.token_hex(32)}\n")
     compose = ["docker", "compose", "--project-name", args.project,
                "--env-file", str(env), "-f", str(ROOT / "compose.yml")]
