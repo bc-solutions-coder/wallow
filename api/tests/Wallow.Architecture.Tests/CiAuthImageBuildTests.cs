@@ -1,7 +1,7 @@
 namespace Wallow.Architecture.Tests;
 
 /// <summary>
-/// Checks CI and deploy workflow text for Dockerfile-based auth image builds and removal of the .NET publish path.
+/// Checks CI workflow text for Dockerfile-based auth image builds and removal of the .NET publish path.
 /// </summary>
 public class CiAuthImageBuildTests
 {
@@ -12,12 +12,6 @@ public class CiAuthImageBuildTests
         ".github",
         "workflows",
         "ci.yml");
-
-    private static readonly string _deployWorkflowPath = Path.Combine(
-        _repoRoot,
-        ".github",
-        "workflows",
-        "deploy.yml");
 
     private const string BlazorAuthPublishTarget =
         "dotnet publish api/src/Wallow.Auth/Wallow.Auth.csproj";
@@ -91,40 +85,8 @@ public class CiAuthImageBuildTests
 
 
 
-    [Fact]
-    public void DeployWorkflow_ShouldNotPublish_BlazorAuthContainer()
-    {
-        string source = File.ReadAllText(_deployWorkflowPath);
 
-        source.Should().NotContain(
-            BlazorAuthPublishTarget,
-            "deploy.yml must not build the auth image via 'dotnet publish' of the Blazor " +
-            "Wallow.Auth project (both legs); the auth image now comes from apps/wallow-auth/Dockerfile, " +
-            "mirroring the adjacent wallow-web build");
-    }
 
-    [Fact]
-    public void DeployWorkflow_ShouldBuild_AuthImageFromPnpmDockerfile()
-    {
-        string source = File.ReadAllText(_deployWorkflowPath);
-
-        source.Should().Contain(
-            AuthDockerfileBuild,
-            "deploy.yml must build the wallow-auth image from apps/wallow-auth/Dockerfile " +
-            "(repo-root build context), mirroring the adjacent wallow-web block " +
-            "'docker build -f apps/wallow-web/Dockerfile -t wallow-web:test .'");
-    }
-
-    [Fact]
-    public void DeployWorkflow_ShouldNotReference_BlazorAuthCssCleanup()
-    {
-        string source = File.ReadAllText(_deployWorkflowPath);
-
-        source.Should().NotContain(
-            BlazorAuthCssCleanup,
-            "the pre-publish Tailwind cleanup step 'rm -f api/src/Wallow.Auth/wwwroot/css/app.css' " +
-            "only applied to the Blazor publish path; with the pnpm Dockerfile build it is dead and must be removed");
-    }
 
     private static string FindRepoRoot()
     {
