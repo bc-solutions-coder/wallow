@@ -8,7 +8,7 @@ At pinned action commit `cdf488f595d80d6e07e03d4674febd5ab45fa938`, [feature-fla
 
 CodeQL exceptions now require `primary_location_line_hash` and `message_sha256`, in addition to the exact scanner, rule, and file. The normalizer retains the SARIF `primaryLocationLineHash` and hashes the exact UTF-8 `message.text`. Missing finding metadata cannot match an exception. Requiring these selectors prevents a reviewed finding from exempting every result of the same rule in the controller, while avoiding dependence on absolute line numbers. Any changed selector requires renewed review. These are finding identifiers, not proof that application behavior remains safe; behavior tests and the existing 30-day maximum expiry remain necessary.
 
-No consent exception is added in this change. Other scanners retain their existing exact file/package scopes. Scanner-local suppressions remain forbidden.
+The combined authentication fix records one reviewed consent exception using the post-fix fingerprint and message hash, with a 30-day expiry. The finding remains visible in normalized reports. `acceptedTerms` expresses agreement; a protected typed provider state, verified email for existing-account linking, and successful linking independently guard sign-in. Other scanners retain their existing exact file/package scopes. Scanner-local suppressions remain forbidden.
 
 Validation:
 
@@ -17,3 +17,5 @@ Validation:
 - `actionlint .github/workflows/codeql.yml` and `git diff --check` pass.
 - Replaying the saved main C# SARIF produces 11 findings and one unexcepted blocker, confirming no consent suppression was introduced.
 - Replaying post-auth PR287 run `34170166071` at head `57060dab70a0139360f954ac60885aa844c8592a` retains its one unexcepted blocker. Its fingerprint remains `75ca4abef0f0e3ae:1`, while its message SHA-256 is now `144caff75340103d793aef9aed833a3667cd51577dfe3454220b392a27735771`. The earlier main result had a different message hash; any future exception must use the reviewed post-fix result.
+
+After adding the exact exception, replaying that post-auth report retains one visible finding with zero unexcepted blockers. The old main report still fails with one unexcepted blocker. Hosted full-scan verification remains pending; unrelated or changed findings must continue to block.
