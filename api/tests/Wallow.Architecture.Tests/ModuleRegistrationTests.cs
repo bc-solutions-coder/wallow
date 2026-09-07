@@ -8,7 +8,6 @@ public class ModuleRegistrationTests
 
     [Theory]
     [InlineData("Notifications")]
-    [InlineData("Announcements")]
     [InlineData("Identity")]
     [InlineData("Storage")]
     public void Module_ShouldProvide_AddModuleExtensionMethod(string moduleName)

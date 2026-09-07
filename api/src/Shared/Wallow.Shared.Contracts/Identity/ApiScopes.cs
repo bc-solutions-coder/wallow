@@ -28,9 +28,6 @@ public static class ApiScopes
         "storage.read",
         "storage.write",
 
-        // Announcements and Notifications
-        "announcements.read",
-        "announcements.manage",
         "notifications.read",
         "notifications.write",
 

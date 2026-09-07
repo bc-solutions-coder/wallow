@@ -11,7 +11,7 @@ A team's downstream copy of this repository, rebranded and extended. Wallow itse
 upstream base, never a deployed product.
 
 **Module**:
-One of the seven vertical backend slices (Identity, Storage, Notifications, Announcements,
+One of the six vertical backend slices (Identity, Storage, Notifications,
 Inquiries, ApiKeys, Branding). A module owns its data outright and talks to other modules only
 through integration events.
 
@@ -59,7 +59,7 @@ _Avoid_: removed, purged (that is the tenant purge that follows), deactivated, a
 
 **Tenant purge**:
 The removal of every module's records scoped to a deleted organization's tenant — files,
-notifications, inquiries, announcements, settings. It follows deletion and never precedes it;
+notifications, inquiries, settings. It follows deletion and never precedes it;
 deletion is safe without it, because purge removes data, not access.
 _Avoid_: cascade (the credential revocation that deletion itself performs), cleanup
 
@@ -164,13 +164,8 @@ _Avoid_: service token, machine key
 
 ## Communication
 
-**Announcement**:
-An admin-authored, tenant-scoped broadcast: targeted by audience, schedulable, expirable, and
-dismissible per user.
-
 **Notification**:
-A single user's in-app item — one per recipient, with read and archive state. A published
-announcement fans out into notifications.
+A single user's in-app item — one per recipient, with read and archive state.
 
 **Channel**:
 A delivery route for reaching a user: email, SMS, in-app, or push. Preferences are held per

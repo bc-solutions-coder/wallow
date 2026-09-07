@@ -24,7 +24,6 @@ public class ModuleRegistryTests
         ["FeatureManagement:Modules.Identity"] = "true",
         ["FeatureManagement:Modules.Branding"] = "true",
         ["FeatureManagement:Modules.Notifications"] = "true",
-        ["FeatureManagement:Modules.Announcements"] = "true",
         ["FeatureManagement:Modules.Storage"] = "true",
         ["FeatureManagement:Modules.ApiKeys"] = "true",
         ["FeatureManagement:Modules.Inquiries"] = "true",
@@ -32,7 +31,7 @@ public class ModuleRegistryTests
     };
 
     [Fact]
-    public void Registry_ShouldContain_ExactlySevenModules_OnePerModuleType()
+    public void Registry_ShouldContain_ExactlySixModules_OnePerModuleType()
     {
         IReadOnlyList<string> registeredTypeNames =
             [.. WallowModuleRegistry.All.Select(module => module.GetType().Name)];
@@ -42,12 +41,11 @@ public class ModuleRegistryTests
                 "IdentityModule",
                 "BrandingModule",
                 "NotificationsModule",
-                "AnnouncementsModule",
                 "StorageModule",
                 "ApiKeysModule",
                 "InquiriesModule",
             ],
-            "the registry is the platform's one list of modules, so it must name all seven exactly once");
+            "the registry is the platform's one list of modules, so it must name all six exactly once");
     }
 
     [Fact]

@@ -3,7 +3,6 @@ using NSubstitute.ExceptionExtensions;
 using Wallow.Notifications.Application.Channels.InApp.Interfaces;
 using Wallow.Notifications.Infrastructure.Services;
 using Wallow.Shared.Contracts.Realtime;
-using Wallow.Shared.Kernel.Identity;
 
 namespace Wallow.Notifications.Tests.Infrastructure.Services;
 
@@ -55,35 +54,6 @@ public class SseNotificationServiceTests
     }
 
     [Fact]
-    public async Task BroadcastToTenantAsync_WithValidInput_DispatchesEnvelopeToTenant()
-    {
-        TenantId tenantId = TenantId.New();
-
-        await _sut.BroadcastToTenantAsync(tenantId, "Announcement", "Hello tenants", "announcement");
-
-        await _dispatcher.Received(1).SendToTenantAsync(
-            tenantId.Value,
-            Arg.Is<RealtimeEnvelope>(e =>
-                e.Module == "Notifications" &&
-                e.Type == "AnnouncementPublished"),
-            Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task BroadcastToTenantAsync_WhenDispatcherThrows_PropagatesException()
-    {
-        TenantId tenantId = TenantId.New();
-        _dispatcher
-            .SendToTenantAsync(Arg.Any<Guid>(), Arg.Any<RealtimeEnvelope>(), Arg.Any<CancellationToken>())
-            .ThrowsAsync(new InvalidOperationException("Broker unavailable"));
-
-        Func<Task> act = () => _sut.BroadcastToTenantAsync(tenantId, "Title", "Message", "alert");
-
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("Broker unavailable");
-    }
-
-    [Fact]
     public async Task SendToUserAsync_PassesCancellationToken_ToDispatcher()
     {
         Guid userId = Guid.NewGuid();
@@ -99,21 +69,6 @@ public class SseNotificationServiceTests
     }
 
     [Fact]
-    public async Task BroadcastToTenantAsync_PassesCancellationToken_ToDispatcher()
-    {
-        TenantId tenantId = TenantId.New();
-        using CancellationTokenSource cts = new();
-        CancellationToken token = cts.Token;
-
-        await _sut.BroadcastToTenantAsync(tenantId, "Title", "Message", "info", token);
-
-        await _dispatcher.Received(1).SendToTenantAsync(
-            Arg.Any<Guid>(),
-            Arg.Any<RealtimeEnvelope>(),
-            token);
-    }
-
-    [Fact]
     public async Task SendToUserAsync_UsesUserIdAsStringTarget()
     {
         Guid userId = Guid.NewGuid();
@@ -122,19 +77,6 @@ public class SseNotificationServiceTests
 
         await _dispatcher.Received(1).SendToUserAsync(
             userId.ToString(),
-            Arg.Any<RealtimeEnvelope>(),
-            Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task BroadcastToTenantAsync_UsesTenantIdGuid()
-    {
-        TenantId tenantId = TenantId.New();
-
-        await _sut.BroadcastToTenantAsync(tenantId, "Title", "Message", "info");
-
-        await _dispatcher.Received(1).SendToTenantAsync(
-            tenantId.Value,
             Arg.Any<RealtimeEnvelope>(),
             Arg.Any<CancellationToken>());
     }
@@ -157,23 +99,6 @@ public class SseNotificationServiceTests
     }
 
     [Fact]
-    public async Task BroadcastToTenantAsync_EnvelopeContainsAnnouncementPublishedType()
-    {
-        TenantId tenantId = TenantId.New();
-        RealtimeEnvelope? capturedEnvelope = null;
-        await _dispatcher.SendToTenantAsync(
-            Arg.Any<Guid>(),
-            Arg.Do<RealtimeEnvelope>(e => capturedEnvelope = e),
-            Arg.Any<CancellationToken>());
-
-        await _sut.BroadcastToTenantAsync(tenantId, "Announce", "Content", "announcement");
-
-        capturedEnvelope.Should().NotBeNull();
-        capturedEnvelope!.Type.Should().Be("AnnouncementPublished");
-        capturedEnvelope.Module.Should().Be("Notifications");
-    }
-
-    [Fact]
     public async Task SendToUserAsync_UsesTimeProviderForTimestamp()
     {
         DateTimeOffset fixedTime = new(2025, 6, 15, 12, 0, 0, TimeSpan.Zero);
@@ -181,18 +106,6 @@ public class SseNotificationServiceTests
         Guid userId = Guid.NewGuid();
 
         await _sut.SendToUserAsync(userId, "Title", "Message", "info");
-
-        _timeProvider.Received(1).GetUtcNow();
-    }
-
-    [Fact]
-    public async Task BroadcastToTenantAsync_UsesTimeProviderForTimestamp()
-    {
-        DateTimeOffset fixedTime = new(2025, 6, 15, 12, 0, 0, TimeSpan.Zero);
-        _timeProvider.GetUtcNow().Returns(fixedTime);
-        TenantId tenantId = TenantId.New();
-
-        await _sut.BroadcastToTenantAsync(tenantId, "Title", "Message", "info");
 
         _timeProvider.Received(1).GetUtcNow();
     }
@@ -206,19 +119,6 @@ public class SseNotificationServiceTests
 
         await _dispatcher.Received(1).SendToUserAsync(
             userId.ToString(),
-            Arg.Any<RealtimeEnvelope>(),
-            Arg.Any<CancellationToken>());
-    }
-
-    [Fact]
-    public async Task BroadcastToTenantAsync_WithEmptyStrings_StillDispatches()
-    {
-        TenantId tenantId = TenantId.New();
-
-        await _sut.BroadcastToTenantAsync(tenantId, string.Empty, string.Empty, string.Empty);
-
-        await _dispatcher.Received(1).SendToTenantAsync(
-            tenantId.Value,
             Arg.Any<RealtimeEnvelope>(),
             Arg.Any<CancellationToken>());
     }
@@ -240,22 +140,6 @@ public class SseNotificationServiceTests
     }
 
     [Fact]
-    public async Task BroadcastToTenantAsync_LogsInformation()
-    {
-        FakeLogger<SseNotificationService> fakeLogger = new();
-        SseNotificationService sut = new(_dispatcher, _timeProvider, fakeLogger);
-        TenantId tenantId = TenantId.New();
-
-        await sut.BroadcastToTenantAsync(tenantId, "Broadcast Title", "Broadcast Msg", "announcement");
-
-        fakeLogger.LogEntries.Should().ContainSingle();
-        FakeLogEntry entry = fakeLogger.LogEntries[0];
-        entry.LogLevel.Should().Be(LogLevel.Information);
-        entry.FormattedMessage.Should().Contain(tenantId.Value.ToString());
-        entry.FormattedMessage.Should().Contain("Broadcast Title");
-    }
-
-    [Fact]
     public void Service_ImplementsINotificationService()
     {
         _sut.Should().BeAssignableTo<INotificationService>();
@@ -270,19 +154,6 @@ public class SseNotificationServiceTests
 
         await _dispatcher.Received(1).SendToUserAsync(
             Arg.Any<string>(),
-            Arg.Any<RealtimeEnvelope>(),
-            default);
-    }
-
-    [Fact]
-    public async Task BroadcastToTenantAsync_WithDefaultCancellationToken_UsesDefault()
-    {
-        TenantId tenantId = TenantId.New();
-
-        await _sut.BroadcastToTenantAsync(tenantId, "Title", "Message", "info");
-
-        await _dispatcher.Received(1).SendToTenantAsync(
-            Arg.Any<Guid>(),
             Arg.Any<RealtimeEnvelope>(),
             default);
     }

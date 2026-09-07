@@ -57,7 +57,7 @@ src/Modules/Notifications/
 
 | Enum | Values |
 |------|--------|
-| `NotificationType` | TaskAssigned, TaskCompleted, TaskComment, SystemAlert, Mention, Announcement, SystemNotification, InquirySubmitted, InquiryComment |
+| `NotificationType` | TaskAssigned, TaskCompleted, TaskComment, SystemAlert, Mention, SystemNotification, InquirySubmitted, InquiryComment |
 | `ChannelType` | Email, Sms, InApp, Push |
 | `EmailStatus` | Pending, Sent, Failed |
 | `SmsStatus` | Pending, Sent, Failed |
@@ -71,7 +71,6 @@ This module handles events from other modules via Wolverine. All event types are
 | Source Module | Events |
 |---------------|--------|
 | Identity | `EmailVerificationRequestedEvent`, `EmailVerifiedEvent`, `UserRegisteredEvent`, `PasswordChangedEvent`, `PasswordResetRequestedEvent`, `UserRoleChangedEvent`, `OrganizationCreatedEvent`, `OrganizationMemberAddedEvent`, `OrganizationMemberRemovedEvent`, `InvitationCreatedEvent`, `MagicLinkRequestedEvent`, `OtpCodeRequestedEvent`, `AccessRequestedEvent` |
-| Announcements | `AnnouncementPublishedEvent` |
 | Inquiries | `InquirySubmittedEvent`, `InquiryCommentAddedEvent`, `InquiryStatusChangedEvent` |
 
 ## API Endpoints

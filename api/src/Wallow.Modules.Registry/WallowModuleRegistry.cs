@@ -1,4 +1,3 @@
-using Wallow.Announcements.Infrastructure.Modules;
 using Wallow.ApiKeys.Infrastructure.Modules;
 using Wallow.Branding.Infrastructure.Modules;
 using Wallow.Identity.Infrastructure.Modules;
@@ -23,7 +22,6 @@ public static class WallowModuleRegistry
         new IdentityModule(),
         new BrandingModule(),
         new NotificationsModule(),
-        new AnnouncementsModule(),
         new StorageModule(),
         new ApiKeysModule(),
         new InquiriesModule(),

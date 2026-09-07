@@ -473,7 +473,6 @@ defined in `ApiScopes.ValidScopes`:
 | Identity — Organizations | `organizations.read`, `organizations.write`, `organizations.manage` |
 | Identity — API Keys | `apikeys.read`, `apikeys.write`, `apikeys.manage` |
 | Storage | `storage.read`, `storage.write` |
-| Announcements | `announcements.read`, `announcements.manage` |
 | Notifications | `notifications.read`, `notifications.write` |
 | Inquiries | `inquiries.read`, `inquiries.write` |
 | Configuration | `configuration.read`, `configuration.manage` |

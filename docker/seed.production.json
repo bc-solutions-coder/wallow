@@ -92,19 +92,6 @@
       "description": "Access to upload and modify files"
     },
     {
-      "code": "announcements.read",
-      "displayName": "Read Announcements",
-      "category": "Announcements",
-      "description": "Access to read announcements",
-      "isDefault": true
-    },
-    {
-      "code": "announcements.manage",
-      "displayName": "Manage Announcements",
-      "category": "Announcements",
-      "description": "Access to create, update, and delete announcements"
-    },
-    {
       "code": "notifications.read",
       "displayName": "Read Notifications",
       "category": "Notifications",

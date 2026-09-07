@@ -340,8 +340,8 @@ Ensure your JWT contains:
 EF Core's tenant query filters do not apply to `FromSql`/`ExecuteSql`, so raw SQL must filter by
 tenant itself:
 ```csharp
-await dbContext.Announcements
-    .FromSql($"SELECT * FROM announcements.announcements WHERE tenant_id = {_tenantContext.TenantId.Value}")
+await dbContext.Inquiries
+    .FromSql($"SELECT * FROM inquiries.inquiries WHERE tenant_id = {_tenantContext.TenantId.Value}")
     .ToListAsync(cancellationToken);
 ```
 
@@ -806,7 +806,7 @@ curl https://api.nuget.org/v3/index.json
 
 #### Symptom
 ```
-error CS0246: The type or namespace name 'AnnouncementDto' could not be found
+error CS0246: The type or namespace name 'InquiryDto' could not be found
 ```
 
 #### Solutions
@@ -814,13 +814,13 @@ error CS0246: The type or namespace name 'AnnouncementDto' could not be found
 **Check project references:**
 ```bash
 # View project references
-dotnet list api/src/Modules/Announcements/Wallow.Announcements.Api/Wallow.Announcements.Api.csproj reference
+dotnet list api/src/Modules/Inquiries/Wallow.Inquiries.Api/Wallow.Inquiries.Api.csproj reference
 ```
 
 **Add missing reference:**
 ```bash
-dotnet add api/src/Modules/Announcements/Wallow.Announcements.Api/Wallow.Announcements.Api.csproj \
-  reference api/src/Modules/Announcements/Wallow.Announcements.Application/Wallow.Announcements.Application.csproj
+dotnet add api/src/Modules/Inquiries/Wallow.Inquiries.Api/Wallow.Inquiries.Api.csproj \
+  reference api/src/Modules/Inquiries/Wallow.Inquiries.Application/Wallow.Inquiries.Application.csproj
 ```
 
 **Clean and rebuild:**

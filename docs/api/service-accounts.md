@@ -166,13 +166,6 @@ organization for exactly this.
 | `storage.read` | Read files and storage data | Yes |
 | `storage.write` | Upload and modify files | No |
 
-### Announcements
-
-| Scope | Description | Default |
-|-------|-------------|---------|
-| `announcements.read` | Read announcements | Yes |
-| `announcements.manage` | Manage announcements | No |
-
 ### Notifications
 
 | Scope | Description | Default |

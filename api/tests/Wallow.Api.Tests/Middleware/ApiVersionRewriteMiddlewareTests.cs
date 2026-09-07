@@ -21,7 +21,6 @@ public class ApiVersionRewriteMiddlewareTests
     [InlineData("/identity/users", "/v1/identity/users")]
     [InlineData("/storage/files", "/v1/storage/files")]
     [InlineData("/notifications/settings", "/v1/notifications/settings")]
-    [InlineData("/announcements/active", "/v1/announcements/active")]
     [InlineData("/inquiries/submit", "/v1/inquiries/submit")]
     [InlineData("/branding/config", "/v1/branding/config")]
     public async Task InvokeAsync_NonVersionedPath_RewritesToV1(string original, string expected)

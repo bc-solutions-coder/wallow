@@ -116,7 +116,7 @@ public class NotificationCreateTests
     public void Archive_SetsIsArchivedToTrue()
     {
         Notification notification = Notification.Create(
-            TenantId.New(), Guid.NewGuid(), NotificationType.Announcement,
+            TenantId.New(), Guid.NewGuid(), NotificationType.SystemAlert,
             "Archived", "To be archived", TimeProvider.System);
 
         notification.Archive(TimeProvider.System);

@@ -68,7 +68,7 @@ work, and `docs/agents/issue-tracker.md` documents the conventions.
 
 Wallow is a modular monolith following Clean Architecture and DDD principles. Before contributing, understand these rules:
 
-- **Modules:** Identity, Storage, Notifications, Announcements, Inquiries, ApiKeys, Branding
+- **Modules:** Identity, Storage, Notifications, Inquiries, ApiKeys, Branding
 - **Layer order:** Domain → Application → Infrastructure → Api
 - Domain has no external dependencies; Application depends only on Domain
 - Modules communicate via Wolverine in-memory events, never direct project references

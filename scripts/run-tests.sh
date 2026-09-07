@@ -29,7 +29,6 @@ resolve_filter() {
         identity)       echo "$REPO_ROOT/api/tests/Modules/Identity/Wallow.Identity.Tests" ;;
         storage)        echo "$REPO_ROOT/api/tests/Modules/Storage/Wallow.Storage.Tests" ;;
         notifications)  echo "$REPO_ROOT/api/tests/Modules/Notifications/Wallow.Notifications.Tests" ;;
-        announcements)  echo "$REPO_ROOT/api/tests/Modules/Announcements/Wallow.Announcements.Tests" ;;
         inquiries)      echo "$REPO_ROOT/api/tests/Modules/Inquiries/Wallow.Inquiries.Tests" ;;
         branding)       echo "$REPO_ROOT/api/tests/Modules/Branding/Wallow.Branding.Tests" ;;
         apikeys)        echo "$REPO_ROOT/api/tests/Modules/ApiKeys/Wallow.ApiKeys.Tests" ;;
@@ -39,8 +38,8 @@ resolve_filter() {
         migrations)      echo "$REPO_ROOT/api/tests/Wallow.MigrationService.Tests" ;;
         shared)          echo "$REPO_ROOT/api/tests/Wallow.Shared.Infrastructure.Tests" ;;
         kernel)          echo "$REPO_ROOT/api/tests/Wallow.Shared.Kernel.Tests" ;;
-        # Integration tests are spread over seven assemblies, not one: Wallow.Api.Tests carries the
-        # Wolverine handler-codegen guards, and Storage/Announcements/Inquiries/Identity/Shared each
+        # Integration tests are spread over multiple assemblies, not one: Wallow.Api.Tests carries the
+        # Wolverine handler-codegen guards, and Storage/Inquiries/Identity/Shared each
         # carry Testcontainers-backed suites. Only the category selects them, so run the solution.
         integration|all) echo "$REPO_ROOT/api/Wallow.slnx" ;;
         "")              echo "$REPO_ROOT/api/Wallow.slnx" ;;
@@ -56,7 +55,7 @@ PROJECT_PATH=$(resolve_filter "$MODE")
 
 if [[ -z "$PROJECT_PATH" ]]; then
     echo "Unknown target '${MODULE_FILTER}'. It is neither a shorthand nor a path that exists." >&2
-    echo "Shorthands: identity, storage, notifications, announcements, inquiries, branding," >&2
+    echo "Shorthands: identity, storage, notifications, inquiries, branding," >&2
     echo "            apikeys, api, arch|architecture, seeder, migrations, shared, kernel," >&2
     echo "            integration, all." >&2
     echo "Or give a test project path, relative to the current directory." >&2
@@ -69,7 +68,7 @@ CMD=(dotnet test --settings "$RUNSETTINGS" --logger "trx;LogFilePrefix=results" 
 
 # `integration` and `all` are whole-solution tiers; as a SECOND argument they narrow the same tier to
 # whatever the first argument selected, so `run-tests.sh api integration` iterates on
-# HandlerCodegenTests without running the other six.
+# HandlerCodegenTests without running the other assemblies.
 case "$MODE" in
     integration|all) TIER="$MODE" ;;
 esac

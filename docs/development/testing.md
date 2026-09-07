@@ -38,7 +38,7 @@ close with an `INTEGRATION TESTS DID NOT RUN` banner naming the two commands tha
 a green total from a bare run is **not** evidence that the integration guards passed.
 
 `integration` and `all` select by **category across `api/Wallow.slnx`**, not by project, because
-integration tests live in seven assemblies. `Wallow.Api.Tests` is the one that matters most:
+integration tests live in multiple assemblies. `Wallow.Api.Tests` is the one that matters most:
 `HandlerCodegenTests` compiles every discovered Wolverine handler and is the only guard that a
 handler dependency the codegen cannot inline-construct fails in the suite rather than in a
 dead-letter queue.
@@ -48,7 +48,7 @@ nothing is a broken selector, not a pass.
 
 ### Module shorthands
 
-`identity`, `storage`, `notifications`, `announcements`, `inquiries`, `branding`, `apikeys`,
+`identity`, `storage`, `notifications`, `inquiries`, `branding`, `apikeys`,
 `api`, `arch` (or `architecture`), `seeder`, `migrations`, `shared`, `kernel`, `integration`,
 `all`. Shorthands are matched case-insensitively.
 

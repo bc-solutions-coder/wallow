@@ -9,7 +9,6 @@ public sealed class MigrationRemovalTests
         "src/Modules/Identity/Wallow.Identity.Infrastructure/Extensions/IdentityModuleExtensions.cs",
         "src/Modules/Branding/Wallow.Branding.Infrastructure/Extensions/BrandingModuleExtensions.cs",
         "src/Modules/Notifications/Wallow.Notifications.Infrastructure/Extensions/NotificationsModuleExtensions.cs",
-        "src/Modules/Announcements/Wallow.Announcements.Infrastructure/Extensions/AnnouncementsModuleExtensions.cs",
         "src/Modules/Storage/Wallow.Storage.Infrastructure/Extensions/StorageModuleExtensions.cs",
         "src/Modules/ApiKeys/Wallow.ApiKeys.Infrastructure/Extensions/ApiKeysModuleExtensions.cs",
         "src/Modules/Inquiries/Wallow.Inquiries.Infrastructure/Extensions/InquiriesModuleExtensions.cs",

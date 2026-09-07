@@ -50,7 +50,7 @@ cover the corresponding controller and service surface. `Fakes/` holds test doub
 > `[Trait("Category", "Integration")]` tests wherever they live. `integration` and `all` are the
 > only two arguments that do not add that exclusion; both select by category across
 > `api/Wallow.slnx`, so they run this project **and** the integration tests in
-> `Wallow.Api.Tests`, `Wallow.Storage.Tests`, `Wallow.Announcements.Tests`,
-> `Wallow.Inquiries.Tests`, `Wallow.Identity.Tests` and `Wallow.Shared.Infrastructure.Tests`.
+> `Wallow.Api.Tests`, `Wallow.Storage.Tests`,
+> `Wallow.Inquiries.Tests` and `Wallow.Shared.Infrastructure.Tests`.
 >
 > These tests need Docker running (Testcontainers PostgreSQL and Valkey).

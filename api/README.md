@@ -19,7 +19,6 @@ src/
 │   ├── Identity/                # Auth, users, organizations, RBAC
 │   ├── Storage/                 # File storage (S3-compatible)
 │   ├── Notifications/           # In-app, email, SMS, and push notifications
-│   ├── Announcements/           # Tenant-scoped announcements
 │   ├── Inquiries/               # Contact-form inquiry submission
 │   ├── ApiKeys/                 # API keys for service accounts
 │   └── Branding/                # Per-client login branding

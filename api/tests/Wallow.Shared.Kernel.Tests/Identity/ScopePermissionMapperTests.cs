@@ -126,22 +126,20 @@ public class ScopePermissionMapperTests
         result.Should().Be(PermissionType.StorageWrite);
     }
 
-    // Announcements and Notifications
-
     [Fact]
-    public void MapScopeToPermission_AnnouncementsRead_ReturnsAnnouncementRead()
+    public void MapScopeToPermission_RemovedAnnouncementsRead_ReturnsNull()
     {
         string? result = ScopePermissionMapper.MapScopeToPermission("announcements.read");
 
-        result.Should().Be(PermissionType.AnnouncementRead);
+        result.Should().BeNull();
     }
 
     [Fact]
-    public void MapScopeToPermission_AnnouncementsManage_ReturnsAnnouncementManage()
+    public void MapScopeToPermission_RemovedAnnouncementsManage_ReturnsNull()
     {
         string? result = ScopePermissionMapper.MapScopeToPermission("announcements.manage");
 
-        result.Should().Be(PermissionType.AnnouncementManage);
+        result.Should().BeNull();
     }
 
     [Fact]

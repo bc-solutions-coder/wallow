@@ -391,21 +391,20 @@ Modules are controlled by the `FeatureManagement` section in `appsettings.json`.
     "Modules.Branding": true,
     "Modules.Storage": true,
     "Modules.Notifications": true,
-    "Modules.Announcements": true,
     "Modules.Inquiries": true,
     "Modules.ApiKeys": false
   }
 }
 ```
 
-Only the six optional modules appear. Identity is a core module: it is always registered, so it has no flag and adding one would toggle nothing.
+Only the five optional modules appear. Identity is a core module: it is always registered, so it has no flag and adding one would toggle nothing.
 
 To disable a module, set its value to `false`:
 
 ```json
 {
   "FeatureManagement": {
-    "Modules.Announcements": false
+    "Modules.Storage": false
   }
 }
 ```
@@ -427,8 +426,8 @@ Each module reads its own configuration section from `appsettings.json`. See the
 Use `appsettings.{Environment}.json` or environment variables to configure modules per deployment target:
 
 ```bash
-# Disable announcements in development
-FeatureManagement__Modules.Announcements=false
+# Disable storage in development
+env 'FeatureManagement__Modules.Storage=false' dotnet run --project api/src/Wallow.Api
 
 # Configure SMTP for production
 Smtp__Host=smtp.example.com
@@ -553,7 +552,7 @@ public class OrderDbContextFactory : IDesignTimeDbContextFactory<OrderDbContext>
 }
 ```
 
-Every module ships one of these — `AnnouncementsDbContextFactory` is the shortest to copy.
+Every module ships one of these; `InquiriesDbContextFactory` is an example.
 
 ### 5. Raw SQL
 

@@ -144,7 +144,6 @@ public static class IdentityInfrastructureExtensions
                     "organizations.read", "organizations.write", "organizations.manage",
                     "apikeys.read", "apikeys.write", "apikeys.manage",
                     "storage.read", "storage.write",
-                    "announcements.read", "announcements.manage",
                     "notifications.read", "notifications.write",
                     "configuration.read", "configuration.manage",
                     "inquiries.read", "inquiries.write",

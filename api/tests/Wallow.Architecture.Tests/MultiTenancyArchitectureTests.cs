@@ -17,7 +17,6 @@ public class MultiTenancyArchitectureTests
     [
         "Branding",
         "Notifications",
-        "Announcements",
         "Inquiries"
     ];
 

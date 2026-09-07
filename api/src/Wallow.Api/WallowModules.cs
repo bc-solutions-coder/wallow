@@ -3,7 +3,6 @@ using System.Reflection;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.FeatureManagement;
-using Wallow.Announcements.Api.Controllers;
 using Wallow.ApiKeys.Api.Controllers;
 using Wallow.Branding.Api.Controllers;
 using Wallow.Identity.Api.Controllers;
@@ -31,7 +30,6 @@ internal static partial class WallowModules
         ("Identity", typeof(UsersController).Assembly),
         ("Branding", typeof(OrganizationClientBrandingController).Assembly),
         ("Notifications", typeof(NotificationsController).Assembly),
-        ("Announcements", typeof(AnnouncementsController).Assembly),
         ("Storage", typeof(StorageController).Assembly),
         ("ApiKeys", typeof(ApiKeysController).Assembly),
         ("Inquiries", typeof(InquiriesController).Assembly),

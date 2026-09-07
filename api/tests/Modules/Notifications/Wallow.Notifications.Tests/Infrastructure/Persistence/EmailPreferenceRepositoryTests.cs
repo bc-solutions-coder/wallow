@@ -97,7 +97,7 @@ public sealed class EmailPreferenceRepositoryTests : RepositoryTestBase
     public async Task SaveChangesAsync_PersistsChanges()
     {
         Guid userId = Guid.NewGuid();
-        EmailPreference preference = CreatePreference(userId: userId, notificationType: NotificationType.Announcement);
+        EmailPreference preference = CreatePreference(userId: userId, notificationType: NotificationType.SystemAlert);
         _repository.Add(preference);
         SetTenantId(preference);
 

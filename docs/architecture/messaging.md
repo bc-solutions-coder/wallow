@@ -5,7 +5,7 @@ a single unified CQRS mediator and message bus inside one process — there is n
 
 ## Overview
 
-Wallow is a modular monolith. Modules (Identity, Storage, Notifications, Announcements, Inquiries,
+Wallow is a modular monolith. Modules (Identity, Storage, Notifications, Inquiries,
 ApiKeys, Branding) never reference each other's projects. The only cross-module coupling allowed is a
 project reference to `Wallow.Shared.Contracts`. That assembly is the public boundary between modules
 and holds three kinds of thing: the integration event records, the cross-module service and query
@@ -66,7 +66,6 @@ The event directories that exist today:
 |-----------|--------|
 | `Wallow.Shared.Contracts/Identity/Events/` | Registration, login, MFA, password, email-change, organization and session events |
 | `Wallow.Shared.Contracts/Inquiries/Events/` | `InquirySubmittedEvent`, `InquiryStatusChangedEvent`, `InquiryCommentAddedEvent` |
-| `Wallow.Shared.Contracts/Announcements/Events/` | `AnnouncementPublishedEvent` |
 | `Wallow.Shared.Contracts/Notifications/Events/` | `NotificationCreatedEvent` |
 | `Wallow.Shared.Contracts/Delivery/Events/` | `EmailSentEvent`, `SmsSentEvent`, `PushSentEvent` |
 

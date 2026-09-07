@@ -9,14 +9,6 @@ export type ClientOptions = {
  */
 export const ErrorCode = {
     /**
-   * This announcement cannot be dismissed
-   */
-ANNOUNCEMENT_NOT_DISMISSIBLE: 'Announcement.NotDismissible',
-    /**
-   * Announcement not found
-   */
-ANNOUNCEMENT_NOT_FOUND: 'Announcement.NotFound',
-    /**
    * API key is already revoked
    */
 API_KEYS_API_KEY_ALREADY_REVOKED: 'ApiKeys.ApiKeyAlreadyRevoked',

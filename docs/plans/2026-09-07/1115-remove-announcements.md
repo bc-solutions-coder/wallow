@@ -1,8 +1,10 @@
-**status: active**
+**status: completed**
 
 # Remove announcements and changelogs implementation plan
 
-> Use superpowers:executing-plans to implement this plan task by task. This document authorizes planning only; implementation is a separate task.
+> Implemented through issues #255 and #256 in PR #257. The original task breakdown below is retained as the implementation record.
+
+Validation: backend build, 5,323 fast/integration tests, `pnpm check`, and fork smoke passed. Fresh migrations and seeding create no announcements schema or retired scopes; live OpenAPI contains neither feature and preserves all surviving operations. Standards and spec reviews found no blocking issues.
 
 **Goal:** Remove the unused Announcements module, including changelogs, and all supporting runtime code and generated contracts.
 
