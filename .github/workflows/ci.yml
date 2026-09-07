@@ -747,7 +747,9 @@ jobs:
           --full build,unit-tests,integration-tests,cross-tenant-tests,docker-images-app,docker-images-infra,e2e-tests,merge-coverage,js,openapi,codeql
   register-publication:
     needs: [changes, required]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      always() && needs.changes.result == 'success' && needs.required.result == 'success' &&
+      github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
