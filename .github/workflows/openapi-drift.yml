@@ -1,18 +1,7 @@
 name: OpenAPI Drift
 
-# Fails a pull request whose packages/sdk/openapi/v1.json no longer matches the API
-# contract. The emission recipe and the definition of "drift" live in the shared
-# .github/actions/openapi-document composite action, which openapi-autoregen.yml also
-# uses, so the check and the automated fix can never disagree about what drifted.
-#
-# This workflow deliberately runs on pull_request ONLY. A stale snapshot that reaches
-# main is not a failure to report but a job to do: openapi-autoregen.yml picks it up
-# there and opens a PR carrying the regenerated snapshot and client. Adding a push
-# trigger here would paint main red for a condition that already has an owner, and
-# would boot a second Postgres to learn what that workflow is learning anyway.
-#
-# The token this workflow runs with stays read-only. It is the one of the two that
-# checks out pull-request code, so it must never hold contents or pull-requests write.
+# Checks PR contracts through .github/actions/openapi-document.
+# Contributors regenerate and commit drift fixes; automatic fix-up PRs are paused.
 
 on:
   pull_request:
