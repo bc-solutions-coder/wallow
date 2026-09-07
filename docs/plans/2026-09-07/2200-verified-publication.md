@@ -60,7 +60,14 @@ The manifest-list builder now requires exactly one verified AMD64 manifest and o
 verified ARM64 manifest, preserving their digest and byte size in deterministic output.
 The actual Garage variants produce index digest
 `sha256:d14e9e43f268e7db861aec70e5e17cf363b06d8465b7cbb9149cef8a14c41410`.
-This index has not yet been published or read back from a registry.
+An isolated local registry accepted this exact index with PUT status 201 after both
+prepared child manifests were uploaded with digest preservation. Reading the index by
+tag and digest returned the exact bytes and digest header; each child manifest matched
+its recorded digest and size. Evidence was captured at
+`/tmp/wallow-publication-image-evidence/multi-platform-registry-proof.json`. The registry
+used a loopback-only host port, and its container/network were removed afterward. This
+proves local multi-platform registry transport, not hosted authentication or release
+authorization.
 
 ## Read-only controller image inspection
 
@@ -87,3 +94,32 @@ extra tags still fail. Catalog validation rejects duplicate tags, overlap with p
 images, unsupported platforms/bundles, and publication fields on companion entries.
 Real archive tests cover accepted/excluded companions, unexpected companion tags, and
 incorrect companion architecture. All 88 helper tests pass.
+
+## Fixed GHCR manifest transport
+
+A standalone transport now targets only `https://ghcr.io` and one caller-authorized exact
+repository. It exchanges GitHub credentials at the fixed `/token` endpoint for a bearer
+token scoped to that repository's `pull,push` actions. No redirect is followed and no
+GitHub credential is sent to manifest endpoints. Authentication JSON, manifest bytes,
+error reads, and request timeouts are bounded; errors omit remote bodies and credentials.
+
+[GitHub's Container registry documentation](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
+supports workflow `GITHUB_TOKEN` authentication and Docker schema-2 manifests.
+The [Distribution token protocol](https://distribution.github.io/distribution/spec/auth/token/)
+defines the repository-scoped token exchange, and the
+[registry API specification](https://distribution.github.io/distribution/spec/api/)
+defines manifest GET/PUT, digest headers, and `MANIFEST_UNKNOWN`.
+An unauthenticated GET to GHCR independently returned the fixed realm
+`https://ghcr.io/token`, service `ghcr.io`, and the requested repository's pull scope.
+No hosted credential or write was used for that protocol check.
+
+Only an explicit `MANIFEST_UNKNOWN` 404 is absent. Manifest reads verify the declared
+media type, exact byte digest, registry digest header, and any requested digest reference.
+Writes compare an existing manifest first: identical bytes succeed without PUT, differing
+bytes fail. A new PUT must acknowledge the expected digest and pass exact-byte readback.
+The caller still owns publication authorization and the global writer lock; this is not
+registry compare-and-swap against external writers. No workflow uses this transport yet.
+
+All 96 CI helper tests pass, including real HTTP fixtures for missing/identical/conflicting
+manifests, scoped authentication, redirects, malformed and oversized responses, failed
+writes, readback mismatch, and sanitized failures. Hosted GHCR acceptance remains open.
