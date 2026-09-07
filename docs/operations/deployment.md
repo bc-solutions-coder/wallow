@@ -1,5 +1,9 @@
 # Wallow Production Deployment Guide
 
+> Automatic image publication and docs deployment are paused during the CI migration.
+> Existing images remain available, but merging code does not produce new registry images.
+> The CI/CD section below describes the previous pipeline.
+
 Wallow deploys as a set of Docker containers described by a single compose file,
 `docker/docker-compose.production.yml`. The stack is self-contained — it runs the same way on
 your laptop and on a server. Every deployment picks exactly **one edge profile**:

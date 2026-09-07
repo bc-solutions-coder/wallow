@@ -13,7 +13,7 @@
 # Two stages, same shape as apps/wallow-web/Dockerfile: the `build` stage is
 # pinned to $BUILDPLATFORM so `pnpm install` and `vite build` run natively even
 # when the target image is another architecture (Vite 8's rolldown/oxc deadlock
-# under QEMU); the runtime stage has no RUN steps at all.
+# under QEMU); only runtime cleanup uses QEMU when cross-building.
 
 # Node 24 matches the repo's .nvmrc; corepack pins pnpm from the root
 # package.json `packageManager` field.
@@ -51,6 +51,11 @@ RUN pnpm --filter @bc-solutions-coder/example-minimal-app build
 # bundles every runtime dependency into .output/server, so the bundle is the
 # whole app.
 FROM node:24-slim
+
+# The bundled server needs Node only; remove unused package managers and their dependencies.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack /opt/yarn-* \
+    /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+    /usr/local/bin/yarn /usr/local/bin/yarnpkg /usr/local/bin/pnpm /usr/local/bin/pnpx
 
 WORKDIR /repo/apps/minimal-app
 

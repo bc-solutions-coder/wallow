@@ -4,9 +4,13 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 consumer_dir="$(mktemp -d)"
 trap 'rm -rf "$consumer_dir"' EXIT
 cd "$repo_root"
-pnpm exec turbo run build --filter=@bc-solutions-coder/telemetry...
-mkdir "$consumer_dir/archives"
-archive="$(pnpm --dir packages/telemetry pack --pack-destination "$consumer_dir/archives" | tail -n 1)"
+if [[ -n "${CI_PACKAGE_DIR:-}" ]]; then
+  archive="$CI_PACKAGE_DIR/telemetry.tgz"
+else
+  pnpm exec turbo run build --filter=@bc-solutions-coder/telemetry...
+  mkdir "$consumer_dir/archives"
+  archive="$(pnpm --dir packages/telemetry pack --pack-destination "$consumer_dir/archives" | tail -n 1)"
+fi
 compiler_version="$(node -p "require('./packages/telemetry/node_modules/typescript/package.json').version")"
 cd "$consumer_dir"
 printf '%s\n' '{"private":true,"type":"module"}' > package.json

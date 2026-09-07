@@ -58,6 +58,12 @@ case "$WORK_DIR" in
   ;;
 esac
 
+if [[ -n "${CI_PACKAGE_DIR:-}" ]]; then
+  mkdir -p "$APP_DIR/vendor"
+  for name in api-errors env sdk styles; do
+    cp "$CI_PACKAGE_DIR/$name.tgz" "$APP_DIR/vendor/$name.tgz"
+  done
+else
 log "Building the packages that get packed"
 pnpm --dir "$REPO_ROOT" \
   --filter @bc-solutions-coder/api-errors \
@@ -78,6 +84,8 @@ pnpm --dir "$REPO_ROOT/packages/api-errors" pack --out "$APP_DIR/vendor/api-erro
 pnpm --dir "$REPO_ROOT/packages/env" pack --out "$APP_DIR/vendor/env.tgz"
 pnpm --dir "$REPO_ROOT/packages/sdk" pack --out "$APP_DIR/vendor/sdk.tgz"
 pnpm --dir "$REPO_ROOT/packages/styles" pack --out "$APP_DIR/vendor/styles.tgz"
+
+fi
 
 log "Scaffolding the scratch app in $APP_DIR"
 # The scaffold only — no node_modules, no build output, and no repo config

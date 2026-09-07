@@ -21,6 +21,7 @@ COPY --from=theme /main.css docfx/templates/wallow/public/main.css
 RUN dotnet tool restore && dotnet docfx docfx.json
 
 FROM nginx:alpine
+RUN apk upgrade --no-cache
 COPY docker/docs/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /build/.docfx/_site /usr/share/nginx/html
 EXPOSE 80

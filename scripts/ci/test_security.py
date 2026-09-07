@@ -1,0 +1,83 @@
+import copy
+from datetime import datetime, timezone
+import unittest
+
+import security
+
+
+class SecurityTests(unittest.TestCase):
+    def test_profile_defaults_and_explicit_selection(self):
+        self.assertEqual(security.profile('', 'bc-solutions-coder/wallow'), 'codeql')
+        self.assertEqual(security.profile('', 'someone/fork'), 'portable')
+        self.assertEqual(security.profile('codeql', 'someone/fork'), 'codeql')
+        with self.assertRaises(ValueError):
+            security.profile('disabled', 'someone/fork')
+
+    def test_exception_expiry_scope_and_duration(self):
+        now = datetime(2026, 9, 7, tzinfo=timezone.utc)
+        item = dict(scanner='devskim', id='DS1', scope='api/A.cs', owner='maintainer',
+                    reason='Protocol compatibility', tracking='https://github.com/a/b/issues/1',
+                    created='2026-09-01T00:00:00Z', expires='2026-09-20T00:00:00Z')
+        security.validate_exceptions({'exceptions': [item]}, now)
+        for field, value in [('scope', '*'), ('expires', '2026-09-06T00:00:00Z'),
+                             ('expires', '2026-11-01T00:00:00Z'), ('owner', '')]:
+            bad = dict(item, **{field: value})
+            with self.assertRaises(ValueError, msg=field):
+                security.validate_exceptions({'exceptions': [bad]}, now)
+
+    def test_native_devskim_severity_not_generic_sarif_level(self):
+        report = {'version': '2.1.0', 'runs': [{'tool': {'driver': {'name': 'devskim', 'rules': []}}, 'results': [
+            {'ruleId': 'DS1', 'level': 'warning', 'properties': {'DevSkimSeverity': 'Important', 'DevSkimConfidence': 'Medium'},
+             'locations': [{'physicalLocation': {'artifactLocation': {'uri': 'api/A.cs'}}}]}]}]}
+        self.assertTrue(security.devskim(report)[0]['blocking'])
+        report['runs'][0]['results'][0]['properties']['DevSkimConfidence'] = 'Low'
+        self.assertFalse(security.devskim(report)[0]['blocking'])
+        del report['runs'][0]['results'][0]['properties']['DevSkimSeverity']
+        with self.assertRaises(ValueError):
+            security.devskim(report)
+
+    def test_zizmor_native_threshold(self):
+        finding = {'ident': 'injection', 'determinations': {'severity': 'High', 'confidence': 'Medium'},
+                   'ignored': False, 'locations': [{'symbolic': {'key': {'Local': {'verbatim_path': '.github/workflows/a.yml'}}}}]}
+        self.assertTrue(security.zizmor([finding])[0]['blocking'])
+        finding['determinations']['confidence'] = 'Low'
+        self.assertFalse(security.zizmor([finding])[0]['blocking'])
+        finding['ignored'] = True
+        with self.assertRaises(ValueError):
+            security.zizmor([finding])
+
+    def test_codeql_security_score(self):
+        report = {'version': '2.1.0', 'runs': [{'tool': {'driver': {'name': 'CodeQL', 'rules': [
+            {'id': 'cs/injection', 'properties': {'security-severity': '8.1'}}]}}, 'results': [
+            {'ruleId': 'cs/injection', 'locations': [{'physicalLocation': {'artifactLocation': {'uri': 'api/A.cs'}}}]}]}]}
+        self.assertTrue(security.codeql(report)[0]['blocking'])
+        report['runs'][0]['tool']['driver']['rules'][0]['properties']['security-severity'] = '5.0'
+        self.assertFalse(security.codeql(report)[0]['blocking'])
+        report['runs'][0]['invocations'] = [{'executionSuccessful': False}]
+        with self.assertRaises(ValueError):
+            security.codeql(report)
+
+    def test_trivy_only_fixable_high_blocks(self):
+        report = {'SchemaVersion': 2, 'Results': [{'Target': 'pnpm-lock.yaml', 'Packages': [{'Name': 'a'}], 'Vulnerabilities': [
+            {'VulnerabilityID': 'CVE-1', 'PkgName': 'a', 'InstalledVersion': '1', 'FixedVersion': '2', 'Severity': 'HIGH'}]}]}
+        self.assertTrue(security.trivy(report)[0]['blocking'])
+        report['Results'][0]['Vulnerabilities'][0]['FixedVersion'] = ''
+        self.assertFalse(security.trivy(report)[0]['blocking'])
+        with self.assertRaises(ValueError):
+            security.trivy({'SchemaVersion': 2, 'Results': []})
+
+    def test_missing_reports_and_invalid_findings_fail(self):
+        for parser in [security.devskim, security.codeql, security.trivy, security.zizmor]:
+            with self.assertRaises(ValueError):
+                parser({})
+
+    def test_scoped_exception_does_not_hide_neighbor(self):
+        findings = [{'scanner': 'devskim', 'id': 'DS1', 'scope': 'api/A.cs', 'blocking': True},
+                    {'scanner': 'devskim', 'id': 'DS1', 'scope': 'api/B.cs', 'blocking': True}]
+        result = security.apply_exceptions(copy.deepcopy(findings), [{'scanner': 'devskim', 'id': 'DS1', 'scope': 'api/A.cs'}])
+        self.assertTrue(result[0]['excepted'])
+        self.assertFalse(result[1]['excepted'])
+
+
+if __name__ == '__main__':
+    unittest.main()

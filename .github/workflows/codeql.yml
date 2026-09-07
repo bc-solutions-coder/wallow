@@ -1,30 +1,18 @@
 name: CodeQL
 
 on:
-  pull_request:
-    branches: [main]
-    # csharp analyzes api/, actions analyzes .github/ — a PR touching neither
-    # has nothing for CodeQL to scan. The weekly cron below still sweeps main
-    # unconditionally, so nothing escapes coverage.
-    paths:
-      - "api/**"
-      - "global.json"
-      - ".github/**"
-  schedule:
-    - cron: "0 6 * * 1"
+  workflow_call:
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+permissions:
+  contents: read
 
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     permissions:
-      security-events: write
-      packages: read
       actions: read
       contents: read
 
@@ -38,17 +26,19 @@ jobs:
             build-mode: manual
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Setup .NET
         if: matrix.language == 'csharp'
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: "10.0.x"
 
       - name: Cache NuGet packages
         if: matrix.language == 'csharp'
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
@@ -60,7 +50,7 @@ jobs:
         run: dotnet restore api/Wallow.slnx
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
+        uses: github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
@@ -74,6 +64,22 @@ jobs:
         run: dotnet build api/Wallow.slnx --no-restore --no-incremental --graph -p:RunAnalyzers=false
 
       - name: Perform CodeQL analysis
-        uses: github/codeql-action/analyze@v4
+        uses: github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4
         with:
           category: "/language:${{ matrix.language }}"
+          upload: never
+          upload-database: false
+          output: codeql-results
+
+      - name: Gate local CodeQL security findings
+        run: |
+          python3 scripts/ci/security.py gate --scanner codeql --report codeql-results/*.sarif --output codeql-results/gate.json
+
+      - name: Retain CodeQL results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: codeql-results-${{ matrix.language }}-${{ github.run_attempt }}
+          path: codeql-results
+          if-no-files-found: error
+          retention-days: 30

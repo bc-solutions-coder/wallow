@@ -892,12 +892,11 @@ pnpm build --force            # bypass the cache for one run
 rm -rf .turbo                 # or drop the local cache entirely
 ```
 
-Caching is local unless `TURBO_API`/`TURBO_TEAM`/`TURBO_TOKEN` are exported — with them set, turbo
-also reads and writes the shared remote cache, so a stale entry can come from another machine (see
-the developer guide's [Turbo remote cache](../getting-started/developer-guide.md) section;
-`TURBO_REMOTE_CACHE_READ_ONLY=true` or unsetting `TURBO_TOKEN` takes the remote out of the
-picture). Note that lint, format, manifest, dependency and export checks are **not** turbo tasks;
-they are root scripts and always run.
+Developer runs use local caching. Main CI additionally uses the private remote cache with
+signature verification; PRs use local/GitHub caches without private credentials. Set
+`TURBO_CACHE=local:rw` to explicitly disable remote access for a command. See the developer
+guide's [Turbo remote cache](../getting-started/developer-guide.md) section. Lint, format,
+manifest, dependency and export checks are root scripts and always run.
 
 ### Vitest fails to launch a browser
 

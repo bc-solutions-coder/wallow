@@ -2,31 +2,31 @@
 # `pnpm backend:infra` - it is developer infrastructure, unrelated to the
 # Wallow stack.
 #
-# The cache is reached over the Tailscale tailnet, not a public hostname: CI
-# joins the tailnet inside the workflow (tailscale/github-action in js.yml) and
-# laptops must be on it. Authentication is TURBO_TOKEN alone - turbo sends only
-# `Authorization: Bearer`, so nothing that needs its own header or login can be
-# layered in front (this is what killed the original Cloudflare Tunnel design;
-# see Wallow-m4u7). Set TURBO_CACHE_BIND_ADDR to the host's tailscale IP so the
-# listener is reachable from the tailnet and nowhere else; the 127.0.0.1
-# default keeps a copy-paste deployment private until that choice is made.
+# Main CI reaches this service through Tailscale. Developer machines use local
+# caching. Bind to the host's tailnet address; the loopback default keeps a new
+# deployment private until configured. TURBO_TOKEN is a CI-only bearer token.
+# The independent artifact signing key belongs only in GitHub production.
 services:
   turbo-cache:
-    image: ducktors/turborepo-remote-cache:latest
+    image: ducktors/turborepo-remote-cache:2.12.0@sha256:d5cd81fc2f289b6c37ad8f3361a9abab5c359577d7809981ece045cefc21756f
     restart: unless-stopped
     environment:
       PORT: "3000"
       TURBO_TOKEN: ${TURBO_TOKEN:?set TURBO_TOKEN in docker/turbo-cache/.env}
-      TURBO_REMOTE_CACHE_SIGNATURE_KEY: ${TURBO_REMOTE_CACHE_SIGNATURE_KEY:?set in .env}
+      # In pinned 2.12.0 this is only a metadata-storage toggle, not an HMAC
+      # key. Clients sign and verify; never give the server the signing key.
+      TURBO_REMOTE_CACHE_SIGNATURE_KEY: enabled
       STORAGE_PROVIDER: local
-      STORAGE_PATH: /cache
-      # Default is true, which would prefix STORAGE_PATH with the system tmp
-      # dir - and lose the whole cache on reboot.
+      STORAGE_PATH: /tmp/turbo-cache
+      # Use this exact path inside the persistent volume.
       STORAGE_PATH_USE_TMP_FOLDER: "false"
       LOG_LEVEL: info
       ENABLE_STATUS_LOG: "false"
     volumes:
-      - turbo-cache-data:/cache
+      # /tmp exists in the image with mode 1777, so a fresh volume lets the
+      # non-root service create its own cache directory without host chown.
+      # Existing volumes retain their permissions and may need owner repair.
+      - turbo-cache-data:/tmp
     ports:
       - "${TURBO_CACHE_BIND_ADDR:-127.0.0.1}:3000:3000"
 

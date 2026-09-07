@@ -15,7 +15,7 @@
 # intermittently — a job that takes ~2 minutes natively sat silent for over an
 # hour until the run was cancelled. The bundle Vite emits is platform-independent,
 # so nothing is lost by building it on the host arch. Only the tiny runtime
-# stage below is built for $TARGETPLATFORM, and it has no RUN steps at all.
+# stage below is built for $TARGETPLATFORM; its cleanup uses QEMU when cross-building.
 #
 # The build stage needs the full workspace install (vite, nitro and the workspace
 # packages are all devDeps of something), so there is no prod-deps-only split —
@@ -106,10 +106,13 @@ RUN pnpm --filter @bc-solutions-coder/wallow-auth build
 # Runtime stage — built for the TARGET platform. Nitro's node-server preset
 # bundles every runtime dependency into .output/server (_chunks/, _libs/; no
 # node_modules/ and no native .node addons), so the bundle is the whole app and
-# nothing from the workspace install is needed at runtime. Keep this stage free
-# of RUN steps: that is what lets the arm64 image build without QEMU ever
-# executing a foreign binary.
+# nothing from the workspace install is needed at runtime.
 FROM node:24-slim
+
+# The bundled server needs Node only; remove unused package managers and their dependencies.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack /opt/yarn-* \
+    /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+    /usr/local/bin/yarn /usr/local/bin/yarnpkg /usr/local/bin/pnpm /usr/local/bin/pnpx
 
 WORKDIR /repo/apps/wallow-auth
 
