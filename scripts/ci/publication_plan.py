@@ -7,9 +7,10 @@ import os
 from pathlib import Path
 import tempfile
 
-from publication import PublicationError, matches
+from publication import PublicationError, load_catalog, matches
 from publication_artifacts import select_artifact, unpack_payload
 from publication_github import GitHub
+from publication_verify_images import verify_images
 
 
 def candidate_artifacts(producer, jobs, artifacts):
@@ -65,6 +66,7 @@ def main():
     try:
         client = GitHub(context['repository'], os.environ.get('GH_TOKEN'))
         plan = resolve(client, context, int(args.run_id), int(args.attempt))
+        plan['verified_images'] = verify_images(client, plan, load_catalog(Path(__file__).resolve().parents[2]))
         with Path(args.output).open('x') as output:
             json.dump(plan, output, indent=2)
             output.write('\n')

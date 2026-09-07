@@ -61,3 +61,20 @@ verified ARM64 manifest, preserving their digest and byte size in deterministic 
 The actual Garage variants produce index digest
 `sha256:d14e9e43f268e7db861aec70e5e17cf363b06d8465b7cbb9149cef8a14c41410`.
 This index has not yet been published or read back from a registry.
+
+## Read-only controller image inspection
+
+The authorization command now compares the registered catalog with the validated catalog
+from the protected controller checkout, then downloads each authorized image artifact by
+immutable ID. Full routes require app, infrastructure, and docs bundles; docs routes
+require only the docs bundle. Each ZIP is checked against the GitHub size/digest and its
+producer seal before Docker-save inspection verifies every exact catalog tag/platform.
+Downloads and inspection use sequential temporary directories, cleaned on success and
+failure before the next bundle. The sealed plan retains only inspection metadata.
+
+The authorize job retains read-only GitHub permissions and has no production environment,
+image execution, rebuild, or registry write. Its timeout is now 30 minutes to accommodate
+large bundles. All 87 helper tests pass, including real sealed ZIP/TAR fixtures with fake
+transport, catalog drift, missing/extra/duplicate bundles, altered seals, unexpected tags,
+download tampering, transport failure, and cleanup. Actionlint passes. Hosted execution
+and registry publication remain separate acceptance work.
