@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Wallow.Notifications.Application.Channels.Push.Interfaces;
+using Wallow.Notifications.Domain.Channels.Push;
 using Wallow.Notifications.Domain.Channels.Push.Entities;
 
 namespace Wallow.Notifications.Application.Channels.Push.Commands.DeliverPush;
@@ -7,6 +8,7 @@ namespace Wallow.Notifications.Application.Channels.Push.Commands.DeliverPush;
 public sealed partial class DeliverPushHandler(
     IPushProviderFactory pushProviderFactory,
     IPushMessageRepository pushMessageRepository,
+    IDeviceRegistrationRepository deviceRegistrationRepository,
     TimeProvider timeProvider,
     ILogger<DeliverPushHandler> logger)
 {
@@ -23,12 +25,19 @@ public sealed partial class DeliverPushHandler(
             return;
         }
 
+        DeviceRegistration? device = await deviceRegistrationRepository.GetByIdAsync(command.DeviceRegistrationId, cancellationToken);
+        if (device is null || !device.IsActive || device.UserId != pushMessage.RecipientId)
+        {
+            LogDeviceUnavailable(logger, command.DeviceRegistrationId.Value);
+            return;
+        }
+
         try
         {
-            IPushProvider provider = await pushProviderFactory.GetProviderAsync(command.Platform);
+            IPushProvider provider = await pushProviderFactory.GetProviderAsync(device.Platform);
 
             PushDeliveryResult result = await provider.SendAsync(
-                pushMessage, command.Token, cancellationToken);
+                pushMessage, device.Token, cancellationToken);
 
             if (result.Success)
             {
@@ -53,6 +62,9 @@ public sealed partial class DeliverPushHandler(
             await pushMessageRepository.SaveChangesAsync(cancellationToken);
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Skipping push for unavailable device registration {DeviceRegistrationId}")]
+    private static partial void LogDeviceUnavailable(ILogger logger, Guid deviceRegistrationId);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Push message {PushMessageId} not found")]
     private static partial void LogPushMessageNotFound(ILogger logger, Guid pushMessageId);

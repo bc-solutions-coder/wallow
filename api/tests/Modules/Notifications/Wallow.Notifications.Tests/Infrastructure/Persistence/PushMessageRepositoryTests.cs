@@ -3,6 +3,7 @@ using Wallow.Notifications.Domain.Channels.Push.Enums;
 using Wallow.Notifications.Domain.Channels.Push.Identity;
 using Wallow.Notifications.Infrastructure.Persistence.Repositories;
 using Wallow.Shared.Kernel.Identity;
+using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Notifications.Tests.Infrastructure.Persistence;
 
@@ -12,7 +13,9 @@ public sealed class PushMessageRepositoryTests : RepositoryTestBase
 
     public PushMessageRepositoryTests()
     {
-        _repository = new PushMessageRepository(Context);
+        ITenantContext tenantContext = Substitute.For<ITenantContext>();
+        tenantContext.TenantId.Returns(TestTenantId);
+        _repository = new PushMessageRepository(Context, tenantContext);
     }
 
     private PushMessage CreatePushMessage(string title = "Test Push", string body = "Push body")

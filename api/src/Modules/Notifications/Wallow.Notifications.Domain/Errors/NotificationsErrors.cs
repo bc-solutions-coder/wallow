@@ -19,6 +19,9 @@ public static class NotificationsErrors
     public static readonly ErrorCatalogEntry DeviceRegistrationNotFound = new(
         "DeviceRegistration.NotFound", ErrorKind.NotFound, "Device registration not found");
 
+    public static readonly ErrorCatalogEntry DeviceRegistrationConflict = new(
+        "DeviceRegistration.Conflict", ErrorKind.Conflict, "The device token is already registered");
+
     public static readonly ErrorCatalogEntry SmsInvalidPhoneNumber = new(
         "Sms.InvalidPhoneNumber", ErrorKind.Validation, "The phone number is invalid");
 

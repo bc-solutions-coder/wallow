@@ -13178,6 +13178,16 @@
           "required": true
         },
         "responses": {
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
           "204": {
             "description": "No Content",
             "content": {
@@ -16746,6 +16756,7 @@
           "Bucket.NotEmpty",
           "Bucket.NotFound",
           "Changelog.NotFound",
+          "DeviceRegistration.Conflict",
           "DeviceRegistration.NotFound",
           "Email.InvalidEmailAddress",
           "File.ContentTypeNotAllowed",
@@ -16869,6 +16880,7 @@
           "The bucket still contains files",
           "Bucket not found",
           "Changelog entry not found",
+          "The device token is already registered",
           "Device registration not found",
           "The email address is invalid",
           "That content type is not allowed in this bucket",
@@ -18361,17 +18373,12 @@
       },
       "SendPushRequest": {
         "required": [
-          "recipientId",
           "title",
           "body",
           "notificationType"
         ],
         "type": "object",
         "properties": {
-          "recipientId": {
-            "type": "string",
-            "format": "uuid"
-          },
           "title": {
             "type": "string"
           },

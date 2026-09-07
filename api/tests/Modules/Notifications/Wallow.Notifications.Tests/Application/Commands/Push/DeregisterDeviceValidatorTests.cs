@@ -1,6 +1,7 @@
 using FluentValidation.TestHelper;
 using Wallow.Notifications.Application.Channels.Push.Commands.DeregisterDevice;
 using Wallow.Notifications.Domain.Channels.Push.Identity;
+using Wallow.Shared.Kernel.Identity;
 
 namespace Wallow.Notifications.Tests.Application.Commands.Push;
 
@@ -11,7 +12,7 @@ public class DeregisterDeviceValidatorTests
     [Fact]
     public void Should_Not_Have_Error_When_ValidId()
     {
-        DeregisterDeviceCommand command = new(DeviceRegistrationId.New());
+        DeregisterDeviceCommand command = new(DeviceRegistrationId.New(), UserId.New());
         TestValidationResult<DeregisterDeviceCommand> result = _validator.TestValidate(command);
         result.ShouldNotHaveAnyValidationErrors();
     }
@@ -19,7 +20,7 @@ public class DeregisterDeviceValidatorTests
     [Fact]
     public void Should_Have_Error_When_IdIsEmpty()
     {
-        DeregisterDeviceCommand command = new(new DeviceRegistrationId(Guid.Empty));
+        DeregisterDeviceCommand command = new(new DeviceRegistrationId(Guid.Empty), UserId.New());
         TestValidationResult<DeregisterDeviceCommand> result = _validator.TestValidate(command);
         result.ShouldHaveValidationErrorFor(x => x.DeviceRegistrationId);
     }

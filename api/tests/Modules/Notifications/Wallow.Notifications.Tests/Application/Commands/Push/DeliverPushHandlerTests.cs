@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Wallow.Notifications.Application.Channels.Push.Commands.DeliverPush;
 using Wallow.Notifications.Application.Channels.Push.Interfaces;
+using Wallow.Notifications.Domain.Channels.Push;
 using Wallow.Notifications.Domain.Channels.Push.Entities;
 using Wallow.Notifications.Domain.Channels.Push.Enums;
 using Wallow.Notifications.Domain.Channels.Push.Identity;
@@ -12,6 +13,7 @@ public class DeliverPushHandlerTests
 {
     private readonly IPushProviderFactory _pushProviderFactory = Substitute.For<IPushProviderFactory>();
     private readonly IPushMessageRepository _pushMessageRepository = Substitute.For<IPushMessageRepository>();
+    private readonly IDeviceRegistrationRepository _devices = Substitute.For<IDeviceRegistrationRepository>();
     private readonly TimeProvider _timeProvider = Substitute.For<TimeProvider>();
     private readonly DeliverPushHandler _handler;
 
@@ -22,6 +24,7 @@ public class DeliverPushHandlerTests
         _handler = new DeliverPushHandler(
             _pushProviderFactory,
             _pushMessageRepository,
+            _devices,
             _timeProvider,
             LoggerFactory.Create(b => b.AddSimpleConsole().SetMinimumLevel(LogLevel.Trace))
                 .CreateLogger<DeliverPushHandler>());
@@ -38,8 +41,7 @@ public class DeliverPushHandlerTests
         DeliverPushCommand command = new(
             PushMessageId.New(),
             DeviceRegistrationId.New(),
-            "device-token",
-            PushPlatform.Fcm);
+            Guid.NewGuid());
 
         await _handler.Handle(command, CancellationToken.None);
 
@@ -63,7 +65,8 @@ public class DeliverPushHandlerTests
 
         _pushProviderFactory.GetProviderAsync(PushPlatform.Fcm).Returns(provider);
 
-        DeliverPushCommand command = new(pushMessage.Id, DeviceRegistrationId.New(), "device-token", PushPlatform.Fcm);
+        DeviceRegistration device = RegisterDevice(pushMessage, PushPlatform.Fcm);
+        DeliverPushCommand command = new(pushMessage.Id, device.Id, tenantId.Value);
 
         await _handler.Handle(command, CancellationToken.None);
 
@@ -89,7 +92,8 @@ public class DeliverPushHandlerTests
 
         _pushProviderFactory.GetProviderAsync(PushPlatform.Apns).Returns(provider);
 
-        DeliverPushCommand command = new(pushMessage.Id, DeviceRegistrationId.New(), "device-token", PushPlatform.Apns);
+        DeviceRegistration device = RegisterDevice(pushMessage, PushPlatform.Apns);
+        DeliverPushCommand command = new(pushMessage.Id, device.Id, tenantId.Value);
 
         await _handler.Handle(command, CancellationToken.None);
 
@@ -114,7 +118,8 @@ public class DeliverPushHandlerTests
 
         _pushProviderFactory.GetProviderAsync(PushPlatform.Fcm).Returns(provider);
 
-        DeliverPushCommand command = new(pushMessage.Id, DeviceRegistrationId.New(), "device-token", PushPlatform.Fcm);
+        DeviceRegistration device = RegisterDevice(pushMessage, PushPlatform.Fcm);
+        DeliverPushCommand command = new(pushMessage.Id, device.Id, tenantId.Value);
 
         Func<Task> act = () => _handler.Handle(command, CancellationToken.None);
 
@@ -122,4 +127,12 @@ public class DeliverPushHandlerTests
         pushMessage.Status.Should().Be(PushStatus.Failed);
         await _pushMessageRepository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
+
+    private DeviceRegistration RegisterDevice(PushMessage message, PushPlatform platform)
+    {
+        DeviceRegistration device = DeviceRegistration.Register(message.RecipientId, message.TenantId, platform, "device-token", DateTimeOffset.UtcNow);
+        _devices.GetByIdAsync(device.Id, Arg.Any<CancellationToken>()).Returns(device);
+        return device;
+    }
+
 }

@@ -15,6 +15,7 @@ public class RegisterDeviceHandlerTests
 
     public RegisterDeviceHandlerTests()
     {
+        _deviceRegistrationRepository.RegisterAsync(Arg.Any<DeviceRegistration>(), Arg.Any<CancellationToken>()).Returns(true);
         _timeProvider.GetUtcNow().Returns(DateTimeOffset.UtcNow);
         _handler = new RegisterDeviceHandler(_deviceRegistrationRepository, _timeProvider);
     }
@@ -31,8 +32,7 @@ public class RegisterDeviceHandlerTests
         Result result = await _handler.Handle(command, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        _deviceRegistrationRepository.Received(1).Add(Arg.Any<DeviceRegistration>());
-        await _deviceRegistrationRepository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        await _deviceRegistrationRepository.Received(1).RegisterAsync(Arg.Any<DeviceRegistration>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -43,7 +43,7 @@ public class RegisterDeviceHandlerTests
 
         await _handler.Handle(command, CancellationToken.None);
 
-        _deviceRegistrationRepository.Received(1).Add(
-            Arg.Is<DeviceRegistration>(d => d.Platform == PushPlatform.Apns && d.Token == "ios-token"));
+        await _deviceRegistrationRepository.Received(1).RegisterAsync(
+            Arg.Is<DeviceRegistration>(d => d.Platform == PushPlatform.Apns && d.Token == "ios-token"), Arg.Any<CancellationToken>());
     }
 }

@@ -2,13 +2,15 @@ using Microsoft.EntityFrameworkCore;
 using Wallow.Notifications.Application.Channels.Push.Interfaces;
 using Wallow.Notifications.Domain.Channels.Push.Entities;
 using Wallow.Notifications.Domain.Channels.Push.Identity;
+using Wallow.Shared.Kernel.MultiTenancy;
 
 namespace Wallow.Notifications.Infrastructure.Persistence.Repositories;
 
-public sealed class PushMessageRepository(NotificationsDbContext context) : IPushMessageRepository
+public sealed class PushMessageRepository(NotificationsDbContext context, ITenantContext tenantContext) : IPushMessageRepository
 {
     public Task<PushMessage?> GetByIdAsync(PushMessageId id, CancellationToken cancellationToken = default)
     {
+        context.SetTenant(TenantScope.Require(tenantContext.TenantId));
         return context.PushMessages
             .AsTracking()
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);

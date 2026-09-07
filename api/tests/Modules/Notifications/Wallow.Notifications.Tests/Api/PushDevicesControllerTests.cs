@@ -110,7 +110,7 @@ public class PushDevicesControllerTests
         _bus.InvokeAsync<Result>(Arg.Any<object>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success());
 
-        SendPushRequest request = new(Guid.NewGuid(), "Title", "Body", "Alert");
+        SendPushRequest request = new("Title", "Body", "Alert");
         IActionResult response = await _controller.SendPush(request, CancellationToken.None);
 
         response.Should().BeOfType<NoContentResult>();
@@ -121,7 +121,7 @@ public class PushDevicesControllerTests
     {
         _currentUserService.GetCurrentUserId().Returns((Guid?)null);
 
-        SendPushRequest request = new(Guid.NewGuid(), "Title", "Body", "Alert");
+        SendPushRequest request = new("Title", "Body", "Alert");
         IActionResult response = await _controller.SendPush(request, CancellationToken.None);
 
         ObjectResult problemResult = response.Should().BeAssignableTo<ObjectResult>().Subject;
@@ -180,7 +180,7 @@ public class PushDevicesControllerTests
         _bus.InvokeAsync<Result>(Arg.Any<object>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure(error));
 
-        SendPushRequest request = new(Guid.NewGuid(), "Title", "Body", "Alert");
+        SendPushRequest request = new("Title", "Body", "Alert");
         IActionResult response = await _controller.SendPush(request, CancellationToken.None);
 
         ObjectResult problemResult = response.Should().BeAssignableTo<ObjectResult>().Subject;

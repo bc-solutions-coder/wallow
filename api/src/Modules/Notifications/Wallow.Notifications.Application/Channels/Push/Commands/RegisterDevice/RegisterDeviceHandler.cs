@@ -1,5 +1,6 @@
 using Wallow.Notifications.Application.Channels.Push.Interfaces;
 using Wallow.Notifications.Domain.Channels.Push;
+using Wallow.Notifications.Domain.Errors;
 using Wallow.Shared.Kernel.Results;
 
 namespace Wallow.Notifications.Application.Channels.Push.Commands.RegisterDevice;
@@ -19,9 +20,7 @@ public sealed class RegisterDeviceHandler(
             command.Token,
             timeProvider.GetUtcNow());
 
-        deviceRegistrationRepository.Add(registration);
-        await deviceRegistrationRepository.SaveChangesAsync(cancellationToken);
-
-        return Result.Success();
+        bool registered = await deviceRegistrationRepository.RegisterAsync(registration, cancellationToken);
+        return registered ? Result.Success() : Result.Failure(NotificationsErrors.DeviceRegistrationConflict);
     }
 }

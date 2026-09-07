@@ -33,6 +33,7 @@ public class PushDevicesController(
     ITenantContext tenantContext) : ControllerBase
 {
     [HttpPost("devices")]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> RegisterDevice(
@@ -74,7 +75,7 @@ public class PushDevicesController(
         }
 
         Result result = await bus.InvokeAsync<Result>(
-            new DeregisterDeviceCommand(new DeviceRegistrationId(id)),
+            new DeregisterDeviceCommand(new DeviceRegistrationId(id), new UserId(userId.Value)),
             cancellationToken);
 
         if (result.IsFailure)
@@ -118,7 +119,7 @@ public class PushDevicesController(
 
         Result result = await bus.InvokeAsync<Result>(
             new SendPushCommand(
-                new UserId(request.RecipientId),
+                new UserId(userId.Value),
                 new TenantId(tenantContext.TenantId.Value),
                 request.Title,
                 request.Body,

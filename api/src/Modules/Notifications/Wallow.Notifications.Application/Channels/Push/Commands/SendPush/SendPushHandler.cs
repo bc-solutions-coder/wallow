@@ -49,8 +49,7 @@ public sealed class SendPushHandler(
             DeliverPushCommand deliverCommand = new(
                 pushMessage.Id,
                 device.Id,
-                device.Token,
-                device.Platform);
+                command.TenantId.Value);
 
             await messageBus.PublishAsync(deliverCommand);
         }

@@ -15,6 +15,7 @@ public class DeregisterDeviceHandlerTests
 
     public DeregisterDeviceHandlerTests()
     {
+        _deviceRegistrationRepository.SaveDeactivationAsync(Arg.Any<DeviceRegistration>(), Arg.Any<CancellationToken>()).Returns(true);
         _handler = new DeregisterDeviceHandler(_deviceRegistrationRepository);
     }
 
@@ -32,14 +33,13 @@ public class DeregisterDeviceHandlerTests
             .GetByIdAsync(registration.Id, Arg.Any<CancellationToken>())
             .Returns(registration);
 
-        DeregisterDeviceCommand command = new(registration.Id);
+        DeregisterDeviceCommand command = new(registration.Id, registration.UserId);
 
         Result result = await _handler.Handle(command, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         registration.IsActive.Should().BeFalse();
-        _deviceRegistrationRepository.Received(1).Update(registration);
-        await _deviceRegistrationRepository.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
+        await _deviceRegistrationRepository.Received(1).SaveDeactivationAsync(registration, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -50,7 +50,7 @@ public class DeregisterDeviceHandlerTests
             .GetByIdAsync(id, Arg.Any<CancellationToken>())
             .Returns((DeviceRegistration?)null);
 
-        DeregisterDeviceCommand command = new(id);
+        DeregisterDeviceCommand command = new(id, UserId.New());
 
         Result result = await _handler.Handle(command, CancellationToken.None);
 

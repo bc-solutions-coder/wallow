@@ -354,9 +354,9 @@ try
         // message-handler problem.
         //
         // What Lightweight gives up: operations that bypass SaveChangesAsync are outside the
-        // handler's unit of work. Exactly two exist — Notifications'
-        // TenantPushConfigurationRepository (ExecuteDeleteAsync) and NotificationRepository
-        // (ExecuteUpdateAsync). Both are single statements, atomic on their own.
+        // handler's unit of work. Notifications uses these in TenantPushConfigurationRepository,
+        // NotificationRepository, and DeviceRegistrationRepository. Each mutation is a single
+        // statement, atomic on its own.
         opts.UseEntityFrameworkCoreTransactions(TransactionMiddlewareMode.Lightweight);
 
         // Apply that transaction middleware to every chain whose service dependencies transitively

@@ -15,15 +15,13 @@ public sealed class DeregisterDeviceHandler(
         DeviceRegistration? registration = await deviceRegistrationRepository.GetByIdAsync(
             command.DeviceRegistrationId, cancellationToken);
 
-        if (registration is null)
+        if (registration is null || registration.UserId != command.UserId)
         {
             return Result.Failure(NotificationsErrors.DeviceRegistrationNotFound);
         }
 
         registration.Deactivate();
-        deviceRegistrationRepository.Update(registration);
-        await deviceRegistrationRepository.SaveChangesAsync(cancellationToken);
-
-        return Result.Success();
+        bool removed = await deviceRegistrationRepository.SaveDeactivationAsync(registration, cancellationToken);
+        return removed ? Result.Success() : Result.Failure(NotificationsErrors.DeviceRegistrationNotFound);
     }
 }

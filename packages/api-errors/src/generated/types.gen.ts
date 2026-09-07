@@ -149,6 +149,10 @@ BUCKET_NOT_FOUND: 'Bucket.NotFound',
    */
 CHANGELOG_NOT_FOUND: 'Changelog.NotFound',
     /**
+   * The device token is already registered
+   */
+DEVICE_REGISTRATION_CONFLICT: 'DeviceRegistration.Conflict',
+    /**
    * Device registration not found
    */
 DEVICE_REGISTRATION_NOT_FOUND: 'DeviceRegistration.NotFound',

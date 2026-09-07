@@ -41,7 +41,7 @@ public sealed class DeviceRegistrationRepositoryTests : RepositoryTestBase
     {
         DeviceRegistration registration = CreateRegistration(token: "device-123");
 
-        _repository.Add(registration);
+        Context.DeviceRegistrations.Add(registration);
         await Context.SaveChangesAsync();
 
         DeviceRegistration? result = await _repository.GetByIdAsync(registration.Id);
@@ -63,9 +63,9 @@ public sealed class DeviceRegistrationRepositoryTests : RepositoryTestBase
     public async Task GetActiveByUserAsync_ReturnsOnlyActiveRegistrations()
     {
         UserId userId = UserId.New();
-        _repository.Add(CreateRegistration(userId: userId, token: "active1"));
-        _repository.Add(CreateRegistration(userId: userId, token: "active2"));
-        _repository.Add(CreateRegistration(userId: userId, token: "inactive", isActive: false));
+        Context.DeviceRegistrations.Add(CreateRegistration(userId: userId, token: "active1"));
+        Context.DeviceRegistrations.Add(CreateRegistration(userId: userId, token: "active2"));
+        Context.DeviceRegistrations.Add(CreateRegistration(userId: userId, token: "inactive", isActive: false));
         await Context.SaveChangesAsync();
 
         IReadOnlyList<DeviceRegistration> result = await _repository.GetActiveByUserAsync(userId);
@@ -79,8 +79,8 @@ public sealed class DeviceRegistrationRepositoryTests : RepositoryTestBase
     {
         UserId userId = UserId.New();
         UserId otherUserId = UserId.New();
-        _repository.Add(CreateRegistration(userId: userId, token: "mine"));
-        _repository.Add(CreateRegistration(userId: otherUserId, token: "theirs"));
+        Context.DeviceRegistrations.Add(CreateRegistration(userId: userId, token: "mine"));
+        Context.DeviceRegistrations.Add(CreateRegistration(userId: otherUserId, token: "theirs"));
         await Context.SaveChangesAsync();
 
         IReadOnlyList<DeviceRegistration> result = await _repository.GetActiveByUserAsync(userId);
@@ -97,31 +97,4 @@ public sealed class DeviceRegistrationRepositoryTests : RepositoryTestBase
         result.Should().BeEmpty();
     }
 
-    [Fact]
-    public async Task Update_PersistsChanges()
-    {
-        DeviceRegistration registration = CreateRegistration(token: "before-update");
-        _repository.Add(registration);
-        await Context.SaveChangesAsync();
-
-        registration.Deactivate();
-        _repository.Update(registration);
-        await Context.SaveChangesAsync();
-
-        DeviceRegistration? result = await _repository.GetByIdAsync(registration.Id);
-        result.Should().NotBeNull();
-        result!.IsActive.Should().BeFalse();
-    }
-
-    [Fact]
-    public async Task SaveChangesAsync_PersistsChanges()
-    {
-        DeviceRegistration registration = CreateRegistration();
-        _repository.Add(registration);
-
-        await _repository.SaveChangesAsync();
-
-        DeviceRegistration? result = await _repository.GetByIdAsync(registration.Id);
-        result.Should().NotBeNull();
-    }
 }

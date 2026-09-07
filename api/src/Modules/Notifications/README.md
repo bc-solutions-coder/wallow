@@ -102,7 +102,26 @@ All endpoints require authentication.
 | `POST` | `/v1/push/devices` | Register a device |
 | `DELETE` | `/v1/push/devices/{id}` | Deregister a device |
 | `GET` | `/v1/push/devices` | Get user's registered devices |
-| `POST` | `/v1/push/send` | Send a push notification |
+| `POST` | `/v1/push/send` | Request a push self-test for the signed-in user |
+
+These routes require an authenticated user and organization context. Developer applications
+can use them for the signed-in member without notification administration permissions.
+Device listing and removal are limited to that user in the current organization. Removing
+another user's device, or a device in another organization, returns `404`.
+
+Registration takes `{ "platform": 0, "token": "provider-token" }`, where platform is `0`
+for FCM, `1` for APNs, and `2` for Web Push. Repeating the same registration for the same
+owner succeeds with one active device, including concurrent retries and reactivation after
+removal. An active token owned by another user, or registered with a different platform,
+returns `409` with code `DeviceRegistration.Conflict`. The owner must remove the existing
+registration before another user can register it. The previous owner cannot remove or
+reclaim the new owner's registration. Token uniqueness is organization-scoped.
+
+`POST /v1/push/send` takes `{ "title": "Test", "body": "Hello", "notificationType": "Alert" }`.
+The server always uses the signed-in user as recipient. There is no recipient selector;
+regenerate SDK clients that used the former `recipientId` field. Push preferences still
+apply. A `204` response means processing was accepted; it does not confirm browser receipt.
+Internal application-triggered notifications can still specify their intended recipient.
 
 ### Push Configuration - Admin (`/v1/admin/push/config`)
 
