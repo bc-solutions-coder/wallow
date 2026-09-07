@@ -1,4 +1,4 @@
-**status: active**
+**status: completed**
 
 # Complete browser Web Push (#221)
 
@@ -24,6 +24,15 @@ Source implementation, SDK/OpenAPI regeneration, consumer guide and independent 
 - Final `pnpm check` passed, including generated artifacts, builds, typechecks, browser/unit tests, exports and external consumer verification.
 - The guide's TypeScript subscription example compiled against the generated SDK. DocFX built with three existing analyzer/XML-reference warnings.
 
-## Remaining acceptance blocker
+## Browser acceptance completed
 
-Actual browser push receipt/display/click has NOT been verified. Chrome was launched with user permission; Chrome, the enabled extension and native-host manifest were confirmed present. The browser runtime still returned no available browsers after retry. The Chrome plugin requires reconnection/reinstallation from Codex's plugin UI before this check can run. Keep issue #221 open and this plan active; HTTP acceptance and controlled protocol tests do not substitute for browser delivery.
+Verified on 2026-09-07 using the user's Google Chrome on macOS, against local Wallow commit `3d36327b` started through Aspire. A temporary localhost consumer used the seeded administrator's organization session through the existing BFF; tokens and private signing keys stayed server-side.
+
+- Wallow generated the organization signing key and registered a real Chrome PushManager subscription.
+- Actual encrypted push delivery reached the service worker, which completed `showNotification`. The user confirmed the notification appeared in macOS Notification Center, then confirmed normal delivery after adjusting notification settings.
+- Clicking the notification raised `notificationclick` and opened the expected same-origin `/verify-221.html?clicked=true` destination, observed in Chrome.
+- Rotation preserved delivery to the existing subscription using its retained signing version.
+- Unsubscribe removed the Wallow registration and browser subscription; resubscription succeeded using the new signing version.
+- After all three consumer tabs were closed, a delayed Wallow send returned 204 and the service worker received the real push at 05:22:37 UTC. Clicking that background notification reopened the expected destination.
+
+Receipt and click events were recorded by the temporary service worker during the run, alongside UI observations. No DevTools-generated or mocked push event was used. Initial missing banners were an OS notification presentation setting, not a delivery failure. This verifies Chrome on this Mac, not every browser/OS combination. Temporary test tooling remains outside the repository; no application code changed during verification.
