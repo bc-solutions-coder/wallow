@@ -1,170 +1,162 @@
-name: JS CI
-
-on:
-  pull_request:
-    branches: [main]
-    paths:
-      - "apps/**"
-      - "packages/**"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
-      - "tsconfig.base.json"
-      - "turbo.jsonc"
-      - "scripts/**"
-      # Not a JS path, but scripts/check-env.sh reads it: this workflow owns the
-      # compose-to-.env.example drift gate, so a compose or example edit alone
-      # still has to run it.
-      - "docker/**"
-      - ".oxlintrc.json"
-      - ".oxfmtrc.json"
-      - ".nvmrc"
-      - ".npmrc"
-      - ".github/workflows/js.yml"
-  push:
-    branches: [main]
-    paths:
-      - "apps/**"
-      - "packages/**"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
-      - "tsconfig.base.json"
-      - "turbo.jsonc"
-      - "scripts/**"
-      # Not a JS path, but scripts/check-env.sh reads it: this workflow owns the
-      # compose-to-.env.example drift gate, so a compose or example edit alone
-      # still has to run it.
-      - "docker/**"
-      - ".oxlintrc.json"
-      - ".oxfmtrc.json"
-      - ".nvmrc"
-      - ".npmrc"
-      - ".github/workflows/js.yml"
-
+name: JS validation
+"on":
+  workflow_call: {}
 permissions:
   contents: read
-
-concurrency:
-  group: js-${{ github.head_ref || github.ref }}
-  cancel-in-progress: true
-
+defaults:
+  run:
+    shell: bash
 jobs:
-  build:
+  local:
     runs-on: ubuntu-latest
-    # Cap for the Wallow-r6zh post-completion wedge: turbo has been observed to
-    # print its complete final summary and then never exit (browser-mode
-    # provider suspected, unverified). Without this cap a wedged run burns
-    # GitHub's 360-minute default. The full job is minutes warm and well under
-    # 20 cold, so 30 is generous headroom, and the wedge prints everything
-    # before hanging — a timeout kill loses no log output.
     timeout-minutes: 30
-    permissions:
-      contents: read
-
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+    steps: &id001
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-
       - name: Enable corepack
         run: corepack enable
-
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
-          node-version-file: ".nvmrc"
-          cache: "pnpm"
-
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Cache local Turbo outputs
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ github.ref }}-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-${{ github.ref }}-
+      - name: Connect main runner to Tailscale
+        id: tailnet
+        if: env.MAIN_CACHE == 'true' && env.TAILNET_CONFIGURED == 'true'
+        continue-on-error: true
+        uses: tailscale/github-action@306e68a486fd2350f2bfc3b19fcd143891a4a2d8
+        with:
+          oauth-client-id: ${{ env.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ env.TS_OAUTH_SECRET }}
+          tags: tag:ci
+      - name: Select available cache
+        env:
+          TAILNET_RESULT: ${{ steps.tailnet.outcome }}
+        run: python3 scripts/ci/cache.py
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
       - name: Lint
         run: pnpm lint
-
-      # Second oxlint pass: the test and story files `pnpm lint` excludes, with
-      # the vitest plugin enabled. See scripts/lint-tests.sh.
       - name: Lint tests
         run: pnpm lint:tests
-
-      # sherif: workspace manifest hygiene (dependency version alignment,
-      # ordering, root-manifest shape). Zero-config; the script is the config.
       - name: Lint manifests
         run: pnpm lint:manifests
-
-      # knip: unused files, exports and dependencies. Needs no dist/ — it
-      # resolves workspace imports from source, so it runs before the build.
       - name: Lint dependency graph
         run: pnpm lint:deps
-
-      # scripts/check-env.sh: every ${VAR} a docker/*.yml interpolates must be
-      # documented in its paired .env.example. Pure text comparison — no Docker
-      # daemon, nothing to be flaky.
       - name: Lint environment documentation
         run: pnpm lint:env
-
-      # scripts/check-generated.sh: regenerates the SDK client and the api-errors
-      # catalogue from the committed OpenAPI snapshot and fails on a diff. Pure
-      # codegen from a checked-in file — no API build, no Docker.
       - name: Check generated output
         run: pnpm check:generated
-
       - name: Check formatting
         run: pnpm format:check
-
-      # Vitest browser-mode specs drive a real Chromium via the Playwright
-      # provider. ubuntu-latest runners have no Playwright browser cache, so
-      # install the browser (and its OS deps) before the Test step. playwright
-      # is a workspace-member devDependency (not a root one), so the install
-      # must run through a member that declares it.
       - name: Install Playwright browser
         run: pnpm --filter ./packages/testing exec playwright install --with-deps chromium
-
-      # No standalone "build packages first" step is needed, and not because
-      # typecheck reads a dependency's .d.ts:
-      # in-repo every @bc-solutions-coder/* exports map points at src/, so a
-      # dependent typechecks against source. typecheck and test declare
-      # dependsOn ["^build"] in turbo.jsonc for the cache key — it folds the
-      # dependency's hash into theirs, so a changed package cannot replay a
-      # stale downstream pass. Building is a side effect of that, not the point.
-      #
-      # Every task runs on every PR: unchanged packages restore from cache, so
-      # the merge commit keeps the guarantee that everything actually passed.
-      # This is two invocations rather than one only because of the concurrency
-      # cap the Test step below explains — the task GRAPH is still single, and
-      # test's dependsOn ["^build"] resolves against the builds cached here.
       - name: Build and typecheck
         run: pnpm exec turbo run build typecheck
-
-      # SEPARATE invocation, and `pnpm test` rather than a third task on the line
-      # above, because the root `test` script carries `--concurrency=1` and turbo
-      # applies a concurrency to the whole run graph. Folded in above it would
-      # serialise build and typecheck too, for no reason. See Wallow-pr34: the
-      # browser-mode suites take each other down when several run at once, and
-      # every intermediate cap measured (2, 3, 4, and per-project maxWorkers) was
-      # still red. Build and typecheck stay fully parallel; only the browser
-      # suites queue.
+      - name: Check route trees
+        run: git diff --exit-code -- apps/wallow-auth/src/app/routeTree.gen.ts apps/wallow-web/src/app/routeTree.gen.ts apps/minimal-app/src/routeTree.gen.ts
       - name: Test
         run: pnpm test
-
       - name: Upload browser failure screenshots
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: browser-failures-${{ github.run_attempt }}
+          name: browser-failures-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             packages/**/__screenshots__/**
             apps/**/__screenshots__/**
           if-no-files-found: ignore
           retention-days: 7
-
-      # publint + @arethetypeswrong/cli over the built packages: the manifest's
-      # exports map and every entrypoint's type resolution, checked against the
-      # packed tarball rather than against the working tree. Stays outside turbo
-      # and last — it needs every dist/ present at once, which a root task
-      # cannot express.
+      - name: Pack validation candidates once
+        run: ./scripts/ci/pack.sh
       - name: Check package export surface
         run: pnpm check:exports
-
+        env:
+          CI_PACKAGE_DIR: ${{ github.workspace }}/.ci-artifacts/packages
       - name: Verify external package consumer
         run: pnpm check:external-consumer
+        env:
+          CI_PACKAGE_DIR: ${{ github.workspace }}/.ci-artifacts/packages
+      - name: Verify fork consumer
+        env:
+          CI_PACKAGE_DIR: ${{ github.workspace }}/.ci-artifacts/packages
+          FORK_SMOKE_DIR: ${{ runner.temp }}/fork-smoke
+        run: ./scripts/fork-smoke.sh
+      - name: Archive validated packages
+        run: |-
+          tar -czf .ci-artifacts/packages.tar.gz -C .ci-artifacts/packages .
+          python3 scripts/ci/validation.py seal --file .ci-artifacts/packages.tar.gz --manifest .ci-artifacts/packages.tar.gz.json --kind packages --variant pnpm
+      - name: Upload js-packages
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: js-packages-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-artifacts/packages.tar.gz*
+          if-no-files-found: error
+          retention-days: 30
+          include-hidden-files: true
+      - name: Save generated-file patch
+        if: failure()
+        run: |-
+          mkdir -p .ci-artifacts
+          git diff --binary -- packages/sdk/src/generated packages/api-errors/src/generated packages/sdk/openapi apps/wallow-auth/src/app/routeTree.gen.ts apps/wallow-web/src/app/routeTree.gen.ts apps/minimal-app/src/routeTree.gen.ts > .ci-artifacts/generated.patch
+      - name: Upload generated-patch
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: generated-patch-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-artifacts/generated.patch
+          if-no-files-found: error
+          retention-days: 7
+          include-hidden-files: true
+        if: failure()
+    if:
+      ${{ !(github.event_name == 'push' && github.ref == 'refs/heads/main' && (github.repository == 'bc-solutions-coder/wallow'
+      || vars.ENABLE_MAIN_CACHE == 'true')) }}
+    env:
+      TURBO_CACHE: local:rw
+  main:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps: *id001
+    if:
+      ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && (github.repository == 'bc-solutions-coder/wallow'
+      || vars.ENABLE_MAIN_CACHE == 'true') }}
+    environment:
+      name: production
+      deployment: false
+    env:
+      MAIN_CACHE: "true"
+      TURBO_CACHE: local:rw
+      TURBO_API: ${{ secrets.TURBO_API }}
+      TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+      TS_OAUTH_SECRET: ${{ secrets.TS_OAUTH_SECRET }}
+      TAILNET_CONFIGURED: ${{ secrets.TS_OAUTH_CLIENT_ID != '' && secrets.TS_OAUTH_SECRET != '' }}
+  complete:
+    needs:
+      - local
+      - main
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify selected JS execution
+        env:
+          MAIN_SELECTED:
+            ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && (github.repository == 'bc-solutions-coder/wallow'
+            || vars.ENABLE_MAIN_CACHE == 'true') }}
+          LOCAL_RESULT: ${{ needs.local.result }}
+          MAIN_RESULT: ${{ needs.main.result }}
+        run: |-
+          if [ "$MAIN_SELECTED" = true ]; then
+            test "$MAIN_RESULT" = success && test "$LOCAL_RESULT" = skipped
+          else
+            test "$LOCAL_RESULT" = success && test "$MAIN_RESULT" = skipped
+          fi

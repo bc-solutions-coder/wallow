@@ -1,183 +1,136 @@
 name: CI
-
-on:
+"on":
   pull_request:
-    branches: [main]
-
-# Default for jobs without their own permissions block (unit-tests,
-# integration-tests, merge-coverage); other jobs declare their own.
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: 0 6 * * 1
 permissions:
   contents: read
-
 concurrency:
-  group: ci-${{ github.head_ref }}
-  cancel-in-progress: true
-
+  group: ci-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
-  # Classifies the PR's paths once; jobs gate on the outputs. `code` is
-  # everything except docs — a docs-only PR skips the whole pipeline via
-  # build's gate (docker/e2e inherit through `needs: build`). `dotnet` and
-  # `js` gate only the test-side jobs: build/docker/e2e must run for BOTH
-  # sides because e2e boots the full stack from this PR's images.
   changes:
     runs-on: ubuntu-latest
-    permissions:
-      pull-requests: read
+    timeout-minutes: 5
     outputs:
-      code: ${{ steps.filter.outputs.code }}
-      dotnet: ${{ steps.filter.outputs.dotnet }}
-      js: ${{ steps.filter.outputs.js }}
+      route: ${{ steps.route.outputs.route }}
+      profile: ${{ steps.profile.outputs.profile }}
     steps:
-      - name: Classify changed paths
-        id: filter
-        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
-        with:
-          # Load-bearing, and NOT the default: under the default `some`, a
-          # negated pattern is inert — `code`'s `'**'` would match a docs-only
-          # PR's markdown and the gate would never fire. `some-with-excludes`
-          # is the only quantifier that reads `!` as an exclusion while leaving
-          # the negation-free `dotnet`/`js` filters behaving as plain
-          # any-of lists (`every` would demand a file match all four of
-          # `dotnet`'s patterns at once, making it permanently false).
-          predicate-quantifier: "some-with-excludes"
-          filters: |
-            code:
-              - '**'
-              - '!docs/**'
-              - '!**/*.md'
-            dotnet:
-              - 'api/**'
-              - 'global.json'
-              - 'scripts/e2e.sh'
-              - '.github/workflows/ci.yml'
-            js:
-              - 'apps/**'
-              - 'packages/**'
-              - 'package.json'
-              - 'pnpm-lock.yaml'
-              - 'pnpm-workspace.yaml'
-              - '.nvmrc'
-              - '.npmrc'
-              - 'scripts/fork-smoke.sh'
-              - '.github/workflows/ci.yml'
-
-  build:
-    needs: changes
-    if: needs.changes.outputs.code == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
-    steps:
-      # Full history: git-restore-mtime needs each file's last-touching commit.
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
           fetch-depth: 0
-
-      # MSBuild's up-to-date check is mtime-based, and a fresh checkout stamps
-      # every source newer than any cache-restored output — so without this the
-      # restored bin/obj never short-circuits compilation (measured: see the
-      # design doc's Measurement section). Restoring commit-time mtimes makes
-      # only the files this PR touched look newer than the previous build.
-      # Known false-skip classes (deleted/renamed inputs, equal timestamps) are
-      # accepted pre-release; the escape hatch is bumping the cache namespace
-      # (build-v3 -> build-v4) to force a cold build.
-      - name: Restore source file mtimes
-        uses: chetan/git-restore-mtime-action@d186aca54f8760da4dec55313195e51ed3ebb0b3 # v2
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+      - id: route
+        name: Classify complete change set
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python3 scripts/ci/validation.py classify --event "$EVENT" --base "$BASE" --head "$HEAD"
+      - id: profile
+        name: Select security profile
+        env:
+          SECURITY_PROFILE: ${{ vars.SECURITY_PROFILE }}
+        run: python3 scripts/ci/security.py profile
+  build:
+    needs: changes
+    if: needs.changes.outputs.route == 'full'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          dotnet-version: "10.0.x"
-
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          dotnet-version: 10.0.x
       - name: Cache NuGet packages
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: |
             nuget-${{ runner.os }}-
-
-      - name: Restore previous build output
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        with:
-          path: |
-            **/bin/Release
-            **/obj
-          key: build-v3-${{ runner.os }}-${{ github.sha }}
-          restore-keys: |
-            build-v3-${{ runner.os }}-
-
       - name: Restore dependencies
         run: dotnet restore api/Wallow.slnx
-
       - name: Build
         run: dotnet build api/Wallow.slnx --no-restore --configuration Release --graph
-
       - name: Check code formatting
         run: dotnet format api/Wallow.slnx --verify-no-changes --no-restore
-
-      - name: Cache build output
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      - name: Archive exact build output
+        run: |-
+          mkdir -p .ci-artifacts/dotnet
+          find api -type d \( -path '*/bin/Release' -o -name obj \) -prune -print0 | tar --null -T - -czf .ci-artifacts/dotnet/output.tar.gz
+          python3 scripts/ci/validation.py seal --file .ci-artifacts/dotnet/output.tar.gz --manifest .ci-artifacts/dotnet/output.tar.gz.json --kind dotnet --variant release
+      - name: Upload dotnet-build
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          path: |
-            **/bin/Release
-            **/obj
-          key: build-v3-${{ runner.os }}-${{ github.sha }}
-
+          name: dotnet-build-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-artifacts/dotnet
+          if-no-files-found: error
+          retention-days: 7
+          include-hidden-files: true
+    timeout-minutes: 30
   unit-tests:
-    needs: [changes, build]
-    if: needs.changes.outputs.dotnet == 'true'
+    needs:
+      - changes
+      - build
+    if: needs.changes.outputs.route == 'full'
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-
       - name: Setup .NET
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
-          dotnet-version: "10.0.x"
-
+          dotnet-version: 10.0.x
       - name: Cache NuGet packages
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: |
             nuget-${{ runner.os }}-
-
-      - name: Restore build output
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      - name: Download dotnet-build
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          path: |
-            **/bin/Release
-            **/obj
-          key: build-v3-${{ runner.os }}-${{ github.sha }}
-          fail-on-cache-miss: true
-
+          name: dotnet-build-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-artifacts/dotnet
+      - name: Verify and extract build output
+        run: |-
+          python3 scripts/ci/validation.py verify --file .ci-artifacts/dotnet/output.tar.gz --manifest .ci-artifacts/dotnet/output.tar.gz.json --kind dotnet --variant release
+          tar -xzf .ci-artifacts/dotnet/output.tar.gz
       - name: Restore dependencies
         run: dotnet restore api/Wallow.slnx
-
       - name: Run unit tests
-        run: dotnet test api/Wallow.slnx --no-build --configuration Release --filter "Category!=Integration&Category!=E2E" --verbosity normal --blame-hang-timeout 60s --collect "XPlat Code Coverage" --settings api/tests/coverage.runsettings --results-directory ./TestResults
-
+        run:
+          dotnet test api/Wallow.slnx --no-build --configuration Release --filter "Category!=Integration&Category!=E2E" --verbosity
+          normal --blame-hang-timeout 60s --collect "XPlat Code Coverage" --settings api/tests/coverage.runsettings --results-directory
+          ./TestResults
       - name: Upload unit test coverage
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: coverage-unit
+          name: coverage-unit-${{ github.run_id }}-${{ github.run_attempt }}
           path: ./TestResults/**/coverage.cobertura.xml
           if-no-files-found: error
-          retention-days: 5
-
+          retention-days: 7
+    timeout-minutes: 30
   integration-tests:
-    needs: [changes, build]
-    if: needs.changes.outputs.dotnet == 'true'
+    needs:
+      - changes
+      - build
+    if: needs.changes.outputs.route == 'full'
     runs-on: ubuntu-latest
-
     services:
       postgres:
         image: postgres:18-alpine
@@ -187,17 +140,11 @@ jobs:
           POSTGRES_DB: wallow_test
         ports:
           - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-
       - name: Start Valkey with password
         run: |
           docker run -d --name valkey -p 6379:6379 valkey/valkey:8-alpine \
@@ -214,58 +161,51 @@ jobs:
             fi
             sleep 1
           done
-
       - name: Setup .NET
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
-          dotnet-version: "10.0.x"
-
+          dotnet-version: 10.0.x
       - name: Cache NuGet packages
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: |
             nuget-${{ runner.os }}-
-
-      - name: Restore build output
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      - name: Download dotnet-build
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          path: |
-            **/bin/Release
-            **/obj
-          key: build-v3-${{ runner.os }}-${{ github.sha }}
-          fail-on-cache-miss: true
-
+          name: dotnet-build-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-artifacts/dotnet
+      - name: Verify and extract build output
+        run: |-
+          python3 scripts/ci/validation.py verify --file .ci-artifacts/dotnet/output.tar.gz --manifest .ci-artifacts/dotnet/output.tar.gz.json --kind dotnet --variant release
+          tar -xzf .ci-artifacts/dotnet/output.tar.gz
       - name: Restore dependencies
         run: dotnet restore api/Wallow.slnx
-
       - name: Run integration tests
-        run: dotnet test api/Wallow.slnx --no-build --configuration Release --filter "Category=Integration" --verbosity normal --blame-hang-timeout 5m --collect "XPlat Code Coverage" --settings api/tests/coverage.runsettings --results-directory ./TestResults
+        run:
+          dotnet test api/Wallow.slnx --no-build --configuration Release --filter "Category=Integration" --verbosity normal
+          --blame-hang-timeout 5m --collect "XPlat Code Coverage" --settings api/tests/coverage.runsettings --results-directory
+          ./TestResults
         env:
-          ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=wallow_test;Username=wallow;Password=wallow"
-          Redis__ConnectionString: "localhost:6379,password=WallowTestValkey123!,abortConnect=false"
-
+          ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=wallow_test;Username=wallow;Password=wallow
+          Redis__ConnectionString: localhost:6379,password=WallowTestValkey123!,abortConnect=false
       - name: Upload integration test coverage
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: coverage-integration
+          name: coverage-integration-${{ github.run_id }}-${{ github.run_attempt }}
           path: ./TestResults/**/coverage.cobertura.xml
           if-no-files-found: error
-          retention-days: 5
-
-  # Tenant isolation is the control a fork most needs to inherit intact (OWASP API1:2023), so it
-  # runs as its own blocking job: a broken tenant filter reads as "cross-tenant tests failed"
-  # rather than as one red line inside the general sweep. The filter selects by trait, not by
-  # project, because the change that most needs the gate is a module adding its first
-  # tenant-scoped resource. Half the suite is Category=Integration, so the job supplies the same
-  # Postgres and Valkey the integration-tests job does and does NOT exclude that category.
+          retention-days: 7
+    timeout-minutes: 30
   cross-tenant-tests:
-    needs: [changes, build]
-    if: needs.changes.outputs.dotnet == 'true'
+    needs:
+      - changes
+      - build
+    if: needs.changes.outputs.route == 'full'
     runs-on: ubuntu-latest
-
     services:
       postgres:
         image: postgres:18-alpine
@@ -275,17 +215,11 @@ jobs:
           POSTGRES_DB: wallow_test
         ports:
           - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-
       - name: Start Valkey with password
         run: |
           docker run -d --name valkey -p 6379:6379 valkey/valkey:8-alpine \
@@ -302,90 +236,74 @@ jobs:
             fi
             sleep 1
           done
-
       - name: Setup .NET
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
-          dotnet-version: "10.0.x"
-
+          dotnet-version: 10.0.x
       - name: Cache NuGet packages
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: |
             nuget-${{ runner.os }}-
-
-      - name: Restore build output
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      - name: Download dotnet-build
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          path: |
-            **/bin/Release
-            **/obj
-          key: build-v3-${{ runner.os }}-${{ github.sha }}
-          fail-on-cache-miss: true
-
+          name: dotnet-build-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-artifacts/dotnet
+      - name: Verify and extract build output
+        run: |-
+          python3 scripts/ci/validation.py verify --file .ci-artifacts/dotnet/output.tar.gz --manifest .ci-artifacts/dotnet/output.tar.gz.json --kind dotnet --variant release
+          tar -xzf .ci-artifacts/dotnet/output.tar.gz
       - name: Restore dependencies
         run: dotnet restore api/Wallow.slnx
-
       - name: Run cross-tenant isolation tests
-        run: dotnet test api/Wallow.slnx --no-build --configuration Release --filter "Category=CrossTenant" --verbosity normal --blame-hang-timeout 5m --settings api/tests/coverage.runsettings --results-directory ./TestResults
+        run:
+          dotnet test api/Wallow.slnx --no-build --configuration Release --filter "Category=CrossTenant" --verbosity normal
+          --blame-hang-timeout 5m --settings api/tests/coverage.runsettings --results-directory ./TestResults
         env:
-          ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=wallow_test;Username=wallow;Password=wallow"
-          Redis__ConnectionString: "localhost:6379,password=WallowTestValkey123!,abortConnect=false"
-
+          ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=wallow_test;Username=wallow;Password=wallow
+          Redis__ConnectionString: localhost:6379,password=WallowTestValkey123!,abortConnect=false
+    timeout-minutes: 30
   docker-images-app:
-    needs: build
+    needs:
+      - changes
+      - build
     runs-on: ubuntu-latest
-    # Healthy runs finish in ~10 minutes. The cap exists because this job once
-    # wedged for 60-90 minutes (the arm64 wallow-web Vite build hung under QEMU)
-    # and only ended when the next push cancelled it; a hang must fail fast.
     timeout-minutes: 25
     permissions:
       contents: read
-
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-
       - name: Setup .NET
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
-          dotnet-version: "10.0.x"
-
+          dotnet-version: 10.0.x
       - name: Cache NuGet packages
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('api/Directory.Packages.props', '**/*.csproj') }}
           restore-keys: |
             nuget-${{ runner.os }}-
-
-      - name: Restore build output
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      - name: Download dotnet-build
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          path: |
-            **/bin/Release
-            **/obj
-          key: build-v3-${{ runner.os }}-${{ github.sha }}
-          fail-on-cache-miss: true
-
+          name: dotnet-build-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-artifacts/dotnet
+      - name: Verify and extract build output
+        run: |-
+          python3 scripts/ci/validation.py verify --file .ci-artifacts/dotnet/output.tar.gz --manifest .ci-artifacts/dotnet/output.tar.gz.json --kind dotnet --variant release
+          tar -xzf .ci-artifacts/dotnet/output.tar.gz
       - name: Restore dependencies
         run: dotnet restore api/Wallow.slnx
-
-      # The arm64 app images below are cross-built on the amd64 runner. The React
-      # Dockerfiles pin their build stage to $BUILDPLATFORM, so pnpm/vite run
-      # natively and the arm64 runtime stage has no RUN steps — emulation is never
-      # on the build's hot path (it deadlocked rolldown for an hour at a time when
-      # it was). QEMU binfmt handlers stay registered only so buildx can still
-      # execute an arm64 binary if a runtime stage ever grows a RUN step, instead
-      # of failing with "exec format error".
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a # v4
+        uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a
         with:
           platforms: arm64
-
       - name: Publish app container images
         run: |
           # x64 images for E2E testing on ubuntu runner
@@ -440,9 +358,9 @@ jobs:
             -c Release --no-build /t:PublishContainer \
             -p:ContainerImageTag=test-arm64 \
             -p:ContainerRuntimeIdentifier=linux-arm64
-
-      - name: Save app images to cache
-        run: |
+      - name: Archive app images
+        run: |-
+          mkdir -p .ci-artifacts/images-app
           docker save \
             wallow-api:test wallow-api:test-arm64 \
             wallow-auth-react:test wallow-auth-react:test-arm64 \
@@ -450,224 +368,151 @@ jobs:
             wallow-bff-example:test \
             wallow-migrations:test wallow-migrations:test-arm64 \
             wallow-seeder:test wallow-seeder:test-arm64 \
-            | gzip > /tmp/wallow-images-app.tar.gz
+            | gzip > .ci-artifacts/images-app/images.tar.gz
 
-      - name: Cache app images
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+          python3 scripts/ci/validation.py seal --file .ci-artifacts/images-app/images.tar.gz --manifest .ci-artifacts/images-app/images.tar.gz.json --kind images --variant app-amd64-arm64
+      - name: Upload images-app
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          path: /tmp/wallow-images-app.tar.gz
-          key: images-app-${{ github.sha }}
-
+          name: images-app-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-artifacts/images-app
+          if-no-files-found: error
+          retention-days: 30
+          include-hidden-files: true
+    if: needs.changes.outputs.route == 'full'
   docker-images-infra:
-    needs: build
+    needs:
+      - changes
+      - build
     runs-on: ubuntu-latest
     permissions:
       contents: read
-
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a
+        with:
+          platforms: arm64
       - name: Build infra images
         run: |
           docker compose -f docker/docker-compose.test.yml build garage
           docker build -t wallow-postgres-replica:latest docker/images/postgres-replica
 
-      - name: Save infra images to cache
-        run: |
+          docker buildx build --platform linux/arm64 --load -t wallow-garage:test-arm64 docker/images/garage
+          docker buildx build --platform linux/arm64 --load -t wallow-postgres-replica:test-arm64 docker/images/postgres-replica
+      - name: Archive infra images
+        run: |-
+          mkdir -p .ci-artifacts/images-infra
           docker save \
-            wallow-garage:test wallow-postgres-replica:latest \
-            | gzip > /tmp/wallow-images-infra.tar.gz
+            wallow-garage:test wallow-postgres-replica:latest wallow-garage:test-arm64 wallow-postgres-replica:test-arm64 \
+            | gzip > .ci-artifacts/images-infra/images.tar.gz
 
-      - name: Cache infra images
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+          python3 scripts/ci/validation.py seal --file .ci-artifacts/images-infra/images.tar.gz --manifest .ci-artifacts/images-infra/images.tar.gz.json --kind images --variant infra-amd64-arm64
+      - name: Upload images-infra
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          path: /tmp/wallow-images-infra.tar.gz
-          key: images-infra-${{ github.sha }}
-
+          name: images-infra-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-artifacts/images-infra
+          if-no-files-found: error
+          retention-days: 30
+          include-hidden-files: true
+    timeout-minutes: 30
+    if: needs.changes.outputs.route == 'full'
   e2e-tests:
-    needs: [docker-images-app, docker-images-infra]
+    needs:
+      - docker-images-app
+      - docker-images-infra
     runs-on: ubuntu-latest
     permissions:
       contents: read
-
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-
-      - name: Restore app images
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      - name: Download images-app
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          path: /tmp/wallow-images-app.tar.gz
-          key: images-app-${{ github.sha }}
-          fail-on-cache-miss: true
-
-      - name: Restore infra images
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+          name: images-app-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-artifacts/images-app
+      - name: Download images-infra
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          path: /tmp/wallow-images-infra.tar.gz
-          key: images-infra-${{ github.sha }}
-          fail-on-cache-miss: true
-
-      # docker-images-app / docker-images-infra already built and cached the
-      # wallow-api / wallow-auth-react / migration / seeder / garage :test images,
-      # so the e2e job loads them instead of rebuilding (E2E_SKIP_IMAGE_BUILD=1).
+          name: images-infra-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-artifacts/images-infra
       - name: Load Docker images
-        run: |
-          gunzip -c /tmp/wallow-images-app.tar.gz | docker load
-          gunzip -c /tmp/wallow-images-infra.tar.gz | docker load
-
+        run: |-
+          python3 scripts/ci/validation.py verify --file .ci-artifacts/images-app/images.tar.gz --manifest .ci-artifacts/images-app/images.tar.gz.json --kind images --variant app-amd64-arm64
+          gunzip -c .ci-artifacts/images-app/images.tar.gz | docker load
+          python3 scripts/ci/validation.py verify --file .ci-artifacts/images-infra/images.tar.gz --manifest .ci-artifacts/images-infra/images.tar.gz.json --kind images --variant infra-amd64-arm64
+          gunzip -c .ci-artifacts/images-infra/images.tar.gz | docker load
       - name: Enable corepack
         run: corepack enable
-
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
-          node-version-file: ".nvmrc"
-          cache: "pnpm"
-
+          node-version-file: .nvmrc
+          cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      # ubuntu-latest runners have no Playwright browser cache; install Chromium
-      # (and its OS deps) before running the suites. One install covers wallow-auth
-      # and wallow-web: they pin the same @playwright/test version, so both resolve
-      # the same shared per-version browser cache.
       - name: Install Playwright browser
         run: pnpm --filter ./apps/wallow-auth exec playwright install --with-deps chromium
-
-      # Serve wallow-auth from its prebuilt container and drive it directly — no
-      # local dev server: e2e.sh infers the container's per-run URL from
-      # E2E_UP_SERVICE=wallow-auth (Wallow-joo0). The runner brings up the
-      # compose stack (including wallow-web), waits for the API + seeded admin,
-      # then runs all three suites — wallow-auth, wallow-web, and the cross-app
-      # login journey, which gates the full login + authenticated mutation +
-      # logout loop — and tears the stack down.
       - name: Run E2E suites
         env:
           E2E_SKIP_IMAGE_BUILD: "1"
           E2E_UP_SERVICE: wallow-auth
         run: ./scripts/e2e.sh
-
       - name: Upload wallow-auth Playwright report
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: playwright-report-wallow-auth
+          name: playwright-report-wallow-auth-${{ github.run_id }}-${{ github.run_attempt }}
           path: apps/wallow-auth/playwright-report
           if-no-files-found: ignore
-          retention-days: 5
-
-      # Both wallow-web suites (playwright.config.ts and playwright.cross-app.config.ts)
-      # write into the same apps/wallow-web/playwright-report directory, so one upload
-      # covers them.
+          retention-days: 7
       - name: Upload wallow-web Playwright report
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: playwright-report-wallow-web
+          name: playwright-report-wallow-web-${{ github.run_id }}-${{ github.run_attempt }}
           path: apps/wallow-web/playwright-report
           if-no-files-found: ignore
-          retention-days: 5
-
-  # A fork consumes @bc-solutions-coder/* as published tarballs, not as workspace
-  # symlinks — so nothing in the workspace build can catch a file missing from
-  # `files`, an `exports` subpath that points at a path `pnpm pack` never ships,
-  # a runtime dependency parked under devDependencies, or a .d.ts that references
-  # a type left behind. This job installs the packed tarballs into a scratch
-  # TanStack Start app outside the workspace, which is exactly that install.
-  #
-  # Needs only `changes` (not build) — it touches no .NET output and can run
-  # alongside the build; it gates on the js filter because a pure-api PR
-  # cannot change what `pnpm pack` ships.
-  fork-smoke:
-    needs: changes
-    if: needs.changes.outputs.js == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-
-      - name: Enable corepack
-        run: corepack enable
-
-      - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with:
-          node-version-file: ".nvmrc"
-          cache: "pnpm"
-
-      # Installs the workspace so the script can BUILD the packages it packs
-      # (sdk, styles and their workspace dependencies); the scratch app itself
-      # installs nothing from here.
-      - name: Install workspace dependencies
-        run: pnpm install --frozen-lockfile
-
-      # The work directory is pinned outside the checkout (the script refuses to
-      # run inside the repo — there pnpm would find the workspace root walking
-      # up and the app would stop being an outside consumer). Spelled out rather
-      # than left to the script's mktemp default because runners do not set
-      # TMPDIR, so the default would land in /tmp instead of the runner's own
-      # scratch space.
-      - name: Build a scratch app from the packed SDK
-        env:
-          FORK_SMOKE_DIR: ${{ runner.temp }}/fork-smoke
-        run: ./scripts/fork-smoke.sh
-
+          retention-days: 7
+    timeout-minutes: 30
   merge-coverage:
-    needs: [unit-tests, integration-tests]
-    if: always() && (needs.unit-tests.result == 'success' || needs.integration-tests.result == 'success')
+    needs:
+      - changes
+      - unit-tests
+      - integration-tests
+    if: needs.changes.outputs.route == 'full'
     runs-on: ubuntu-latest
-
     steps:
       - name: Setup .NET
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
-          dotnet-version: "10.0.x"
-
+          dotnet-version: 10.0.x
       - name: Download unit test coverage
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          name: coverage-unit
+          name: coverage-unit-${{ github.run_id }}-${{ github.run_attempt }}
           path: ./coverage/unit
-        continue-on-error: true
-
       - name: Download integration test coverage
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
-          name: coverage-integration
+          name: coverage-integration-${{ github.run_id }}-${{ github.run_attempt }}
           path: ./coverage/integration
-        continue-on-error: true
-
       - name: Check for coverage files
         id: check-coverage
-        run: |
-          FILES=$(find ./coverage -name "coverage.cobertura.xml" -type f 2>/dev/null)
-          if [ -z "$FILES" ]; then
-            echo "::warning::No coverage artifacts were produced by test jobs. Coverage reporting skipped."
-            echo "has_coverage=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "Found coverage files:"
-            echo "$FILES"
-            echo "has_coverage=true" >> "$GITHUB_OUTPUT"
-          fi
-
+        run: |-
+          for suite in unit integration; do
+            test -n "$(find "./coverage/$suite" -name coverage.cobertura.xml -type f -print -quit)" || { echo "::error::Missing $suite coverage"; exit 1; }
+          done
       - name: Install ReportGenerator
-        if: steps.check-coverage.outputs.has_coverage == 'true'
-        run: dotnet tool install --global dotnet-reportgenerator-globaltool
-
+        run: dotnet tool install --global dotnet-reportgenerator-globaltool --version 5.5.11
       - name: Merge coverage reports
-        if: steps.check-coverage.outputs.has_coverage == 'true'
         run: reportgenerator -reports:"./coverage/**/coverage.cobertura.xml" -targetdir:"./coverage/merged" -reporttypes:"Cobertura;HtmlSummary"
-
       - name: Enforce coverage threshold
-        if: steps.check-coverage.outputs.has_coverage == 'true'
         run: |
           LINE_RATE=$(grep -oP 'line-rate="\K[^"]+' ./coverage/merged/Cobertura.xml | head -1)
           if [ -z "$LINE_RATE" ]; then
@@ -681,11 +526,227 @@ jobs:
             echo "::error::Coverage ${PERCENT}% is below minimum threshold of ${MIN}%"
             exit 1
           fi
-
       - name: Upload merged coverage report
-        if: steps.check-coverage.outputs.has_coverage == 'true'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: coverage-report
+          name: coverage-report-${{ github.run_id }}-${{ github.run_attempt }}
           path: ./coverage/merged
+          retention-days: 7
+    timeout-minutes: 30
+  policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Download verified actionlint
+        run: |
+          mkdir -p "$RUNNER_TEMP/actionlint"
+          cd "$RUNNER_TEMP/actionlint"
+          curl --fail --silent --show-error --location \
+            https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz \
+            --output actionlint.tar.gz
+          echo '8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  actionlint.tar.gz' | sha256sum --check
+          tar -xzf actionlint.tar.gz actionlint
+      - name: Run actionlint
+        run: '"$RUNNER_TEMP/actionlint/actionlint" -color'
+      - name: Test CI contracts
+        run: python3 -m unittest discover -s scripts/ci -p 'test_*.py'
+      - name: Install workflow policy parser
+        run: python3 -m pip install --disable-pip-version-check PyYAML==6.0.3
+      - name: Enforce immutable action references
+        run: python3 scripts/ci/action_policy.py
+      - name: Validate CI policy
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: python3 scripts/ci/security.py policy
+    needs: changes
+    timeout-minutes: 10
+  docs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Set up .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          dotnet-version: 10.0.x
+      - name: Enable corepack
+        run: corepack enable
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Install DocFX test dependencies
+        run: pnpm install --frozen-lockfile --filter @bc-solutions-coder/testing
+      - name: Install Playwright browser
+        run: pnpm --filter ./packages/testing exec playwright install --with-deps chromium
+      - name: Generate theme CSS
+        run: |
+          mkdir -p docfx/templates/wallow/public
+          node scripts/generate-docs-theme.mjs packages/styles/branding.json
+      - name: Restore tools and build docs
+        run: |
+          dotnet restore api/Wallow.slnx
+          dotnet tool restore
+          dotnet docfx docfx.json
+      - name: Test rendered theme contrast
+        run: pnpm --filter @bc-solutions-coder/testing test:docfx
+      - name: Archive validated site
+        run: |-
+          mkdir -p .ci-artifacts/docs
+          tar -czf .ci-artifacts/docs/site.tar.gz -C .docfx/_site .
+          python3 scripts/ci/validation.py seal --file .ci-artifacts/docs/site.tar.gz --manifest .ci-artifacts/docs/site.tar.gz.json --kind docs --variant docfx
+      - name: Upload site artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: docfx-site-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-artifacts/docs
+          if-no-files-found: error
           retention-days: 30
+      - name: Package validated docs site
+        run: |-
+          docker build --platform linux/amd64 -f docker/docs/Dockerfile.ci -t wallow-docs:test .
+          docker build --platform linux/arm64 -f docker/docs/Dockerfile.ci -t wallow-docs:test-arm64 .
+          mkdir -p .ci-artifacts/images-docs
+          docker save wallow-docs:test wallow-docs:test-arm64 | gzip > .ci-artifacts/images-docs/images.tar.gz
+          python3 scripts/ci/validation.py seal --file .ci-artifacts/images-docs/images.tar.gz --manifest .ci-artifacts/images-docs/images.tar.gz.json --kind images --variant docs-amd64-arm64
+      - name: Upload images-docs
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: images-docs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-artifacts/images-docs
+          if-no-files-found: error
+          retention-days: 30
+          include-hidden-files: true
+    needs: changes
+    timeout-minutes: 30
+  openapi:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: wallow
+          POSTGRES_PASSWORD: wallow
+          POSTGRES_DB: wallow_test
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Emit OpenAPI document and detect drift
+        id: openapi
+        uses: ./.github/actions/openapi-document
+        with:
+          connection-string: Host=localhost;Port=5432;Database=wallow_test;Username=wallow;Password=wallow
+      - name: Prepare generated contract patch
+        if: steps.openapi.outputs.drift == 'true'
+        env:
+          DOCUMENT: ${{ steps.openapi.outputs.document }}
+        run: python3 scripts/ci/openapi_patch.py "$DOCUMENT"
+      - name: Upload openapi-patch
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: openapi-patch-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-artifacts/openapi.patch
+          if-no-files-found: error
+          retention-days: 7
+          include-hidden-files: true
+        if: steps.openapi.outputs.drift == 'true'
+      - name: Fail on OpenAPI snapshot drift
+        if: steps.openapi.outputs.drift == 'true'
+        env:
+          REASON: ${{ steps.openapi.outputs.reason }}
+          DIFF_FILE: ${{ steps.openapi.outputs.diff-file }}
+        run: |
+          cat "$DIFF_FILE"
+          if [ "$REASON" = "servers" ]; then
+            echo "::error::packages/sdk/openapi/v1.json declares the wrong servers[0].url."
+            echo "::error::Refresh the snapshot against an API served from http://localhost:5001/."
+          else
+            echo "::error::packages/sdk/openapi/v1.json is out of date with the API contract."
+          fi
+          echo "::error::Refresh it locally and commit the result:"
+          echo "::error::  cd docker && docker compose up -d"
+          echo "::error::  dotnet run --project api/src/Wallow.Api"
+          echo "::error::  WALLOW_OPENAPI_URL=http://localhost:5001/openapi/v1.json pnpm --filter @bc-solutions-coder/sdk exec tsx scripts/generate.ts"
+          echo "::error::  pnpm --filter @bc-solutions-coder/api-errors generate"
+          echo "::error::  git add packages/sdk/openapi packages/sdk/src/generated packages/api-errors/src/generated && git commit"
+          exit 1
+    needs: changes
+    if: needs.changes.outputs.route == 'full'
+    timeout-minutes: 20
+  js:
+    needs: changes
+    if: needs.changes.outputs.route == 'full'
+    uses: ./.github/workflows/js.yml
+  codeql:
+    needs: changes
+    if: needs.changes.outputs.route == 'full' && needs.changes.outputs.profile == 'codeql'
+    uses: ./.github/workflows/codeql.yml
+    permissions:
+      actions: read
+      contents: read
+  security:
+    needs:
+      - changes
+      - build
+      - docker-images-app
+      - docker-images-infra
+      - docs
+      - js
+    if:
+      always() && needs.docs.result == 'success' && (needs.changes.outputs.route == 'docs' || (needs.changes.outputs.route
+      == 'full' && needs.build.result == 'success' && needs.docker-images-app.result == 'success' && needs.docker-images-infra.result
+      == 'success' && needs.js.result == 'success'))
+    uses: ./.github/workflows/security.yml
+    with:
+      docs-only: ${{ needs.changes.outputs.route == 'docs' }}
+      profile: ${{ needs.changes.outputs.profile }}
+  required:
+    name: CI / required
+    needs:
+      - changes
+      - policy
+      - docs
+      - build
+      - unit-tests
+      - integration-tests
+      - cross-tenant-tests
+      - docker-images-app
+      - docker-images-infra
+      - e2e-tests
+      - merge-coverage
+      - js
+      - openapi
+      - security
+      - codeql
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Require complete validation evidence
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+          ROUTE: ${{ needs.changes.outputs.route }}
+          PROFILE: ${{ needs.changes.outputs.profile }}
+        run:
+          python3 scripts/ci/validation.py gate --route "$ROUTE" --profile "$PROFILE" --needs-json "$RESULTS" --common changes,policy,docs,security
+          --full build,unit-tests,integration-tests,cross-tenant-tests,docker-images-app,docker-images-infra,e2e-tests,merge-coverage,js,openapi,codeql
+defaults:
+  run:
+    shell: bash
+env:
+  TURBO_CACHE: local:rw

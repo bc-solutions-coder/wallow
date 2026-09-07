@@ -59,9 +59,13 @@ trap 'rm -rf "$tarball_dir"' EXIT
 for package in "${packages[@]}"; do
   echo "==> $package"
 
-  pnpm exec publint --strict "$package"
-
-  tarball="$(pnpm --dir "$package" pack --pack-destination "$tarball_dir" | tail -n 1)"
+  if [[ -n "${CI_PACKAGE_DIR:-}" ]]; then
+    tarball="$CI_PACKAGE_DIR/$(basename "$package").tgz"
+    pnpm exec publint --strict "$tarball"
+  else
+    pnpm exec publint --strict "$package"
+    tarball="$(pnpm --dir "$package" pack --pack-destination "$tarball_dir" | tail -n 1)"
+  fi
 
   attw_args=("${attw_common[@]}")
   if [ "$package" = "packages/styles" ]; then

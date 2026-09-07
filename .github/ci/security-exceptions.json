@@ -1,0 +1,84 @@
+{
+  "exceptions": [
+    {
+      "scanner": "devskim",
+      "id": "DS126858",
+      "scope": "api/src/Modules/Identity/Wallow.Identity.Infrastructure/Services/MfaService.cs",
+      "owner": "bc-solutions-coder",
+      "reason": "HMAC-SHA1 implements the existing TOTP enrollment contract; algorithm changes require matching prover and enrollment changes.",
+      "tracking": "https://github.com/bc-solutions-coder/wallow/issues/281",
+      "created": "2026-09-07T20:10:41Z",
+      "expires": "2026-10-06T20:10:41Z"
+    },
+    {
+      "scanner": "devskim",
+      "id": "DS126858",
+      "scope": "apps/wallow-auth/e2e/totp.ts",
+      "owner": "bc-solutions-coder",
+      "reason": "The E2E TOTP prover must match the server HMAC-SHA1 enrollment algorithm.",
+      "tracking": "https://github.com/bc-solutions-coder/wallow/issues/281",
+      "created": "2026-09-07T20:10:41Z",
+      "expires": "2026-10-06T20:10:41Z"
+    },
+    {
+      "scanner": "devskim",
+      "id": "DS173237",
+      "scope": "api/src/Wallow.Api/appsettings.Development.json",
+      "owner": "bc-solutions-coder",
+      "reason": "Published local Garage credential; production Compose supplies separate credentials and uses the Production environment.",
+      "tracking": "https://github.com/bc-solutions-coder/wallow/issues/281",
+      "created": "2026-09-07T20:10:41Z",
+      "expires": "2026-10-06T20:10:41Z"
+    },
+    {
+      "scanner": "devskim",
+      "id": "DS173237",
+      "scope": "api/src/Wallow.AppHost/Program.cs",
+      "owner": "bc-solutions-coder",
+      "reason": "Published Garage credentials for the reviewed local AppHost setup. AppHost does not enforce local-only use; these values must not be used in production.",
+      "tracking": "https://github.com/bc-solutions-coder/wallow/issues/281",
+      "created": "2026-09-07T20:10:41Z",
+      "expires": "2026-10-06T20:10:41Z"
+    },
+    {
+      "scanner": "devskim",
+      "id": "DS173237",
+      "scope": "packages/ui/src/components/failure-banner/failure-banner.stories.tsx",
+      "owner": "bc-solutions-coder",
+      "reason": "ClientProblem and ServerError use a public trace-ID fixture, not an authentication key.",
+      "tracking": "https://github.com/bc-solutions-coder/wallow/issues/281",
+      "created": "2026-09-07T20:10:41Z",
+      "expires": "2026-10-06T20:10:41Z"
+    },
+    {
+      "scanner": "devskim",
+      "id": "DS173237",
+      "scope": "packages/ui/src/components/failure-toast/failure-toast.stories.tsx",
+      "owner": "bc-solutions-coder",
+      "reason": "The story uses a public trace-ID fixture, not an authentication key.",
+      "tracking": "https://github.com/bc-solutions-coder/wallow/issues/281",
+      "created": "2026-09-07T20:10:41Z",
+      "expires": "2026-10-06T20:10:41Z"
+    },
+    {
+      "scanner": "devskim",
+      "id": "DS173237",
+      "scope": "packages/ui/src/components/failure-toast/failure-toast.test.tsx",
+      "owner": "bc-solutions-coder",
+      "reason": "The test input and expected clipboard value are a public trace-ID fixture.",
+      "tracking": "https://github.com/bc-solutions-coder/wallow/issues/281",
+      "created": "2026-09-07T20:10:41Z",
+      "expires": "2026-10-06T20:10:41Z"
+    },
+    {
+      "scanner": "devskim",
+      "id": "DS173237",
+      "scope": "release-please-config.json",
+      "owner": "bc-solutions-coder",
+      "reason": "last-release-sha is a public Git commit identifier, not authentication material.",
+      "tracking": "https://github.com/bc-solutions-coder/wallow/issues/281",
+      "created": "2026-09-07T20:10:41Z",
+      "expires": "2026-10-06T20:10:41Z"
+    }
+  ]
+}

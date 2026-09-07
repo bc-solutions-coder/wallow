@@ -6,7 +6,10 @@ consumer_dir="$(mktemp -d)"
 trap 'rm -rf "$consumer_dir"' EXIT
 cd "$repo_root"
 
-if [[ $# == 0 ]]; then
+if [[ $# == 0 && -n "${CI_PACKAGE_DIR:-}" ]]; then
+  errors_package="$CI_PACKAGE_DIR/api-errors.tgz"
+  sdk_package="$CI_PACKAGE_DIR/sdk.tgz"
+elif [[ $# == 0 ]]; then
   pnpm exec turbo run build --filter=@bc-solutions-coder/sdk...
   mkdir "$consumer_dir/archives"
   errors_package="$(pnpm --dir packages/api-errors pack --pack-destination "$consumer_dir/archives" | tail -n 1)"

@@ -1,29 +1,16 @@
 name: CodeQL
 
 on:
-  pull_request:
-    branches: [main]
-    # csharp analyzes api/, actions analyzes .github/ — a PR touching neither
-    # has nothing for CodeQL to scan. The weekly cron below still sweeps main
-    # unconditionally, so nothing escapes coverage.
-    paths:
-      - "api/**"
-      - "global.json"
-      - ".github/**"
-  schedule:
-    - cron: "0 6 * * 1"
+  workflow_call:
 
 permissions:
   contents: read
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     permissions:
       actions: read
@@ -83,6 +70,10 @@ jobs:
           upload: never
           upload-database: false
           output: codeql-results
+
+      - name: Gate local CodeQL security findings
+        run: |
+          python3 scripts/ci/security.py gate --scanner codeql --report codeql-results/*.sarif --output codeql-results/gate.json
 
       - name: Retain CodeQL results
         if: always()

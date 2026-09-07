@@ -127,3 +127,9 @@ __lintfixtures__/
 # In-repo rather than in os.tmpdir() so the copied root config can resolve its
 # jsPlugins specifier through the repo's node_modules.
 .lint-mirror/
+
+# Exact-run CI handoffs and helper bytecode
+.ci-artifacts/
+__pycache__/
+.ci-reports/
+.ci-tools/
