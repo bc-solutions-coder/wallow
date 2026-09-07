@@ -35,3 +35,13 @@ The worktree starts at the shared-validation branch rebased onto main `72203c76`
 The image inspector verifies exact local tags/platforms, content-addressed configurations and every uncompressed layer against configuration diff IDs without loading containers. It accepts the plain regular-file/directory Docker-save format produced by CI and rejects extended TAR headers before metadata parsing. Shared archive handling bounds decompressed bytes; image inspection also bounds member count and JSON metadata. Behavior checks cover altered layers, missing images, wrong platforms/tags, malformed configuration addresses, unsafe members and extended headers.
 
 The actual private acceptance infrastructure export from run `34167381437`, attempt 1, artifact `10034755096` passed inspection for Garage and Postgres Replica on both AMD64 and ARM64. This proves archive inspection only; registry copies, fresh scanning, release authorization and publication readback remain open. All publication capabilities remain disabled.
+
+Preparation experiment: Skopeo 1.22.2 at container index digest
+`sha256:e5d9c4af8ec327785c7ca938d1e4f8452c6a05014850e58e2ff9456899ebd97c`
+converted the actual Garage AMD64 export without network access or application execution.
+OCI conversion preserved JSON values but changed configuration bytes; Docker v2 output
+(`copy --format v2s2 --dest-compress` to a directory) preserved the exact configuration
+digest. The prepared-image verifier checks that digest, each compressed blob digest/size,
+and each bounded decompressed layer against the original inspected export. The actual
+prepared manifest digest is `sha256:79612b00f51c982577cd7e1ddeca491198cd22f7ebbdc74c339a3c208271d9a4`.
+Registry copy/readback and fresh scanning remain separate acceptance requirements.
