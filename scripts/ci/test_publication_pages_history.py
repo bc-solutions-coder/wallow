@@ -14,7 +14,7 @@ class PagesHistoryTests(unittest.TestCase):
         self.source = 'a' * 40
         self.site = site_identity({'sha256': 'b' * 64, 'size': 10240,
                                    'files': [{'path': 'index.html', 'size': 5, 'sha256': 'c' * 64}]})
-        self.payload = {'schema': 1, 'source_sha': self.source,
+        self.payload = {'schema': 1, 'source_sha': self.source, 'history_tail_id': 0,
                         'producer': {'repository': self.repository, 'source_sha': self.source,
                                      'repository_id': 1, 'run_id': 2, 'run_attempt': 1, 'workflow_id': 3},
                         'artifact': {'id': 4, 'name': 'prepared-site-5-1', 'size': 1000, 'digest': 'sha256:' + 'd' * 64},

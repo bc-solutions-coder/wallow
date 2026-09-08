@@ -12,7 +12,34 @@ from publication_pages_history import TASK
 from publication_release_github import ReleaseGitHub
 
 
+def validate_site_url(site_url):
+    try:
+        parsed = urllib.parse.urlsplit(site_url)
+        valid = parsed.scheme == 'https' and parsed.hostname and not parsed.username and not parsed.password and not parsed.query and not parsed.fragment and parsed.port in (None, 443) and parsed.path.endswith('/')
+    except (ValueError, TypeError, AttributeError):
+        valid = False
+    if not valid:
+        raise PublicationError('Pages requires an exact HTTPS site URL')
+    return site_url
+
+
 class PagesGitHub(ReleaseGitHub):
+    def ensure_unpublished(self, site_url):
+        validate_site_url(site_url)
+        request = urllib.request.Request(site_url + 'index.html', headers={'Cache-Control': 'no-cache'})
+        try:
+            response = self.opener.open(request, timeout=30)
+        except urllib.error.HTTPError as error:
+            code = error.code
+            error.close()
+            if code == 404:
+                return
+            raise PublicationError('Initial Pages state could not be established') from None
+        except (urllib.error.URLError, OSError):
+            raise PublicationError('Initial Pages state could not be established') from None
+        response.close()
+        raise PublicationError('Existing Pages content has no verified deployment history')
+
     def post(self, path, body, expected):
         request = self.request(path)
         request.method, request.data = 'POST', json.dumps(body).encode()
@@ -86,12 +113,8 @@ class PagesGitHub(ReleaseGitHub):
         raise PublicationError('Pages deployment did not finish within its polling limit')
 
     def verify_index(self, site_url, identity, pause=time.sleep):
-        try:
-            parsed = urllib.parse.urlsplit(site_url)
-            valid = parsed.scheme == 'https' and parsed.hostname and not parsed.username and not parsed.password and not parsed.query and not parsed.fragment and parsed.port in (None, 443) and parsed.path.endswith('/')
-        except ValueError:
-            valid = False
-        if not valid or type(identity.get('index_size')) is not int or not 0 <= identity['index_size'] <= 100 * 1024 * 1024 or not matches(r'[a-f0-9]{64}', identity.get('index_sha256')):
+        validate_site_url(site_url)
+        if type(identity.get('index_size')) is not int or not 0 <= identity['index_size'] <= 100 * 1024 * 1024 or not matches(r'[a-f0-9]{64}', identity.get('index_sha256')):
             raise PublicationError('Pages readback requires a bounded exact index and HTTPS site')
         url = site_url + 'index.html?wallow-content=' + identity['index_sha256']
         for _ in range(24):

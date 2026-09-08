@@ -9,7 +9,7 @@ from publication_release_origin import canonical, recorded_job, timestamp
 
 
 TASK = 'wallow-pages-v1'
-JOB = 'Publish validated Pages'
+JOB = 'Pages publication / Publish validated Pages'
 
 
 def site_identity(site):
@@ -35,8 +35,10 @@ def inspect_intent(client, deployment, current=None):
     if not isinstance(deployment, dict) or not positive_integer(deployment.get('id')) or deployment.get('task') != TASK or deployment.get('environment') != 'github-pages' or {key: deployment.get('creator', {}).get(key) for key in ACTIONS_ACTOR} != ACTIONS_ACTOR:
         raise PublicationError('Pages deployment has unknown provenance')
     payload = deployment.get('payload')
-    if not isinstance(payload, dict) or set(payload) != {'schema', 'source_sha', 'producer', 'artifact', 'site', 'recorder'} or type(payload['schema']) is not int or payload['schema'] != 1 or not matches(r'[a-f0-9]{40}', payload['source_sha']) or deployment.get('sha') != payload['source_sha']:
+    if not isinstance(payload, dict) or set(payload) != {'schema', 'source_sha', 'producer', 'artifact', 'site', 'recorder', 'history_tail_id'} or type(payload['schema']) is not int or payload['schema'] != 1 or not matches(r'[a-f0-9]{40}', payload['source_sha']) or deployment.get('sha') != payload['source_sha']:
         raise PublicationError('Pages intent identity differs from its deployment')
+    if type(payload['history_tail_id']) is not int or not 0 <= payload['history_tail_id'] < deployment['id']:
+        raise PublicationError('Pages intent lacks an exact prior history boundary')
     producer, artifact, site = payload['producer'], payload['artifact'], payload['site']
     if not isinstance(producer, dict) or producer.get('repository') != client.repository or producer.get('source_sha') != payload['source_sha'] or not all(positive_integer(producer.get(key)) for key in ('repository_id', 'run_id', 'run_attempt', 'workflow_id')):
         raise PublicationError('Pages intent lacks an exact same-repository producer')

@@ -154,6 +154,24 @@ jobs:
           include-hidden-files: true
           if-no-files-found: ${{ steps.publish.outcome == 'success' && 'error' || 'ignore' }}
           retention-days: 30
+  publish-pages:
+    name: Pages publication
+    needs: authorize
+    if: >-
+      needs.authorize.result == 'success' &&
+      github.ref == 'refs/heads/main' &&
+      vars.ENABLE_DOCS_DEPLOY == 'true'
+    uses: ./.github/workflows/docs.yml
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      pages: write
+      id-token: write
+      deployments: write
+    with:
+      producer_run: ${{ inputs.run_id || format('{0}', github.event.workflow_run.id) }}
+      producer_attempt: ${{ inputs.run_attempt || format('{0}', github.event.workflow_run.run_attempt) }}
   release-please:
     name: Release automation
     needs: authorize
