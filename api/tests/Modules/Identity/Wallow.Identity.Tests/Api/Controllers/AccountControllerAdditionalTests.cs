@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
@@ -447,7 +448,68 @@ public class AccountControllerAdditionalTests
 
     #endregion
 
+    private static string ProtectExternalLoginState(IDataProtector protector, string email, bool emailVerified)
+    {
+        return protector.Protect(JsonSerializer.Serialize(new
+        {
+            LoginProvider = "Google",
+            ProviderKey = "key-123",
+            Email = email,
+            FirstName = "Jane",
+            LastName = "Doe",
+            EmailVerified = emailVerified
+        }));
+    }
+
     #region CompleteExternalRegistration
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ExternalRegistration_WithPipesInNames_PreservesUnverifiedIdentity(bool existingAccount)
+    {
+        ClaimsPrincipal principal = new(new ClaimsIdentity([
+            new Claim(ClaimTypes.Email, "new@test.com"),
+            new Claim(ClaimTypes.GivenName, "Jane|Doe|True"),
+            new Claim(ClaimTypes.Surname, "Smith|Jones"),
+            new Claim("email_verified", "false")
+        ]));
+        ExternalLoginInfo loginInfo = new(principal, "Google", "key-123", "Google");
+        _signInManager.GetExternalLoginInfoAsync(Arg.Any<string>()).Returns(loginInfo);
+        _signInManager.ExternalLoginSignInAsync("Google", "key-123", false, true)
+            .Returns(Microsoft.AspNetCore.Identity.SignInResult.Failed);
+        WallowUser? existingUser = existingAccount
+            ? WallowUser.Create("Victim", "User", "new@test.com", TimeProvider.System)
+            : null;
+        _userManager.FindByEmailAsync("new@test.com").Returns(existingUser);
+        _userManager.CreateAsync(Arg.Any<WallowUser>()).Returns(IdentityResult.Success);
+        _userManager.AddLoginAsync(Arg.Any<WallowUser>(), Arg.Any<UserLoginInfo>()).Returns(IdentityResult.Success);
+        _userManager.GenerateEmailConfirmationTokenAsync(Arg.Any<WallowUser>()).Returns("verify-token");
+
+        IActionResult callback = await _controller.ExternalLoginCallback("http://localhost:5002");
+        callback.Should().BeOfType<RedirectResult>().Which.Url.Should().Contain("accept-terms");
+        string cookie = _controller.Response.Headers.SetCookie.ToString().Split(';')[0];
+        DefaultHttpContext completionContext = CreateHttpContextWithAuth();
+        completionContext.Request.Headers.Cookie = cookie;
+        _controller.ControllerContext = new ControllerContext { HttpContext = completionContext };
+
+        IActionResult completion = await _controller.CompleteExternalRegistration(true, "http://localhost:5002");
+
+        if (existingAccount)
+        {
+            completion.Should().BeOfType<RedirectResult>().Which.Url.Should().Contain("error=external_login_failed");
+            await _userManager.DidNotReceive().AddLoginAsync(Arg.Any<WallowUser>(), Arg.Any<UserLoginInfo>());
+            await _signInManager.DidNotReceive().SignInAsync(Arg.Any<WallowUser>(), Arg.Any<bool>(), Arg.Any<string?>());
+        }
+        else
+        {
+            completion.Should().BeOfType<RedirectResult>().Which.Url.Should().Be("http://localhost:5002");
+            await _userManager.Received(1).CreateAsync(Arg.Is<WallowUser>(user =>
+                user.FirstName == "Jane|Doe|True" && user.LastName == "Smith|Jones" && !user.EmailConfirmed));
+            await _userManager.Received(1).GenerateEmailConfirmationTokenAsync(Arg.Any<WallowUser>());
+            await _userManager.DidNotReceive().ConfirmEmailAsync(Arg.Any<WallowUser>(), Arg.Any<string>());
+        }
+    }
 
     [Fact]
     public async Task CompleteExternalRegistration_WithValidReturnUrlValidation_UsesReturnUrl()
@@ -520,12 +582,18 @@ public class AccountControllerAdditionalTests
         redirect.Url.Should().Contain("error=session_expired");
     }
 
-    [Fact]
-    public async Task CompleteExternalRegistration_WithShortCookieParts_RedirectsToSessionExpired()
+    [Theory]
+    [InlineData("only|three|parts")]
+    [InlineData("Google|key-123|existing@test.com|Jane|Doe|True|Smith|False")]
+    [InlineData("null")]
+    [InlineData("{}")]
+    [InlineData("{\"LoginProvider\":\"Google\",\"ProviderKey\":\"key\",\"Email\":\"user@test.com\",\"FirstName\":\"Jane\",\"LastName\":\"Doe\"}")]
+    [InlineData("{\"LoginProvider\":\"Google\",\"ProviderKey\":\"key\",\"Email\":null,\"FirstName\":\"Jane\",\"LastName\":\"Doe\",\"EmailVerified\":true}")]
+    public async Task CompleteExternalRegistration_WithMalformedOrLegacyPayload_RedirectsToSessionExpired(string payload)
     {
         // Protection succeeds, but the payload lacks required fields.
         IDataProtector protector = _dataProtectionProvider.CreateProtector("ExternalLogin");
-        string shortData = protector.Protect("only|three|parts");
+        string shortData = protector.Protect(payload);
 
         DefaultHttpContext httpContext = CreateHttpContextWithAuth();
         httpContext.Request.Headers.Append("Cookie", $"ExternalLoginState={Uri.EscapeDataString(shortData)}");
@@ -546,7 +614,7 @@ public class AccountControllerAdditionalTests
     public async Task CompleteExternalRegistration_WithValidCookieAndExistingUser_LinksAndRedirects()
     {
         IDataProtector protector = _dataProtectionProvider.CreateProtector("ExternalLogin");
-        string cookieValue = protector.Protect("Google|key-123|existing@test.com|Jane|Doe|true");
+        string cookieValue = ProtectExternalLoginState(protector, "existing@test.com", true);
 
         DefaultHttpContext httpContext = CreateHttpContextWithAuth();
         httpContext.Request.Headers.Append("Cookie", $"ExternalLoginState={Uri.EscapeDataString(cookieValue)}");
@@ -568,13 +636,45 @@ public class AccountControllerAdditionalTests
 
         RedirectResult redirect = result.Should().BeOfType<RedirectResult>().Subject;
         redirect.Url.Should().Be("http://app.test.com");
+        await _signInManager.Received(1).SignInAsync(existingUser, false, null);
+    }
+
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    public async Task CompleteExternalRegistration_WithUnverifiedEmailOrFailedLink_DoesNotSignIn(
+        bool emailVerified, bool linkSucceeds)
+    {
+        IDataProtector protector = _dataProtectionProvider.CreateProtector("ExternalLogin");
+        string cookieValue = ProtectExternalLoginState(protector, "existing@test.com", emailVerified);
+        DefaultHttpContext httpContext = CreateHttpContextWithAuth();
+        httpContext.Request.Headers.Append("Cookie", $"ExternalLoginState={Uri.EscapeDataString(cookieValue)}");
+        _controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+        _redirectUriValidator.IsAllowedAsync("http://app.test.com", Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(true);
+        WallowUser existingUser = WallowUser.Create("Jane", "Doe", "existing@test.com", TimeProvider.System);
+        _userManager.FindByEmailAsync("existing@test.com").Returns(existingUser);
+        _userManager.AddLoginAsync(existingUser, Arg.Any<UserLoginInfo>()).Returns(
+            linkSucceeds ? IdentityResult.Success : IdentityResult.Failed(new IdentityError { Code = "LoginAlreadyAssociated" }));
+
+        IActionResult result = await _controller.CompleteExternalRegistration(
+            acceptedTerms: true, returnUrl: "http://app.test.com");
+
+        RedirectResult redirect = result.Should().BeOfType<RedirectResult>().Subject;
+        redirect.Url.Should().Be("http://localhost:5002/login?error=external_login_failed");
+        await _signInManager.DidNotReceive().SignInAsync(existingUser, Arg.Any<bool>(), Arg.Any<string?>());
+        if (!emailVerified)
+        {
+            await _userManager.DidNotReceive().AddLoginAsync(existingUser, Arg.Any<UserLoginInfo>());
+        }
+        httpContext.Response.Headers.SetCookie.ToString().Should().Contain("ExternalLoginState=;");
     }
 
     [Fact]
     public async Task CompleteExternalRegistration_WithValidCookieAndNewUser_CreatesUserAndRedirects()
     {
         IDataProtector protector = _dataProtectionProvider.CreateProtector("ExternalLogin");
-        string cookieValue = protector.Protect("Google|key-123|new@test.com|Jane|Doe|true");
+        string cookieValue = ProtectExternalLoginState(protector, "new@test.com", true);
 
         DefaultHttpContext httpContext = CreateHttpContextWithAuth();
         httpContext.Request.Headers.Append("Cookie", $"ExternalLoginState={Uri.EscapeDataString(cookieValue)}");
@@ -603,7 +703,7 @@ public class AccountControllerAdditionalTests
     public async Task CompleteExternalRegistration_WithNewUserCreateFails_RedirectsToError()
     {
         IDataProtector protector = _dataProtectionProvider.CreateProtector("ExternalLogin");
-        string cookieValue = protector.Protect("Google|key-123|new@test.com|Jane|Doe|false");
+        string cookieValue = ProtectExternalLoginState(protector, "new@test.com", false);
 
         DefaultHttpContext httpContext = CreateHttpContextWithAuth();
         httpContext.Request.Headers.Append("Cookie", $"ExternalLoginState={Uri.EscapeDataString(cookieValue)}");
@@ -628,7 +728,7 @@ public class AccountControllerAdditionalTests
     public async Task CompleteExternalRegistration_WithNewUserAddLoginFails_RedirectsToError()
     {
         IDataProtector protector = _dataProtectionProvider.CreateProtector("ExternalLogin");
-        string cookieValue = protector.Protect("Google|key-123|new@test.com|Jane|Doe|false");
+        string cookieValue = ProtectExternalLoginState(protector, "new@test.com", false);
 
         DefaultHttpContext httpContext = CreateHttpContextWithAuth();
         httpContext.Request.Headers.Append("Cookie", $"ExternalLoginState={Uri.EscapeDataString(cookieValue)}");
@@ -654,7 +754,7 @@ public class AccountControllerAdditionalTests
     public async Task CompleteExternalRegistration_WithUnverifiedEmail_SendsVerificationEmail()
     {
         IDataProtector protector = _dataProtectionProvider.CreateProtector("ExternalLogin");
-        string cookieValue = protector.Protect("Google|key-123|new@test.com|Jane|Doe|false");
+        string cookieValue = ProtectExternalLoginState(protector, "new@test.com", false);
 
         DefaultHttpContext httpContext = CreateHttpContextWithAuth();
         httpContext.Request.Headers.Append("Cookie", $"ExternalLoginState={Uri.EscapeDataString(cookieValue)}");

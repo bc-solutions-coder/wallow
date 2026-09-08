@@ -1,4 +1,4 @@
-"""Local security gates. JSON reports and the JSON-compatible YAML exception policy are authoritative."""
+"""Local security gates. JSON reports and the JSON exception policy are authoritative."""
 
 import argparse
 from datetime import datetime, timedelta, timezone
@@ -36,7 +36,9 @@ def validate_exceptions(document, now=None):
     seen = set()
     fields = {'scanner', 'id', 'scope', 'owner', 'reason', 'tracking', 'created', 'expires'}
     for entry in entries:
-        require(isinstance(entry, dict) and set(entry) == fields, 'exception fields must match policy')
+        require(isinstance(entry, dict), 'exception must be an object')
+        expected = fields | ({'primary_location_line_hash', 'message_sha256'} if entry.get('scanner') == 'codeql' else set())
+        require(set(entry) == expected, 'exception fields must match policy')
         require(all(isinstance(v, str) and v.strip() == v and v for v in entry.values()), 'exception fields must be nonempty text')
         require(entry['scanner'] in SCANNERS, 'unknown exception scanner')
         require(not any(c in entry['scope'] for c in '*?[]\n\r') and '..' not in PurePosixPath(entry['scope']).parts, 'exception scope must be exact')
@@ -47,7 +49,10 @@ def validate_exceptions(document, now=None):
         created = datetime.fromisoformat(entry['created'].replace('Z', '+00:00'))
         expires = datetime.fromisoformat(entry['expires'].replace('Z', '+00:00'))
         require(created <= now < expires and timedelta(0) < expires - created <= timedelta(days=30), 'exception is expired, future-dated, or longer than 30 days')
-        identity = (entry['scanner'], entry['id'], entry['scope'])
+        if entry['scanner'] == 'codeql':
+            require(bool(re.fullmatch(r'[a-fA-F0-9]+:[1-9][0-9]*', entry['primary_location_line_hash'])), 'CodeQL exception needs an exact primary location line hash')
+            require(bool(re.fullmatch(r'sha256:[a-f0-9]{64}', entry['message_sha256'])), 'CodeQL exception needs an exact message SHA-256 digest')
+        identity = finding_identity(entry)
         require(identity not in seen, 'duplicate exception')
         seen.add(identity)
     return entries
@@ -137,7 +142,11 @@ def codeql(document):
                     raise ValueError('invalid CodeQL security severity') from exc
                 require(math.isfinite(score) and 0 <= score <= 10, 'invalid CodeQL security severity')
                 blocking = score >= 7
-            findings.append(finding('codeql', ident, location(result), blocking, security_severity=score))
+            message = result.get('message', {}).get('text')
+            line_hash = result.get('partialFingerprints', {}).get('primaryLocationLineHash')
+            findings.append(finding('codeql', ident, location(result), blocking, security_severity=score,
+                                    primary_location_line_hash=line_hash if isinstance(line_hash, str) else None,
+                                    message_sha256='sha256:' + hashlib.sha256(message.encode()).hexdigest() if isinstance(message, str) else None))
     return findings
 
 
@@ -163,10 +172,21 @@ def trivy(document):
     return findings
 
 
+def finding_identity(item):
+    identity = (item['scanner'], item['id'], item['scope'])
+    if item['scanner'] == 'codeql':
+        identity += (item.get('primary_location_line_hash'), item.get('message_sha256'))
+    return identity
+
+
 def apply_exceptions(findings, exceptions):
-    allowed = {(e['scanner'], e['id'], e['scope']) for e in exceptions}
+    for entry in exceptions:
+        if entry['scanner'] == 'codeql':
+            require(bool(entry.get('primary_location_line_hash')) and bool(entry.get('message_sha256')),
+                    'CodeQL exceptions require finding selectors')
+    allowed = {finding_identity(e) for e in exceptions}
     for result in findings:
-        result['excepted'] = (result['scanner'], result['id'], result['scope']) in allowed
+        result['excepted'] = finding_identity(result) in allowed
     return findings
 
 
