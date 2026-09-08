@@ -89,7 +89,7 @@ class Registry:
 
     def current(self, output, alias):
         if self.kind == 'package':
-            return self.packages.dist_tags(output['name']).get(alias)
+            return self.packages.dist_tags(output['name'], output['version']).get(alias)
         value = self.image_registry(output['repository']).read_manifest(alias)
         return None if value is None else value['digest']
 

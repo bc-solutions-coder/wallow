@@ -96,10 +96,10 @@ class PackageRegistry:
                 raise PublicationError('Package registry tarball bytes differ from the authorized candidate')
         return True
 
-    def dist_tags(self, name):
+    def dist_tags(self, name, version):
         if not matches(r'@[a-z0-9][a-z0-9-]*/[a-z0-9][a-z0-9_.-]*', name) or name.split('/')[0] != self.scope:
             raise PublicationError('Package alias lookup belongs to another owner scope')
-        code, data = self.command(['view', name, 'dist-tags'])
+        code, data = self.command(['view', name + '@' + version, 'dist-tags'])
         if code != 0 or not isinstance(data, dict) or len(data) > 1000 or any(not isinstance(tag, str) or not matches(r'[A-Za-z0-9_.-]{1,200}', tag) or not isinstance(version, str) or not 0 < len(version) <= 200 for tag, version in data.items()):
             raise PublicationError('Package aliases are missing, malformed or unbounded')
         return data
@@ -109,12 +109,12 @@ class PackageRegistry:
             raise PublicationError('Package alias must be latest, major-X or minor-X.Y')
         if not self.read(package):
             raise PublicationError('Package alias target is absent')
-        if self.dist_tags(package.name).get(alias) != previous:
+        if self.dist_tags(package.name, package.version).get(alias) != previous:
             raise PublicationError('Package alias changed after its provenance was checked')
         if previous == package.version:
             return 'identical'
         result = self._run(['dist-tag', 'add', package.name + '@' + package.version, alias])
-        if result.returncode != 0 or self.dist_tags(package.name).get(alias) != package.version or not self.read(package):
+        if result.returncode != 0 or self.dist_tags(package.name, package.version).get(alias) != package.version or not self.read(package):
             raise PublicationError('Package alias mutation or exact registry readback failed')
         return 'verified'
 
