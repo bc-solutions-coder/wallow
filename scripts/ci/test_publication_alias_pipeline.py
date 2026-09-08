@@ -58,6 +58,26 @@ class PipelineTests(unittest.TestCase):
         self.assertIn('0 matching release receipts', str(failure.exception))
         self.assertEqual(self.registry.events, [])
 
+    def test_reviewed_migration_is_sealed_and_observed_again_before_writes(self):
+        self.registry.tags['latest'] = '0.9.0'
+        evidence = {'sha256': 'sha256:' + 'a' * 64, 'entry': {'alias': 'latest'}}
+        with patch('publication_alias_pipeline.authorize_legacy_alias', return_value=evidence):
+            entries = plan_aliases(self.client, [self.record], 'package', self.registry,
+                                   migration_authorizer=lambda candidate, alias, current: evidence)
+            self.assertEqual(entries[0]['migration'], evidence)
+            self.assertEqual(entries[0]['previous'], '0.9.0')
+            self.assertEqual(entries[0]['action'], 'advance')
+            plan = {'records': [self.record], 'unrelated': False, 'entries': entries,
+                    'scans': {'1': {'current_policy': 'verified'}}, 'dependencies': []}
+            self.registry.tags['latest'] = '0.8.0'
+            with self.assertRaises(PublicationError):
+                self.run_writer(plan, {'entries': []})
+            self.assertFalse(any(event == 'write' for event, _ in self.registry.events))
+            self.registry.tags['latest'] = '0.9.0'
+            result = self.run_writer(plan, {'entries': []})
+            self.assertEqual(result['entries'][0]['migration'], evidence)
+            self.assertEqual(self.registry.tags['latest'], '1.0.0')
+
     def run_writer(self, plan, progress):
         with patch('publication_alias_pipeline.frame', return_value=({'job_id': 2}, {})), \
              patch('publication_alias_pipeline.authorize_plan', return_value=plan), \

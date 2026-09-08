@@ -7,6 +7,7 @@ import tempfile
 from publication import PublicationError, positive_integer
 from publication_alias_authorization import publication_records
 from publication_alias_registry import Registry, plan_aliases
+from publication_legacy_package_aliases import authorize as authorize_legacy_alias
 from publication_artifacts import select_artifact, unpack_payload
 from publication_image_authorization import image_environment
 from publication_package_configuration import package_configuration, package_environment
@@ -62,7 +63,8 @@ def prepare(client, context, producer_run, producer_attempt, run_id, attempt, ki
     output = Path(output)
     reports = output / 'scans'
     with Registry(kind, client.repository, catalog, token, username) as registry:
-        plan['entries'] = plan_aliases(client, records, kind, registry, target)
+        plan['entries'] = plan_aliases(client, records, kind, registry, target,
+                                      migration_authorizer=lambda candidate, alias, current: authorize_legacy_alias(client, catalog, root, candidate, alias, current))
         targets = {entry['release_id'] for entry in plan['entries'] if entry['action'] == 'advance'}
         if kind == 'package':
             plan['dependencies'] = dependencies(client, records, registry, catalog, targets)
@@ -134,7 +136,8 @@ def promote(client, context, producer_run, producer_attempt, run_id, attempt, ki
     if plan['unrelated']:
         return progress
     with Registry(kind, client.repository, catalog, token, username, access='write') as registry:
-        entries = plan_aliases(client, plan['records'], kind, registry, target)
+        entries = plan_aliases(client, plan['records'], kind, registry, target,
+                               migration_authorizer=lambda candidate, alias, current: authorize_legacy_alias(client, catalog, root, candidate, alias, current))
         if entries != plan['entries']:
             raise PublicationError('Alias state changed after its exact preparation')
         targets = {entry['release_id'] for entry in entries if entry['action'] == 'advance'}
