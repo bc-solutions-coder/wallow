@@ -59,6 +59,10 @@ def authorize_controller(context, repository, comparison):
 
 def authorize_main_producer(repository, workflow, run, run_id, attempt, jobs, required_check, comparison):
     """Authorize API-fetched metadata; comparison is head_sha...observed main tip."""
+    return _authorize_ci_invocation(repository, workflow, run, run_id, attempt, jobs, required_check, comparison, 'push')
+
+
+def _authorize_ci_invocation(repository, workflow, run, run_id, attempt, jobs, required_check, comparison, event):
     if not all(isinstance(value, dict) for value in (repository, workflow, run, required_check)) or not isinstance(jobs, list):
         raise PublicationError('Missing producer authorization metadata')
     name = repository.get('full_name')
@@ -79,14 +83,14 @@ def authorize_main_producer(repository, workflow, run, run_id, attempt, jobs, re
         not positive_integer(run.get('workflow_id'))
         or run['workflow_id'] != workflow_id
         or run.get('path') != workflow['path']
-        or run.get('event') != 'push'
+        or run.get('event') != event
         or run.get('head_branch') != 'main'
         or run.get('status') != 'completed'
         or run.get('conclusion') != 'success'
         or not matches(r'[0-9a-f]{40}', sha)
         or not main_ancestor(comparison, sha)
     ):
-        raise PublicationError('Producer is not a successful approved main CI push')
+        raise PublicationError('Producer is not a successful approved main CI invocation')
     if any(not isinstance(job, dict) for job in jobs):
         raise PublicationError('Malformed producer job metadata')
     gates = [job for job in jobs if job.get('name') == 'CI / required']
