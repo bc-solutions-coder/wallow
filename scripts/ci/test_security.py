@@ -1,4 +1,5 @@
 import copy
+import hashlib
 from datetime import datetime, timezone
 import unittest
 
@@ -45,6 +46,52 @@ class SecurityTests(unittest.TestCase):
         finding['ignored'] = True
         with self.assertRaises(ValueError):
             security.zizmor([finding])
+
+    def test_zizmor_exact_feature_exception_keeps_changed_or_missing_findings_blocking(self):
+        feature = 'on:\n  workflow_run:\n    workflows: [CI]'
+        result = {'ident': 'dangerous-triggers', 'ignored': False,
+                  'determinations': {'severity': 'High', 'confidence': 'Medium'},
+                  'locations': [{'symbolic': {'kind': 'Primary', 'key': {'Local': {'verbatim_path': '.github/workflows/publish.yml'}}},
+                                 'concrete': {'feature': feature}}]}
+        exception = {'scanner': 'zizmor', 'id': 'dangerous-triggers', 'scope': '.github/workflows/publish.yml',
+                     'feature_sha256': 'sha256:' + hashlib.sha256(feature.encode()).hexdigest()}
+        for change in ('feature', 'missing', 'path', 'id', 'secondary'):
+            neighbor = copy.deepcopy(result)
+            if change == 'feature':
+                neighbor['locations'][0]['concrete']['feature'] += '\n  pull_request_target:'
+            elif change == 'missing':
+                del neighbor['locations'][0]['concrete']['feature']
+            elif change == 'path':
+                neighbor['locations'][0]['symbolic']['key']['Local']['verbatim_path'] = '.github/workflows/other.yml'
+            elif change == 'id':
+                neighbor['ident'] = 'other-audit'
+            else:
+                neighbor['locations'][0]['symbolic']['kind'] = 'Secondary'
+            findings = security.apply_exceptions(security.zizmor([result, neighbor]), [exception])
+            self.assertTrue(findings[0]['excepted'])
+            self.assertTrue(findings[1]['blocking'])
+            self.assertFalse(findings[1]['excepted'], change)
+        reordered = copy.deepcopy(result)
+        reordered['locations'].insert(0, {'symbolic': {'kind': 'Secondary'}, 'concrete': {'feature': 'unrelated'}})
+        self.assertTrue(security.apply_exceptions(security.zizmor([reordered]), [exception])[0]['excepted'])
+
+    def test_zizmor_exception_requires_exact_feature_selector_and_bounded_expiry(self):
+        now = datetime(2026, 9, 7, tzinfo=timezone.utc)
+        entry = dict(scanner='zizmor', id='dangerous-triggers', scope='.github/workflows/publish.yml',
+                     owner='maintainer', reason='Reviewed protected controller', tracking='https://github.com/a/b/issues/1',
+                     created='2026-09-01T00:00:00Z', expires='2026-10-01T00:00:00Z', feature_sha256='sha256:' + 'a' * 64)
+        security.validate_exceptions({'exceptions': [entry]}, now)
+        missing = dict(entry)
+        del missing['feature_sha256']
+        with self.assertRaises(ValueError):
+            security.validate_exceptions({'exceptions': [missing]}, now)
+        with self.assertRaises(ValueError):
+            security.apply_exceptions([], [missing])
+        for change in [{'feature_sha256': '*'}, {'feature_sha256': ''}, {'expires': '2026-10-01T00:00:01Z'}, {'expires': '2026-09-07T00:00:00Z'}]:
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                security.validate_exceptions({'exceptions': [entry | change]}, now)
+        with self.assertRaises(ValueError):
+            security.validate_exceptions({'exceptions': [entry, entry]}, now)
 
     def test_codeql_security_score(self):
         report = {'version': '2.1.0', 'runs': [{'tool': {'driver': {'name': 'CodeQL', 'rules': [

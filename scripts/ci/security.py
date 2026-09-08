@@ -36,7 +36,9 @@ def validate_exceptions(document, now=None):
     seen = set()
     fields = {'scanner', 'id', 'scope', 'owner', 'reason', 'tracking', 'created', 'expires'}
     for entry in entries:
-        require(isinstance(entry, dict) and set(entry) == fields, 'exception fields must match policy')
+        require(isinstance(entry, dict), 'exception must be an object')
+        expected = fields | ({'feature_sha256'} if entry.get('scanner') == 'zizmor' else set())
+        require(set(entry) == expected, 'exception fields must match policy')
         require(all(isinstance(v, str) and v.strip() == v and v for v in entry.values()), 'exception fields must be nonempty text')
         require(entry['scanner'] in SCANNERS, 'unknown exception scanner')
         require(not any(c in entry['scope'] for c in '*?[]\n\r') and '..' not in PurePosixPath(entry['scope']).parts, 'exception scope must be exact')
@@ -47,7 +49,9 @@ def validate_exceptions(document, now=None):
         created = datetime.fromisoformat(entry['created'].replace('Z', '+00:00'))
         expires = datetime.fromisoformat(entry['expires'].replace('Z', '+00:00'))
         require(created <= now < expires and timedelta(0) < expires - created <= timedelta(days=30), 'exception is expired, future-dated, or longer than 30 days')
-        identity = (entry['scanner'], entry['id'], entry['scope'])
+        if entry['scanner'] == 'zizmor':
+            require(bool(re.fullmatch(r'sha256:[a-f0-9]{64}', entry['feature_sha256'])), 'Zizmor exception needs an exact feature SHA-256')
+        identity = finding_identity(entry)
         require(identity not in seen, 'duplicate exception')
         seen.add(identity)
     return entries
@@ -110,9 +114,13 @@ def zizmor(document):
         require(confidence in ('Low', 'Medium', 'High'), 'invalid zizmor confidence')
         locations = result.get('locations')
         require(isinstance(locations, list) and locations, 'zizmor location missing')
-        path = locations[0].get('symbolic', {}).get('key', {}).get('Local', {}).get('verbatim_path')
+        primary = [item for item in locations if item.get('symbolic', {}).get('kind') == 'Primary']
+        selected = primary[0] if len(primary) == 1 else locations[0]
+        path = selected.get('symbolic', {}).get('key', {}).get('Local', {}).get('verbatim_path')
+        feature = selected.get('concrete', {}).get('feature') if len(primary) == 1 else None
         require(isinstance(path, str) and path and not path.startswith('/') and '..' not in PurePosixPath(path).parts, 'zizmor location must be local and relative')
-        findings.append(finding('zizmor', result.get('ident'), path, severity == 'High' and confidence in ('Medium', 'High'), severity=severity, confidence=confidence))
+        findings.append(finding('zizmor', result.get('ident'), path, severity == 'High' and confidence in ('Medium', 'High'), severity=severity, confidence=confidence,
+                                feature_sha256='sha256:' + hashlib.sha256(feature.encode()).hexdigest() if isinstance(feature, str) and feature else None))
     return findings
 
 
@@ -163,10 +171,20 @@ def trivy(document):
     return findings
 
 
+def finding_identity(item):
+    identity = (item['scanner'], item['id'], item['scope'])
+    if item['scanner'] == 'zizmor':
+        identity += (item.get('feature_sha256'),)
+    return identity
+
+
 def apply_exceptions(findings, exceptions):
-    allowed = {(e['scanner'], e['id'], e['scope']) for e in exceptions}
+    for entry in exceptions:
+        if entry['scanner'] == 'zizmor':
+            require(bool(entry.get('feature_sha256')), 'Zizmor exceptions require an exact feature selector')
+    allowed = {finding_identity(e) for e in exceptions}
     for result in findings:
-        result['excepted'] = (result['scanner'], result['id'], result['scope']) in allowed
+        result['excepted'] = finding_identity(result) in allowed
     return findings
 
 

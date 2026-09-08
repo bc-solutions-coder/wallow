@@ -89,6 +89,17 @@
       "tracking": "https://github.com/bc-solutions-coder/wallow/issues/281",
       "created": "2026-09-07T20:10:41Z",
       "expires": "2026-10-06T20:10:41Z"
+    },
+    {
+      "scanner": "zizmor",
+      "id": "dangerous-triggers",
+      "scope": ".github/workflows/publish.yml",
+      "feature_sha256": "sha256:95d3bf4b23e342873746dc04f94524f946935a120492612f5fb612919de1e5d2",
+      "owner": "bc-solutions-coder",
+      "reason": "Reviewed workflow_run controller: checkout uses protected workflow SHA; GitHub API authorization binds a successful same-repository main producer, exact run/attempt and immutable artifacts. This job has read-only permissions and inspects sealed image archives without executing producer code or using a production environment. Trigger changes require a new feature review.",
+      "tracking": "https://github.com/bc-solutions-coder/wallow/issues/283",
+      "created": "2026-09-08T00:02:03Z",
+      "expires": "2026-10-08T00:02:03Z"
     }
   ]
 }
