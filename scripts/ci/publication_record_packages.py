@@ -76,7 +76,10 @@ def main():
         root = Path(__file__).resolve().parents[2]
         client = ReleaseGitHub(context['repository'], os.environ.get('GH_TOKEN'))
         finalize(client, context, *(int(value) for value in values), load_catalog(root), root, result, int(args.release_id) if args.release_id else None, recovery=recovery)
-    except (PublicationError, OSError, ValueError, TypeError, KeyError, RecursionError):
+    except PublicationError as failure:
+        error = str(failure)
+        result['error'] = error
+    except (OSError, ValueError, TypeError, KeyError, RecursionError):
         error = 'Package publication receipt finalization failed; preserved immutable bytes require successful endorsement.'
         result['error'] = error
     output = Path(args.output)

@@ -52,7 +52,14 @@ def frame(client, context, run_id, attempt, job_name, state='active'):
         raise PublicationError('Provenance job is missing or ambiguous')
     job = selected[0]
     if job.get('run_id') != run_id or job.get('run_attempt') != attempt or job.get('head_sha') != controller or (state == 'success' and (job.get('status') != 'completed' or job.get('conclusion') != 'success')) or (state == 'active' and job.get('status') != 'in_progress') or (state == 'finished' and job.get('status') != 'completed') or state not in ('active', 'success', 'finished'):
-        raise PublicationError('Exact protected provenance job did not reach the required state')
+        raise PublicationError(
+            f'Exact protected provenance job did not reach the required state: '
+            f'job={job_name!r}, id={job["id"]}, expected={state!r}, '
+            f'status={job.get("status")!r}, conclusion={job.get("conclusion")!r}, '
+            f'run_matches={job.get("run_id") == run_id}, '
+            f'attempt_matches={job.get("run_attempt") == attempt}, '
+            f'controller_matches={job.get("head_sha") == controller}'
+        )
     record = {'repository': client.repository, 'repository_id': repository['id'], 'controller_sha': controller, 'workflow_id': workflow['id'],
               'workflow_ref': context['workflow_ref'], 'event_name': context['event_name'], 'run_id': run_id, 'run_attempt': attempt,
               'job_id': job['id'], 'job_name': job_name}

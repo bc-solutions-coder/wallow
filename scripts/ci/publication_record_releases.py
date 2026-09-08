@@ -84,7 +84,10 @@ def main():
             raise PublicationError('Release provenance requires literal enablement and exact invocation identities')
         client = ReleaseGitHub(context['repository'], os.environ.get('GH_TOKEN'))
         reconcile(client, context, *(int(value) for value in values), load_catalog(Path(__file__).resolve().parents[2]), int(args.release_id) if args.release_id else None, result)
-    except (PublicationError, OSError, ValueError, TypeError, KeyError, RecursionError):
+    except PublicationError as failure:
+        error = str(failure)
+        result['error'] = error
+    except (OSError, ValueError, TypeError, KeyError, RecursionError):
         error = 'Release provenance reconciliation failed; existing partial receipts require successful originating job evidence.'
         result['error'] = error
     output = Path(args.output)
