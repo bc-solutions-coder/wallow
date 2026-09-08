@@ -541,9 +541,14 @@ public sealed partial class OrganizationService(
                         .ExecuteDeleteAsync(token);
                 }
 
+                await TelemetryOwnership.LockOrganizationRegistrationsAsync(dbContext, organizationId, token);
                 List<TelemetryRegistration> telemetry = await dbContext.TelemetryRegistrations.AsTracking()
                     .Where(e => e.OrganizationId == organizationId).ToListAsync(token);
-                foreach (TelemetryRegistration registration in telemetry) { registration.Revoke(deleted: true, timeProvider); }
+                foreach (TelemetryRegistration registration in telemetry)
+                {
+                    await dbContext.Entry(registration).ReloadAsync(token);
+                    registration.Revoke(deleted: true, timeProvider);
+                }
                 await dbContext.SaveChangesAsync(token);
 
                 await dbContext.RegisteredClients

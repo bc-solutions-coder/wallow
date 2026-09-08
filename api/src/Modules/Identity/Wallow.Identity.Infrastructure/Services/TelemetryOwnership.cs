@@ -17,6 +17,22 @@ internal static class TelemetryOwnership
         }
     }
 
+    public static async Task LockRegistrationAsync(IdentityDbContext db, RegisteredClientId id, CancellationToken ct)
+    {
+        if (db.Database.IsRelational())
+        {
+            await db.Database.ExecuteSqlAsync($"SELECT 1 FROM identity.telemetry_registrations WHERE id = {id.Value} FOR UPDATE", ct);
+        }
+    }
+
+    public static async Task LockOrganizationRegistrationsAsync(IdentityDbContext db, Guid organizationId, CancellationToken ct)
+    {
+        if (db.Database.IsRelational())
+        {
+            await db.Database.ExecuteSqlAsync($"SELECT 1 FROM identity.telemetry_registrations WHERE organization_id = {organizationId} ORDER BY id FOR UPDATE", ct);
+        }
+    }
+
     public static async Task RequireOrganizationAsync(IdentityDbContext db, Guid organizationId, CancellationToken ct)
     {
         await LockOrganizationAsync(db, organizationId, ct);
