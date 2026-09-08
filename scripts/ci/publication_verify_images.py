@@ -4,7 +4,8 @@ import json
 from pathlib import Path
 import tempfile
 
-from publication import Producer, PublicationError
+from publication import PublicationError
+from publication_identity import producer_from_record
 from publication_artifacts import Artifact, unpack_payload
 from publication_images import inspect_images
 
@@ -26,7 +27,7 @@ def verify_images(client, plan, catalog, prepare=None):
         bundles[bundle] = item
     if set(bundles) != set(required):
         raise PublicationError('Required image artifact bundles are incomplete')
-    producer = Producer(**plan['producer'])
+    producer = producer_from_record(plan['producer'])
     verified = {}
     for bundle in required:
         expected = {tag: platform for image in catalog['images'] if image['bundle'] == bundle for platform, tag in image['tags'].items()}

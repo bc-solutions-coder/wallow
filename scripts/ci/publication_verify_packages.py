@@ -8,7 +8,8 @@ import shutil
 import tarfile
 import tempfile
 
-from publication import Producer, PublicationError
+from publication import PublicationError
+from publication_identity import producer_from_record
 from publication_archives import bounded_plain_tar, bounded_tar
 from publication_artifacts import Artifact, unpack_payload
 from publication_packages import dependency_order, inspect_candidate, inspect_validation_package
@@ -69,7 +70,7 @@ def verify_packages(client, plan, catalog, prepare=None):
     artifact = Artifact(**{key: item[key] for key in ('id', 'name', 'digest', 'size')})
     if artifact.size > len(expected) * PACKAGE_LIMIT + 1024 * 1024:
         raise PublicationError('Package artifact exceeds its bounded download size')
-    producer = Producer(**plan['producer'])
+    producer = producer_from_record(plan['producer'])
     with tempfile.TemporaryDirectory(prefix='wallow-package-inspection-') as directory:
         root = Path(directory)
         archive = client.download(artifact, root / 'artifact.zip')

@@ -81,6 +81,15 @@ def artifact_identity(kind, variant):
         raise ValueError('invalid artifact workflow reference')
     if any(not re.fullmatch(r'[1-9][0-9]*', identity[key]) for key in ('run_id', 'run_attempt')) or not kind or not variant:
         raise ValueError('invalid artifact run or variant')
+    recovery = {key: os.environ.get(name, '') for key, name in (
+        ('source_sha', 'CI_RECOVERY_SOURCE_SHA'), ('recovery_request_sha256', 'CI_RECOVERY_REQUEST_SHA256'),
+        ('release_id', 'CI_RECOVERY_RELEASE_ID'))}
+    if any(recovery.values()):
+        if os.environ.get('GITHUB_EVENT_NAME') != 'workflow_dispatch' or os.environ.get('GITHUB_REF') != 'refs/heads/main' or identity['workflow_ref'] != identity['repository'] + '/.github/workflows/ci.yml@refs/heads/main' or identity['sha'] != os.environ.get('GITHUB_WORKFLOW_SHA'):
+            raise ValueError('recovery artifacts require the exact main CI dispatch controller')
+        if not re.fullmatch(r'[0-9a-f]{40}', recovery['source_sha']) or not re.fullmatch(r'sha256:[0-9a-f]{64}', recovery['recovery_request_sha256']) or not re.fullmatch(r'[1-9][0-9]*', recovery['release_id']):
+            raise ValueError('recovery artifacts require complete exact source and request identity')
+        identity.update(schema=2, **(recovery | {'release_id': int(recovery['release_id'])}))
     return identity
 
 
