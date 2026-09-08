@@ -1,0 +1,44 @@
+name: Prepare validation checkout
+description: Preserve current validation controls before an explicit historical source checkout
+inputs:
+  recovery-source:
+    description: Exact historical source from the authorized recovery request
+    default: ""
+  recovery-request:
+    description: Digest of the exact authorized recovery request
+    default: ""
+  recovery-release:
+    description: Exact release ID from the authorized recovery request
+    default: ""
+runs:
+  using: composite
+  steps:
+    - name: Select ordinary validation controls
+      if: inputs.recovery-source == ''
+      shell: bash
+      env:
+        RECOVERY_REQUEST: ${{ inputs.recovery-request }}
+        RECOVERY_RELEASE: ${{ inputs.recovery-release }}
+      run: |
+        test -z "$RECOVERY_REQUEST"
+        test -z "$RECOVERY_RELEASE"
+        echo "CI_CONTROL_ROOT=$GITHUB_WORKSPACE" >> "$GITHUB_ENV"
+    - name: Preserve current recovery controls outside the source checkout
+      if: inputs.recovery-source != ''
+      shell: bash
+      env:
+        RECOVERY_SOURCE: ${{ inputs.recovery-source }}
+        RECOVERY_REQUEST: ${{ inputs.recovery-request }}
+        RECOVERY_RELEASE: ${{ inputs.recovery-release }}
+      run: python3 scripts/ci/recovery_checkout.py --destination "$RUNNER_TEMP/wallow-recovery-controls"
+    - name: Check out the exact historical source
+      if: inputs.recovery-source != ''
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        ref: ${{ inputs.recovery-source }}
+        persist-credentials: false
+        fetch-depth: 0
+    - name: Verify historical checkout identity
+      if: inputs.recovery-source != ''
+      shell: bash
+      run: test "$(git rev-parse HEAD)" = "$CI_RECOVERY_SOURCE_SHA"

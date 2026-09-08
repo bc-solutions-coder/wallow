@@ -30,4 +30,10 @@ Recovery preserves existing release origins and selection receipts. A separate a
 
 ## Initial verification
 
-The isolated `ci/historical-recovery` worktree starts at `be0f9a3e`. Existing validation behavior tests pass. The request helper is implemented, independently reviewed, and covered by ten behavior tests. Workflow integration, recovery artifact schema, receipt integration, and hosted acceptance remain pending.
+The isolated `ci/historical-recovery` worktree starts at `be0f9a3e`. Request authorization, distinct schema-2 source/controller identity, current scanner controls, and sealed recovery registration are implemented and independently reviewed. The registration checkpoint is `c6c38578`.
+
+The workflow integration preserves current helper files, security exceptions, Actionlint configuration, and the OpenAPI action before historical checkout. CI contract tests run against the current controller first. Recovery selects local JS execution and the full validation route. Four Git-backed snapshot tests cover historical checkout, modified control files, controller mismatch, and tracked symlink rejection.
+
+The combined helper suite passes 276 tests. Actionlint, immutable action policy, and whitespace checks pass. Zizmor 1.30.0 reports 27 findings with no blocking findings under existing policy; no new exception was added. Independent review resolved historical OpenAPI action loading, historical Actionlint configuration, and historical CI contract test selection.
+
+These checks establish local implementation evidence only. Completed-run recovery authorization, recovery receipts, explicit publication selection, and hosted positive/negative acceptance remain pending. Schema-2 registration alone does not authorize publication.
