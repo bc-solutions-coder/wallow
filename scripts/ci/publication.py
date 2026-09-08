@@ -131,7 +131,7 @@ def matches(pattern, value):
 
 
 def validate_catalog(catalog, release_config, manifests):
-    fields(catalog, ('schema', 'default_branch', 'producer_workflow', 'package_registry', 'package_scope', 'components', 'images', 'validation_only_images', 'docs'))
+    fields(catalog, ('schema', 'default_branch', 'producer_workflow', 'package_registry', 'package_scope', 'components', 'images', 'validation_only_images', 'validation_only_packages', 'docs'))
     if type(catalog['schema']) is not int or catalog['schema'] != 1:
         raise PublicationError('Unsupported publication catalog schema')
     if catalog['default_branch'] != 'main' or catalog['producer_workflow'] != '.github/workflows/ci.yml':
@@ -188,6 +188,18 @@ def validate_catalog(catalog, release_config, manifests):
         prefixes.add(prefix)
     if paths != set(release_config['packages']) or '.' not in paths:
         raise PublicationError('Catalog must cover every configured release component')
+    companions = catalog['validation_only_packages']
+    if not isinstance(companions, list):
+        raise PublicationError('Validation-only packages must be an explicit list')
+    tarballs = {component['package']['tarball'] for component in components if 'package' in component}
+    for package in companions:
+        fields(package, ('name', 'tarball'))
+        if not matches(re.escape(catalog['package_scope']) + r'/[a-z0-9]+(?:-[a-z0-9]+)*', package['name']):
+            raise PublicationError('Validation-only package must belong to the trusted owner scope')
+        if package['name'] in package_names or package['tarball'] != package['name'].split('/')[1] + '.tgz' or package['tarball'] in tarballs:
+            raise PublicationError('Duplicate or invalid validation-only package identity')
+        package_names.add(package['name'])
+        tarballs.add(package['tarball'])
     image_ids, suffixes, tags = set(), set(), set()
     for image in images:
         fields(image, ('id', 'repository_suffix', 'bundle', 'component', 'tags', 'build_args'))

@@ -19,18 +19,59 @@ class Package:
     sha256: str
     integrity: str
     dependencies: dict
+    repository: dict | str | None = None
 
 
-def inspect_package(path, name, version, registry, repository):
+def inspect_candidate(path, name, version, registry):
+    """Verify source candidate bytes and record metadata without authorizing a destination."""
     number = r'(?:0|[1-9][0-9]*)'
     prerelease = r'(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)'
     semver = rf'{number}\.{number}\.{number}(?:-{prerelease}(?:\.{prerelease})*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?'
     if not matches(r'@[a-z0-9][a-z0-9-]*/[a-z0-9][a-z0-9_.-]*', name) or not matches(semver, version):
-        raise PublicationError('An authorized package name and version are required')
+        raise PublicationError('A registered package name and version are required')
     if registry != 'https://npm.pkg.github.com':
         raise PublicationError('Unexpected package publication registry')
+    manifest = packed_manifest(path)
+    path = Path(path)
+    if not isinstance(manifest, dict) or manifest.get('name') != name or manifest.get('version') != version or manifest.get('private', False) is not False:
+        raise PublicationError('Packed package identity differs from its registered candidate')
+    config = manifest.get('publishConfig')
+    if not isinstance(config, dict) or config.get('registry') != registry:
+        raise PublicationError('Packed package registry differs from the approved target')
+    if set(config) - {'registry', 'access', 'exports'} or config.get('access', 'restricted') != 'restricted':
+        raise PublicationError('Packed publish configuration may not override controlled publishing options')
+    source_repository = manifest.get('repository')
+    if source_repository is not None and not isinstance(source_repository, (dict, str)):
+        raise PublicationError('Invalid declared package repository metadata')
+    dependencies = {}
+    for field in ('dependencies', 'optionalDependencies', 'peerDependencies'):
+        values = manifest.get(field, {})
+        if not isinstance(values, dict):
+            raise PublicationError('Invalid packed dependency manifest')
+        for dependency, requirement in values.items():
+            if not matches(r'(?:@[a-z0-9][a-z0-9-]*/)?[a-z0-9][a-z0-9_.-]*', dependency) or not isinstance(requirement, str) or not requirement or any(marker in requirement for marker in (':', '/', '\\', '\n', '\r')):
+                raise PublicationError('Packed dependencies must resolve to registry version requirements')
+            if field in ('dependencies', 'optionalDependencies'):
+                dependencies[dependency] = requirement
+    with path.open('rb') as stream:
+        sha256 = hashlib.file_digest(stream, 'sha256').hexdigest()
+        stream.seek(0)
+        integrity = 'sha512-' + base64.b64encode(hashlib.file_digest(stream, 'sha512').digest()).decode('ascii')
+    return Package(name, version, sha256, integrity, dependencies, source_repository)
+
+
+def inspect_package(path, name, version, registry, repository):
+    """Apply destination binding only when package publication is requested."""
+    package = inspect_candidate(path, name, version, registry)
     if not matches(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', repository) or name.split('/')[0] != '@' + repository.split('/')[0].lower():
         raise PublicationError('Package scope must belong to the target repository owner')
+    source = package.repository
+    if not isinstance(source, dict) or source.get('type') != 'git' or source.get('url') != f'https://github.com/{repository}.git':
+        raise PublicationError('Packed package must link to the target GitHub repository')
+    return package
+
+
+def packed_manifest(path):
     path = Path(path)
     if path.is_symlink() or not path.is_file() or path.stat().st_size > 100 * 1024 * 1024:
         raise PublicationError('Package must be a bounded regular tarball')
@@ -52,31 +93,15 @@ def inspect_package(path, name, version, registry, repository):
                         manifest = json.load(stream)
     except (tarfile.TarError, gzip.BadGzipFile, UnicodeDecodeError, json.JSONDecodeError, EOFError):
         raise PublicationError('Package archive could not be inspected') from None
-    if not isinstance(manifest, dict) or manifest.get('name') != name or manifest.get('version') != version or manifest.get('private', False) is not False:
-        raise PublicationError('Packed package identity differs from its authorized release')
-    config = manifest.get('publishConfig')
-    if not isinstance(config, dict) or config.get('registry') != registry:
-        raise PublicationError('Packed package registry differs from the approved target')
-    if set(config) - {'registry', 'access', 'exports'} or config.get('access', 'restricted') != 'restricted':
-        raise PublicationError('Packed publish configuration may not override controlled publishing options')
-    source_repository = manifest.get('repository')
-    if not isinstance(source_repository, dict) or source_repository.get('type') != 'git' or source_repository.get('url') != f'https://github.com/{repository}.git':
-        raise PublicationError('Packed package must link to the target GitHub repository')
-    dependencies = {}
-    for field in ('dependencies', 'optionalDependencies', 'peerDependencies'):
-        values = manifest.get(field, {})
-        if not isinstance(values, dict):
-            raise PublicationError('Invalid packed dependency manifest')
-        for dependency, requirement in values.items():
-            if not matches(r'(?:@[a-z0-9][a-z0-9-]*/)?[a-z0-9][a-z0-9_.-]*', dependency) or not isinstance(requirement, str) or not requirement or any(marker in requirement for marker in (':', '/', '\\', '\n', '\r')):
-                raise PublicationError('Packed dependencies must resolve to registry version requirements')
-            if field in ('dependencies', 'optionalDependencies'):
-                dependencies[dependency] = requirement
-    with path.open('rb') as stream:
-        sha256 = hashlib.file_digest(stream, 'sha256').hexdigest()
-        stream.seek(0)
-        integrity = 'sha512-' + base64.b64encode(hashlib.file_digest(stream, 'sha512').digest()).decode('ascii')
-    return Package(name, version, sha256, integrity, dependencies)
+    if not isinstance(manifest, dict):
+        raise PublicationError('Packed package manifest is missing or invalid')
+    return manifest
+
+
+def inspect_validation_package(path, name):
+    manifest = packed_manifest(path)
+    if manifest.get('name') != name:
+        raise PublicationError('Validation-only packed package identity differs from the trusted catalog')
 
 
 def dependency_order(packages):

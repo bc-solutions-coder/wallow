@@ -76,6 +76,7 @@ class CatalogTests(unittest.TestCase):
         self.catalog = {
             'schema': 1,
             'validation_only_images': [],
+            'validation_only_packages': [],
             'default_branch': 'main',
             'producer_workflow': '.github/workflows/ci.yml',
             'package_registry': 'https://npm.pkg.github.com',
@@ -89,6 +90,18 @@ class CatalogTests(unittest.TestCase):
         }
         self.release = {'release-type': 'simple', 'packages': {'.': {}, 'packages/sdk': {'release-type': 'node', 'package-name': '@example/sdk', 'component': 'sdk', 'include-component-in-tag': True}}}
         self.manifests = {'packages/sdk': {'name': '@example/sdk', 'publishConfig': {'registry': 'https://npm.pkg.github.com'}}}
+
+    def test_validation_only_packages_are_exact_and_disjoint_from_candidates(self):
+        companion = {'name': '@example/private', 'tarball': 'private.tgz'}
+        self.catalog['validation_only_packages'] = [companion]
+        validate_catalog(self.catalog, self.release, self.manifests)
+        for change in [{'name': '@foreign/private'}, {'name': '@example/sdk', 'tarball': 'sdk.tgz'}, {'tarball': '../private.tgz'}, {'registry': 'https://other.example'}]:
+            self.catalog['validation_only_packages'] = [companion | change]
+            with self.subTest(change=change), self.assertRaises(PublicationError):
+                validate_catalog(self.catalog, self.release, self.manifests)
+        self.catalog['validation_only_packages'] = [companion, companion]
+        with self.assertRaises(PublicationError):
+            validate_catalog(self.catalog, self.release, self.manifests)
 
     def test_validation_only_images_are_exact_and_disjoint_from_publishable_images(self):
         companion = {'bundle': 'app', 'platform': 'linux/amd64', 'tag': 'example:test'}

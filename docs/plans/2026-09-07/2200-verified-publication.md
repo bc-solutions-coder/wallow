@@ -140,3 +140,45 @@ its applied exception in the retained gate report. Replaying the actual private 
 applies exactly one exception; adding another trigger to its feature makes it blocking
 again. Behavior tests also cover changed path/audit, missing feature/selectors, expiry,
 duplicate exceptions, and primary-location selection. All 98 helper tests pass.
+
+## Read-only controller package inspection
+
+The authorization command now inspects the API-authorized package artifact after image
+inspection. Full routes require exactly the sealed `packages.tar.gz`/`pnpm` candidate
+bundle; docs routes require no package artifact. The registered catalog and component
+versions must match the trusted catalog identities. The controller verifies the immutable
+artifact size/digest and producer seal, then extracts only the explicitly named regular
+package tarballs into a temporary directory with compressed/decompressed limits.
+
+The producer packs eleven packages. Three are publishable candidates; eight are explicitly
+listed as validation-only packages in the catalog. All eleven must be present, and unknown,
+duplicate, linked, or traversing outer members fail. Every companion receives bounded
+package-manifest and safe-content inspection against its expected name, without requiring
+publication eligibility. Companions never enter the candidate inventory. Publishable
+packages retain exact hashes, integrity, registered versions, and runtime dependency
+metadata, ordered by dependencies among the candidates. This does not authorize releases
+or establish registry dependency readiness; no install, lifecycle script, or write runs.
+
+Real nested ZIP/TAR fixtures cover valid candidates and private companions, dependency
+ordering, altered seals, wrong versions/companion names, unsafe inner/outer archives,
+missing/extra candidates, catalog/version drift, docs routing, and cleanup on failure.
+All 105 helper tests, catalog validation, Actionlint, and diff checks pass. The new catalog
+requires a fresh matching producer registration. This slice is awaiting review before
+commit; hosted package-inspection acceptance remains open.
+
+Candidate inspection is now explicitly separate from destination-bound inspection.
+`inspect_candidate` checks registered name/version, safe contents, and packed publication
+configuration, and records declared source repository metadata. It does not require the
+candidate owner/repository to equal the current fork. `inspect_package` retains those
+strict destination checks for enabled package publication. Disabling package publication
+therefore does not prevent a fork from using independent image/docs/release capabilities.
+
+Actual private run `34170378504`, attempt 1, source `57fca3f3cd5da04ba7d9b9ed081d5e07557ef94a`,
+artifact `10035534673` passed ZIP size/digest, producer seal, and all eleven nested tarball
+checks. Candidate versions were api-errors 1.0.0, sdk 2.0.0, and telemetry 0.1.0; all declared
+the canonical Wallow repository. Source candidate inspection accepts and records those
+values, while destination-bound inspection correctly rejects the unconfigured private
+repository. No fixture URL rewrite or identity-check relaxation was used. The old catalog
+is intentionally rejected against the newly expanded controller catalog. Evidence:
+`/tmp/wallow-private-package-replay-evidence.json`. That producer failed its security job;
+this is archive/source-candidate compatibility evidence, not publication authorization.
