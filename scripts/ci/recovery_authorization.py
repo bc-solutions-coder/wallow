@@ -5,10 +5,35 @@ import json
 from pathlib import Path
 import tempfile
 
-from publication import PublicationError, _authorize_ci_invocation, positive_integer
+from publication import PublicationError, _authorize_ci_invocation, matches, positive_integer
 from publication_artifacts import select_artifact, unpack_payload
 from publication_identity import RecoveryProducer
 from recovery_request import request_record
+
+
+def completed_controller(client, run_id, attempt):
+    """Fetch one exact attempt and its Actions check from the fixed repository API."""
+    if not all(positive_integer(value) for value in (run_id, attempt)):
+        raise PublicationError('Recovery requires an explicit positive run and attempt')
+    repository = client.get('')
+    workflow = client.get('/actions/workflows/ci.yml')
+    run = client.get(f'/actions/runs/{run_id}/attempts/{attempt}')
+    jobs = client.list(f'/actions/runs/{run_id}/attempts/{attempt}/jobs', 'jobs')
+    if not isinstance(repository, dict) or repository.get('full_name') != client.repository:
+        raise PublicationError('Recovery repository differs from the requested API repository')
+    if not isinstance(run, dict) or not matches(r'[0-9a-f]{40}', run.get('head_sha')) or not isinstance(jobs, list) or any(not isinstance(job, dict) for job in jobs):
+        raise PublicationError('Recovery invocation metadata is malformed')
+    gates = [job for job in jobs if job.get('name') == 'CI / required']
+    if len(gates) != 1:
+        raise PublicationError('Recovery requires one exact aggregate job')
+    prefix = f'https://api.github.com/repos/{client.repository}/check-runs/'
+    url = gates[0].get('check_run_url')
+    if not isinstance(url, str) or not url.startswith(prefix) or not matches(r'[1-9][0-9]*', url[len(prefix):]):
+        raise PublicationError('Recovery aggregate check belongs to an unexpected API location')
+    check = client.get('/check-runs/' + url[len(prefix):])
+    controller = authorize_completed_controller(repository, workflow, run, run_id, attempt, jobs, check,
+                                                client.main_comparison(run['head_sha']))
+    return controller, jobs
 
 
 def authorize_completed_controller(repository, workflow, run, run_id, attempt, jobs, required_check, comparison):

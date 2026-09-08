@@ -1,9 +1,10 @@
 """Completed recovery must retain actual dispatch, controller, and job identities."""
 
 import unittest
+from unittest.mock import Mock
 
 from publication import PublicationError, authorize_main_producer
-from recovery_authorization import authorize_completed_controller
+from recovery_authorization import authorize_completed_controller, completed_controller
 import test_publication
 
 
@@ -56,6 +57,43 @@ class CompletedRecoveryTests(unittest.TestCase):
         jobs = [job | {'conclusion': 'success'} if job['name'] == 'js / main' else job for job in self.values['jobs']]
         with self.assertRaises(PublicationError):
             authorize_completed_controller(**(self.values | {'jobs': jobs}))
+
+    def client(self):
+        client = Mock(repository='example/fork')
+        metadata = {'': self.values['repository'], '/actions/workflows/ci.yml': self.values['workflow'],
+                    '/actions/runs/20/attempts/2': self.values['run'], '/check-runs/40': self.values['required_check']}
+        client.get.side_effect = metadata.__getitem__
+        client.list.return_value = self.values['jobs']
+        client.main_comparison.return_value = self.values['comparison']
+        return client
+
+    def test_transport_fetches_exact_attempt_check_and_controller_comparison(self):
+        client = self.client()
+        controller, jobs = completed_controller(client, 20, 2)
+        self.assertEqual(controller.run_attempt, 2)
+        self.assertEqual(jobs, self.values['jobs'])
+        client.list.assert_called_once_with('/actions/runs/20/attempts/2/jobs', 'jobs')
+        client.main_comparison.assert_called_once_with(self.values['run']['head_sha'])
+        self.assertIn('/check-runs/40', [call.args[0] for call in client.get.call_args_list])
+
+    def test_transport_rejects_untrusted_check_locations_before_requesting_them(self):
+        for url in ('https://other.invalid/check-runs/40',
+                    'https://api.github.com/repos/foreign/repo/check-runs/40',
+                    'https://api.github.com/repos/example/fork/check-runs/40?other=1',
+                    'https://api.github.com/repos/example/fork/check-runs/../40'):
+            self.values['jobs'][0]['check_run_url'] = url
+            client = self.client()
+            with self.subTest(url=url), self.assertRaises(PublicationError):
+                completed_controller(client, 20, 2)
+            self.assertEqual([call.args[0] for call in client.get.call_args_list],
+                             ['', '/actions/workflows/ci.yml', '/actions/runs/20/attempts/2'])
+
+    def test_transport_rejects_invalid_attempt_before_any_api_request(self):
+        client = self.client()
+        for attempt in (True, 0, '2', None):
+            with self.subTest(attempt=attempt), self.assertRaises(PublicationError):
+                completed_controller(client, 20, attempt)
+        client.get.assert_not_called()
 
 
 if __name__ == '__main__':
