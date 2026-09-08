@@ -80,7 +80,7 @@ class ReleaseGitHub(GitHub):
         return self.send(request, 201)
 
     def upload(self, release_id, name, body):
-        if not positive_integer(release_id) or not (name in ('wallow-release-origin-v1.json', 'wallow-release-selection-v1.json') or matches(r'wallow-release-endorsement-v1-[1-9][0-9]*-[1-9][0-9]*-[1-9][0-9]*\.json', name)) or not isinstance(body, bytes) or not 0 < len(body) <= RECORD_LIMIT:
+        if not positive_integer(release_id) or not (name in ('wallow-release-origin-v1.json', 'wallow-release-selection-v1.json', 'wallow-package-publication-v1.json') or matches(r'wallow-(?:release|package)-endorsement-v1-[1-9][0-9]*-[1-9][0-9]*-[1-9][0-9]*\.json', name)) or not isinstance(body, bytes) or not 0 < len(body) <= RECORD_LIMIT:
             raise PublicationError('Release receipt requires a fixed name and bounded bytes')
         url = 'https://uploads.github.com/repos/' + self.repository + f'/releases/{release_id}/assets?name=' + urllib.parse.quote(name, safe='')
         request = urllib.request.Request(url, data=body, headers={'Authorization': 'Bearer ' + self.token, 'Accept': 'application/vnd.github+json',

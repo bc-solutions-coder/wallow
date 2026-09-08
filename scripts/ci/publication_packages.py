@@ -1,7 +1,7 @@
 """Inspect already-packed candidates without installing or executing package code."""
 
 import base64
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import gzip
 import hashlib
 import json
@@ -20,6 +20,7 @@ class Package:
     integrity: str
     dependencies: dict
     repository: dict | str | None = None
+    peer_dependencies: dict = field(default_factory=dict)
 
 
 def inspect_candidate(path, name, version, registry):
@@ -43,7 +44,7 @@ def inspect_candidate(path, name, version, registry):
     source_repository = manifest.get('repository')
     if source_repository is not None and not isinstance(source_repository, (dict, str)):
         raise PublicationError('Invalid declared package repository metadata')
-    dependencies = {}
+    dependencies, peers = {}, {}
     for field in ('dependencies', 'optionalDependencies', 'peerDependencies'):
         values = manifest.get(field, {})
         if not isinstance(values, dict):
@@ -51,13 +52,15 @@ def inspect_candidate(path, name, version, registry):
         for dependency, requirement in values.items():
             if not matches(r'(?:@[a-z0-9][a-z0-9-]*/)?[a-z0-9][a-z0-9_.-]*', dependency) or not isinstance(requirement, str) or not requirement or any(marker in requirement for marker in (':', '/', '\\', '\n', '\r')):
                 raise PublicationError('Packed dependencies must resolve to registry version requirements')
-            if field in ('dependencies', 'optionalDependencies'):
+            if field == 'peerDependencies':
+                peers[dependency] = requirement
+            else:
                 dependencies[dependency] = requirement
     with path.open('rb') as stream:
         sha256 = hashlib.file_digest(stream, 'sha256').hexdigest()
         stream.seek(0)
         integrity = 'sha512-' + base64.b64encode(hashlib.file_digest(stream, 'sha512').digest()).decode('ascii')
-    return Package(name, version, sha256, integrity, dependencies, source_repository)
+    return Package(name, version, sha256, integrity, dependencies, source_repository, peers)
 
 
 def inspect_package(path, name, version, registry, repository):
@@ -117,7 +120,7 @@ def dependency_order(packages):
         if name in visited:
             return
         visiting.add(name)
-        for dependency in sorted(by_name[name].dependencies):
+        for dependency in sorted(by_name[name].dependencies.keys() | by_name[name].peer_dependencies.keys()):
             if dependency in by_name:
                 visit(dependency)
         visiting.remove(name)

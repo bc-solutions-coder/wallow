@@ -10,9 +10,21 @@ from publication import PublicationError, positive_integer
 
 @contextmanager
 def bounded_tar(path, limit, plain_headers=False, longname_limit=0):
+    with _bounded_archive(path, limit, plain_headers, longname_limit, gzip.open) as archive:
+        yield archive
+
+
+@contextmanager
+def bounded_plain_tar(path, limit):
+    with _bounded_archive(path, limit, True, 0, open) as archive:
+        yield archive
+
+
+@contextmanager
+def _bounded_archive(path, limit, plain_headers, longname_limit, opener):
     if not positive_integer(limit):
         raise PublicationError('Archive requires a positive decompressed size limit')
-    with tempfile.TemporaryFile() as raw, gzip.open(path, 'rb') as compressed:
+    with tempfile.TemporaryFile() as raw, opener(path, 'rb') as compressed:
         size = 0
         while chunk := compressed.read(1024 * 1024):
             size += len(chunk)

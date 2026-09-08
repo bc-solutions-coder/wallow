@@ -272,6 +272,163 @@ jobs:
           if-no-files-found: ${{ steps.record.outcome == 'success' && 'error' || 'ignore' }}
           retention-days: 30
 
+  prepare-packages:
+    name: Prepare release packages
+    needs: [authorize, record-release-provenance]
+    if: >-
+      always() && needs.authorize.result == 'success' &&
+      (needs.record-release-provenance.result == 'success' || needs.record-release-provenance.result == 'skipped') &&
+      github.ref == 'refs/heads/main' && vars.ENABLE_PACKAGE_PUBLISH == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      pull-requests: read
+      packages: read
+    steps:
+      - name: Check out protected controller revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Set up fixed Node and npm toolchain
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: .nvmrc
+      - name: Reauthorize releases and freshly scan exact package inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ENABLE_PACKAGE_PUBLISH: ${{ vars.ENABLE_PACKAGE_PUBLISH }}
+          PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
+          PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
+          RELEASE_ID: ${{ inputs.release_id }}
+        run: |
+          python3 scripts/ci/publication_package_preparation.py --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --output .ci-package-preparation/plan.json
+          python3 scripts/ci/validation.py seal --file .ci-package-preparation/plan.json --manifest .ci-package-preparation/plan.json.json --kind package-plan --variant release
+          python3 scripts/ci/validation.py seal --file .ci-package-preparation/bytes/packages.tar --manifest .ci-package-preparation/bytes/packages.tar.json --kind prepared-packages --variant release
+      - name: Retain sealed package release plan
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: package-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-package-preparation/plan.json*
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+      - name: Retain exact prepared package tarballs
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: prepared-packages-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-package-preparation/bytes/*
+          include-hidden-files: true
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+      - name: Retain fresh package dependency scan reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: package-scan-reports-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-package-preparation/scans/*
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 30
+  publish-packages:
+    name: Publish release packages
+    needs: prepare-packages
+    if: >-
+      needs.prepare-packages.result == 'success' &&
+      github.ref == 'refs/heads/main' && vars.ENABLE_PACKAGE_PUBLISH == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: package-publish
+      deployment: false
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      pull-requests: read
+      packages: write
+    steps:
+      - name: Check out protected controller revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Set up fixed Node and npm toolchain
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: .nvmrc
+      - name: Reauthorize exact releases and publish dependency-ordered immutable versions
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ENABLE_PACKAGE_PUBLISH: ${{ vars.ENABLE_PACKAGE_PUBLISH }}
+          PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
+          PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
+          RELEASE_ID: ${{ inputs.release_id }}
+        run: python3 scripts/ci/publication_publish_packages.py --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --output .ci-package-publication/progress.json
+      - name: Seal completed or partial package publication progress
+        if: always()
+        run: |
+          if [[ -f .ci-package-publication/progress.json ]]; then
+            python3 scripts/ci/validation.py seal --file .ci-package-publication/progress.json --manifest .ci-package-publication/progress.json.json --kind package-progress --variant releases
+          fi
+      - name: Retain exact package publication progress
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: package-progress-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-package-publication/*
+          include-hidden-files: true
+          if-no-files-found: ${{ steps.publish.outcome == 'success' && 'error' || 'ignore' }}
+          retention-days: 30
+  record-package-publication:
+    name: Record package publication
+    needs: [prepare-packages, publish-packages]
+    if: >-
+      needs.publish-packages.result == 'success' &&
+      github.ref == 'refs/heads/main' && vars.ENABLE_PACKAGE_PUBLISH == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      actions: read
+      checks: read
+      pull-requests: read
+    steps:
+      - name: Check out protected controller revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Retain exact successful package writer receipts on their Releases
+        id: record
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ENABLE_PACKAGE_PUBLISH: ${{ vars.ENABLE_PACKAGE_PUBLISH }}
+          PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
+          PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
+          RELEASE_ID: ${{ inputs.release_id }}
+        run: python3 scripts/ci/publication_record_packages.py --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --output .ci-package-receipts/progress.json
+      - name: Seal completed or partial package receipt progress
+        if: always()
+        run: |
+          if [[ -f .ci-package-receipts/progress.json ]]; then
+            python3 scripts/ci/validation.py seal --file .ci-package-receipts/progress.json --manifest .ci-package-receipts/progress.json.json --kind package-receipts --variant releases
+          fi
+      - name: Retain package receipt progress
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: package-receipts-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-package-receipts/*
+          include-hidden-files: true
+          if-no-files-found: ${{ steps.record.outcome == 'success' && 'error' || 'ignore' }}
+          retention-days: 30
+
 defaults:
   run:
     shell: bash
