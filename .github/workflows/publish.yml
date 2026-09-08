@@ -57,6 +57,24 @@ jobs:
           if-no-files-found: error
           retention-days: 30
           include-hidden-files: true
+  release-please:
+    name: Release automation
+    needs: authorize
+    if: >-
+      needs.authorize.result == 'success' &&
+      github.ref == 'refs/heads/main' &&
+      vars.ENABLE_RELEASE_AUTOMATION == 'true'
+    uses: ./.github/workflows/release-please.yml
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      pull-requests: read
+    secrets: inherit
+    with:
+      producer_run: ${{ inputs.run_id || format('{0}', github.event.workflow_run.id) }}
+      producer_attempt: ${{ inputs.run_attempt || format('{0}', github.event.workflow_run.run_attempt) }}
+
 defaults:
   run:
     shell: bash

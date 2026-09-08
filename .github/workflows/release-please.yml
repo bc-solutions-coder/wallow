@@ -1,0 +1,85 @@
+name: Release Please
+"on":
+  workflow_call:
+    inputs:
+      producer_run:
+        required: true
+        type: string
+      producer_attempt:
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: release-please-main
+  cancel-in-progress: false
+  queue: max
+jobs:
+  release:
+    name: Release Please
+    if: >-
+      vars.ENABLE_RELEASE_AUTOMATION == 'true' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_run' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      deployment: false
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      pull-requests: read
+    steps:
+      - name: Check out protected controller revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Bind authorized invocation and credential actor
+        id: begin
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_PLEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          ENABLE_RELEASE_AUTOMATION: ${{ vars.ENABLE_RELEASE_AUTOMATION }}
+          PRODUCER_RUN: ${{ inputs.producer_run }}
+          PRODUCER_ATTEMPT: ${{ inputs.producer_attempt }}
+        run: |
+          mkdir .ci-release
+          python3 scripts/ci/release_evidence.py begin --run-id "$PRODUCER_RUN" --attempt "$PRODUCER_ATTEMPT" --output .ci-release/invocation.json
+          python3 scripts/ci/validation.py seal --file .ci-release/invocation.json --manifest .ci-release/invocation.json.json --kind release-invocation --variant release-please
+      - name: Reconcile release PRs and GitHub releases
+        id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          repo-url: ${{ github.repository }}
+          target-branch: main
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          github-api-url: https://api.github.com
+          github-graphql-url: https://api.github.com/graphql
+          changelog-host: https://github.com
+          fork: false
+      - name: Record bounded action and API output evidence
+        id: evidence
+        if: always() && steps.begin.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_OUTPUTS: ${{ toJSON(steps.release.outputs) }}
+          RELEASE_OUTCOME: ${{ steps.release.outcome }}
+        run: python3 scripts/ci/release_evidence.py finish --invocation .ci-release/invocation.json --output .ci-release/evidence.json
+      - name: Seal completed or partial output evidence
+        if: always() && steps.begin.outcome == 'success'
+        run: |
+          python3 scripts/ci/validation.py seal --file .ci-release/evidence.json --manifest .ci-release/evidence.json.json --kind release-evidence --variant release-please
+      - name: Retain invocation evidence
+        if: always() && steps.begin.outcome == 'success'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: release-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-release/*
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30

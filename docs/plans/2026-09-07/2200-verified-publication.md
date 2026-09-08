@@ -182,3 +182,50 @@ repository. No fixture URL rewrite or identity-check relaxation was used. The ol
 is intentionally rejected against the newly expanded controller catalog. Evidence:
 `/tmp/wallow-private-package-replay-evidence.json`. That producer failed its security job;
 this is archive/source-candidate compatibility evidence, not publication authorization.
+
+## Default-off Release Please automation
+
+The Publish controller now calls a separate reusable Release Please workflow only after
+successful authorization, on main, with the literal `ENABLE_RELEASE_AUTOMATION=true`.
+The called workflow repeats these checks and API producer/controller authorization before
+using the existing production `RELEASE_PLEASE_TOKEN`. A missing token fails the enabled
+job. No repository variable or secret was changed. The built-in GitHub token remains
+read-only; only the owner-selected credential is passed to the official action and its
+fixed GitHub actor lookup. The token's broader capabilities are not claimed to be limited.
+
+The pinned official action is release-please-action v5.0.0 at
+`45996ed1f6d02564a971a2fa1b5860e934307cf7`. The official tag resolves directly to that commit
+and GitHub reports its commit signature verified. Its
+[action definition](https://github.com/googleapis/release-please-action/blob/45996ed1f6d02564a971a2fa1b5860e934307cf7/action.yml)
+uses the packaged Node 24 entry point. Repository, main branch, config/manifest paths,
+GitHub API endpoints, and non-fork operation are fixed by the workflow. No project build,
+install, or producer checkout runs. The independent release queue does not cancel active
+runs and permits queued runs; the existing exact Actionlint compatibility rule is extended
+to this workflow while action_policy.py validates GitHub's supported queue settings.
+
+Sealed evidence records the API run/attempt/job ID, controller SHA, producer identity,
+invocation actor and authenticated credential actor numeric IDs, and observed main before
+and after. Bounded action outputs supply identifiers for fixed-repository API lookups:
+PR IDs/head SHAs/base, release IDs/component versions/tags, and resolved tag commits are
+recorded. Partial PR observations survive later release reconciliation failure. No record
+authorizes package/image publication; different or newer release commits require their
+own successful registered producer and future release authorization. Main observations
+and author names are not substitutes for that check.
+
+The Zizmor exception rationale now describes the read-only authorization job and isolated
+production release writer separately. Its exact trigger feature remains unchanged; the
+privileged job and updated rationale require independent review before this slice commits.
+
+Hosted transport evidence also advanced independently: private run `34172968013`, attempt
+1, source `2ab5a0a165be615552d3db5ce2fee44e6a1cadc8`, passed GHCR new-write/readback,
+identical retry, and conflict rejection using its package-write GitHub token. Empty AMD64
+and ARM64 fixture manifests produced index
+`sha256:aebee3ee73c56dfaf2dbf57cb9cdd5f923b4273f29db44f1c488b4762c440e02`.
+This proves hosted transport only, not application release acceptance; see
+[issue #283 evidence](https://github.com/bc-solutions-coder/wallow/issues/283#issuecomment-5577161988).
+
+This slice passes all 112 helper tests, Actionlint, immutable action/queue policy, and
+format/diff checks. A fresh pinned Zizmor 1.30.0 strict scan collected all seven workflow
+and action documents, including the new reusable release workflow: seven findings and
+zero unexcepted blockers. Independent privilege-boundary review is pending; no release
+variable was enabled and no production Release Please invocation was run locally.
