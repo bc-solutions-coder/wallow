@@ -29,6 +29,17 @@ class NpmTests(unittest.TestCase):
         self.missing = (1, {'error': {'code': 'E404'}})
         self.calls = []
 
+    def test_declared_dependency_range_is_resolved_by_registry(self):
+        registry = PackageRegistry('@example', 'dummy-token')
+        with patch.object(registry, 'command', return_value=(0, ['1.0.0', '1.2.0'])) as command:
+            self.assertTrue(registry.satisfies('@example/base', '^1.0.0'))
+            command.assert_called_once_with(['view', '@example/base@^1.0.0', 'version'])
+        with patch.object(registry, 'command', return_value=self.missing):
+            self.assertFalse(registry.satisfies('@example/base', '^2.0.0'))
+        with patch.object(registry, 'command') as command, self.assertRaises(PublicationError):
+            registry.satisfies('@example/base', 'file:/untrusted')
+        command.assert_not_called()
+
     def publish(self, responses, real_dry_run=False):
         def runner(arguments, **options):
             self.calls.append(arguments)

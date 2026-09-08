@@ -1,13 +1,6 @@
 # Configure CI and publication
 
-Use this guide to configure a repository and retry publication from an exact validated build.
-Application rollout is covered by the [deployment guide](deployment.md).
-
-The publication migration remains in progress in [issue #283](https://github.com/bc-solutions-coder/wallow/issues/283).
-Keep each production publisher disabled until its acceptance and first-target cutover checks pass.
-Images publish immutable full-SHA tags and `nightly`. Authenticated releases also have an immutable version-image path with separate durable receipts; hosted acceptance of that path remains pending.
-Packages currently publish immutable versions with a `validated-<hash>` staging tag.
-Stable release alias promotion is implemented behind the same capability flags; hosted acceptance remains pending. Historical artifact recovery is merged in PR #293. Hosted rejection checks pass; successful recovery and publication acceptance remain pending.
+PRs validate without production credentials. Successful main CI runs supply the exact packages, images and documentation used by publishing. Application rollout is covered by the [deployment guide](deployment.md).
 
 ## Configure validation
 
@@ -51,130 +44,45 @@ Local development can continue using local Turbo without the CI token.
 
 ## Configure publication destinations
 
-Each capability uses a repository Actions variable with the literal value `true`.
-An absent variable or another value leaves that capability disabled.
+Enable each repository variable with the literal value `true` after configuring its destination.
 
-| Variable                    | Required configuration                                                                                                         |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `ENABLE_IMAGE_PUBLISH`      | `image-publish` environment allowing only the exact `main` branch; repository access to its GHCR destinations                  |
-| `ENABLE_PACKAGE_PUBLISH`    | `package-publish` environment allowing only the exact `main` branch; package ownership and repository linkage configured below |
-| `ENABLE_DOCS_DEPLOY`        | `github-pages` environment allowing only the exact `main` branch; Pages source set to GitHub Actions                           |
-| `ENABLE_RELEASE_AUTOMATION` | `production` environment with `RELEASE_PLEASE_TOKEN`                                                                           |
+| Variable                    | Main-only environment and access                                     |
+| --------------------------- | -------------------------------------------------------------------- |
+| `ENABLE_RELEASE_AUTOMATION` | `production`, with `RELEASE_PLEASE_TOKEN`                            |
+| `ENABLE_PACKAGE_PUBLISH`    | `package-publish`, with repository Actions access to GitHub Packages |
+| `ENABLE_IMAGE_PUBLISH`      | `image-publish`, with repository Actions access to GHCR              |
+| `ENABLE_DOCS_DEPLOY`        | `github-pages`, with Pages configured for GitHub Actions             |
 
-Image and package writers use their job-scoped GitHub token. They do not need a copy of the production token or a repository `NODE_AUTH_TOKEN`.
-Pages uses its job token and GitHub OIDC. Keep publication environments separate from `production`.
+Package and image writers use job-scoped GitHub tokens. Pages uses its job token and OIDC. They do not need copies of production secrets or a repository `NODE_AUTH_TOKEN`.
 
-For packages in a fork:
+Publish verifies a successful main-push CI run from this repository, its exact attempt, required CI result and artifact identities. Downloads retain digest and safe-archive checks. Package lifecycle scripts do not run during publishing.
 
-1. Update `.github/ci/publication.json` to use the fork owner's package scope across publishable and `validation_only_packages` entries.
-2. Preserve the publishable basenames `api-errors`, `sdk`, and `telemetry`, which match their component IDs.
-3. Update all workspace package manifests and internal dependencies to match the new scope.
-4. Update `release-please-config.json` package names to match.
-5. Set each publishable manifest's `repository.url` to `https://github.com/OWNER/REPOSITORY.git` and `repository.type` to `git`.
-6. Retain `https://npm.pkg.github.com` as the package registry.
-7. Update the lockfile and pass CI before enabling package publication.
-8. Grant the repository Actions access to existing destination packages when needed.
+Release Please runs when the validated commit is still current main. Its token stays in `production`. Its release branch goes through normal secretless PR checks. After the release PR merges and main CI succeeds, Release Please creates releases, and publishers match the release tags to that validated commit. A release-event workflow also dispatches publication from the release commit’s successful CI run, so another merge advancing main cannot cause a release to be missed.
 
-The catalog includes api-errors, SDK, and telemetry. Package publication verifies required internal dependencies before uploading any candidate.
-Existing versions must match the validated tarball bytes. A version conflict stops publication.
+## Package and image tags
 
-For an existing Pages site or legacy image tags, complete the reviewed migration recorded in issue #283 before enabling the writer.
-Unknown existing content is not accepted as publication authority.
+`.github/ci/publication.json` lists components and destinations. Packages publish only when their release tag matches the validated commit and packed version. Internal dependencies must exist before dependent packages publish. Registry checks reject conflicting immutable bytes.
 
-## Stable release aliases
+Stable packages advance `latest`, `major-X` and `minor-X.Y`, in addition to retaining a content-derived staging tag. Images use immutable `sha-<full-commit>` tags; current main advances `nightly`. Platform releases also publish immutable version tags and stable `latest`, `X` and `X.Y` tags. Prereleases receive immutable versions without stable aliases.
 
-After immutable publication and its durable receipt succeed, image releases can advance `latest`, `X`, and `X.Y`.
-Packages use `latest`, `major-X`, and `minor-X.Y`; [npm rejects dist-tags that parse as version ranges](https://docs.npmjs.com/cli/v11/commands/npm-dist-tag/).
-Prereleases publish immutable versions only. Build-metadata versions are rejected explicitly.
+Newer stable releases prevent older retries from moving stable tags backward. An older main build cannot advance `nightly` or deploy Pages. Existing mutable legacy tags can advance without a historical receipt migration. Conflicting immutable versions are never overwritten: investigate the conflict and publish a new version for changed content.
 
-Promotion checks the component version and source ancestry on `main`. An older retry can complete missing aliases in its own version line but cannot roll newer aliases backward.
-Existing aliases must match an authenticated immutable receipt and exact registry bytes. Unknown legacy aliases require a separately reviewed migration.
-All images belonging to a component are verified before any alias changes. Updates across aliases are sequential, so a failure can leave partial progress; retrying rechecks the actual registry state.
+## Documentation deployment
 
-Changing targets need current-policy scans. Images can be scanned from their exact retained registry blobs.
-Package targets also need the selected producer's resolved dependency inputs; expired inputs require explicit recovery, not a replacement producer or new lockfile.
-An identical alias or an older skipped target causes no mutation. Append-only Release assets retain successful alias observations; immutable publication receipts remain the authority.
+Read-only preparation validates and repackages the exact CI site archive. The Pages job uses [actions/deploy-pages](https://github.com/actions/deploy-pages) to deploy that artifact, skipping it if the source is no longer current main. The workflow and Pages environment show deployment status.
 
-## Configure Release Please
+## Retry publishing
 
-1. Add the automation token as `production` secret `RELEASE_PLEASE_TOKEN`.
-2. Verify that the token has the repository access needed to create release PRs, tags, and GitHub releases.
-3. Review `release-please-config.json`, `.release-please-manifest.json`, and the publication catalog together.
-4. Enable `ENABLE_RELEASE_AUTOMATION` after the protected controller has passed its acceptance checks.
-5. Review and merge the generated release PR through the normal required checks.
+Open **Actions → Publish → Run workflow**. Supply the successful main CI run ID and exact attempt. Optionally supply a release ID whose tag points to that CI commit.
 
-Release Please runs from the protected main publication workflow. Its generated branch does not receive the production token.
-The generated PR runs ordinary PR validation. The release commit needs its own successful registered main CI producer before its outputs can be published.
+A retry checks the registry, reuses identical immutable outputs and publishes missing outputs. Publishing is serialized. Separate outputs are not one transaction; after a partial failure, inspect the failed job and rerun the same validated inputs.
 
-Release-origin and producer-selection receipts are retained on GitHub Releases. Do not delete or edit these receipts to force a retry.
-Existing authenticated receipts can support publication while Release Please automation is disabled.
+Logs and result artifacts provide diagnostics. Publication does not depend on custom receipts attached to Releases; existing receipt assets can remain as historical records.
 
-## Retry an exact publication
+CI artifacts are retained for 30 days. After expiry, the workflow cannot retry those original bytes. Validate a new main commit and publish a new release version as needed. Historical build reconstruction is outside this pipeline.
 
-Use a new `Publish` dispatch on `main` when retrying with the current controller.
-Select the successful **CI producer** run and attempt, not the failed Publish run ID.
+## Fork configuration
 
-```bash
-gh workflow run publish.yml --repo OWNER/REPOSITORY --ref main \
-  -f run_id=SUCCESSFUL_CI_RUN_ID \
-  -f run_attempt=SUCCESSFUL_CI_ATTEMPT
-```
+Before enabling package publication in a fork, update the package scope in the catalog, workspace manifests, Release Please configuration and lockfile. Publishable manifests must use `repository.type: git`, `repository.url: https://github.com/OWNER/REPOSITORY.git`, and `https://npm.pkg.github.com` as their registry. Preserve the catalog component IDs and package basenames. Grant Actions access to existing destination packages and configure the main-only environments.
 
-For a particular release, add `-f release_id=GITHUB_RELEASE_ID`.
-Once a release has a producer-selection receipt, supply that exact producer. Another successful build cannot silently replace it.
-
-Publication jobs share a queue. Let the current invocation finish before interpreting a pending retry as a failure.
-An identical retry verifies existing registry bytes and resumes missing work. Older main retries cannot move nightly or Pages backward.
-
-Inspect the failed job and its retained plan, scan reports, and progress artifacts.
-Progress can contain successful uploads even when a later operation failed.
-The finalizer records durable release receipts separately from registry writes.
-
-If required producer artifacts or incomplete-publication evidence have expired, ordinary retry stops.
-Do not rebuild under publication credentials or substitute artifacts from another source.
-Historical recovery requires an existing authenticated release origin and original producer-selection receipt. It cannot authorize an arbitrary old tag or manufacture missing release provenance.
-
-## Recover expired release artifacts
-
-This flow is available on `main` through PR #293. Hosted runs reject a mismatched release source, a release without authenticated origin evidence, and a dispatch from a non-main branch. Successful historical validation, receipt recording, and recovered publication still await acceptance in issue #283.
-
-First dispatch current CI with the exact commit named by the release tag and its numeric release ID:
-
-```bash
-gh workflow run ci.yml --repo OWNER/REPOSITORY --ref main \
-  -f recovery_source_sha=EXACT_RELEASE_COMMIT_SHA \
-  -f recovery_release_id=GITHUB_RELEASE_ID
-```
-
-Wait for the complete CI run to succeed. It checks out the historical application source under current validation controls, uses the secretless JavaScript path, and retains sealed recovery artifacts. An incompatible historical source must fail validation; do not change its source or skip required checks to make it pass.
-
-Record that successful recovery using its CI run ID and attempt:
-
-```bash
-gh workflow run publish.yml --repo OWNER/REPOSITORY --ref main \
-  -f record_recovery=true -f release_id=GITHUB_RELEASE_ID \
-  -f run_id=RECOVERY_CI_RUN_ID -f run_attempt=RECOVERY_CI_ATTEMPT
-```
-
-Wait for `Record recovered producer` to succeed. Recording adds a durable receipt; it does not publish anything. Then dispatch publication with the **original selected producer** in `run_id`/`run_attempt` and the newly recorded recovery in the separate inputs:
-
-```bash
-gh workflow run publish.yml --repo OWNER/REPOSITORY --ref main \
-  -f release_id=GITHUB_RELEASE_ID \
-  -f run_id=ORIGINAL_SELECTED_CI_RUN_ID -f run_attempt=ORIGINAL_SELECTED_CI_ATTEMPT \
-  -f recovery_run=RECOVERY_CI_RUN_ID -f recovery_attempt=RECOVERY_CI_ATTEMPT
-```
-
-This dispatch can publish the enabled release packages, immutable release images, and their aliases. It does not run main/nightly image publication, Pages deployment, or Release Please. Every writer rechecks the selected recovery and current policy; original origin and selection receipts remain unchanged.
-
-Recovery does not permit replacing an existing version with different bytes. A conflicting immutable receipt also stops the operation, including adding different recovery lineage to a prior image receipt. Keep successful publication receipts and inspect retained progress before choosing a retry.
-
-## Verify enablement
-
-Enable one capability at a time after its acceptance checks pass.
-Record the source commit, producer run and attempt, Publish run, and destination readback for the first real operation.
-For images, verify both platform manifests and the index digest. For packages, verify the downloaded tarball integrity.
-For Pages, verify the served content and deployment progress.
-For Release Please, verify the generated PR, its required checks, the merged release commit, and its release receipts.
-
-Disabling a variable prevents later jobs for that capability. It does not remove published outputs or stop a job that has already started.
+Forks may leave publishing disabled while using PR validation. Main remote caching is separately enabled with `ENABLE_MAIN_CACHE=true` and the production secrets listed above.

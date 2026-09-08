@@ -1,4 +1,6 @@
-**status: active**
+**status: superseded**
+
+Superseded by the user-approved practical publishing scope in `1700-simplify-publishing.md` and issue #283, comment 5590163766. Historical acceptance below is no longer a completion requirement.
 
 # Recover exact historical release artifacts
 

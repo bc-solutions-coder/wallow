@@ -9,17 +9,10 @@ from publication import Producer, PublicationError, positive_integer
 from publication_artifacts import select_artifact, unpack_payload
 
 
-def authorize_preparation(client, context, run_id, attempt, invocation_run, invocation_attempt, *, recovery=None, catalog=None):
+def authorize_preparation(client, context, run_id, attempt, invocation_run, invocation_attempt):
     from publication_plan import resolve
 
-    if recovery is None:
-        fresh = resolve(client, context, run_id, attempt)
-    else:
-        from publication_selection import resolve_selection
-
-        if not isinstance(catalog, dict):
-            raise PublicationError('Recovery preparation requires the current publication catalog')
-        fresh = resolve_selection(client, context, run_id, attempt, catalog, recovery)
+    fresh = resolve(client, context, run_id, attempt)
     run = client.get(f'/actions/runs/{invocation_run}/attempts/{invocation_attempt}')
     workflow = client.get('/actions/workflows/publish.yml')
     source = fresh['producer']
@@ -43,6 +36,6 @@ def authorize_preparation(client, context, run_id, attempt, invocation_run, invo
         archive = client.download(selected, root / 'plan.zip')
         payload = unpack_payload(archive, root / 'verified', selected, preparation, 'plan.json', 'publication-plan', 'authorized', 16 * 1024 * 1024)
         plan = json.loads(payload.read_text())
-    if not isinstance(plan, dict) or (recovery is None and 'recovery' in plan) or {key: plan.get(key) for key in fresh} != fresh:
+    if not isinstance(plan, dict) or 'recovery' in plan or {key: plan.get(key) for key in fresh} != fresh:
         raise PublicationError('Sealed publication plan differs from fresh producer authorization')
     return plan, preparation, artifacts, {'plan_artifact': asdict(selected), 'authorize_job_id': gates[0]['id']}

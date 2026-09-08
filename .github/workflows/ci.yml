@@ -15,15 +15,6 @@ name: CI
   schedule:
     - cron: 0 6 * * 1
   workflow_dispatch:
-    inputs:
-      recovery_source_sha:
-        description: Exact historical release commit to validate without production credentials
-        required: true
-        type: string
-      recovery_release_id:
-        description: Exact release with existing origin and selected producer receipts
-        required: true
-        type: string
 permissions:
   contents: read
 concurrency:
@@ -34,48 +25,25 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      route: ${{ steps.recovery.outputs.route || steps.route.outputs.route }}
+      route: ${{ steps.route.outputs.route }}
       profile: ${{ steps.profile.outputs.profile }}
-      recovery_source: ${{ steps.recovery.outputs.source_ref }}
-      recovery_request: ${{ steps.recovery.outputs.recovery_request_sha256 }}
-      recovery_release: ${{ steps.recovery.outputs.recovery_release_id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
           fetch-depth: 0
-      - name: Authorize exact historical recovery request
-        id: recovery
-        if: github.event_name == 'workflow_dispatch'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RECOVERY_SOURCE: ${{ inputs.recovery_source_sha }}
-          RECOVERY_RELEASE: ${{ inputs.recovery_release_id }}
-        run: |
-          python3 "$CI_CONTROL_ROOT/scripts/ci/recovery_request.py" --source "$RECOVERY_SOURCE" --release-id "$RECOVERY_RELEASE" --output .ci-recovery-request/request.json
-          python3 "$CI_CONTROL_ROOT/scripts/ci/validation.py" seal --file .ci-recovery-request/request.json --manifest .ci-recovery-request/request.json.json --kind recovery-request --variant source
-      - name: Retain exact recovery request
-        if: github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: recovery-request-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .ci-recovery-request/*
-          include-hidden-files: true
-          if-no-files-found: error
-          retention-days: 30
       - id: route
         name: Classify complete change set
         env:
           EVENT: ${{ github.event_name }}
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
           HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: python3 "$CI_CONTROL_ROOT/scripts/ci/validation.py" classify --event "$EVENT" --base "$BASE" --head "$HEAD"
-        if: github.event_name != 'workflow_dispatch'
+        run: python3 "$GITHUB_WORKSPACE/scripts/ci/validation.py" classify --event "$EVENT" --base "$BASE" --head "$HEAD"
       - id: profile
         name: Select security profile
         env:
           SECURITY_PROFILE: ${{ vars.SECURITY_PROFILE }}
-        run: python3 "$CI_CONTROL_ROOT/scripts/ci/security.py" profile
+        run: python3 "$GITHUB_WORKSPACE/scripts/ci/security.py" profile
     permissions:
       contents: read
       actions: read
@@ -92,12 +60,6 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - name: Prepare validation source and controls
-        uses: ./.github/actions/validation-checkout
-        with:
-          recovery-source: ${{ needs.changes.outputs.recovery_source }}
-          recovery-request: ${{ needs.changes.outputs.recovery_request }}
-          recovery-release: ${{ needs.changes.outputs.recovery_release }}
       - name: Setup .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
@@ -119,7 +81,7 @@ jobs:
         run: |-
           mkdir -p .ci-artifacts/dotnet
           find api -type d \( -path '*/bin/Release' -o -name obj \) -prune -print0 | tar --null -T - -czf .ci-artifacts/dotnet/output.tar.gz
-          python3 "$CI_CONTROL_ROOT/scripts/ci/validation.py" seal --file .ci-artifacts/dotnet/output.tar.gz --manifest .ci-artifacts/dotnet/output.tar.gz.json --kind dotnet --variant release
+          python3 "$GITHUB_WORKSPACE/scripts/ci/validation.py" seal --file .ci-artifacts/dotnet/output.tar.gz --manifest .ci-artifacts/dotnet/output.tar.gz.json --kind dotnet --variant release
       - name: Upload dotnet-build
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -139,12 +101,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - name: Prepare validation source and controls
-        uses: ./.github/actions/validation-checkout
-        with:
-          recovery-source: ${{ needs.changes.outputs.recovery_source }}
-          recovery-request: ${{ needs.changes.outputs.recovery_request }}
-          recovery-release: ${{ needs.changes.outputs.recovery_release }}
       - name: Setup .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
@@ -163,12 +119,13 @@ jobs:
           path: .ci-artifacts/dotnet
       - name: Verify and extract build output
         run: |-
-          python3 "$CI_CONTROL_ROOT/scripts/ci/validation.py" verify --file .ci-artifacts/dotnet/output.tar.gz --manifest .ci-artifacts/dotnet/output.tar.gz.json --kind dotnet --variant release
+          python3 "$GITHUB_WORKSPACE/scripts/ci/validation.py" verify --file .ci-artifacts/dotnet/output.tar.gz --manifest .ci-artifacts/dotnet/output.tar.gz.json --kind dotnet --variant release
           tar -xzf .ci-artifacts/dotnet/output.tar.gz
       - name: Restore dependencies
         run: dotnet restore api/Wallow.slnx
       - name: Run unit tests
-        run: dotnet test api/Wallow.slnx --no-build --configuration Release --filter "Category!=Integration&Category!=E2E" --verbosity normal
+        run:
+          dotnet test api/Wallow.slnx --no-build --configuration Release --filter "Category!=Integration&Category!=E2E" --verbosity normal
           --blame-hang-timeout 60s --collect "XPlat Code Coverage" --settings api/tests/coverage.runsettings --results-directory ./TestResults
       - name: Upload unit test coverage
         if: always()
@@ -199,12 +156,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - name: Prepare validation source and controls
-        uses: ./.github/actions/validation-checkout
-        with:
-          recovery-source: ${{ needs.changes.outputs.recovery_source }}
-          recovery-request: ${{ needs.changes.outputs.recovery_request }}
-          recovery-release: ${{ needs.changes.outputs.recovery_release }}
       - name: Start Valkey with password
         run: |
           docker run -d --name valkey -p 6379:6379 valkey/valkey:8-alpine \
@@ -239,12 +190,13 @@ jobs:
           path: .ci-artifacts/dotnet
       - name: Verify and extract build output
         run: |-
-          python3 "$CI_CONTROL_ROOT/scripts/ci/validation.py" verify --file .ci-artifacts/dotnet/output.tar.gz --manifest .ci-artifacts/dotnet/output.tar.gz.json --kind dotnet --variant release
+          python3 "$GITHUB_WORKSPACE/scripts/ci/validation.py" verify --file .ci-artifacts/dotnet/output.tar.gz --manifest .ci-artifacts/dotnet/output.tar.gz.json --kind dotnet --variant release
           tar -xzf .ci-artifacts/dotnet/output.tar.gz
       - name: Restore dependencies
         run: dotnet restore api/Wallow.slnx
       - name: Run integration tests
-        run: dotnet test api/Wallow.slnx --no-build --configuration Release --filter "Category=Integration" --verbosity normal --blame-hang-timeout 5m --collect
+        run:
+          dotnet test api/Wallow.slnx --no-build --configuration Release --filter "Category=Integration" --verbosity normal --blame-hang-timeout 5m --collect
           "XPlat Code Coverage" --settings api/tests/coverage.runsettings --results-directory ./TestResults
         env:
           ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=wallow_test;Username=wallow;Password=wallow
@@ -278,12 +230,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - name: Prepare validation source and controls
-        uses: ./.github/actions/validation-checkout
-        with:
-          recovery-source: ${{ needs.changes.outputs.recovery_source }}
-          recovery-request: ${{ needs.changes.outputs.recovery_request }}
-          recovery-release: ${{ needs.changes.outputs.recovery_release }}
       - name: Start Valkey with password
         run: |
           docker run -d --name valkey -p 6379:6379 valkey/valkey:8-alpine \
@@ -318,12 +264,13 @@ jobs:
           path: .ci-artifacts/dotnet
       - name: Verify and extract build output
         run: |-
-          python3 "$CI_CONTROL_ROOT/scripts/ci/validation.py" verify --file .ci-artifacts/dotnet/output.tar.gz --manifest .ci-artifacts/dotnet/output.tar.gz.json --kind dotnet --variant release
+          python3 "$GITHUB_WORKSPACE/scripts/ci/validation.py" verify --file .ci-artifacts/dotnet/output.tar.gz --manifest .ci-artifacts/dotnet/output.tar.gz.json --kind dotnet --variant release
           tar -xzf .ci-artifacts/dotnet/output.tar.gz
       - name: Restore dependencies
         run: dotnet restore api/Wallow.slnx
       - name: Run cross-tenant isolation tests
-        run: dotnet test api/Wallow.slnx --no-build --configuration Release --filter "Category=CrossTenant" --verbosity normal --blame-hang-timeout 5m
+        run:
+          dotnet test api/Wallow.slnx --no-build --configuration Release --filter "Category=CrossTenant" --verbosity normal --blame-hang-timeout 5m
           --settings api/tests/coverage.runsettings --results-directory ./TestResults
         env:
           ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=wallow_test;Username=wallow;Password=wallow
@@ -341,12 +288,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - name: Prepare validation source and controls
-        uses: ./.github/actions/validation-checkout
-        with:
-          recovery-source: ${{ needs.changes.outputs.recovery_source }}
-          recovery-request: ${{ needs.changes.outputs.recovery_request }}
-          recovery-release: ${{ needs.changes.outputs.recovery_release }}
       - name: Setup .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
@@ -365,7 +306,7 @@ jobs:
           path: .ci-artifacts/dotnet
       - name: Verify and extract build output
         run: |-
-          python3 "$CI_CONTROL_ROOT/scripts/ci/validation.py" verify --file .ci-artifacts/dotnet/output.tar.gz --manifest .ci-artifacts/dotnet/output.tar.gz.json --kind dotnet --variant release
+          python3 "$GITHUB_WORKSPACE/scripts/ci/validation.py" verify --file .ci-artifacts/dotnet/output.tar.gz --manifest .ci-artifacts/dotnet/output.tar.gz.json --kind dotnet --variant release
           tar -xzf .ci-artifacts/dotnet/output.tar.gz
       - name: Restore dependencies
         run: dotnet restore api/Wallow.slnx
@@ -439,7 +380,7 @@ jobs:
             wallow-seeder:test wallow-seeder:test-arm64 \
             | gzip > .ci-artifacts/images-app/images.tar.gz
 
-          python3 "$CI_CONTROL_ROOT/scripts/ci/validation.py" seal --file .ci-artifacts/images-app/images.tar.gz --manifest .ci-artifacts/images-app/images.tar.gz.json --kind images --variant app-amd64-arm64
+          python3 "$GITHUB_WORKSPACE/scripts/ci/validation.py" seal --file .ci-artifacts/images-app/images.tar.gz --manifest .ci-artifacts/images-app/images.tar.gz.json --kind images --variant app-amd64-arm64
       - name: Upload images-app
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -460,12 +401,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - name: Prepare validation source and controls
-        uses: ./.github/actions/validation-checkout
-        with:
-          recovery-source: ${{ needs.changes.outputs.recovery_source }}
-          recovery-request: ${{ needs.changes.outputs.recovery_request }}
-          recovery-release: ${{ needs.changes.outputs.recovery_release }}
       - name: Set up QEMU
         uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a
         with:
@@ -484,7 +419,7 @@ jobs:
             wallow-garage:test wallow-postgres-replica:latest wallow-garage:test-arm64 wallow-postgres-replica:test-arm64 \
             | gzip > .ci-artifacts/images-infra/images.tar.gz
 
-          python3 "$CI_CONTROL_ROOT/scripts/ci/validation.py" seal --file .ci-artifacts/images-infra/images.tar.gz --manifest .ci-artifacts/images-infra/images.tar.gz.json --kind images --variant infra-amd64-arm64
+          python3 "$GITHUB_WORKSPACE/scripts/ci/validation.py" seal --file .ci-artifacts/images-infra/images.tar.gz --manifest .ci-artifacts/images-infra/images.tar.gz.json --kind images --variant infra-amd64-arm64
       - name: Upload images-infra
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -507,12 +442,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - name: Prepare validation source and controls
-        uses: ./.github/actions/validation-checkout
-        with:
-          recovery-source: ${{ needs.changes.outputs.recovery_source }}
-          recovery-request: ${{ needs.changes.outputs.recovery_request }}
-          recovery-release: ${{ needs.changes.outputs.recovery_release }}
       - name: Download images-app
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
@@ -525,9 +454,9 @@ jobs:
           path: .ci-artifacts/images-infra
       - name: Load Docker images
         run: |-
-          python3 "$CI_CONTROL_ROOT/scripts/ci/validation.py" verify --file .ci-artifacts/images-app/images.tar.gz --manifest .ci-artifacts/images-app/images.tar.gz.json --kind images --variant app-amd64-arm64
+          python3 "$GITHUB_WORKSPACE/scripts/ci/validation.py" verify --file .ci-artifacts/images-app/images.tar.gz --manifest .ci-artifacts/images-app/images.tar.gz.json --kind images --variant app-amd64-arm64
           gunzip -c .ci-artifacts/images-app/images.tar.gz | docker load
-          python3 "$CI_CONTROL_ROOT/scripts/ci/validation.py" verify --file .ci-artifacts/images-infra/images.tar.gz --manifest .ci-artifacts/images-infra/images.tar.gz.json --kind images --variant infra-amd64-arm64
+          python3 "$GITHUB_WORKSPACE/scripts/ci/validation.py" verify --file .ci-artifacts/images-infra/images.tar.gz --manifest .ci-artifacts/images-infra/images.tar.gz.json --kind images --variant infra-amd64-arm64
           gunzip -c .ci-artifacts/images-infra/images.tar.gz | docker load
       - name: Enable corepack
         run: corepack enable
@@ -573,12 +502,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - name: Prepare validation source and controls
-        uses: ./.github/actions/validation-checkout
-        with:
-          recovery-source: ${{ needs.changes.outputs.recovery_source }}
-          recovery-request: ${{ needs.changes.outputs.recovery_request }}
-          recovery-release: ${{ needs.changes.outputs.recovery_release }}
       - name: Setup .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
@@ -604,7 +527,7 @@ jobs:
       - name: Merge coverage reports
         run: reportgenerator -reports:"./coverage/**/coverage.cobertura.xml" -targetdir:"./coverage/merged" -reporttypes:"Cobertura;HtmlSummary"
       - name: Enforce coverage threshold
-        run: python3 "$CI_CONTROL_ROOT/scripts/ci/coverage_gate.py" ./coverage/merged/Cobertura.xml
+        run: python3 "$GITHUB_WORKSPACE/scripts/ci/coverage_gate.py" ./coverage/merged/Cobertura.xml
       - name: Upload merged coverage report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -621,12 +544,6 @@ jobs:
           persist-credentials: false
       - name: Test current CI contracts
         run: python3 -m unittest discover -s scripts/ci -p 'test_*.py'
-      - name: Prepare validation source and controls
-        uses: ./.github/actions/validation-checkout
-        with:
-          recovery-source: ${{ needs.changes.outputs.recovery_source }}
-          recovery-request: ${{ needs.changes.outputs.recovery_request }}
-          recovery-release: ${{ needs.changes.outputs.recovery_release }}
       - name: Download verified actionlint
         run: |
           mkdir -p "$RUNNER_TEMP/actionlint"
@@ -637,17 +554,17 @@ jobs:
           echo '8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  actionlint.tar.gz' | sha256sum --check
           tar -xzf actionlint.tar.gz actionlint
       - name: Run actionlint
-        run: '"$RUNNER_TEMP/actionlint/actionlint" -color -config-file "$CI_CONTROL_ROOT/.github/actionlint.yaml"'
+        run: '"$RUNNER_TEMP/actionlint/actionlint" -color -config-file "$GITHUB_WORKSPACE/.github/actionlint.yaml"'
       - name: Install workflow policy parser
         run: python3 -m pip install --disable-pip-version-check PyYAML==6.0.3
       - name: Enforce immutable action references
-        run: python3 "$CI_CONTROL_ROOT/scripts/ci/action_policy.py"
+        run: python3 "$GITHUB_WORKSPACE/scripts/ci/action_policy.py"
       - name: Validate publication catalog
-        run: python3 "$CI_CONTROL_ROOT/scripts/ci/publication.py" catalog
+        run: python3 "$GITHUB_WORKSPACE/scripts/ci/publication.py" catalog
       - name: Validate CI policy
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
-        run: python3 "$CI_CONTROL_ROOT/scripts/ci/security.py" policy --exceptions "$CI_CONTROL_ROOT/.github/ci/security-exceptions.json"
+        run: python3 "$GITHUB_WORKSPACE/scripts/ci/security.py" policy --exceptions "$GITHUB_WORKSPACE/.github/ci/security-exceptions.json"
     needs: changes
     timeout-minutes: 10
   docs:
@@ -658,12 +575,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - name: Prepare validation source and controls
-        uses: ./.github/actions/validation-checkout
-        with:
-          recovery-source: ${{ needs.changes.outputs.recovery_source }}
-          recovery-request: ${{ needs.changes.outputs.recovery_request }}
-          recovery-release: ${{ needs.changes.outputs.recovery_release }}
       - name: Set up .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
@@ -694,7 +605,7 @@ jobs:
         run: |-
           mkdir -p .ci-artifacts/docs
           tar -czf .ci-artifacts/docs/site.tar.gz -C .docfx/_site .
-          python3 "$CI_CONTROL_ROOT/scripts/ci/validation.py" seal --file .ci-artifacts/docs/site.tar.gz --manifest .ci-artifacts/docs/site.tar.gz.json --kind docs --variant docfx
+          python3 "$GITHUB_WORKSPACE/scripts/ci/validation.py" seal --file .ci-artifacts/docs/site.tar.gz --manifest .ci-artifacts/docs/site.tar.gz.json --kind docs --variant docfx
       - name: Upload site artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -712,7 +623,7 @@ jobs:
           docker build --platform linux/arm64 -f docker/docs/Dockerfile.ci -t wallow-docs:test-arm64 .
           mkdir -p .ci-artifacts/images-docs
           docker save wallow-docs:test wallow-docs:test-arm64 | gzip > .ci-artifacts/images-docs/images.tar.gz
-          python3 "$CI_CONTROL_ROOT/scripts/ci/validation.py" seal --file .ci-artifacts/images-docs/images.tar.gz --manifest .ci-artifacts/images-docs/images.tar.gz.json --kind images --variant docs-amd64-arm64
+          python3 "$GITHUB_WORKSPACE/scripts/ci/validation.py" seal --file .ci-artifacts/images-docs/images.tar.gz --manifest .ci-artifacts/images-docs/images.tar.gz.json --kind images --variant docs-amd64-arm64
       - name: Upload images-docs
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -741,17 +652,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - name: Prepare validation source and controls
-        uses: ./.github/actions/validation-checkout
-        with:
-          recovery-source: ${{ needs.changes.outputs.recovery_source }}
-          recovery-request: ${{ needs.changes.outputs.recovery_request }}
-          recovery-release: ${{ needs.changes.outputs.recovery_release }}
       - name: Stage current OpenAPI action
         run: |
           test ! -e .ci-tools && test ! -L .ci-tools
           mkdir -p .ci-tools/validation-actions
-          cp -R "$CI_CONTROL_ROOT/.github/actions/openapi-document" .ci-tools/validation-actions/openapi-document
+          cp -R "$GITHUB_WORKSPACE/.github/actions/openapi-document" .ci-tools/validation-actions/openapi-document
       - name: Emit OpenAPI document and detect drift
         id: openapi
         uses: ./.ci-tools/validation-actions/openapi-document
@@ -761,7 +666,7 @@ jobs:
         if: steps.openapi.outputs.drift == 'true'
         env:
           DOCUMENT: ${{ steps.openapi.outputs.document }}
-        run: python3 "$CI_CONTROL_ROOT/scripts/ci/openapi_patch.py" "$DOCUMENT"
+        run: python3 "$GITHUB_WORKSPACE/scripts/ci/openapi_patch.py" "$DOCUMENT"
       - name: Upload openapi-patch
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -799,10 +704,6 @@ jobs:
     if: needs.changes.outputs.route == 'full'
     uses: ./.github/workflows/js.yml
     secrets: inherit
-    with:
-      recovery-source: ${{ needs.changes.outputs.recovery_source }}
-      recovery-request: ${{ needs.changes.outputs.recovery_request }}
-      recovery-release: ${{ needs.changes.outputs.recovery_release }}
   codeql:
     needs: changes
     if: needs.changes.outputs.route == 'full' && needs.changes.outputs.profile == 'codeql'
@@ -810,10 +711,6 @@ jobs:
     permissions:
       actions: read
       contents: read
-    with:
-      recovery-source: ${{ needs.changes.outputs.recovery_source }}
-      recovery-request: ${{ needs.changes.outputs.recovery_request }}
-      recovery-release: ${{ needs.changes.outputs.recovery_release }}
   security:
     needs:
       - changes
@@ -822,15 +719,13 @@ jobs:
       - docker-images-infra
       - docs
       - js
-    if: always() && needs.docs.result == 'success' && (needs.changes.outputs.route == 'docs' || (needs.changes.outputs.route == 'full' && needs.build.result ==
+    if:
+      always() && needs.docs.result == 'success' && (needs.changes.outputs.route == 'docs' || (needs.changes.outputs.route == 'full' && needs.build.result ==
       'success' && needs.docker-images-app.result == 'success' && needs.docker-images-infra.result == 'success' && needs.js.result == 'success'))
     uses: ./.github/workflows/security.yml
     with:
       docs-only: ${{ needs.changes.outputs.route == 'docs' }}
       profile: ${{ needs.changes.outputs.profile }}
-      recovery-source: ${{ needs.changes.outputs.recovery_source }}
-      recovery-request: ${{ needs.changes.outputs.recovery_request }}
-      recovery-release: ${{ needs.changes.outputs.recovery_release }}
   required:
     name: CI / required
     needs:
@@ -856,67 +751,17 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - name: Prepare validation source and controls
-        uses: ./.github/actions/validation-checkout
-        with:
-          recovery-source: ${{ needs.changes.outputs.recovery_source }}
-          recovery-request: ${{ needs.changes.outputs.recovery_request }}
-          recovery-release: ${{ needs.changes.outputs.recovery_release }}
       - name: Require complete validation evidence
         env:
           RESULTS: ${{ toJSON(needs) }}
           ROUTE: ${{ needs.changes.outputs.route }}
           PROFILE: ${{ needs.changes.outputs.profile }}
-        run: python3 "$CI_CONTROL_ROOT/scripts/ci/validation.py" gate --route "$ROUTE" --profile "$PROFILE" --needs-json "$RESULTS" --common
+        run:
+          python3 "$GITHUB_WORKSPACE/scripts/ci/validation.py" gate --route "$ROUTE" --profile "$PROFILE" --needs-json "$RESULTS" --common
           changes,policy,docs,security --full
           build,unit-tests,integration-tests,cross-tenant-tests,docker-images-app,docker-images-infra,e2e-tests,merge-coverage,js,openapi,codeql
-  register-publication:
-    needs:
-      - changes
-      - required
-    if: >-
-      always() && needs.changes.result == 'success' && needs.required.result == 'success' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-      && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      actions: read
-      checks: read
-      pull-requests: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-      - name: Prepare validation source and controls
-        uses: ./.github/actions/validation-checkout
-        with:
-          recovery-source: ${{ needs.changes.outputs.recovery_source }}
-          recovery-request: ${{ needs.changes.outputs.recovery_request }}
-          recovery-release: ${{ needs.changes.outputs.recovery_release }}
-      - name: Register exact validated publication inputs
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ROUTE: ${{ needs.changes.outputs.route }}
-        run: |
-          mkdir .ci-registration
-          if [[ -n "${CI_RECOVERY_SOURCE_SHA:-}" ]]; then
-            python3 "$CI_CONTROL_ROOT/scripts/ci/register_recovery.py" --output .ci-registration/registration.json
-          else
-            python3 "$CI_CONTROL_ROOT/scripts/ci/registration.py" --route "$ROUTE" --output .ci-registration/registration.json
-          fi
-          python3 "$CI_CONTROL_ROOT/scripts/ci/validation.py" seal --file .ci-registration/registration.json --manifest .ci-registration/registration.json.json --kind registration --variant publication
-      - name: Retain immutable producer registration
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: producer-registration-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .ci-registration/*
-          if-no-files-found: error
-          retention-days: 30
-          include-hidden-files: true
 defaults:
   run:
     shell: bash
 env:
   TURBO_CACHE: local:rw
-  CI_CONTROL_ROOT: ${{ github.workspace }}

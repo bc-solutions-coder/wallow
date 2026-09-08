@@ -120,11 +120,17 @@ class VerifyPackagesTests(unittest.TestCase):
         self.assertEqual(result['packages'][0]['repository']['url'], 'https://github.com/example/repo.git')
 
     def test_rejects_unsafe_missing_extra_identity_or_seal_and_cleans(self):
-        for change in ('missing', 'extra', 'traversal', 'duplicate', 'symlink', 'version', 'companion_name', 'unsafe_companion', 'seal'):
+        for change in ('missing', 'extra', 'traversal', 'duplicate', 'symlink', 'companion_name', 'unsafe_companion', 'seal'):
             plan, client, _ = self.fixture(change)
             with self.subTest(change=change), self.assertRaises(PublicationError):
                 verify_packages(client, plan, self.catalog)
             self.assertTrue(all(not path.parent.exists() for path in client.paths))
+
+    def test_candidate_version_comes_from_validated_tarball_without_registration(self):
+        plan, client, _ = self.fixture('version')
+        plan.pop('inputs')
+        result = verify_packages(client, plan, self.catalog)
+        self.assertEqual(len(result['packages']), 2)
 
     def test_docs_route_has_no_packages_and_rejects_unexpected_package_artifact(self):
         plan, client, _ = self.fixture()
@@ -135,14 +141,10 @@ class VerifyPackagesTests(unittest.TestCase):
         self.assertIsNone(verify_packages(client, plan, self.catalog))
         self.assertEqual(client.paths, [])
 
-    def test_incomplete_versions_catalog_drift_and_missing_or_duplicate_artifacts_fail_before_download(self):
-        for change in ('versions', 'catalog', 'missing', 'duplicate'):
+    def test_missing_or_duplicate_artifacts_fail_before_download(self):
+        for change in ('missing', 'duplicate'):
             plan, client, _ = self.fixture()
-            if change == 'versions':
-                del plan['inputs']['component_versions']['packages/sdk']
-            elif change == 'catalog':
-                plan['inputs']['catalog']['package_registry'] = 'https://other.example'
-            elif change == 'missing':
+            if change == 'missing':
                 plan['artifacts'] = []
             else:
                 plan['artifacts'] *= 2

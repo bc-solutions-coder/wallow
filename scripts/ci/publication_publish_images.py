@@ -16,10 +16,11 @@ from publication_artifacts import unpack_payload
 from publication_github import GitHub
 from publication_ghcr import GHCR
 from publication_image_authorization import authorize_images
-from publication_image_provenance import OCI_INDEX, main_index, nightly_action
+from publication_image_provenance import OCI_INDEX, main_index
 from publication_prepare_images import SKOPEO
 from publication_prepared_bundle import extract_prepared
 from publication_prepared_images import inspect_prepared_image
+from publication_releases import current_aliases, selected_releases
 
 
 class SkopeoRegistry:
@@ -72,10 +73,10 @@ def copy_verified_image(registry, transport, repository, local, item):
         if inspect_prepared_image(target, item['source']) != prepared:
             raise PublicationError('Registry image readback differs from original configuration or layers')
 
-def publish_images(client, plan, preparation, artifacts, catalog, username, credential, output, transport_factory=SkopeoRegistry, registry_factory=GHCR, legacy=None):
+def publish_images(client, plan, preparation, artifacts, catalog, username, credential, output, transport_factory=SkopeoRegistry, registry_factory=GHCR, release_id=None):
     progress = {'schema': 1, 'mode': 'main-images', 'producer': plan['producer'], 'controller_sha': plan['controller_sha'],
                 'preparation': asdict(preparation), 'artifacts': {key: asdict(value) for key, value in artifacts.items()}, 'images': [],
-                'release_authorized': False, 'durable_release_receipt': False}
+                'releases': []}
     output = Path(output)
 
     def record():
@@ -84,6 +85,9 @@ def publish_images(client, plan, preparation, artifacts, catalog, username, cred
     record()
     aliases = []
     source = plan['producer']['source_sha']
+    selected, history = selected_releases(client, catalog, source, release_id)
+    platform = next((release for release in selected if release['component'] == 'platform'), None)
+    progress['releases'] = selected
     with tempfile.TemporaryDirectory(prefix='wallow-image-writer-credentials-') as credentials:
         transport = None
         for bundle, artifact in artifacts.items():
@@ -114,19 +118,24 @@ def publish_images(client, plan, preparation, artifacts, catalog, username, cred
                     registry.write_manifest('sha-' + source, data, OCI_INDEX, digest)
                     if registry.read_manifest(digest) != {'digest': digest, 'media_type': OCI_INDEX, 'bytes': data}:
                         raise PublicationError('Immutable index digest readback differs from authorized bytes')
+                    if platform is not None:
+                        registry.write_manifest(platform['version'], data, OCI_INDEX, digest)
                     entry['immutable'], entry['digest'] = 'verified', digest
                     record()
                     aliases.append((registry, image['id'], data, digest, entry))
         for registry, image_id, data, digest, entry in aliases:
             previous = registry.read_manifest('nightly')
-            action = nightly_action(registry, client, previous, client.repository, image_id, source, legacy=legacy)
-            if legacy and previous and previous['digest'] == legacy.get('images', {}).get(image_id) and legacy.get('repository') == client.repository:
-                entry['legacy_cutover'] = {'previous_digest': previous['digest'], 'source_sha': legacy['source_sha'].removeprefix('git:'), 'evidence': legacy['evidence']}
-            if action == 'advance':
+            if client.get('/git/ref/heads/main')['object']['sha'] == source:
                 registry.replace_nightly(data, digest, previous)
                 entry['nightly'] = 'verified'
             else:
-                entry['nightly'] = action
+                entry['nightly'] = 'skip-older'
+            entry['aliases'] = {}
+            if platform is not None:
+                for alias in current_aliases(platform, history, 'image'):
+                    observed = registry.read_manifest(alias)
+                    registry.replace_release_alias(alias, data, digest, observed)
+                    entry['aliases'][alias] = 'verified'
             record()
     return progress
 
@@ -136,6 +145,7 @@ def main():
     parser.add_argument('--producer-run', required=True)
     parser.add_argument('--producer-attempt', required=True)
     parser.add_argument('--output', required=True)
+    parser.add_argument('--release-id', type=int)
     args = parser.parse_args()
     if os.environ.get('ENABLE_IMAGE_PUBLISH') != 'true':
         parser.exit(1, 'Image publication requires the literal ENABLE_IMAGE_PUBLISH=true.\n')
@@ -147,15 +157,9 @@ def main():
         client = GitHub(context['repository'], os.environ.get('GH_TOKEN'))
         plan, preparation, artifacts, evidence = authorize_images(client, context, *map(int, values))
         catalog = load_catalog(Path(__file__).resolve().parents[2])
-        if catalog != plan['inputs']['catalog']:
-            raise PublicationError('Current catalog differs from authorized prepared inputs')
         Path(args.output).parent.mkdir()
         Path(args.output).with_name('authorization.json').write_text(json.dumps(evidence, indent=2) + '\n')
-        legacy_path = Path(__file__).resolve().parents[2] / '.github/ci/legacy-nightly.json'
-        legacy = json.loads(legacy_path.read_text()) if legacy_path.is_file() else None
-        if legacy is not None and not isinstance(legacy, dict):
-            raise PublicationError('Legacy nightly cutover snapshot must be an object')
-        publish_images(client, plan, preparation, artifacts, catalog, os.environ.get('GITHUB_ACTOR'), os.environ.get('GH_TOKEN'), Path(args.output), legacy=legacy)
+        publish_images(client, plan, preparation, artifacts, catalog, os.environ.get('GITHUB_ACTOR'), os.environ.get('GH_TOKEN'), Path(args.output), release_id=args.release_id)
     except (ValueError, OSError) as error:
         parser.exit(1, f'Image publication failed: {error}\n')
 

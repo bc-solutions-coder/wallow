@@ -10,15 +10,6 @@ on:
         type: string
         required: true
 
-      recovery-source:
-        type: string
-        default: ''
-      recovery-request:
-        type: string
-        default: ''
-      recovery-release:
-        type: string
-        default: ''
 permissions:
   contents: read
 
@@ -30,12 +21,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - name: Prepare validation source and controls
-        uses: ./.github/actions/validation-checkout
-        with:
-          recovery-source: ${{ inputs.recovery-source }}
-          recovery-request: ${{ inputs.recovery-request }}
-          recovery-release: ${{ inputs.recovery-release }}
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           dotnet-version: "10.0.x"
@@ -64,32 +49,17 @@ jobs:
           PY
       - name: Install pinned scanners and obtain vulnerability database
         id: tools
-        run: bash "$CI_CONTROL_ROOT/scripts/ci/run-security.sh" install
+        run: bash "$GITHUB_WORKSPACE/scripts/ci/run-security.sh" install
       - name: Analyze source with bundled DevSkim rules
         if: ${{ !cancelled() && steps.tools.outcome == 'success' && !inputs.docs-only }}
-        run: bash "$CI_CONTROL_ROOT/scripts/ci/run-security.sh" devskim
+        run: bash "$GITHUB_WORKSPACE/scripts/ci/run-security.sh" devskim
       - name: Analyze workflows offline
         if: ${{ !cancelled() && steps.tools.outcome == 'success' && !inputs.docs-only }}
-        run: bash "$CI_CONTROL_ROOT/scripts/ci/run-security.sh" zizmor
+        run: bash "$GITHUB_WORKSPACE/scripts/ci/run-security.sh" zizmor
       - name: Scan resolved dependencies including build dependencies
         id: dependencies
         if: ${{ !cancelled() && steps.tools.outcome == 'success' && !inputs.docs-only }}
-        run: bash "$CI_CONTROL_ROOT/scripts/ci/run-security.sh" dependencies
-      - name: Seal resolved dependency inputs for later policy scans
-        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
-        run: |
-          mkdir -p .ci-artifacts/dependency-inputs
-          cp .ci-reports/security/dependency-inventory.json .ci-tools/dependencies/inventory.json
-          tar --format=ustar -czf .ci-artifacts/dependency-inputs/dependencies.tar.gz -C .ci-tools/dependencies .
-          python3 "$CI_CONTROL_ROOT/scripts/ci/validation.py" seal --file .ci-artifacts/dependency-inputs/dependencies.tar.gz --manifest .ci-artifacts/dependency-inputs/dependencies.tar.gz.json --kind dependencies --variant resolved-locks
-      - name: Retain exact resolved dependency inputs
-        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: dependency-inputs-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .ci-artifacts/dependency-inputs/*
-          if-no-files-found: error
-          retention-days: 30
+        run: bash "$GITHUB_WORKSPACE/scripts/ci/run-security.sh" dependencies
       - name: Download exact application images
         id: app
         if: ${{ !cancelled() && steps.tools.outcome == 'success' && !inputs.docs-only }}
@@ -99,7 +69,7 @@ jobs:
           path: .ci-artifacts/images-app
       - name: Scan each application platform image
         if: ${{ !cancelled() && steps.app.outcome == 'success' }}
-        run: bash "$CI_CONTROL_ROOT/scripts/ci/run-security.sh" images app
+        run: bash "$GITHUB_WORKSPACE/scripts/ci/run-security.sh" images app
       - name: Download exact infrastructure images
         id: infra
         if: ${{ !cancelled() && steps.tools.outcome == 'success' && !inputs.docs-only }}
@@ -109,7 +79,7 @@ jobs:
           path: .ci-artifacts/images-infra
       - name: Scan each infrastructure platform image
         if: ${{ !cancelled() && steps.infra.outcome == 'success' }}
-        run: bash "$CI_CONTROL_ROOT/scripts/ci/run-security.sh" images infra
+        run: bash "$GITHUB_WORKSPACE/scripts/ci/run-security.sh" images infra
       - name: Download exact docs images
         id: docs
         if: ${{ !cancelled() && steps.tools.outcome == 'success' }}
@@ -119,7 +89,7 @@ jobs:
           path: .ci-artifacts/images-docs
       - name: Scan each docs platform image
         if: ${{ !cancelled() && steps.docs.outcome == 'success' }}
-        run: bash "$CI_CONTROL_ROOT/scripts/ci/run-security.sh" images docs
+        run: bash "$GITHUB_WORKSPACE/scripts/ci/run-security.sh" images docs
       - name: Retain security findings, identities and coverage
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -128,5 +98,3 @@ jobs:
           path: .ci-reports/security
           if-no-files-found: error
           retention-days: 30
-env:
-  CI_CONTROL_ROOT: ${{ github.workspace }}

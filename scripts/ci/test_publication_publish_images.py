@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import tarfile
 import unittest
+from unittest.mock import patch
 import zipfile
 
 from publication import Producer, PublicationError
@@ -55,10 +56,11 @@ class WriterTests(unittest.TestCase):
         return destination
 
     def get(self, path):
-        if self.comparison:
-            return self.comparison
-        base = path.split('/compare/')[1].split('...')[0]
-        return {'status': 'identical', 'base_commit': {'sha': base}, 'merge_base_commit': {'sha': base}}
+        if path.startswith('/releases?'):
+            return []
+        if path == '/git/ref/heads/main':
+            return {'object': {'sha': 'f' * 40 if self.comparison else 'a' * 40}}
+        raise AssertionError(path)
 
     def main_comparison(self, sha):
         return {'status': 'ahead', 'base_commit': {'sha': sha}, 'merge_base_commit': {'sha': sha}}
@@ -101,6 +103,30 @@ class WriterTests(unittest.TestCase):
         self.manifests['nightly'] = {'digest': digest, 'media_type': OCI_INDEX, 'bytes': data}
         self.events.append('nightly')
 
+    def replace_release_alias(self, reference, data, digest, previous):
+        self.assertEqual(self.manifests.get(reference), previous)
+        self.manifests[reference] = {'digest': digest, 'media_type': OCI_INDEX, 'bytes': data}
+
+    def test_release_tags_share_exact_index_and_old_release_cannot_move_latest(self):
+        release = {'id': 1, 'component': 'platform', 'version': '6.0.0', 'prerelease': False}
+        with patch('publication_publish_images.selected_releases', return_value=([release], [release])):
+            self.publish()
+        expected = self.manifests['sha-' + 'a' * 40]
+        for tag in ('6.0.0', 'latest', '6', '6.0'):
+            self.assertEqual(self.manifests[tag], expected)
+        self.manifests['latest'] = {'digest': 'newer'}
+        with patch('publication_publish_images.selected_releases', return_value=([release], [release, release | {'version': '7.0.0'}])):
+            self.publish()
+        self.assertEqual(self.manifests['latest'], {'digest': 'newer'})
+
+    def test_conflicting_release_version_is_not_overwritten(self):
+        release = {'id': 1, 'component': 'platform', 'version': '6.0.0', 'prerelease': False}
+        self.manifests['6.0.0'] = {'digest': 'different'}
+        with patch('publication_publish_images.selected_releases', return_value=([release], [release])), self.assertRaises(PublicationError):
+            self.publish()
+        self.assertEqual(self.manifests['6.0.0'], {'digest': 'different'})
+        self.assertNotIn('latest', self.manifests)
+
     def publish(self):
         return publish_images(self, self.plan, self.preparation, self.artifacts, self.catalog, 'example', 'job-credential', self.root / 'progress.json', self.transport, self.registry)
 
@@ -130,13 +156,10 @@ class WriterTests(unittest.TestCase):
         self.assertEqual(self.manifests['nightly'], previous)
         self.assertNotIn('nightly', self.events)
 
-    def test_unknown_alias_blocks_after_immutable_without_overwriting_alias(self):
-        previous = {'digest': 'sha256:' + 'f' * 64, 'media_type': OCI_INDEX, 'bytes': b'{}'}
-        self.manifests['nightly'] = previous
-        with self.assertRaises(PublicationError):
-            self.publish()
-        self.assertIn('sha-' + 'a' * 40, self.manifests)
-        self.assertEqual(self.manifests['nightly'], previous)
+    def test_current_main_replaces_legacy_nightly_without_receipts(self):
+        self.manifests['nightly'] = {'digest': 'sha256:' + 'f' * 64, 'media_type': OCI_INDEX, 'bytes': b'{}'}
+        self.publish()
+        self.assertEqual(self.manifests['nightly'], self.manifests['sha-' + 'a' * 40])
 
     def test_unsafe_extra_or_changed_prepared_files_fail_before_registry_credentials(self):
         payload = self.root / 'prepared/docs/images.tar'
@@ -174,6 +197,5 @@ class WriterTests(unittest.TestCase):
             self.publish()
         progress = json.loads((self.root / 'progress.json').read_text())
         self.assertEqual(progress['images'][0]['immutable'], 'pending')
-        self.assertFalse(progress['release_authorized'])
         self.assertNotIn('nightly', self.manifests)
         self.assertTrue(all(not path.parent.exists() for path in self.downloads + self.credentials))

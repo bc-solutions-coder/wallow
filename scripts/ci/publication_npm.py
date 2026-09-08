@@ -67,6 +67,19 @@ class PackageRegistry:
             raise PublicationError('Dependency registry version list is malformed or unbounded')
         return data
 
+    def satisfies(self, name, requirement):
+        if not matches(r'@[a-z0-9][a-z0-9-]*/[a-z0-9][a-z0-9_.-]*', name) or name.split('/')[0] != self.scope:
+            raise PublicationError('Dependency belongs to another package scope')
+        if not isinstance(requirement, str) or not requirement or any(marker in requirement for marker in (':', '/', '\\', '\n', '\r')):
+            raise PublicationError('Dependency must use a registry version requirement')
+        code, data = self.command(['view', name + '@' + requirement, 'version'])
+        if code != 0:
+            if isinstance(data, dict) and data.get('error', {}).get('code') == 'E404':
+                return False
+            raise PublicationError('Dependency version could not be resolved')
+        versions = data if isinstance(data, list) else [data]
+        return bool(versions) and all(isinstance(version, str) and matches(r'[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?', version) for version in versions)
+
     def read(self, package):
         if package.name.split('/')[0] != self.scope:
             raise PublicationError('Package registry lookup belongs to another owner scope')
