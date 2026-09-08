@@ -56,7 +56,7 @@ class VerifySiteTests(unittest.TestCase):
         self.assertEqual(result['files'], [{'path': 'index.html', 'size': 9,
                                           'sha256': hashlib.sha256(b'validated').hexdigest()}])
         with tarfile.open(self.destination / 'artifact.tar') as archive:
-            self.assertEqual(archive.extractfile('index.html').read(), b'validated')
+            self.assertEqual(archive.extractfile('./index.html').read(), b'validated')
         self.assertTrue(all(not path.parent.exists() for path in self.downloads))
 
     def test_wrong_seal_or_unsafe_site_leaves_no_prepared_archive(self):

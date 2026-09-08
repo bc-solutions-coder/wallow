@@ -34,9 +34,12 @@ class SiteTests(unittest.TestCase):
         result = prepare_site(self.source, self.destination)
         self.assertEqual(result['sha256'], hashlib.sha256(self.destination.read_bytes()).hexdigest())
         with tarfile.open(self.destination) as archive:
-            self.assertEqual(archive.extractfile('index.html').read(), b'<html>validated</html>')
-            self.assertEqual(archive.extractfile(long_name).read(), b'long file')
-            self.assertTrue(all(member.mode == 0o644 and member.uid == 0 for member in archive))
+            self.assertEqual(archive.extractfile('./index.html').read(), b'<html>validated</html>')
+            self.assertEqual(archive.extractfile('./' + long_name).read(), b'long file')
+            self.assertTrue(all(member.mode == (0o755 if member.isdir() else 0o644) and member.uid == 0 for member in archive))
+            names = archive.getnames()
+            self.assertLess(names.index('./api'), names.index('./' + long_name))
+            self.assertTrue(archive.getmember('.').isdir())
 
     def test_unsafe_names_links_duplicates_and_file_parents_are_rejected(self):
         cases = [('../escape', tarfile.REGTYPE), ('/absolute', tarfile.REGTYPE),

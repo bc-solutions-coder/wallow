@@ -58,10 +58,21 @@ def prepare_site(source, destination, limit=1024 * 1024 * 1024):
             with destination.open('xb') as target:
                 created = True
                 with tarfile.open(fileobj=target, mode='w', format=tarfile.GNU_FORMAT) as prepared:
+                    directories = {'.'}
+                    for name, member in entries.items():
+                        if member.isdir():
+                            directories.add(name)
+                        parts = name.split('/')
+                        directories.update('/'.join(parts[:length]) for length in range(1, len(parts)))
+                    for name in sorted(directories, key=lambda name: (name.count('/'), name)):
+                        directory = tarfile.TarInfo('./' if name == '.' else './' + name + '/')
+                        directory.type = tarfile.DIRTYPE
+                        directory.mode = 0o755
+                        prepared.addfile(directory)
                     for name, member in sorted(entries.items()):
                         if member.isdir():
                             continue
-                        clean = tarfile.TarInfo(name)
+                        clean = tarfile.TarInfo('./' + name)
                         clean.size = member.size
                         clean.mode = 0o644
                         with archive.extractfile(member) as contents:
