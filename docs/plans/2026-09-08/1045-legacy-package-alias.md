@@ -30,4 +30,8 @@ Run the original API Errors producer 34200366770/1 against release 384544937 on 
 
 ## 4. Retire the migration
 
+Hosted cutover 34223437387 passed on controller 8e4308dd23784aa8966e3d2777dc4a562d06bd3a. Release receipt asset 550447037 records verified `latest`, `major-2`, and `minor-2.0` outcomes for exact API Errors 2.0.0 bytes. The original immutable package receipt remains unchanged. Evidence: issue #283, comment 5585444013.
+
+This cleanup removes the consumed configuration and its exact-file DevSkim exception. Identical retry 34228552152 is still pending; merge the cleanup only after successful retry proof. Keep this plan active until hosted normal-path validation passes without the migration configuration.
+
 Remove the consumed migration entry after hosted cutover and retry proof, retaining historical evidence in the ticket. Keep unknown aliases rejected. Mark this plan completed only after the migrated aliases pass normal validation without the entry. Continue the broader image, Pages, recovery, and cache acceptance work tracked by #283.

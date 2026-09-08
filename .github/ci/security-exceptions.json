@@ -112,16 +112,6 @@
       "tracking": "https://github.com/bc-solutions-coder/wallow/issues/283",
       "created": "2026-09-08T00:02:03Z",
       "expires": "2026-10-08T00:02:03Z"
-    },
-    {
-      "scanner": "devskim",
-      "id": "DS173237",
-      "scope": ".github/ci/legacy-package-aliases.json",
-      "owner": "bc-solutions-coder",
-      "reason": "The two commit_sha values are public Git commit identifiers for legacy API Errors 1.0.0 and authenticated 2.0.0, not tokens or keys. This exact migration file contains no credentials; remove this exception when the consumed migration entry is retired.",
-      "tracking": "https://github.com/bc-solutions-coder/wallow/issues/283",
-      "created": "2026-09-08T11:33:00Z",
-      "expires": "2026-10-08T00:00:00Z"
     }
   ]
 }
