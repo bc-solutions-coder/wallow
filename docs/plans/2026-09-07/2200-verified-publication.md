@@ -123,3 +123,20 @@ registry compare-and-swap against external writers. No workflow uses this transp
 All 96 CI helper tests pass, including real HTTP fixtures for missing/identical/conflicting
 manifests, scoped authentication, redirects, malformed and oversized responses, failed
 writes, readback mismatch, and sanitized failures. Hosted GHCR acceptance remains open.
+
+## Reviewed workflow trigger finding
+
+The private CI security run `34170378504` reported Zizmor `dangerous-triggers` for the
+publication workflow's intentional `workflow_run` trigger. The exception is restricted
+to that audit, exact workflow path, and the SHA-256 of Zizmor's primary concrete trigger
+feature. It expires after 30 days and tracks issue #283. The digest uses an explicit
+`sha256:` prefix. A changed trigger block or absent/ambiguous primary feature cannot
+inherit this exception; other scanner exception matching remains unchanged in this slice.
+
+The rationale is the reviewed protected-controller checkout, API-bound successful main
+producer and exact artifact identity, read-only permissions, and archive inspection
+without producer execution or a production environment. The finding remains present with
+its applied exception in the retained gate report. Replaying the actual private report
+applies exactly one exception; adding another trigger to its feature makes it blocking
+again. Behavior tests also cover changed path/audit, missing feature/selectors, expiry,
+duplicate exceptions, and primary-location selection. All 98 helper tests pass.
