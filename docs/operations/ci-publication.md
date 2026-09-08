@@ -7,7 +7,7 @@ The publication migration remains in progress in [issue #283](https://github.com
 Keep each production publisher disabled until its acceptance and first-target cutover checks pass.
 Images publish immutable full-SHA tags and `nightly`. Authenticated releases also have an immutable version-image path with separate durable receipts; hosted acceptance of that path remains pending.
 Packages currently publish immutable versions with a `validated-<hash>` staging tag.
-Stable release alias promotion is implemented behind the same capability flags; hosted acceptance remains pending. Historical artifact recovery is implemented on the recovery branch; merge and hosted acceptance remain pending.
+Stable release alias promotion is implemented behind the same capability flags; hosted acceptance remains pending. Historical artifact recovery is merged in PR #293. Hosted rejection checks pass; successful recovery and publication acceptance remain pending.
 
 ## Configure validation
 
@@ -136,7 +136,7 @@ Historical recovery requires an existing authenticated release origin and origin
 
 ## Recover expired release artifacts
 
-This flow is implemented on the recovery branch and still awaits merge and hosted acceptance in issue #283. Use it only after that controller is available on `main`.
+This flow is available on `main` through PR #293. Hosted runs reject a mismatched release source, a release without authenticated origin evidence, and a dispatch from a non-main branch. Successful historical validation, receipt recording, and recovered publication still await acceptance in issue #283.
 
 First dispatch current CI with the exact commit named by the release tag and its numeric release ID:
 
