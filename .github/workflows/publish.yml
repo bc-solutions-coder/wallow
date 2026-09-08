@@ -116,6 +116,7 @@ jobs:
     needs: authorize
     if: needs.authorize.outputs.current == 'true' && vars.ENABLE_RELEASE_AUTOMATION == 'true'
     uses: ./.github/workflows/release-please.yml
+    secrets: inherit
     permissions:
       contents: read
     with:
