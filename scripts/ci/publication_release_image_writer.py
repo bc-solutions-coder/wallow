@@ -85,11 +85,11 @@ def writer_progress(client, invocation, release_id):
     return document, {'frame': invocation, 'artifact': asdict(selected), 'sha256': 'sha256:' + hashlib.sha256(body).hexdigest()}
 
 
-def finalize(client, context, producer_run, producer_attempt, run_id, attempt, release_id, catalog, root, explicit=None):
+def finalize(client, context, producer_run, producer_attempt, run_id, attempt, release_id, catalog, root, explicit=None, *, recovery=None):
     current = frame(client, context, run_id, attempt, job_name(RECEIPT_JOB, release_id))
     writer, _ = frame(client, context, run_id, attempt, job_name(WRITER_JOB, release_id), 'success')
     document, reference = writer_progress(client, writer, release_id)
-    plan, _, _, _ = authorize_prepared(client, context, producer_run, producer_attempt, run_id, attempt, release_id, catalog, root, explicit)
+    plan, _, _, _ = authorize_prepared(client, context, producer_run, producer_attempt, run_id, attempt, release_id, catalog, root, explicit, recovery=recovery)
     identity = {key: plan['authority'][key] for key in ('release', 'origin', 'selection')}
     images = expected_images(plan, catalog, client.repository)
     if document.get('authority') != identity or sorted(document['images'], key=lambda item: item['image']) != sorted(images, key=lambda item: item['image']):

@@ -10,6 +10,7 @@ from publication import PublicationError, positive_integer
 from publication_artifacts import select_artifact, unpack_payload
 from publication_image_authorization import image_environment
 from publication_plan import resolve
+from publication_selection import resolve_selection
 from publication_preparation_authorization import authorize_preparation
 from publication_release_authorization import release_identity
 from publication_release_candidates import authorized_selection
@@ -32,7 +33,13 @@ def policy_digest(root):
     return 'sha256:' + hashlib.sha256((Path(root) / '.github/ci/security-exceptions.json').read_bytes()).hexdigest()
 
 
-def release_authority(client, context, catalog, release_id, explicit=None):
+def recovery_request(context, release_id, explicit, recovery):
+    if recovery is not None and (not isinstance(recovery, dict) or set(recovery) != {'release_id', 'run_id', 'run_attempt'} or not all(positive_integer(value) for value in recovery.values()) or recovery['release_id'] != release_id or not isinstance(context, dict) or context.get('event_name') != 'workflow_dispatch' or not isinstance(explicit, tuple) or len(explicit) != 2 or not all(positive_integer(value) for value in explicit)):
+        raise PublicationError('Image recovery requires an exact manual target and original producer selection')
+
+
+def release_authority(client, context, catalog, release_id, explicit=None, *, recovery=None):
+    recovery_request(context, release_id, explicit, recovery)
     client.controller(context)
     image_environment(client)
     job_name(PREPARE_JOB, release_id)
@@ -47,14 +54,21 @@ def release_authority(client, context, catalog, release_id, explicit=None):
         raise PublicationError('Image release is pending its durable origin or selected producer')
     pinned = authorized_selection(client, release, origin, selection, explicit)
     producer = pinned['producer']
-    plan = resolve(client, context, producer['run_id'], producer['run_attempt'])
-    if validate_candidate(plan, release, catalog) != pinned or plan['route'] != 'full':
+    if recovery is None:
+        plan = resolve(client, context, producer['run_id'], producer['run_attempt'])
+        selected = validate_candidate(plan, release, catalog)
+    else:
+        plan = resolve_selection(client, context, producer['run_id'], producer['run_attempt'], catalog, recovery=recovery)
+        validate_candidate(plan, release, catalog)
+        selected = plan.get('recovery', {}).get('original')
+    if selected != pinned or plan['route'] != 'full':
         raise PublicationError('Image release differs from its selected complete producer')
     return {'release': release, 'origin': {'asset_id': origin['asset_id'], 'sha256': origin['sha256']},
             'selection': {'asset_id': selection['asset_id'], 'sha256': selection['sha256']}, 'plan': plan}
 
 
-def discover(client, context, catalog, release_id=None, explicit=None):
+def discover(client, context, catalog, release_id=None, explicit=None, *, recovery=None):
+    recovery_request(context, release_id, explicit, recovery)
     client.controller(context)
     if release_id is not None and context.get('event_name') != 'workflow_dispatch':
         raise PublicationError('Explicit image release selection requires a protected manual retry')
@@ -94,7 +108,7 @@ def discover(client, context, catalog, release_id=None, explicit=None):
             if payload.get('release') != release or payload.get('origin') != {'asset_id': origin['asset_id'], 'sha256': origin['sha256']} or payload.get('selection') != {'asset_id': selection['asset_id'], 'sha256': selection['sha256']}:
                 raise PublicationError('Completed image receipt conflicts with its live release')
             continue
-        release_authority(client, context, catalog, release['id'], explicit if release_id else None)
+        release_authority(client, context, catalog, release['id'], explicit if release_id else None, recovery=recovery)
         selected.append(release['id'])
     if len(selected) > 100:
         raise PublicationError('Pending image release matrix exceeds its bounded limit')
@@ -103,8 +117,9 @@ def discover(client, context, catalog, release_id=None, explicit=None):
     return {'include': [{'release_id': value} for value in sorted(selected)]}, pending
 
 
-def authorize_prepared(client, context, producer_run, producer_attempt, run_id, attempt, release_id, catalog, root, explicit=None):
-    _, preparation, artifacts, _ = authorize_preparation(client, context, producer_run, producer_attempt, run_id, attempt)
+def authorize_prepared(client, context, producer_run, producer_attempt, run_id, attempt, release_id, catalog, root, explicit=None, *, recovery=None):
+    recovery_request(context, release_id, explicit, recovery)
+    _, preparation, artifacts, _ = authorize_preparation(client, context, producer_run, producer_attempt, run_id, attempt, recovery=recovery, catalog=catalog)
     invocation, _ = frame(client, context, run_id, attempt, job_name(PREPARE_JOB, release_id), 'success')
     selected = select_artifact(artifacts, preparation, f'release-image-plan-{release_id}')
     if selected.size > 17 * 1024 * 1024:
@@ -114,7 +129,7 @@ def authorize_prepared(client, context, producer_run, producer_attempt, run_id, 
         archive = client.download(selected, temporary / 'plan.zip')
         path = unpack_payload(archive, temporary / 'verified', selected, preparation, 'plan.json', 'release-image-plan', str(release_id), 16 * 1024 * 1024)
         plan = json.loads(path.read_text())
-    authority = release_authority(client, context, catalog, release_id, explicit)
+    authority = release_authority(client, context, catalog, release_id, explicit, recovery=recovery)
     if not isinstance(plan, dict) or plan.get('schema') != 1 or plan.get('invocation') != invocation or plan.get('authority') != authority or plan.get('policy_sha256') != policy_digest(root) or plan.get('publication_authorized') is not False:
         raise PublicationError('Release image preparation differs from current exact authority or policy')
     source = plan.get('source', {})

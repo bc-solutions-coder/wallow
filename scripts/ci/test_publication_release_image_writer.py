@@ -85,11 +85,13 @@ class ReleaseImageTests(unittest.TestCase):
         retained = []
         with patch('publication_release_image_writer.frame', return_value=({'job_id': 20}, {})), \
              patch('publication_release_image_writer.writer_progress', side_effect=[(document, new_reference), (document, old_reference)]) as evidence, \
-             patch('publication_release_image_writer.authorize_prepared', return_value=(self.plan, None, None, None)), \
+             patch('publication_release_image_writer.authorize_prepared', return_value=(self.plan, None, None, None)) as authorization, \
              patch('publication_release_image_writer.inspect_receipt', return_value=previous), \
              patch('publication_release_image_writer.verify_frame'), patch('publication_release_image_writer.endorsed', return_value=False), \
              patch('publication_release_image_writer.retain', side_effect=lambda client, release_id, name, value, current: retained.append(value) or {'asset_id': 99, 'sha256': 'sha256:' + '3' * 64}):
-            result = finalize(self.fixture, {}, 1, 1, 30, 1, 5, self.fixture.catalog, self.fixture.root)
+            recovery = {'release_id': 5, 'run_id': 70, 'run_attempt': 2}
+            result = finalize(self.fixture, {}, 1, 1, 30, 1, 5, self.fixture.catalog, self.fixture.root, (1, 1), recovery=recovery)
+        self.assertEqual(authorization.call_args.kwargs, {'recovery': recovery})
         self.assertEqual(evidence.call_count, 2)
         self.assertEqual(retained, [payload])
         self.assertEqual(result['asset_id'], 99)
