@@ -9,7 +9,7 @@ from publication_artifacts import Artifact, unpack_payload
 from publication_images import inspect_images
 
 
-def verify_images(client, plan, catalog):
+def verify_images(client, plan, catalog, prepare=None):
     """Inputs are the resolved API-authorized plan and the trusted loaded catalog."""
     if json.dumps(catalog, sort_keys=True) != json.dumps(plan['inputs']['catalog'], sort_keys=True):
         raise PublicationError('Registered publication catalog differs from the controller catalog')
@@ -41,4 +41,6 @@ def verify_images(client, plan, catalog):
             payload = unpack_payload(archive, root / 'verified', artifact, producer, item['payload'], 'images', item['variant'], 8 * 1024**3)
             inspected = inspect_images(payload, expected | companions)
             verified[bundle] = {'artifact_id': artifact.id, 'images': {tag: inspected[tag] for tag in expected}}
+            if prepare is not None:
+                verified[bundle]['prepared'] = prepare(bundle, payload, verified[bundle]['images'])
     return verified

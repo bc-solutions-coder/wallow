@@ -13,6 +13,7 @@ from publication_github import GitHub
 from publication_verify_images import verify_images
 from publication_verify_packages import verify_packages
 from publication_verify_dependencies import verify_dependencies
+from publication_prepare_images import ImagePreparation
 
 
 def candidate_artifacts(producer, jobs, artifacts):
@@ -69,12 +70,18 @@ def main():
         client = GitHub(context['repository'], os.environ.get('GH_TOKEN'))
         plan = resolve(client, context, int(args.run_id), int(args.attempt))
         catalog = load_catalog(Path(__file__).resolve().parents[2])
-        plan['verified_images'] = verify_images(client, plan, catalog)
         plan['verified_packages'] = verify_packages(client, plan, catalog)
-        plan['verified_dependencies'] = verify_dependencies(client, plan, Path(args.output).parent / 'dependency-scan')
+        reports = Path(args.output).parent
+        plan['verified_dependencies'] = verify_dependencies(client, plan, reports / 'dependency-scan')
+        database = reports / 'dependency-scan/trivy-database.json' if plan['verified_dependencies'] else None
+        preparation = ImagePreparation(plan, catalog, '.ci-prepared', reports / 'image-scan', database=database)
+        plan['verified_images'] = verify_images(client, plan, catalog, prepare=preparation)
         with Path(args.output).open('x') as output:
             json.dump(plan, output, indent=2)
             output.write('\n')
+        if os.environ.get('GITHUB_OUTPUT'):
+            with Path(os.environ['GITHUB_OUTPUT']).open('a') as output:
+                output.write('route=' + plan['route'] + '\n')
     except (PublicationError, OSError) as error:
         parser.exit(1, f'Publication authorization failed: {error}\n')
     print(f"Authorized {plan['route']} producer {plan['producer']['source_sha']} run {args.run_id}, attempt {args.attempt}; controller {plan['controller_sha']}.")

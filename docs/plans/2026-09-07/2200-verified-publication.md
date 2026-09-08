@@ -260,3 +260,56 @@ Repacking the real local export proof with this format passes archive and pnpm i
 checks, then correctly fails inventory: it contains only 55 NuGet locks. This is format
 and rejection evidence, not complete producer acceptance. Replay of the complete Linux
 producer artifact and hosted fresh-scan acceptance remain pending.
+
+## Complete image preparation wiring
+
+The read-only controller now prepares every publishable catalog image/platform inside
+its existing verified bundle loop. It downloads each source bundle once, checks the
+validation-only companion, and excludes the companion from preparation. Full routes
+prepare application, infrastructure and documentation images; docs routes prepare docs.
+No application image is loaded or executed, and no registry write credentials are used.
+
+Skopeo 1.22.2 uses the previously proved immutable
+`quay.io/skopeo/stable@sha256:e5d9c4af8ec327785c7ca938d1e4f8452c6a05014850e58e2ff9456899ebd97c`.
+The fixed conversion runs with no network, a read-only container filesystem, no Linux
+capabilities and only dedicated input/output/scratch mounts. It writes Docker v2
+compressed directories using the official
+[copy format and compression options](https://github.com/podman-container-tools/skopeo/blob/v1.22.2/docs/skopeo-copy.1.md).
+Configuration digests and every compressed/decompressed layer are checked before and
+after scanning. The regular-file scan archive serializer binds Trivy's input to those
+exact source bytes. Image reports must match ImageID, DiffIDs, configuration platform
+and the exact catalog tag; package coverage and the current protected policy gate remain
+mandatory. Finding scopes use the producer's `tag::target::package@version` convention,
+normalizing the temporary scan archive path to the original tag. Image scans use `--skip-db-update` against the dependency scan's freshly
+captured database; docs routes initialize that database once themselves.
+
+Each bundle produces a sealed USTAR artifact containing only referenced blobs, exact
+manifests, both-platform indexes and inventory. The inventory binds the source artifact,
+producer, authorized controller, current preparation run/attempt, catalog digest, source
+and prepared identities, index digests and report hashes. The seal's revision must equal
+the authorized controller. Prepared artifacts and diagnostic reports are uploaded
+separately; failed preparation leaves no successful partial bundle. Artifact names include
+the preparation run and attempt. These records explicitly do not authorize publication.
+The authorize timeout is 90 minutes for sequential preparation of all sixteen variants.
+
+Local actual Garage and Postgres Replica exports passed all four infrastructure variants
+through the new conversion, scanner and serializer. The resulting 304,076,800-byte TAR
+has digest `sha256:4b8e8c77fa03e3d0837151456333860a742a03425a0a30711edd5ae853dc6719`.
+Evidence is `/tmp/wallow-real-image-preparation-evidence.json`. This replay used the pinned
+Trivy 0.74.0 container as a macOS runner adapter and the prior proof's captured database;
+its invocation seal is synthetic. It proves local conversion/scanning/serialization, not
+API authorization or hosted acceptance of all sixteen variants. The real CLI also caught
+and removed an unsupported filesystem-only scanner option before handoff.
+
+Hosted dependency acceptance now passes independently: private Publish run `34175645116`
+consumed exact producer run `34173777794`, attempt 1, with all 56 NuGet locks and pnpm.
+The refreshed Trivy database yielded one MEDIUM finding and zero blockers; see
+[dependency evidence](https://github.com/bc-solutions-coder/wallow/issues/283#issuecomment-5577557590).
+The disabled Release Please job skipped, and an independently enabled fixture without a
+token failed before the official action, with its opt-in removed afterward; see
+[release boundary evidence](https://github.com/bc-solutions-coder/wallow/issues/283#issuecomment-5577570079).
+
+Independent review approved this preparation slice. All 131 helper tests pass; the four
+focused preparation tests also pass after the final scope-alignment adjustment.
+Actionlint, immutable action policy and formatting checks pass. Hosted complete image
+preparation remains the next acceptance step.

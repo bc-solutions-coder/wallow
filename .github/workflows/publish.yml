@@ -29,7 +29,7 @@ jobs:
       github.event.repository.id == github.repository_id &&
       github.event.workflow_run.head_repository.id == github.repository_id)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
     permissions:
       contents: read
       actions: read
@@ -41,6 +41,7 @@ jobs:
           ref: ${{ github.workflow_sha }}
           persist-credentials: false
       - name: Authorize producer and inspect sealed candidates
+        id: inspect
         env:
           GH_TOKEN: ${{ github.token }}
           PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
@@ -57,13 +58,41 @@ jobs:
           if-no-files-found: error
           retention-days: 30
           include-hidden-files: true
-      - name: Retain dependency scan diagnostics
+      - name: Retain dependency and image scan diagnostics
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: publication-scan-reports-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .ci-publication/dependency-scan
+          path: |
+            .ci-publication/dependency-scan
+            .ci-publication/image-scan
           if-no-files-found: ignore
+          retention-days: 30
+      - name: Retain prepared application images
+        if: steps.inspect.outputs.route == 'full'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: prepared-images-app-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-prepared/app/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+      - name: Retain prepared infrastructure images
+        if: steps.inspect.outputs.route == 'full'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: prepared-images-infra-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-prepared/infra/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+      - name: Retain prepared documentation images
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: prepared-images-docs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-prepared/docs/*
+          if-no-files-found: error
+          compression-level: 0
           retention-days: 30
   release-please:
     name: Release automation
