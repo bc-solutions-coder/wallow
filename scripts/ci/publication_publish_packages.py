@@ -62,7 +62,10 @@ def publish(client, context, producer_run, producer_attempt, run_id, attempt, ca
 
 
 def entry(candidate, readback):
-    return {key: candidate[key] for key in ('release', 'origin', 'selection')} | {'package': asdict(candidate['package']), 'readback': readback}
+    result = {key: candidate[key] for key in ('release', 'origin', 'selection')} | {'package': asdict(candidate['package']), 'readback': readback}
+    if 'recovery' in candidate:
+        result['recovery'] = candidate['recovery']
+    return result
 
 
 def main():

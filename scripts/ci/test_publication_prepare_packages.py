@@ -32,7 +32,10 @@ class PreparationTests(unittest.TestCase):
 
     def test_actual_sealed_archive_retains_only_exact_selected_package_bytes(self):
         authority, client, packed = self.authority()
+        reference = {'asset_id': 90, 'name': 'wallow-recovery-v1-70-2.json', 'sha256': 'sha256:' + 'd' * 64}
+        authority['ready'][0]['plan']['recovery'] = {'receipt': reference}
         result = prepare_packages(client, authority, self.catalog, self.root / 'prepared', self.root / 'reports', scan=self.scan)
+        self.assertEqual(result['candidates'][0]['recovery'], {'receipt': reference, 'producer': authority['ready'][0]['plan']['producer']})
         with tarfile.open(self.root / 'prepared/packages.tar') as archive:
             self.assertEqual(archive.getnames(), ['release-5.tgz'])
             self.assertEqual(archive.extractfile('release-5.tgz').read(), packed['sdk.tgz'])

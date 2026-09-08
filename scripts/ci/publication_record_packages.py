@@ -35,6 +35,8 @@ def finalize(client, context, producer_run, producer_attempt, run_id, attempt, c
         if release_id not in expected:
             raise PublicationError('Package writer recorded an unauthorized release')
         source = expected[release_id]
+        if entry.get('recovery') != source.get('recovery') or ('recovery' in entry) != ('recovery' in source):
+            raise PublicationError('Package writer recovery lineage differs from its exact prepared producer')
         if any(entry.get(key) != source[key] for key in ('release', 'origin', 'selection', 'package')):
             raise PublicationError('Package writer progress differs from its exact prepared release')
         package = package_record(entry['package'], source['package']['name'], source['release']['version'], client.repository)

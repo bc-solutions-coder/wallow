@@ -92,6 +92,9 @@ def validate_prepared(plan, authority, repository):
             raise PublicationError('Prepared package candidate has an unexpected release identity')
         seen.add(release_id)
         source = expected[release_id]
+        recovery = {'receipt': source['plan']['recovery']['receipt'], 'producer': source['plan']['producer']} if 'recovery' in source['plan'] else None
+        if item.get('recovery') != recovery or ('recovery' in item and recovery is None):
+            raise PublicationError('Prepared package recovery differs from its authenticated producer and receipt')
         for key in ('release', 'origin', 'selection'):
             if item.get(key) != source[key]:
                 raise PublicationError('Prepared package differs from its exact durable release receipt')

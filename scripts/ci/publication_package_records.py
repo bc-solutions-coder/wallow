@@ -5,6 +5,7 @@ import base64
 from publication import PublicationError, matches
 from publication_packages import Package
 from publication_release_origin import verify_frame
+from recovery_reference import verify_reference
 
 WRITER_JOB = 'Publish release packages'
 PREPARE_JOB = 'Prepare release packages'
@@ -41,11 +42,21 @@ def validate_readback(readback, package):
 
 def published_package(client, release, component, origin, selection, receipt):
     payload = receipt['record']['payload']
-    if not isinstance(payload, dict) or set(payload) != {'release', 'origin', 'selection', 'package', 'writer', 'readback'} or payload.get('release') != release or payload.get('origin') != {'asset_id': origin['asset_id'], 'sha256': origin['sha256']} or payload.get('selection') != {'asset_id': selection['asset_id'], 'sha256': selection['sha256']}:
+    expected = {'release', 'origin', 'selection', 'package', 'writer', 'readback'}
+    if not isinstance(payload, dict) or set(payload) not in (expected, expected | {'recovery'}) or payload.get('release') != release or payload.get('origin') != {'asset_id': origin['asset_id'], 'sha256': origin['sha256']} or payload.get('selection') != {'asset_id': selection['asset_id'], 'sha256': selection['sha256']}:
         raise PublicationError('Published package receipt differs from its durable release selection')
     writer = payload.get('writer', {})
     verify_frame(client, writer.get('frame'), WRITER_JOB)
     package = package_record(payload.get('package'), component['package']['name'], release['version'], client.repository)
     validate_readback(payload.get('readback'), package)
-    return {'release': release, 'package': package, 'receipt': {'asset_id': receipt['asset_id'], 'sha256': receipt['sha256']},
-            'origin': payload['origin'], 'selection': payload['selection']}
+    result = {'release': release, 'package': package, 'receipt': {'asset_id': receipt['asset_id'], 'sha256': receipt['sha256']},
+              'origin': payload['origin'], 'selection': payload['selection']}
+    if 'recovery' in payload:
+        binding = payload['recovery']
+        if not isinstance(binding, dict) or set(binding) != {'receipt', 'producer'}:
+            raise PublicationError('Published package recovery lineage is malformed')
+        recovered = verify_reference(client, binding['receipt'], release, payload['origin'], payload['selection'])
+        if binding['producer'] != recovered['record']['payload']['recovery']['producer']:
+            raise PublicationError('Published package producer differs from its durable recovery receipt')
+        result['recovery'] = binding
+    return result
