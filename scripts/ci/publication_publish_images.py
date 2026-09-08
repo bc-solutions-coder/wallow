@@ -54,6 +54,24 @@ class SkopeoRegistry:
             self.runner(['docker', 'rm', '--force', name], check=False, timeout=30, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
+
+def copy_verified_image(registry, transport, repository, local, item):
+    prepared = item['prepared']
+    data = (local / 'manifest.json').read_bytes()
+    expected = {'digest': prepared['manifest_digest'], 'media_type': 'application/vnd.docker.distribution.manifest.v2+json', 'bytes': data}
+    existing = registry.read_manifest(prepared['manifest_digest'])
+    if existing is not None and existing != expected:
+        raise PublicationError('Existing child manifest conflicts with prepared bytes')
+    if existing is None:
+        transport.copy(repository, prepared['manifest_digest'], local, True)
+    if registry.read_manifest(prepared['manifest_digest']) != expected:
+        raise PublicationError('Registry child manifest readback differs from prepared bytes')
+    with tempfile.TemporaryDirectory(prefix='wallow-image-readback-') as readback:
+        target = Path(readback)
+        transport.copy(repository, prepared['manifest_digest'], target, False)
+        if inspect_prepared_image(target, item['source']) != prepared:
+            raise PublicationError('Registry image readback differs from original configuration or layers')
+
 def publish_images(client, plan, preparation, artifacts, catalog, username, credential, output, transport_factory=SkopeoRegistry, registry_factory=GHCR, legacy=None):
     progress = {'schema': 1, 'mode': 'main-images', 'producer': plan['producer'], 'controller_sha': plan['controller_sha'],
                 'preparation': asdict(preparation), 'artifacts': {key: asdict(value) for key, value in artifacts.items()}, 'images': [],
@@ -87,20 +105,7 @@ def publish_images(client, plan, preparation, artifacts, catalog, username, cred
                     for item in images[image['id']]:
                         prepared = item['prepared']
                         local = extracted / item['directory']
-                        data = (local / 'manifest.json').read_bytes()
-                        expected = {'digest': prepared['manifest_digest'], 'media_type': 'application/vnd.docker.distribution.manifest.v2+json', 'bytes': data}
-                        existing = registry.read_manifest(prepared['manifest_digest'])
-                        if existing is not None and existing != expected:
-                            raise PublicationError('Existing child manifest conflicts with prepared bytes')
-                        if existing is None:
-                            transport.copy(repository, prepared['manifest_digest'], local, True)
-                        if registry.read_manifest(prepared['manifest_digest']) != expected:
-                            raise PublicationError('Registry child manifest readback differs from prepared bytes')
-                        with tempfile.TemporaryDirectory(prefix='wallow-image-readback-') as readback:
-                            target = Path(readback)
-                            transport.copy(repository, prepared['manifest_digest'], target, False)
-                            if inspect_prepared_image(target, item['source']) != prepared:
-                                raise PublicationError('Registry image readback differs from original configuration or layers')
+                        copy_verified_image(registry, transport, repository, local, item)
                         variants[item['platform']] = prepared
                         entry['children'].append({'platform': item['platform'], 'digest': prepared['manifest_digest'], 'readback': 'verified'})
                         record()
@@ -116,7 +121,7 @@ def publish_images(client, plan, preparation, artifacts, catalog, username, cred
             previous = registry.read_manifest('nightly')
             action = nightly_action(registry, client, previous, client.repository, image_id, source, legacy=legacy)
             if legacy and previous and previous['digest'] == legacy.get('images', {}).get(image_id) and legacy.get('repository') == client.repository:
-                entry['legacy_cutover'] = {'previous_digest': previous['digest'], 'source_sha': legacy['source_sha'].removeprefix('sha1:'), 'evidence': legacy['evidence']}
+                entry['legacy_cutover'] = {'previous_digest': previous['digest'], 'source_sha': legacy['source_sha'].removeprefix('git:'), 'evidence': legacy['evidence']}
             if action == 'advance':
                 registry.replace_nightly(data, digest, previous)
                 entry['nightly'] = 'verified'

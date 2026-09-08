@@ -429,6 +429,232 @@ jobs:
           if-no-files-found: ${{ steps.record.outcome == 'success' && 'error' || 'ignore' }}
           retention-days: 30
 
+  discover-image-releases:
+    name: Discover image releases
+    needs: [authorize, record-release-provenance]
+    if: >-
+      always() && needs.authorize.result == 'success' &&
+      (needs.record-release-provenance.result == 'success' || needs.record-release-provenance.result == 'skipped') &&
+      github.ref == 'refs/heads/main' && vars.ENABLE_IMAGE_PUBLISH == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      matrix: ${{ steps.discover.outputs.matrix }}
+      count: ${{ steps.discover.outputs.count }}
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      pull-requests: read
+    steps:
+      - name: Check out protected controller revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Discover exact authenticated pending image releases
+        id: discover
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ENABLE_IMAGE_PUBLISH: ${{ vars.ENABLE_IMAGE_PUBLISH }}
+          PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
+          PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
+          MANUAL_RELEASE_ID: ${{ inputs.release_id }}
+        run: python3 scripts/ci/publication_release_images.py discover --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --manual-release-id "$MANUAL_RELEASE_ID" --output .ci-release-image-discovery/result.json
+  prepare-release-images:
+    name: Prepare release images (${{ matrix.release_id }})
+    needs: [discover-image-releases]
+    if: >-
+      needs.discover-image-releases.outputs.count != '0' &&
+      github.ref == 'refs/heads/main' && vars.ENABLE_IMAGE_PUBLISH == 'true'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix: ${{ fromJSON(needs.discover-image-releases.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      pull-requests: read
+    steps:
+      - name: Check out protected controller revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Prepare release images from exact authenticated evidence
+        id: operation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ENABLE_IMAGE_PUBLISH: ${{ vars.ENABLE_IMAGE_PUBLISH }}
+          PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
+          PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
+          MANUAL_RELEASE_ID: ${{ inputs.release_id }}
+          RELEASE_ID: ${{ matrix.release_id }}
+        run: |
+          python3 scripts/ci/publication_release_images.py prepare --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --manual-release-id "$MANUAL_RELEASE_ID" --release-id "$RELEASE_ID" --output .ci-release-images/plan.json
+      - name: Seal image release evidence
+        if: always()
+        env:
+          RELEASE_ID: ${{ matrix.release_id }}
+        run: |
+          if [[ -f .ci-release-images/plan.json ]]; then
+            python3 scripts/ci/validation.py seal --file .ci-release-images/plan.json --manifest .ci-release-images/plan.json.json --kind release-image-plan --variant "$RELEASE_ID"
+          fi
+      - name: Retain exact image release evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: release-image-plan-${{ matrix.release_id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-release-images/plan.json*
+          include-hidden-files: true
+          if-no-files-found: ${{ steps.operation.outcome == 'success' && 'error' || 'ignore' }}
+          retention-days: 30
+      - name: Retain exact release app images
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: release-images-${{ matrix.release_id }}-app-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-release-images/images/app/*
+          include-hidden-files: true
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+      - name: Retain exact release infra images
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: release-images-${{ matrix.release_id }}-infra-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-release-images/images/infra/*
+          include-hidden-files: true
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+      - name: Retain exact release docs images
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: release-images-${{ matrix.release_id }}-docs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-release-images/images/docs/*
+          include-hidden-files: true
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+      - name: Retain fresh release image scan reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: release-image-scans-${{ matrix.release_id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-release-images/scans/*
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 30
+  publish-release-images:
+    name: Publish release images (${{ matrix.release_id }})
+    needs: [discover-image-releases, prepare-release-images]
+    if: >-
+      needs.discover-image-releases.outputs.count != '0' &&
+      github.ref == 'refs/heads/main' && vars.ENABLE_IMAGE_PUBLISH == 'true'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix: ${{ fromJSON(needs.discover-image-releases.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    environment:
+      name: image-publish
+      deployment: false
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      pull-requests: read
+      packages: write
+    steps:
+      - name: Check out protected controller revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Publish release images from exact authenticated evidence
+        id: operation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ENABLE_IMAGE_PUBLISH: ${{ vars.ENABLE_IMAGE_PUBLISH }}
+          PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
+          PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
+          MANUAL_RELEASE_ID: ${{ inputs.release_id }}
+          RELEASE_ID: ${{ matrix.release_id }}
+        run: |
+          python3 scripts/ci/publication_release_images.py publish --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --manual-release-id "$MANUAL_RELEASE_ID" --release-id "$RELEASE_ID" --output .ci-release-images/progress.json
+      - name: Seal image release evidence
+        if: always()
+        env:
+          RELEASE_ID: ${{ matrix.release_id }}
+        run: |
+          if [[ -f .ci-release-images/progress.json ]]; then
+            python3 scripts/ci/validation.py seal --file .ci-release-images/progress.json --manifest .ci-release-images/progress.json.json --kind release-image-progress --variant "$RELEASE_ID"
+          fi
+      - name: Retain exact image release evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: release-image-progress-${{ matrix.release_id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-release-images/progress.json*
+          include-hidden-files: true
+          if-no-files-found: ${{ steps.operation.outcome == 'success' && 'error' || 'ignore' }}
+          retention-days: 30
+  record-image-publication:
+    name: Record image publication (${{ matrix.release_id }})
+    needs: [discover-image-releases, publish-release-images]
+    if: >-
+      needs.discover-image-releases.outputs.count != '0' &&
+      github.ref == 'refs/heads/main' && vars.ENABLE_IMAGE_PUBLISH == 'true'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix: ${{ fromJSON(needs.discover-image-releases.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      actions: read
+      checks: read
+      pull-requests: read
+    steps:
+      - name: Check out protected controller revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Record image publication from exact authenticated evidence
+        id: operation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ENABLE_IMAGE_PUBLISH: ${{ vars.ENABLE_IMAGE_PUBLISH }}
+          PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
+          PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
+          MANUAL_RELEASE_ID: ${{ inputs.release_id }}
+          RELEASE_ID: ${{ matrix.release_id }}
+        run: |
+          python3 scripts/ci/publication_release_images.py record --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --manual-release-id "$MANUAL_RELEASE_ID" --release-id "$RELEASE_ID" --output .ci-release-images/progress.json
+      - name: Seal image release evidence
+        if: always()
+        env:
+          RELEASE_ID: ${{ matrix.release_id }}
+        run: |
+          if [[ -f .ci-release-images/progress.json ]]; then
+            python3 scripts/ci/validation.py seal --file .ci-release-images/progress.json --manifest .ci-release-images/progress.json.json --kind release-image-receipts --variant "$RELEASE_ID"
+          fi
+      - name: Retain exact image release evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: release-image-receipts-${{ matrix.release_id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-release-images/progress.json*
+          include-hidden-files: true
+          if-no-files-found: ${{ steps.operation.outcome == 'success' && 'error' || 'ignore' }}
+          retention-days: 30
+
 defaults:
   run:
     shell: bash

@@ -24,7 +24,7 @@ class ReleaseTests(unittest.TestCase):
     def discover(self, approved=True, partial_error=None, explicit=None):
         with patch('publication_package_releases.release_identity', return_value=self.release), \
              patch('publication_package_releases.find_receipt', side_effect=lambda client, release_id, name: self.origin if name == ORIGIN else self.selection), \
-             patch('publication_package_releases.authenticate_origin'), \
+             patch('publication_release_candidates.authenticate_origin'), \
              patch('publication_package_releases.inspect_receipt', return_value=self.completed), \
              patch('publication_package_releases.endorsed', return_value=approved), \
              patch('publication_package_releases.revalidate_partial_receipt', side_effect=partial_error) as recovery, \

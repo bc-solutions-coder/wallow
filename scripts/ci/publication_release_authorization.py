@@ -18,6 +18,8 @@ def release_identity(client, release, catalog):
         raise PublicationError('Release tag does not identify one trusted component')
     component = components[0]
     version = tag[len(component['tag_prefix']):]
+    if '+' in version:
+        raise PublicationError('Release build metadata is unsupported; exact registry versions must not be normalized')
     if not matches(r'[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?', version):
         raise PublicationError('Release tag has no valid component version')
     commit, chain = release_commit(client, tag)

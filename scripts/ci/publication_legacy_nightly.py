@@ -9,9 +9,9 @@ def legacy_source(client, registry, current, repository, image_id, record, now=N
     if record is None or record.get('repository') != repository:
         return None
     fields = {'schema', 'repository', 'source_sha', 'run_id', 'run_attempt', 'workflow_id', 'tag', 'created', 'expires', 'evidence', 'images'}
-    if set(record) != fields or type(record['schema']) is not int or record['schema'] != 1 or not matches(r'sha1:[a-f0-9]{40}', record['source_sha']):
+    if set(record) != fields or type(record['schema']) is not int or record['schema'] != 1 or not matches(r'git:[a-f0-9]{40}', record['source_sha']):
         raise PublicationError('Legacy nightly cutover snapshot is invalid')
-    source = record['source_sha'].removeprefix('sha1:')
+    source = record['source_sha'].removeprefix('git:')
     images = record['images']
     if not isinstance(images, dict) or not images or any(not matches(r'[a-z][a-z0-9-]*', key) or not matches(r'sha256:[a-f0-9]{64}', value) for key, value in images.items()):
         raise PublicationError('Legacy nightly cutover image identities are invalid')

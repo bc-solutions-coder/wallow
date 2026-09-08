@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "repository": "bc-solutions-coder/wallow",
-  "source_sha": "sha1:5c6aada60c85321b6d97e66fa76d62d12932e699",
+  "source_sha": "git:5c6aada60c85321b6d97e66fa76d62d12932e699",
   "run_id": 34066236541,
   "run_attempt": 1,
   "workflow_id": 255082277,

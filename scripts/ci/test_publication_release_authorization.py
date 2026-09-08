@@ -31,6 +31,10 @@ class AuthorizationTests(unittest.TestCase):
         self.fixture.document['releases'] = [self.identity | {'matches_producer_sha': True}]
         self.fixture.make_artifact()
 
+    def test_build_metadata_release_fails_without_registry_normalization(self):
+        with self.assertRaisesRegex(PublicationError, 'build metadata is unsupported'):
+            release_identity(self.fixture, self.release | {'tag_name': 'sdk-v1.2.3+build.1'}, self.catalog)
+
     def test_exact_action_merged_pr_tag_source_and_durable_origin(self):
         origin = authenticate_origin(self.fixture, self.identity)
         self.assertEqual(origin['merged_pr']['head_sha'], 'c' * 40)

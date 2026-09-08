@@ -4,7 +4,8 @@ from dataclasses import asdict
 
 from publication import PublicationError, positive_integer
 from publication_plan import resolve
-from publication_release_authorization import authenticate_origin, release_identity
+from publication_release_authorization import release_identity
+from publication_release_candidates import authorized_selection
 from publication_release_receipts import ORIGIN, PACKAGE, SELECTION, endorsed, find_receipt, inspect_receipt
 from publication_release_selection import validate_candidate
 from publication_package_records import published_package
@@ -35,15 +36,9 @@ def package_releases(client, context, catalog, release_id=None, explicit=None):
         if origin is None or selection is None:
             pending.append({'release_id': release['id'], 'state': 'pending-origin' if origin is None else 'pending-producer'})
             continue
-        authenticate_origin(client, release, origin)
-        payload = selection['record']['payload']
-        if set(payload) != {'origin_asset_id', 'origin_sha256', 'release', 'selection'} or payload.get('release') != release or payload.get('origin_asset_id') != origin['asset_id'] or payload.get('origin_sha256') != origin['sha256']:
-            raise PublicationError('Package selection differs from its exact durable release origin')
-        pinned = payload['selection']
+        pinned = authorized_selection(client, release, origin, selection, explicit if release['id'] == release_id else None)
         producer = pinned.get('producer', {})
         pair = producer.get('run_id'), producer.get('run_attempt')
-        if explicit is not None and release['id'] == release_id and pair != explicit:
-            raise PublicationError('Manual package retry conflicts with its immutable selected producer')
         key = (component['package']['name'], release['version'])
         if key in versions:
             raise PublicationError('Multiple releases claim the same package version')

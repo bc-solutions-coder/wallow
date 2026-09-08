@@ -15,7 +15,7 @@ class LegacyTests(unittest.TestCase):
         body = json.dumps({'schemaVersion': 2, 'mediaType': 'application/vnd.docker.distribution.manifest.list.v2+json', 'manifests': []}).encode()
         self.current = {'bytes': body, 'media_type': 'application/vnd.docker.distribution.manifest.list.v2+json', 'digest': 'sha256:' + hashlib.sha256(body).hexdigest()}
         now = datetime.now(timezone.utc)
-        self.record = {'schema': 1, 'repository': 'example/repo', 'source_sha': 'sha1:' + self.source, 'run_id': 100, 'run_attempt': 1,
+        self.record = {'schema': 1, 'repository': 'example/repo', 'source_sha': 'git:' + self.source, 'run_id': 100, 'run_attempt': 1,
                        'workflow_id': 5, 'tag': self.source[:7], 'created': (now - timedelta(minutes=1)).strftime('%Y-%m-%dT%H:%M:%SZ'),
                        'expires': (now + timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%SZ'), 'evidence': 'https://github.com/example/repo/issues/1',
                        'images': {'api': self.current['digest']}}

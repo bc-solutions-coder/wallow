@@ -5,7 +5,7 @@ Application rollout is covered by the [deployment guide](deployment.md).
 
 The publication migration remains in progress in [issue #283](https://github.com/bc-solutions-coder/wallow/issues/283).
 Keep each production publisher disabled until its acceptance and first-target cutover checks pass.
-Images currently publish immutable full-SHA tags and `nightly`. Release-version image tags remain under implementation.
+Images publish immutable full-SHA tags and `nightly`. Authenticated releases also have an immutable version-image path with separate durable receipts; hosted acceptance of that path remains pending.
 Packages currently publish immutable versions with a `validated-<hash>` staging tag.
 Stable release aliases and historical artifact recovery are not yet available.
 
@@ -28,14 +28,14 @@ The portable profile still runs its declared security checks. Review retained sc
 2. Restrict its deployment branches to the exact `main` branch, without tag or wildcard rules.
 3. Add the following environment secrets.
 
-| Secret | Purpose |
-| --- | --- |
-| `TURBO_API` | Complete private cache URL, including the correct scheme and port |
-| `TURBO_TEAM` | Cache namespace |
-| `TURBO_TOKEN` | Cache bearer credential used by CI |
-| `TURBO_REMOTE_CACHE_SIGNATURE_KEY` | Independent client key for signed cache artifacts |
-| `TS_OAUTH_CLIENT_ID` | Tailscale OAuth client ID |
-| `TS_OAUTH_SECRET` | Tailscale OAuth client secret |
+| Secret                             | Purpose                                                           |
+| ---------------------------------- | ----------------------------------------------------------------- |
+| `TURBO_API`                        | Complete private cache URL, including the correct scheme and port |
+| `TURBO_TEAM`                       | Cache namespace                                                   |
+| `TURBO_TOKEN`                      | Cache bearer credential used by CI                                |
+| `TURBO_REMOTE_CACHE_SIGNATURE_KEY` | Independent client key for signed cache artifacts                 |
+| `TS_OAUTH_CLIENT_ID`               | Tailscale OAuth client ID                                         |
+| `TS_OAUTH_SECRET`                  | Tailscale OAuth client secret                                     |
 
 4. Configure the OAuth client to allow the runner's `tag:ci` identity to reach the cache.
 5. For a fork, set repository variable `ENABLE_MAIN_CACHE=true`.
@@ -54,12 +54,12 @@ Local development can continue using local Turbo without the CI token.
 Each capability uses a repository Actions variable with the literal value `true`.
 An absent variable or another value leaves that capability disabled.
 
-| Variable | Required configuration |
-| --- | --- |
-| `ENABLE_IMAGE_PUBLISH` | `image-publish` environment allowing only the exact `main` branch; repository access to its GHCR destinations |
-| `ENABLE_PACKAGE_PUBLISH` | `package-publish` environment allowing only the exact `main` branch; package ownership and repository linkage configured below |
-| `ENABLE_DOCS_DEPLOY` | `github-pages` environment allowing only the exact `main` branch; Pages source set to GitHub Actions |
-| `ENABLE_RELEASE_AUTOMATION` | `production` environment with `RELEASE_PLEASE_TOKEN` |
+| Variable                    | Required configuration                                                                                                         |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `ENABLE_IMAGE_PUBLISH`      | `image-publish` environment allowing only the exact `main` branch; repository access to its GHCR destinations                  |
+| `ENABLE_PACKAGE_PUBLISH`    | `package-publish` environment allowing only the exact `main` branch; package ownership and repository linkage configured below |
+| `ENABLE_DOCS_DEPLOY`        | `github-pages` environment allowing only the exact `main` branch; Pages source set to GitHub Actions                           |
+| `ENABLE_RELEASE_AUTOMATION` | `production` environment with `RELEASE_PLEASE_TOKEN`                                                                           |
 
 Image and package writers use their job-scoped GitHub token. They do not need a copy of the production token or a repository `NODE_AUTH_TOKEN`.
 Pages uses its job token and GitHub OIDC. Keep publication environments separate from `production`.

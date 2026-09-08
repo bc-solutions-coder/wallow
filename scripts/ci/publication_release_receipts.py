@@ -12,13 +12,19 @@ ORIGIN = 'wallow-release-origin-v1.json'
 SELECTION = 'wallow-release-selection-v1.json'
 PACKAGE = 'wallow-package-publication-v1.json'
 PACKAGE_JOB = 'Record package publication'
+IMAGE = 'wallow-image-publication-v1.json'
+IMAGE_JOB = 'Record image publication'
 
 
-def receipt_job(name):
+def receipt_job(name, release_id=None):
+    if name == IMAGE or name.startswith('wallow-image-endorsement-v1-'):
+        return f'{IMAGE_JOB} ({release_id})'
     return PACKAGE_JOB if name == PACKAGE or name.startswith('wallow-package-endorsement-v1-') else RECEIPT_JOB
 
 
 def endorsement_prefix(name):
+    if name == IMAGE or name.startswith('wallow-image-endorsement-v1-'):
+        return 'wallow-image-endorsement-v1-'
     return 'wallow-package-endorsement-v1-' if name == PACKAGE else 'wallow-release-endorsement-v1-'
 
 
@@ -36,13 +42,13 @@ def inspect_asset(client, asset, release_id, name, current=None):
         raise PublicationError('Release receipt is malformed') from None
     if not isinstance(record, dict) or set(record) != {'schema', 'type', 'publication_authorized', 'release_id', 'recorder', 'payload'} or record.get('schema') != 1 or record.get('type') != name or record.get('publication_authorized') is not False or record.get('release_id') != release_id or not isinstance(record.get('payload'), dict):
         raise PublicationError('Release receipt identity differs from its requested release')
-    prefix = 'wallow-package-endorsement-v1-' if receipt_job(name) == PACKAGE_JOB else 'wallow-release-endorsement-v1-'
-    if name not in (ORIGIN, SELECTION, PACKAGE) and (not matches(prefix + r'[1-9][0-9]*-[1-9][0-9]*-[1-9][0-9]*\.json', name) or name != f"{prefix}{record['payload'].get('asset_id')}-{record['recorder'].get('run_id')}-{record['recorder'].get('run_attempt')}.json"):
+    prefix = endorsement_prefix(IMAGE if name.startswith('wallow-image-endorsement-v1-') else PACKAGE if name.startswith('wallow-package-endorsement-v1-') else name)
+    if name not in (ORIGIN, SELECTION, PACKAGE, IMAGE) and (not matches(prefix + r'[1-9][0-9]*-[1-9][0-9]*-[1-9][0-9]*\.json', name) or name != f"{prefix}{record['payload'].get('asset_id')}-{record['recorder'].get('run_id')}-{record['recorder'].get('run_attempt')}.json"):
         raise PublicationError('Release endorsement name differs from its exact invocation and asset')
     if canonical(record) != body:
         raise PublicationError('Release receipt bytes are not canonical')
     if current is None:
-        job = recorded_job(client, record['recorder'], receipt_job(name))
+        job = recorded_job(client, record['recorder'], receipt_job(name, release_id))
         end = timestamp(job.get('completed_at'))
     else:
         frame, job = current
@@ -63,7 +69,7 @@ def inspect_receipt(client, release_id, name):
 
 
 def retain(client, release_id, name, payload, current):
-    if not positive_integer(release_id) or name not in (ORIGIN, SELECTION, PACKAGE) or not isinstance(payload, dict):
+    if not positive_integer(release_id) or name not in (ORIGIN, SELECTION, PACKAGE, IMAGE) or not isinstance(payload, dict):
         raise PublicationError('Invalid immutable release receipt request')
     existing = inspect_receipt(client, release_id, name)
     if existing:

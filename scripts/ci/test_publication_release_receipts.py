@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 from publication import PublicationError
 from publication_release_github import ACTIONS_ACTOR
-from publication_release_receipts import ORIGIN, PACKAGE, PACKAGE_JOB, SELECTION, find_receipt, inspect_receipt, retain
+from publication_release_receipts import IMAGE, ORIGIN, PACKAGE, PACKAGE_JOB, SELECTION, find_receipt, inspect_receipt, retain
 
 
 FRAME = {'run_id': 10, 'run_attempt': 1, 'job_id': 100}
@@ -83,6 +83,17 @@ class ReceiptTests(unittest.TestCase):
             self.assertIsNotNone(find_receipt(self.client, 5, PACKAGE))
         self.assertEqual(set(names), {PACKAGE_JOB})
         self.assertEqual(self.client.assets[1]['name'], 'wallow-package-endorsement-v1-1-11-1.json')
+
+    def test_image_receipt_is_bound_to_exact_release_matrix_finalizer(self):
+        names = []
+        with patch('publication_release_receipts.recorded_job', side_effect=lambda client, frame, name: names.append(name) or self.jobs[frame['run_id']]):
+            retain(self.client, 5, IMAGE, {'images': 'exact digests'}, (FRAME, JOB))
+            self.jobs[10] = {**JOB, 'conclusion': 'failure'}
+            self.jobs[11] = JOB
+            retain(self.client, 5, IMAGE, {'images': 'exact digests'}, ({**FRAME, 'run_id': 11}, JOB))
+            self.assertIsNotNone(find_receipt(self.client, 5, IMAGE))
+        self.assertEqual(set(names), {'Record image publication (5)'})
+        self.assertEqual(self.client.assets[1]['name'], 'wallow-image-endorsement-v1-1-11-1.json')
 
     def test_wrong_actor_late_edit_and_changed_body_rejected(self):
         retain(self.client, 5, ORIGIN, {'release': 5}, (FRAME, JOB))
