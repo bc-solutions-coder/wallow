@@ -68,16 +68,24 @@ def main():
     parser.add_argument('--run-id', required=True)
     parser.add_argument('--attempt', required=True)
     parser.add_argument('--output', required=True)
+    parser.add_argument('--recovery-run', default='')
+    parser.add_argument('--recovery-attempt', default='')
+    parser.add_argument('--release-id', default='')
     args = parser.parse_args()
     if not all(matches(r'[1-9][0-9]*', value) for value in (args.run_id, args.attempt)):
         parser.exit(1, 'Explicit positive producer run and attempt are required.\n')
     context = {key: os.environ.get('GITHUB_' + key.upper(), '') for key in ('repository', 'ref', 'workflow_ref', 'workflow_sha', 'event_name')}
     try:
-        client = GitHub(context['repository'], os.environ.get('GH_TOKEN'))
-        plan = resolve(client, context, int(args.run_id), int(args.attempt))
+        from publication_selection import recovery_selector, resolve_selection
+        from publication_release_github import ReleaseGitHub
+
+        recovery = recovery_selector(args.recovery_run, args.recovery_attempt, args.release_id)
+        catalog = load_catalog(Path(__file__).resolve().parents[2])
+        client_type = ReleaseGitHub if recovery is not None else GitHub
+        client = client_type(context['repository'], os.environ.get('GH_TOKEN'))
+        plan = resolve_selection(client, context, int(args.run_id), int(args.attempt), catalog, recovery) if recovery is not None else resolve(client, context, int(args.run_id), int(args.attempt))
         if os.environ.get('ENABLE_IMAGE_PUBLISH') == 'true':
             image_environment(client)
-        catalog = load_catalog(Path(__file__).resolve().parents[2])
         plan['verified_packages'] = verify_packages(client, plan, catalog)
         reports = Path(args.output).parent
         plan['verified_dependencies'] = verify_dependencies(client, plan, reports / 'dependency-scan')

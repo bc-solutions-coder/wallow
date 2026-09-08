@@ -1,11 +1,19 @@
 """Select explicit recovery inputs without replacing a release's original producer."""
 
-from publication import PublicationError, positive_integer
+from publication import PublicationError, matches, positive_integer
 from publication_plan import resolve
 from publication_release_authorization import release_identity
 from publication_release_candidates import authorized_selection
 from publication_release_receipts import ORIGIN, SELECTION, find_receipt
 from recovery_selection import authorized_recovery
+
+
+def recovery_selector(run_id='', attempt='', release_id=''):
+    if not run_id and not attempt:
+        return None
+    if not all(matches(r'[1-9][0-9]{0,19}', value) for value in (run_id, attempt, release_id)):
+        raise PublicationError('Explicit recovery requires bounded positive run, attempt, and release IDs')
+    return {'release_id': int(release_id), 'run_id': int(run_id), 'run_attempt': int(attempt)}
 
 
 def resolve_selection(client, context, run_id, attempt, catalog, recovery=None):

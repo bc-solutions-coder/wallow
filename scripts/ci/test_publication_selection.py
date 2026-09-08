@@ -5,10 +5,19 @@ from unittest.mock import patch
 
 from publication import PublicationError
 from publication_release_receipts import ORIGIN, SELECTION
-from publication_selection import resolve_selection
+from publication_selection import recovery_selector, resolve_selection
 
 
 class SelectionTests(unittest.TestCase):
+    def test_recovery_selector_requires_complete_explicit_identity(self):
+        self.assertIsNone(recovery_selector())
+        self.assertIsNone(recovery_selector(release_id='5'))
+        self.assertEqual(recovery_selector('70', '2', '5'), {'release_id': 5, 'run_id': 70, 'run_attempt': 2})
+        for values in (('70', '', '5'), ('', '2', '5'), ('70', '2', ''), ('0', '2', '5'),
+                       ('70', '-1', '5'), ('70', '2', '5\n'), ('1' * 21, '2', '5')):
+            with self.subTest(values=values), self.assertRaises(PublicationError):
+                recovery_selector(*values)
+
     def setUp(self):
         self.context = {'event_name': 'workflow_dispatch'}
         self.recovery = {'release_id': 5, 'run_id': 70, 'run_attempt': 2}
