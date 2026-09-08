@@ -67,7 +67,7 @@ class SecurityTests(unittest.TestCase):
             {'id': 'cs/bypass', 'properties': {'security-severity': '8.1'}}]}}, 'results': [result]}]}
         exception = dict(scanner='codeql', id='cs/bypass', scope='api/A.cs',
                          primary_location_line_hash='abc123:1',
-                         message_sha256=hashlib.sha256(message.encode()).hexdigest())
+                         message_sha256='sha256:' + hashlib.sha256(message.encode()).hexdigest())
         for changed in ('fingerprint', 'message', 'missing_fingerprint', 'missing_message'):
             neighbor = copy.deepcopy(result)
             if changed == 'fingerprint':
@@ -89,7 +89,7 @@ class SecurityTests(unittest.TestCase):
         item = dict(scanner='codeql', id='cs/bypass', scope='api/A.cs', owner='maintainer',
                     reason='Reviewed consent condition', tracking='https://github.com/a/b/issues/1',
                     created='2026-09-01T00:00:00Z', expires='2026-10-01T00:00:00Z',
-                    primary_location_line_hash='abc123:1', message_sha256='a' * 64)
+                    primary_location_line_hash='abc123:1', message_sha256='sha256:' + 'a' * 64)
         security.validate_exceptions({'exceptions': [item]}, now)
         for key in ('primary_location_line_hash', 'message_sha256'):
             bad = dict(item)

@@ -51,7 +51,7 @@ def validate_exceptions(document, now=None):
         require(created <= now < expires and timedelta(0) < expires - created <= timedelta(days=30), 'exception is expired, future-dated, or longer than 30 days')
         if entry['scanner'] == 'codeql':
             require(bool(re.fullmatch(r'[a-fA-F0-9]+:[1-9][0-9]*', entry['primary_location_line_hash'])), 'CodeQL exception needs an exact primary location line hash')
-            require(bool(re.fullmatch(r'[a-f0-9]{64}', entry['message_sha256'])), 'CodeQL exception needs an exact message SHA-256')
+            require(bool(re.fullmatch(r'sha256:[a-f0-9]{64}', entry['message_sha256'])), 'CodeQL exception needs an exact message SHA-256 digest')
         identity = finding_identity(entry)
         require(identity not in seen, 'duplicate exception')
         seen.add(identity)
@@ -146,7 +146,7 @@ def codeql(document):
             line_hash = result.get('partialFingerprints', {}).get('primaryLocationLineHash')
             findings.append(finding('codeql', ident, location(result), blocking, security_severity=score,
                                     primary_location_line_hash=line_hash if isinstance(line_hash, str) else None,
-                                    message_sha256=hashlib.sha256(message.encode()).hexdigest() if isinstance(message, str) else None))
+                                    message_sha256='sha256:' + hashlib.sha256(message.encode()).hexdigest() if isinstance(message, str) else None))
     return findings
 
 

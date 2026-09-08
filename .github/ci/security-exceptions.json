@@ -95,7 +95,7 @@
       "id": "cs/user-controlled-bypass",
       "scope": "api/src/Modules/Identity/Wallow.Identity.Api/Controllers/AccountController.cs",
       "primary_location_line_hash": "75ca4abef0f0e3ae:1",
-      "message_sha256": "144caff75340103d793aef9aed833a3667cd51577dfe3454220b392a27735771",
+      "message_sha256": "sha256:144caff75340103d793aef9aed833a3667cd51577dfe3454220b392a27735771",
       "owner": "bc-solutions-coder",
       "reason": "Reviewed consent gate: acceptedTerms determines user agreement, not authentication. A valid protected typed provider state is still required; existing-account linking additionally requires verified email and successful AddLogin. Callback-to-completion and failed-link behavior tests cover these independent checks. Applies only to the reviewed post-fix finding.",
       "tracking": "https://github.com/bc-solutions-coder/wallow/issues/280",
