@@ -60,6 +60,8 @@
       href: development/logging.md
 - name: Operations
   items:
+    - name: CI and publication
+      href: operations/ci-publication.md
     - name: Deployment
       href: operations/deployment.md
     - name: Versioning
