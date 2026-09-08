@@ -130,7 +130,7 @@ class Registry:
         return 'verified'
 
 
-def plan_aliases(client, records, kind, registry, target=None):
+def plan_aliases(client, records, kind, registry, target=None, *, migration_authorizer=None):
     choices = {}
     for record in records:
         if target is not None and record['release']['id'] != target:
@@ -145,6 +145,7 @@ def plan_aliases(client, records, kind, registry, target=None):
         for output in outputs:
             current = registry.current(output, alias)
             prior = []
+            migration = None
             if current is not None:
                 for record in records:
                     if record['release']['component'] != candidate['release']['component']:
@@ -153,7 +154,9 @@ def plan_aliases(client, records, kind, registry, target=None):
                         prior.append(record)
                     elif kind == 'image' and any(image['repository'] == output['repository'] and image['index_digest'] == current for image in record['outputs']['images']):
                         prior.append(record)
-                if len(prior) != 1:
+                if not prior and kind == 'package' and migration_authorizer is not None:
+                    migration = migration_authorizer(candidate, alias, current)
+                if len(prior) != 1 and migration is None:
                     identity = output['name'] if kind == 'package' else output['repository']
                     raise PublicationError(
                         f'Existing alias has unknown or ambiguous durable release provenance: '
@@ -162,11 +165,13 @@ def plan_aliases(client, records, kind, registry, target=None):
                     )
             previous = prior[0] if prior else None
             comparison = client.get('/compare/' + previous['release']['commit_sha'] + '...' + candidate['release']['commit_sha']) if previous and previous != candidate else None
-            action = alias_action(alias, kind, previous, candidate, comparison)
+            action = 'advance' if migration is not None else alias_action(alias, kind, previous, candidate, comparison)
             for record in (previous, candidate):
                 if record and record['release']['id'] not in checked:
                     registry.verify(record)
                     checked.add(record['release']['id'])
             result.append({'release_id': candidate['release']['id'], 'output': output, 'alias': alias, 'previous': current,
                            'previous_release_id': previous['release']['id'] if previous else None, 'action': action})
+            if migration is not None:
+                result[-1]['migration'] = migration
     return result
