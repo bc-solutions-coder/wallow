@@ -7,7 +7,7 @@ from pathlib import Path
 
 from publication import PublicationError, load_catalog, matches, positive_integer
 from publication_plan import resolve
-from publication_release_authorization import authenticate_origin, release_identity
+from publication_release_authorization import ReleaseOutsideMain, authenticate_origin, release_identity
 from publication_release_github import ReleaseGitHub
 from publication_release_origin import RECEIPT_JOB, frame, action_evidence
 from publication_release_receipts import ORIGIN, SELECTION, inspect_receipt, retain, endorsed
@@ -28,7 +28,13 @@ def reconcile(client, context, run_id, attempt, producer_run, producer_attempt, 
     for api_release in releases:
         if release_id is None and (api_release.get('draft') is not False or not any(isinstance(api_release.get('tag_name'), str) and api_release['tag_name'].startswith(component['tag_prefix']) for component in catalog['components'])):
             continue
-        release = release_identity(client, api_release, catalog)
+        try:
+            release = release_identity(client, api_release, catalog)
+        except ReleaseOutsideMain:
+            if release_id is not None or any(inspect_receipt(client, api_release['id'], name) is not None for name in (ORIGIN, SELECTION)):
+                raise
+            result['releases'].append({'release_id': api_release['id'], 'state': 'unsupported-ancestry', 'publication_authorized': False})
+            continue
         prior_origin = inspect_receipt(client, release['id'], ORIGIN)
         if prior_origin is not None and not endorsed(client, release['id'], prior_origin):
             previous = prior_origin['record']['payload'].get('release_please', {})

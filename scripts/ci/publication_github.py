@@ -10,6 +10,17 @@ import urllib.request
 from publication import PublicationError, authorize_controller, authorize_main_producer, matches, positive_integer
 
 
+class UnrelatedHistory(PublicationError):
+    """GitHub confirmed that two exact commits have no common ancestor."""
+
+
+class MetadataHTTPError(PublicationError):
+    def __init__(self, status, document):
+        super().__init__('GitHub metadata could not be read')
+        self.status = status
+        self.document = document
+
+
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, request, response, code, message, headers, new_url):
         return None
@@ -43,8 +54,16 @@ class GitHub:
                     raise PublicationError('GitHub API response exceeds its size limit')
                 return json.loads(data)
         except urllib.error.HTTPError as error:
-            error.close()
-            raise PublicationError('GitHub metadata could not be read') from None
+            document = None
+            try:
+                data = error.read(65537)
+                if len(data) <= 65536:
+                    document = json.loads(data)
+            except (OSError, ValueError):
+                pass
+            finally:
+                error.close()
+            raise MetadataHTTPError(error.code, document) from None
         except (urllib.error.URLError, TimeoutError, UnicodeDecodeError, json.JSONDecodeError):
             raise PublicationError('GitHub metadata could not be read') from None
 
@@ -72,7 +91,13 @@ class GitHub:
         main = self.get('/git/ref/heads/main')
         if not isinstance(main, dict) or main.get('ref') != 'refs/heads/main' or not isinstance(main.get('object'), dict) or main['object'].get('type') != 'commit' or not matches(r'[0-9a-f]{40}', main['object'].get('sha')):
             raise PublicationError('Could not resolve the current main revision')
-        return self.get(f"/compare/{sha}...{main['object']['sha']}")
+        target = main['object']['sha']
+        try:
+            return self.get(f'/compare/{sha}...{target}')
+        except MetadataHTTPError as error:
+            if error.status == 404 and isinstance(error.document, dict) and error.document.get('message') == f'No common ancestor between {sha} and {target}.':
+                raise UnrelatedHistory('Exact release and main commits have no common ancestor') from None
+            raise
 
     def controller(self, context):
         if not isinstance(context, dict):

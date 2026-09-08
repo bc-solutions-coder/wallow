@@ -4,9 +4,14 @@ import base64
 import json
 
 from publication import PublicationError, matches, positive_integer
+from publication_github import UnrelatedHistory
 from publication_release_github import ACTIONS_ACTOR
 from publication_release_origin import ACTION_JOB, COMMENT_PREFIX, PR_JOB, action_evidence, comment_record, recorded_job, verify_frame, verify_pr_origin
 from release_evidence import actor, release_commit
+
+
+class ReleaseOutsideMain(PublicationError):
+    """A published tag is outside the supported release ancestry."""
 
 
 def release_identity(client, release, catalog):
@@ -23,9 +28,20 @@ def release_identity(client, release, catalog):
     if not matches(r'[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?', version):
         raise PublicationError('Release tag has no valid component version')
     commit, chain = release_commit(client, tag)
-    comparison = client.main_comparison(commit)
-    if comparison.get('status') not in ('ahead', 'identical') or comparison.get('merge_base_commit', {}).get('sha') != commit:
-        raise PublicationError('Release tag is not on protected main ancestry')
+    try:
+        comparison = client.main_comparison(commit)
+    except UnrelatedHistory:
+        raise ReleaseOutsideMain('Release tag has no common ancestor with protected main') from None
+    status = comparison.get('status')
+    merge_base = comparison.get('merge_base_commit', {}).get('sha')
+    if status not in ('ahead', 'identical', 'behind', 'diverged') or not matches(r'[0-9a-f]{40}', merge_base):
+        raise PublicationError('Release ancestry comparison is malformed')
+    if status in ('behind', 'diverged'):
+        if merge_base == commit:
+            raise PublicationError('Release ancestry comparison is inconsistent')
+        raise ReleaseOutsideMain('Release tag is not on protected main ancestry')
+    if merge_base != commit:
+        raise PublicationError('Release ancestry comparison is inconsistent')
     document = client.get('/contents/.release-please-manifest.json?ref=' + commit)
     if document.get('type') != 'file' or document.get('encoding') != 'base64' or type(document.get('size')) is not int or not 0 < document['size'] <= 65536:
         raise PublicationError('Release source version manifest is not bounded')

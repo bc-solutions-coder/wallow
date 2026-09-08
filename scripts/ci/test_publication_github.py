@@ -9,7 +9,7 @@ import urllib.request
 
 from publication import PublicationError
 from publication_artifacts import Artifact
-from publication_github import GitHub, NoRedirect
+from publication_github import GitHub, NoRedirect, UnrelatedHistory
 
 
 class TransportTests(unittest.TestCase):
@@ -57,6 +57,22 @@ class TransportTests(unittest.TestCase):
         self.server.shutdown()
         self.server.server_close()
         self.thread.join()
+
+    def test_exact_unrelated_history_is_distinct_from_other_api_failures(self):
+        source, target = 'a' * 40, 'b' * 40
+        self.responses['/repos/example/repo/git/ref/heads/main'] = (200, {}, json.dumps({
+            'ref': 'refs/heads/main', 'object': {'type': 'commit', 'sha': target}}).encode())
+        path = f'/repos/example/repo/compare/{source}...{target}'
+        message = f'No common ancestor between {source} and {target}.'
+        self.responses[path] = (404, {}, json.dumps({'message': message}).encode())
+        with self.assertRaises(UnrelatedHistory):
+            self.client.main_comparison(source)
+        for status, body in ((404, b'{}'), (403, json.dumps({'message': message}).encode()),
+                             (404, b'not json'), (404, json.dumps({'message': 'No common ancestor between other commits.'}).encode())):
+            self.responses[path] = (status, {}, body)
+            with self.assertRaises(PublicationError) as failure:
+                self.client.main_comparison(source)
+            self.assertNotIsInstance(failure.exception, UnrelatedHistory)
 
     def test_download_uses_auth_only_for_github_and_verifies_bytes(self):
         self.client.download(self.artifact, self.output)
