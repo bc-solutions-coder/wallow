@@ -14,7 +14,7 @@ class DiscoveryTests(unittest.TestCase):
         self.release = {'id': 5, 'component': 'platform', 'version': '1.2.3'}
         self.origin = {'asset_id': 1, 'sha256': 'sha256:' + '1' * 64}
         self.selection = {'asset_id': 2, 'sha256': 'sha256:' + '2' * 64}
-        self.client = SimpleNamespace(controller=Mock(), array=Mock(return_value=[{'id': 5, 'tag_name': 'v1.2.3', 'draft': False}]))
+        self.client = SimpleNamespace(controller=Mock(), get=Mock(return_value={'id': 5}), array=Mock(return_value=[{'id': 5, 'tag_name': 'v1.2.3', 'draft': False}]))
         self.receipt = None
         self.context = {'event_name': 'workflow_dispatch'}
 

@@ -19,6 +19,7 @@ from publication_preparation_authorization import authorize_preparation
 from publication_prepare_packages import prepare_packages
 from publication_release_github import ReleaseGitHub
 from publication_release_origin import frame
+from publication_release_authorization import release_identity
 
 
 def snapshot(authority):
@@ -50,6 +51,14 @@ def dependency_preflight(plan, repository, registry):
 
 
 def prepare(client, context, producer_run, producer_attempt, run_id, attempt, catalog, root, destination, token, release_id=None):
+    if release_id is not None:
+        client.controller(context)
+        target = release_identity(client, client.get('/releases/' + str(release_id)), catalog)
+        if target['id'] != release_id:
+            raise PublicationError('Requested release API identity differs from its exact target')
+        component = next(item for item in catalog['components'] if item['id'] == target['component'])
+        if 'package' not in component:
+            return {'schema': 1, 'unrelated_release_id': release_id, 'publication_authorized': False}
     package_configuration(client.repository, catalog, root)
     package_environment(client)
     invocation, _ = frame(client, context, run_id, attempt, PREPARE_JOB)
@@ -137,10 +146,15 @@ def main():
         client = ReleaseGitHub(context['repository'], token)
         output = Path(args.output)
         plan = prepare(client, context, *(int(value) for value in values), load_catalog(root), root, output.parent, token, int(args.release_id) if args.release_id else None)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
+            stream.write('eligible=' + ('false' if 'unrelated_release_id' in plan else 'true') + '\n')
         with output.open('x') as stream:
             json.dump(plan, stream, indent=2)
             stream.write('\n')
-    except (PublicationError, OSError, ValueError, TypeError, KeyError, RecursionError):
+    except PublicationError as error:
+        parser.exit(1, str(error) + '\n')
+    except (OSError, ValueError, TypeError, KeyError, RecursionError):
         parser.exit(1, 'Package release preparation failed.\n')
 
 
