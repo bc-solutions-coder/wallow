@@ -72,6 +72,17 @@ class GHCRTests(unittest.TestCase):
     def missing(self):
         return 404, {}, b'{"errors":[{"code":"MANIFEST_UNKNOWN"}]}'
 
+    def test_read_only_transport_requests_pull_scope_and_refuses_mutations(self):
+        client = GHCR('ghcr.io/example/repo-api', 'example', 'github-secret', self.opener, access='read')
+        self.assertEqual(urllib.parse.parse_qs(urllib.parse.urlsplit(self.requests[0][1]).query)['scope'], ['repository:example/repo-api:pull'])
+        self.responses = [self.manifest()]
+        self.assertEqual(client.read_manifest('1.2.3')['digest'], self.digest)
+        count = len(self.requests)
+        with self.assertRaises(PublicationError): client.write_manifest('1.2.3', self.data, MEDIA_TYPES[1], self.digest)
+        with self.assertRaises(PublicationError): client.replace_release_alias('latest', self.data, self.digest, None)
+        with self.assertRaises(PublicationError): client.replace_nightly(self.data, self.digest, None)
+        self.assertEqual(len(self.requests), count)
+
     def test_absent_write_and_exact_readback_use_only_scoped_registry_credentials(self):
         client = self.client()
         self.responses = [self.missing(), (201, {'Docker-Content-Digest': self.digest}, b''), self.manifest()]
@@ -143,6 +154,22 @@ class GHCRTests(unittest.TestCase):
             with self.assertRaises(PublicationError) as error:
                 client.write_manifest('v1', self.data, MEDIA_TYPES[1], self.digest)
             self.assertNotIn('registry-bearer', str(error.exception))
+
+    def test_release_alias_replacement_is_narrow_and_guards_observed_state(self):
+        client = self.client()
+        data = json.dumps({'schemaVersion': 2, 'mediaType': MEDIA_TYPES[2], 'manifests': []}).encode()
+        digest = 'sha256:' + hashlib.sha256(data).hexdigest()
+        response = (200, {'Content-Type': MEDIA_TYPES[2], 'Docker-Content-Digest': digest}, data)
+        for alias in ('latest', '1', '1.2'):
+            self.responses = [self.missing(), (201, {'Docker-Content-Digest': digest}, b''), response]
+            self.assertEqual(client.replace_release_alias(alias, data, digest, None), digest)
+            self.assertEqual(self.requests[-1][1], '/v2/example/repo-api/manifests/' + alias)
+        count = sum(item[0] == 'PUT' for item in self.requests)
+        self.responses = [response]
+        with self.assertRaises(PublicationError): client.replace_release_alias('latest', data, digest, None)
+        self.assertEqual(sum(item[0] == 'PUT' for item in self.requests), count)
+        for alias in ('nightly', 'sha-deadbeef', '1.2.3', '01', 'major-1'):
+            with self.assertRaises(PublicationError): client.replace_release_alias(alias, data, digest, None)
 
     def test_oci_nightly_replacement_requires_observed_state_and_exact_readback(self):
         client = self.client()

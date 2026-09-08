@@ -56,10 +56,16 @@ def release_authority(client, context, catalog, release_id, explicit=None):
 
 def discover(client, context, catalog, release_id=None, explicit=None):
     client.controller(context)
-    image_environment(client)
     if release_id is not None and context.get('event_name') != 'workflow_dispatch':
         raise PublicationError('Explicit image release selection requires a protected manual retry')
     components = {image['component'] for image in catalog['images']}
+    if release_id is not None:
+        target = release_identity(client, client.get('/releases/' + str(release_id)), catalog)
+        if target['id'] != release_id:
+            raise PublicationError('Requested image release API identity differs from its target')
+        if target['component'] not in components:
+            return {'include': []}, []
+    image_environment(client)
     pending, selected = [], []
     releases = client.array('/releases')
     identities = [item.get('id') for item in releases if isinstance(item, dict)]

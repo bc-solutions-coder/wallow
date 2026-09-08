@@ -17,6 +17,8 @@ IMAGE_JOB = 'Record image publication'
 
 
 def receipt_job(name, release_id=None):
+    if matches(r'wallow-alias-(?:image|package)-[1-9][0-9]*-[1-9][0-9]*\.json', name):
+        return 'Record ' + name.split('-')[2] + ' aliases'
     if name == IMAGE or name.startswith('wallow-image-endorsement-v1-'):
         return f'{IMAGE_JOB} ({release_id})'
     return PACKAGE_JOB if name == PACKAGE or name.startswith('wallow-package-endorsement-v1-') else RECEIPT_JOB
@@ -42,9 +44,14 @@ def inspect_asset(client, asset, release_id, name, current=None):
         raise PublicationError('Release receipt is malformed') from None
     if not isinstance(record, dict) or set(record) != {'schema', 'type', 'publication_authorized', 'release_id', 'recorder', 'payload'} or record.get('schema') != 1 or record.get('type') != name or record.get('publication_authorized') is not False or record.get('release_id') != release_id or not isinstance(record.get('payload'), dict):
         raise PublicationError('Release receipt identity differs from its requested release')
-    prefix = endorsement_prefix(IMAGE if name.startswith('wallow-image-endorsement-v1-') else PACKAGE if name.startswith('wallow-package-endorsement-v1-') else name)
-    if name not in (ORIGIN, SELECTION, PACKAGE, IMAGE) and (not matches(prefix + r'[1-9][0-9]*-[1-9][0-9]*-[1-9][0-9]*\.json', name) or name != f"{prefix}{record['payload'].get('asset_id')}-{record['recorder'].get('run_id')}-{record['recorder'].get('run_attempt')}.json"):
-        raise PublicationError('Release endorsement name differs from its exact invocation and asset')
+    alias = matches(r'wallow-alias-(?:image|package)-[1-9][0-9]*-[1-9][0-9]*\.json', name)
+    if alias:
+        if name != f"wallow-alias-{name.split('-')[2]}-{record['recorder'].get('run_id')}-{record['recorder'].get('run_attempt')}.json":
+            raise PublicationError('Alias progress name differs from its exact invocation')
+    else:
+        prefix = endorsement_prefix(IMAGE if name.startswith('wallow-image-endorsement-v1-') else PACKAGE if name.startswith('wallow-package-endorsement-v1-') else name)
+        if name not in (ORIGIN, SELECTION, PACKAGE, IMAGE) and (not matches(prefix + r'[1-9][0-9]*-[1-9][0-9]*-[1-9][0-9]*\.json', name) or name != f"{prefix}{record['payload'].get('asset_id')}-{record['recorder'].get('run_id')}-{record['recorder'].get('run_attempt')}.json"):
+            raise PublicationError('Release endorsement name differs from its exact invocation and asset')
     if canonical(record) != body:
         raise PublicationError('Release receipt bytes are not canonical')
     if current is None:

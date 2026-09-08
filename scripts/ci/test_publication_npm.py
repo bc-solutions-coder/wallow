@@ -92,6 +92,39 @@ class NpmTests(unittest.TestCase):
         self.assertFalse(directory.exists())
         self.assertFalse(any('publish' in command for command in self.calls))
 
+    def test_dist_tag_uses_actual_text_output_and_verifies_registry_bytes(self):
+        tags = {}
+        def runner(arguments, **options):
+            self.calls.append(arguments)
+            if 'dist-tag' in arguments:
+                tags['latest'] = '1.0.0'
+                return subprocess.CompletedProcess(arguments, 0, '+latest: @example/sdk@1.0.0\n', '')
+            if 'pack' in arguments:
+                destination = Path(arguments[arguments.index('--pack-destination') + 1])
+                shutil.copyfile(self.path, destination / 'example-sdk-1.0.0.tgz')
+                return subprocess.CompletedProcess(arguments, 0, '[{"filename":"example-sdk-1.0.0.tgz"}]', '')
+            return subprocess.CompletedProcess(arguments, 0, json.dumps(tags if arguments[-1] == 'dist-tags' else self.metadata), '')
+        with PackageRegistry('@example', 'dummy-token', runner) as registry:
+            self.assertEqual(registry.replace_dist_tag(self.package, 'latest', None), 'verified')
+            self.assertEqual(registry.replace_dist_tag(self.package, 'latest', '1.0.0'), 'identical')
+            with self.assertRaises(PublicationError):
+                registry.replace_dist_tag(self.package, 'latest', '0.9.0')
+            for invalid in ('1', '1.0', 'v1', 'nightly', 'validated-whatever'):
+                with self.assertRaises(PublicationError): registry.replace_dist_tag(self.package, invalid, None)
+        self.assertEqual(sum('dist-tag' in call for call in self.calls), 1)
+
+    def test_dist_tag_failed_readback_does_not_claim_success(self):
+        def runner(arguments, **options):
+            if 'pack' in arguments:
+                destination = Path(arguments[arguments.index('--pack-destination') + 1])
+                shutil.copyfile(self.path, destination / 'example-sdk-1.0.0.tgz')
+                return subprocess.CompletedProcess(arguments, 0, '[{"filename":"example-sdk-1.0.0.tgz"}]', '')
+            if 'dist-tag' in arguments:
+                return subprocess.CompletedProcess(arguments, 0, '+latest: @example/sdk@1.0.0', '')
+            return subprocess.CompletedProcess(arguments, 0, json.dumps({} if arguments[-1] == 'dist-tags' else self.metadata), '')
+        with PackageRegistry('@example', 'dummy-token', runner) as registry:
+            with self.assertRaises(PublicationError): registry.replace_dist_tag(self.package, 'latest', None)
+
     def test_actual_npm_dry_run_accepts_exact_tarball_without_lifecycle_execution(self):
         result = self.publish([self.missing, (0, self.metadata)], real_dry_run=True)
         self.assertEqual(result['integrity'], self.package.integrity)
