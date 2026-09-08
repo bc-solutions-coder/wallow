@@ -45,6 +45,15 @@ def request(client, context, run_id, attempt, source, release_id, catalog):
     workflow = client.get('/actions/workflows/ci.yml')
     run = client.get(f'/actions/runs/{run_id}/attempts/{attempt}')
     controller = authorize_dispatch(context, repository, workflow, run, run_id, attempt, client.main_comparison(context.get('workflow_sha')))
+    return request_record(client, controller, source, run_id, attempt, workflow['id'], release_id, catalog)
+
+
+def request_record(client, controller, source, run_id, attempt, workflow_id, release_id, catalog):
+    """Reauthenticate release bindings after the invocation has been checked separately."""
+    if not matches(r'[0-9a-f]{40}', controller) or not matches(r'[0-9a-f]{40}', source) or not all(
+        positive_integer(value) for value in (run_id, attempt, workflow_id, release_id)
+    ):
+        raise PublicationError('Recovery request binding requires exact invocation and release identities')
     api_release = client.get(f'/releases/{release_id}')
     if not isinstance(api_release, dict) or api_release.get('id') != release_id:
         raise PublicationError('Recovery release API identity differs from the request')
@@ -67,7 +76,7 @@ def request(client, context, run_id, attempt, source, release_id, catalog):
         raise PublicationError('Recovery selection does not identify the original release producer')
     return {'schema': 1, 'mode': 'historical-recovery', 'repository': client.repository,
             'controller_sha': controller, 'source_sha': source, 'run_id': run_id, 'run_attempt': attempt,
-            'workflow_id': workflow['id'], 'release': release,
+            'workflow_id': workflow_id, 'release': release,
             'origin': {'asset_id': origin['asset_id'], 'sha256': origin['sha256']},
             'selection': {'asset_id': selection['asset_id'], 'sha256': selection['sha256']},
             'route': 'full', 'publication_authorized': False}
