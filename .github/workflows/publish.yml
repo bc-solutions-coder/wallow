@@ -6,7 +6,7 @@ name: Publish
   workflow_dispatch:
     inputs:
       run_id:
-        description: Exact successful main CI run ID
+        description: Exact successful CI run ID (main push, or recovery when recording)
         required: true
         type: string
       run_attempt:
@@ -17,6 +17,11 @@ name: Publish
         description: Optional exact GitHub release ID for retry with the selected producer
         required: false
         type: string
+      record_recovery:
+        description: Record a verified historical recovery for release_id without publishing
+        required: false
+        default: false
+        type: boolean
 permissions:
   contents: read
 concurrency:
@@ -24,9 +29,43 @@ concurrency:
   cancel-in-progress: false
   queue: max
 jobs:
+  record-recovery:
+    name: Record recovered producer
+    if: github.event_name == 'workflow_dispatch' && inputs.record_recovery && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: read
+      checks: read
+      pull-requests: read
+    steps:
+      - name: Check out protected recovery recorder
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Reauthenticate and record exact recovered producer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RECOVERY_RUN: ${{ inputs.run_id }}
+          RECOVERY_ATTEMPT: ${{ inputs.run_attempt }}
+          RELEASE_ID: ${{ inputs.release_id }}
+        run: |
+          mkdir .ci-recovery-receipt
+          python3 scripts/ci/record_recovery.py --producer-run "$RECOVERY_RUN" --producer-attempt "$RECOVERY_ATTEMPT" --release-id "$RELEASE_ID" --output .ci-recovery-receipt/result.json
+          python3 scripts/ci/validation.py seal --file .ci-recovery-receipt/result.json --manifest .ci-recovery-receipt/result.json.json --kind recovery-receipt --variant recorded
+      - name: Retain recovery receipt result
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: recovery-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-recovery-receipt/*
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
   authorize:
     if: >-
-      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_dispatch' && !inputs.record_recovery) ||
       (github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.head_branch == 'main' &&
