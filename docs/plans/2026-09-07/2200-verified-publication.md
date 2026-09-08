@@ -227,5 +227,36 @@ This proves hosted transport only, not application release acceptance; see
 This slice passes all 112 helper tests, Actionlint, immutable action/queue policy, and
 format/diff checks. A fresh pinned Zizmor 1.30.0 strict scan collected all seven workflow
 and action documents, including the new reusable release workflow: seven findings and
-zero unexcepted blockers. Independent privilege-boundary review is pending; no release
+zero unexcepted blockers. Independent privilege-boundary review passed; no release
 variable was enabled and no production Release Please invocation was run locally.
+
+## Fresh dependency inspection
+
+The read-only controller now consumes the exact API-authorized `dependency-inputs`
+artifact. ZIP identity and the producer seal are verified before bounded extraction.
+Only the registered pnpm lockfile and NuGet lockfiles derived from registered API project
+paths are accepted; the inventory must match both sets exactly. The pnpm bytes must match
+the registered source hash. Generated NuGet locks are bound through the registered
+artifact and seal, rather than an invented source hash.
+
+A Trivy-only installation path reuses the pinned 0.74.0 binary checksum and downloads the
+current vulnerability database. The scan disables another database update so it uses
+the captured database snapshot. The controller scans verified files without a restore,
+package installation, or project execution. Every expected target must have the correct
+package ecosystem and nonempty package coverage. Findings are evaluated against the
+protected controller's current exception policy. A blocking finding fails inspection;
+raw scan/database metadata, input hashes, and gate findings are retained even on failure.
+Diagnostics use a separate artifact so the successful publication plan keeps its exact
+two-file payload/seal layout for downstream verification.
+Temporary archives and extracted lockfiles are removed on success and failure. This is
+fresh dependency inspection, not destination or release authorization.
+
+The 117 helper tests pass, including real ZIP/TAR fixtures for altered seals, lockfile
+hashes, unsafe members, duplicate/missing/extra inventory, scanner coverage, new fixable
+HIGH findings, and cleanup. Actionlint and immutable action policy pass. A prior real
+private scanner report contains exactly 57 expected targets (56 NuGet projects plus
+pnpm). The producer now explicitly writes USTAR headers to match the strict reader.
+Repacking the real local export proof with this format passes archive and pnpm identity
+checks, then correctly fails inventory: it contains only 55 NuGet locks. This is format
+and rejection evidence, not complete producer acceptance. Replay of the complete Linux
+producer artifact and hosted fresh-scan acceptance remain pending.

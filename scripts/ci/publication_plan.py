@@ -12,6 +12,7 @@ from publication_artifacts import select_artifact, unpack_payload
 from publication_github import GitHub
 from publication_verify_images import verify_images
 from publication_verify_packages import verify_packages
+from publication_verify_dependencies import verify_dependencies
 
 
 def candidate_artifacts(producer, jobs, artifacts):
@@ -70,6 +71,7 @@ def main():
         catalog = load_catalog(Path(__file__).resolve().parents[2])
         plan['verified_images'] = verify_images(client, plan, catalog)
         plan['verified_packages'] = verify_packages(client, plan, catalog)
+        plan['verified_dependencies'] = verify_dependencies(client, plan, Path(args.output).parent / 'dependency-scan')
         with Path(args.output).open('x') as output:
             json.dump(plan, output, indent=2)
             output.write('\n')

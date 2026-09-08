@@ -6,23 +6,31 @@ export PATH="$PWD/.ci-tools/bin:$PWD/.ci-tools/python/bin:$PATH"
 reports="$PWD/.ci-reports/security"
 mode="${1:?security mode is required}"
 
-case "$mode" in
-  install)
+install_trivy() {
     mkdir -p .ci-tools/bin
-    dotnet tool install Microsoft.CST.DevSkim.CLI --version 1.0.90 --tool-path .ci-tools/bin
-    python3 -m venv .ci-tools/python
-    .ci-tools/python/bin/pip install --disable-pip-version-check zizmor==1.30.0
     curl --fail --silent --show-error --location --retry 3 \
       https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_Linux-64bit.tar.gz \
       --output .ci-tools/trivy.tar.gz
     echo '2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a  .ci-tools/trivy.tar.gz' | sha256sum --check --strict
     tar -xzf .ci-tools/trivy.tar.gz -C .ci-tools/bin trivy
     printf '{}\n' > .ci-tools/trivy.yaml
-    devskim --version > "$reports/devskim-version.txt"
-    zizmor --version > "$reports/zizmor-version.txt"
     trivy --version > "$reports/trivy-version.txt"
     trivy --config .ci-tools/trivy.yaml image --download-db-only
     trivy --config .ci-tools/trivy.yaml version --format json > "$reports/trivy-database.json"
+}
+
+case "$mode" in
+  install)
+    mkdir -p .ci-tools/bin
+    dotnet tool install Microsoft.CST.DevSkim.CLI --version 1.0.90 --tool-path .ci-tools/bin
+    python3 -m venv .ci-tools/python
+    .ci-tools/python/bin/pip install --disable-pip-version-check zizmor==1.30.0
+    devskim --version > "$reports/devskim-version.txt"
+    zizmor --version > "$reports/zizmor-version.txt"
+    install_trivy
+    ;;
+  install-trivy)
+    install_trivy
     ;;
   devskim)
     stage="${RUNNER_TEMP:-/tmp}/security-source-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}"

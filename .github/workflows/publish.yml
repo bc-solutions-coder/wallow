@@ -40,7 +40,7 @@ jobs:
         with:
           ref: ${{ github.workflow_sha }}
           persist-credentials: false
-      - name: Authorize producer and inspect sealed image bundles
+      - name: Authorize producer and inspect sealed candidates
         env:
           GH_TOKEN: ${{ github.token }}
           PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
@@ -49,14 +49,22 @@ jobs:
           mkdir .ci-publication
           python3 scripts/ci/publication_plan.py --run-id "$PRODUCER_RUN" --attempt "$PRODUCER_ATTEMPT" --output .ci-publication/plan.json
           python3 scripts/ci/validation.py seal --file .ci-publication/plan.json --manifest .ci-publication/plan.json.json --kind publication-plan --variant authorized
-      - name: Retain authorized image inspection metadata
+      - name: Retain sealed authorized publication plan
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: publication-plan-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .ci-publication/*
+          path: .ci-publication/plan.json*
           if-no-files-found: error
           retention-days: 30
           include-hidden-files: true
+      - name: Retain dependency scan diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: publication-scan-reports-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-publication/dependency-scan
+          if-no-files-found: ignore
+          retention-days: 30
   release-please:
     name: Release automation
     needs: authorize

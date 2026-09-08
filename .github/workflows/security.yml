@@ -65,7 +65,7 @@ jobs:
         run: |
           mkdir -p .ci-artifacts/dependency-inputs
           cp .ci-reports/security/dependency-inventory.json .ci-tools/dependencies/inventory.json
-          tar -czf .ci-artifacts/dependency-inputs/dependencies.tar.gz -C .ci-tools/dependencies .
+          tar --format=ustar -czf .ci-artifacts/dependency-inputs/dependencies.tar.gz -C .ci-tools/dependencies .
           python3 scripts/ci/validation.py seal --file .ci-artifacts/dependency-inputs/dependencies.tar.gz --manifest .ci-artifacts/dependency-inputs/dependencies.tar.gz.json --kind dependencies --variant resolved-locks
       - name: Retain exact resolved dependency inputs
         if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
