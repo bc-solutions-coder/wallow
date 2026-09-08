@@ -1,11 +1,18 @@
 """Behavior checks for the historical recovery dispatch boundary."""
 
 import copy
+from contextlib import redirect_stderr
+import hashlib
+import io
+import json
+import os
+from pathlib import Path
+import tempfile
 import unittest
 from unittest.mock import Mock, patch
 
 from publication import PublicationError
-from recovery_request import authorize_dispatch, request
+from recovery_request import authorize_dispatch, main, request
 
 
 class RecoveryDispatchTests(unittest.TestCase):
@@ -122,6 +129,38 @@ class RecoveryRequestTests(unittest.TestCase):
         self.selection['record']['payload']['selection']['producer']['source_sha'] = 'e' * 40
         with self.assertRaisesRegex(PublicationError, 'original release producer'):
             self.requested()
+
+
+class RecoveryCliTests(unittest.TestCase):
+    def test_outputs_bind_exact_request_bytes_and_do_not_export_credentials(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output, exports = root / 'request.json', root / 'outputs'
+            record = {'source_sha': 'a' * 40, 'controller_sha': 'b' * 40, 'publication_authorized': False}
+            environment = {'GITHUB_RUN_ID': '33', 'GITHUB_RUN_ATTEMPT': '2', 'GITHUB_REPOSITORY': 'owner/repo',
+                           'GITHUB_OUTPUT': str(exports), 'GH_TOKEN': 'disposable-test-credential'}
+            with patch.dict(os.environ, environment, clear=True), \
+                 patch('sys.argv', ['recovery_request.py', '--source', 'a' * 40, '--release-id', '44', '--output', str(output)]), \
+                 patch('recovery_request.ReleaseGitHub'), patch('recovery_request.load_catalog', return_value={}), \
+                 patch('recovery_request.request', return_value=record):
+                main()
+            values = dict(line.split('=', 1) for line in exports.read_text().splitlines())
+            self.assertEqual(values['recovery_request_sha256'], 'sha256:' + hashlib.sha256(output.read_bytes()).hexdigest())
+            self.assertEqual(values['source_ref'], 'a' * 40)
+            self.assertEqual(values['controller_ref'], 'b' * 40)
+            self.assertEqual(values['route'], 'full')
+            self.assertEqual(json.loads(output.read_text()), record)
+            self.assertNotIn(environment['GH_TOKEN'], output.read_text() + exports.read_text())
+
+    def test_invalid_invocation_fails_before_client_or_output(self):
+        with patch.dict(os.environ, {'GITHUB_RUN_ID': 'invalid', 'GITHUB_RUN_ATTEMPT': '2'}, clear=True), \
+             patch('sys.argv', ['recovery_request.py', '--source', 'a' * 40, '--release-id', '44', '--output', 'unused.json']), \
+             patch('recovery_request.ReleaseGitHub') as client, redirect_stderr(io.StringIO()) as error:
+            with self.assertRaises(SystemExit) as exited:
+                main()
+            self.assertEqual(exited.exception.code, 1)
+            client.assert_not_called()
+            self.assertIn('exact positive invocation', error.getvalue())
 
 
 if __name__ == '__main__':

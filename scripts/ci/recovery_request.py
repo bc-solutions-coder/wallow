@@ -1,7 +1,14 @@
 """Authorize an explicit historical validation request without authorizing publication."""
 
-from publication import PublicationError, main_ancestor, matches, positive_integer
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+
+from publication import PublicationError, load_catalog, main_ancestor, matches, positive_integer
 from publication_release_authorization import authenticate_origin, release_identity
+from publication_release_github import ReleaseGitHub
 from publication_release_receipts import ORIGIN, SELECTION, find_receipt
 
 
@@ -64,3 +71,39 @@ def request(client, context, run_id, attempt, source, release_id, catalog):
             'origin': {'asset_id': origin['asset_id'], 'sha256': origin['sha256']},
             'selection': {'asset_id': selection['asset_id'], 'sha256': selection['sha256']},
             'route': 'full', 'publication_authorized': False}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--source', required=True)
+    parser.add_argument('--release-id', required=True)
+    parser.add_argument('--output', required=True)
+    args = parser.parse_args()
+    try:
+        ids = [os.environ.get('GITHUB_RUN_ID', ''), os.environ.get('GITHUB_RUN_ATTEMPT', ''), args.release_id]
+        if not all(matches(r'[1-9][0-9]{0,19}', value) for value in ids):
+            raise PublicationError('Recovery requires exact positive invocation and release IDs')
+        context = {key: os.environ.get('GITHUB_' + key.upper(), '') for key in ('repository', 'ref', 'workflow_ref', 'workflow_sha', 'event_name')}
+        client = ReleaseGitHub(context['repository'], os.environ.get('GH_TOKEN'))
+        run_id, attempt, release_id = map(int, ids)
+        record = request(client, context, run_id, attempt, args.source, release_id, load_catalog(Path(__file__).resolve().parents[2]))
+        output = Path(args.output)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        data = (json.dumps(record, sort_keys=True, indent=2) + '\n').encode()
+        with output.open('xb') as stream:
+            stream.write(data)
+        digest = 'sha256:' + hashlib.sha256(data).hexdigest()
+        if os.environ.get('GITHUB_OUTPUT'):
+            with Path(os.environ['GITHUB_OUTPUT']).open('a') as stream:
+                for key, value in {'source_ref': record['source_sha'], 'controller_ref': record['controller_sha'],
+                                   'recovery_request_sha256': digest, 'recovery_release_id': release_id,
+                                   'recovery_mode': 'true', 'route': 'full'}.items():
+                    stream.write(f'{key}={value}\n')
+    except PublicationError as error:
+        parser.exit(1, f'Recovery request failed: {error}\n')
+    except (OSError, ValueError, TypeError, KeyError, RecursionError):
+        parser.exit(1, 'Recovery request could not be validated.\n')
+
+
+if __name__ == '__main__':
+    main()
