@@ -9,8 +9,8 @@ from publication import PublicationError, load_catalog, matches, positive_intege
 from publication_release_github import ReleaseGitHub
 from publication_release_origin import frame
 from publication_release_receipts import RECOVERY_JOB, retain
-from publication_release_selection import validate_candidate
 from recovery_plan import resolve
+from recovery_selection import receipt_payload
 
 
 def record(client, context, run_id, attempt, producer_run, producer_attempt, release_id, catalog):
@@ -24,9 +24,7 @@ def record(client, context, run_id, attempt, producer_run, producer_attempt, rel
     release = request['release']
     if release['id'] != release_id or plan['producer']['release_id'] != release_id:
         raise PublicationError('Recovered producer belongs to another requested release')
-    snapshot = validate_candidate(plan, release, catalog)
-    payload = {'release': release, 'origin': request['origin'], 'selection': request['selection'],
-               'recovery_request': plan['inputs']['recovery_request'], 'recovery': snapshot}
+    payload = receipt_payload(plan, catalog)
     name = f'wallow-recovery-v1-{producer_run}-{producer_attempt}.json'
     receipt = retain(client, release_id, name, payload, current)
     return {'schema': 1, 'release_id': release_id, 'asset_id': receipt['asset_id'],
