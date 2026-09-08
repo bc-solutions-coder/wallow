@@ -49,6 +49,15 @@ class PipelineTests(unittest.TestCase):
     def plan(self):
         return {'records': [self.record], 'unrelated': False, 'entries': plan_aliases(self.client, [self.record], 'package', self.registry), 'scans': {'1': {'current_policy': 'verified'}}, 'dependencies': []}
 
+    def test_unknown_alias_reports_observed_target_without_writing(self):
+        self.registry.tags['latest'] = '0.9.0'
+        with self.assertRaises(PublicationError) as failure:
+            self.plan()
+        self.assertIn("alias 'latest'", str(failure.exception))
+        self.assertIn("target '0.9.0'", str(failure.exception))
+        self.assertIn('0 matching release receipts', str(failure.exception))
+        self.assertEqual(self.registry.events, [])
+
     def run_writer(self, plan, progress):
         with patch('publication_alias_pipeline.frame', return_value=({'job_id': 2}, {})), \
              patch('publication_alias_pipeline.authorize_plan', return_value=plan), \
