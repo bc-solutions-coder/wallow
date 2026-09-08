@@ -106,9 +106,9 @@
       "scanner": "zizmor",
       "id": "dangerous-triggers",
       "scope": ".github/workflows/publish.yml",
-      "feature_sha256": "sha256:95d3bf4b23e342873746dc04f94524f946935a120492612f5fb612919de1e5d2",
+      "feature_sha256": "sha256:24d23842c2321acf42809df68cafcf38268d88a2e35d12e845f7984dde5bc59d",
       "owner": "bc-solutions-coder",
-      "reason": "Reviewed workflow_run boundary: read-only authorization binds protected controller SHA, successful same-repository main producer, exact run/attempt and sealed artifacts without producer execution. Default-off main-only writers are isolated: production Release Please repeats API authorization for the pinned official action; image-publish repeats current preparation/API/artifact authorization, uses only its package-write job token for fixed GHCR copies, verifies exact bytes and guards nightly ancestry under the shared queue. No project execution, release-version publication or receipt authority is inferred. Trigger or privilege changes require renewed review.",
+      "reason": "Reviewed workflow_run boundary: read-only authorization binds protected controller SHA, successful same-repository main producer, exact run/attempt and sealed artifacts without producer execution. Default-off main-only writers are isolated: production Release Please repeats API authorization for the pinned official action; image-publish uses only its package-write job token for fixed GHCR copies, exact readback and guarded nightly ancestry under the queue. Separate job tokens retain exact PR origins with pull-requests write and release origin/producer-selection receipts with contents write; API-bound successful protected jobs, immutable asset bytes and fully revalidated retry endorsements establish provenance before future release writes. No project execution or release-version registry publication is enabled by these receipts. Trigger or privilege changes require renewed review.",
       "tracking": "https://github.com/bc-solutions-coder/wallow/issues/283",
       "created": "2026-09-08T00:02:03Z",
       "expires": "2026-10-08T00:02:03Z"
