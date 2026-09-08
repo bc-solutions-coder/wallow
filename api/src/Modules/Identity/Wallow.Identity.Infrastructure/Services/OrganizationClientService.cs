@@ -433,8 +433,13 @@ public sealed partial class OrganizationClientService(
                     await applicationManager.DeleteAsync(application, token);
                 }
 
+                await TelemetryOwnership.LockRegistrationAsync(dbContext, record.Id, token);
                 TelemetryRegistration? telemetry = await dbContext.TelemetryRegistrations.AsTracking().FirstOrDefaultAsync(e => e.Id == record.Id, token);
-                telemetry?.Revoke(deleted: true, timeProvider);
+                if (telemetry is not null)
+                {
+                    await dbContext.Entry(telemetry).ReloadAsync(token);
+                    telemetry.Revoke(deleted: true, timeProvider);
+                }
                 registeredClients.Remove(record);
                 await registeredClients.SaveChangesAsync(token);
             },

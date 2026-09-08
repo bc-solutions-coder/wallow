@@ -24,10 +24,12 @@ public sealed partial class OrganizationClientService
         await CommitAndPublishAsync(new TelemetryDesiredChangedEvent { RegistrationId = record.Id.Value }, async token =>
         {
             await TelemetryOwnership.RequireClientAsync(dbContext, record, token);
+            await TelemetryOwnership.LockRegistrationAsync(dbContext, record.Id, token);
             TelemetryRegistration? existing = await dbContext.TelemetryRegistrations.AsTracking().FirstOrDefaultAsync(e => e.Id == record.Id, token);
             if (existing is null) { revealed = CreateTelemetry(record); }
             else
             {
+                await dbContext.Entry(existing).ReloadAsync(token);
                 if (existing.AccessState == TelemetryAccessState.Enabled) { throw new BusinessRuleException(IdentityErrors.TelemetryAlreadyEnabled); }
                 (string credentialId, string secret, string verifier) = NewTelemetryCredential();
                 existing.Enable(credentialId, verifier, timeProvider);
@@ -46,11 +48,13 @@ public sealed partial class OrganizationClientService
         TelemetryRegistration? state = await dbContext.TelemetryRegistrations.AsTracking().FirstOrDefaultAsync(e => e.Id == record.Id, ct);
         if (state is null) { return null; }
         (string credentialId, string secret, string verifier) = NewTelemetryCredential();
-        state.Rotate(credentialId, verifier, timeProvider);
         await CommitAndPublishAsync(new TelemetryDesiredChangedEvent { RegistrationId = record.Id.Value },
             async token =>
             {
                 await TelemetryOwnership.RequireClientAsync(dbContext, record, token);
+                await TelemetryOwnership.LockRegistrationAsync(dbContext, record.Id, token);
+                await dbContext.Entry(state).ReloadAsync(token);
+                state.Rotate(credentialId, verifier, timeProvider);
                 await dbContext.SaveChangesAsync(token);
             }, ct);
         return new TelemetryEnableResult(ToTelemetryStatus(state), RevealTelemetry(credentialId, secret));
@@ -62,11 +66,13 @@ public sealed partial class OrganizationClientService
         if (record is null) { return null; }
         TelemetryRegistration? state = await dbContext.TelemetryRegistrations.AsTracking().FirstOrDefaultAsync(e => e.Id == record.Id, ct);
         if (state is null) { return null; }
-        state.Revoke(deleted: false, timeProvider);
         await CommitAndPublishAsync(new TelemetryDesiredChangedEvent { RegistrationId = record.Id.Value },
             async token =>
             {
                 await TelemetryOwnership.RequireClientAsync(dbContext, record, token);
+                await TelemetryOwnership.LockRegistrationAsync(dbContext, record.Id, token);
+                await dbContext.Entry(state).ReloadAsync(token);
+                state.Revoke(deleted: false, timeProvider);
                 await dbContext.SaveChangesAsync(token);
             }, ct);
         return ToTelemetryStatus(state);
