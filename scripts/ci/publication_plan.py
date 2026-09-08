@@ -51,6 +51,10 @@ def validate_registration(record, producer, route, artifacts):
         raise PublicationError('Invalid immutable producer registration')
     if record['producer'] != asdict(producer) or record['route'] != route or record['artifacts'] != artifacts:
         raise PublicationError('Registered producer or artifacts differ from current GitHub evidence')
+    validate_registered_inputs(record)
+
+
+def validate_registered_inputs(record):
     versions, fingerprints, catalog = record['component_versions'], record['input_sha256'], record['catalog']
     if not isinstance(versions, dict) or not versions or not isinstance(catalog, dict) or not isinstance(fingerprints, dict) or not fingerprints:
         raise PublicationError('Registration lacks source versions or build inputs')
