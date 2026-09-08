@@ -36,14 +36,19 @@ class PackageRegistry:
     def __exit__(self, *args):
         self.directory.cleanup()
 
-    def command(self, arguments):
+    def _run(self, arguments):
         try:
             result = self.runner(self.base + arguments, cwd=self.root, env=self.environment, capture_output=True, text=True, timeout=180)
-            if not isinstance(result.stdout, str) or len(result.stdout.encode()) > 1024 * 1024:
-                raise PublicationError('Package registry output exceeds its bounded limit')
-            data = json.loads(result.stdout)
         except (OSError, subprocess.TimeoutExpired):
             raise PublicationError('Package registry operation did not complete; verify registry state before retrying') from None
+        if not isinstance(result.stdout, str) or len(result.stdout.encode()) > 1024 * 1024:
+            raise PublicationError('Package registry output exceeds its bounded limit')
+        return result
+
+    def command(self, arguments):
+        result = self._run(arguments)
+        try:
+            data = json.loads(result.stdout)
         except (TypeError, json.JSONDecodeError):
             raise PublicationError('Package registry returned malformed output') from None
         return result.returncode, data
@@ -90,6 +95,28 @@ class PackageRegistry:
             if sha256 != package.sha256 or integrity != package.integrity:
                 raise PublicationError('Package registry tarball bytes differ from the authorized candidate')
         return True
+
+    def dist_tags(self, name):
+        if not matches(r'@[a-z0-9][a-z0-9-]*/[a-z0-9][a-z0-9_.-]*', name) or name.split('/')[0] != self.scope:
+            raise PublicationError('Package alias lookup belongs to another owner scope')
+        code, data = self.command(['view', name, 'dist-tags'])
+        if code != 0 or not isinstance(data, dict) or len(data) > 1000 or any(not isinstance(tag, str) or not matches(r'[A-Za-z0-9_.-]{1,200}', tag) or not isinstance(version, str) or not 0 < len(version) <= 200 for tag, version in data.items()):
+            raise PublicationError('Package aliases are missing, malformed or unbounded')
+        return data
+
+    def replace_dist_tag(self, package, alias, previous):
+        if alias != 'latest' and not matches(r'(?:major-(?:0|[1-9][0-9]*)|minor-(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))', alias):
+            raise PublicationError('Package alias must be latest, major-X or minor-X.Y')
+        if not self.read(package):
+            raise PublicationError('Package alias target is absent')
+        if self.dist_tags(package.name).get(alias) != previous:
+            raise PublicationError('Package alias changed after its provenance was checked')
+        if previous == package.version:
+            return 'identical'
+        result = self._run(['dist-tag', 'add', package.name + '@' + package.version, alias])
+        if result.returncode != 0 or self.dist_tags(package.name).get(alias) != package.version or not self.read(package):
+            raise PublicationError('Package alias mutation or exact registry readback failed')
+        return 'verified'
 
     def publish(self, path, package):
         if self.read(package):

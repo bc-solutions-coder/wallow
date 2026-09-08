@@ -43,7 +43,10 @@ def manifest_identity(data, media_type):
 
 
 class GHCR:
-    def __init__(self, repository, username, credential, opener=None):
+    def __init__(self, repository, username, credential, opener=None, access='write'):
+        if access not in ('read', 'write'):
+            raise PublicationError('GHCR access must be an explicit read or write role')
+        self.access = access
         if not matches(r'ghcr\.io/[a-z0-9][a-z0-9-]*/[a-z0-9]+(?:[._-][a-z0-9]+)*', repository) or len(repository) > 255:
             raise PublicationError('An exact authorized GHCR repository is required')
         if not matches(r'[A-Za-z0-9_.\[\]-]{1,100}', username) or not matches(r'[\x21-\x7e]{1,8192}', credential):
@@ -51,7 +54,8 @@ class GHCR:
         self.repository = repository.removeprefix('ghcr.io/')
         self.opener = opener or urllib.request.build_opener(NoRedirect())
         basic = base64.b64encode((username + ':' + credential).encode()).decode()
-        query = urllib.parse.urlencode({'service': 'ghcr.io', 'scope': f'repository:{self.repository}:pull,push'})
+        actions = 'pull' if access == 'read' else 'pull,push'
+        query = urllib.parse.urlencode({'service': 'ghcr.io', 'scope': f'repository:{self.repository}:{actions}'})
         status, _, body = self._request('GET', '/token?' + query, 'Basic ' + basic, limit=JSON_LIMIT)
         if status != 200:
             raise PublicationError('GHCR authentication failed')
@@ -62,6 +66,8 @@ class GHCR:
         self.authorization = 'Bearer ' + token
 
     def _request(self, method, path, authorization, data=None, media_type=None, limit=MANIFEST_LIMIT):
+        if self.access == 'read' and method != 'GET':
+            raise PublicationError('Read-only GHCR transport cannot mutate registry state')
         headers = {'Authorization': authorization, 'Accept': ', '.join(MEDIA_TYPES), 'User-Agent': 'wallow-publication'}
         if media_type:
             headers['Content-Type'] = media_type
@@ -103,6 +109,8 @@ class GHCR:
         return {'digest': digest, 'media_type': media_type, 'bytes': body}
 
     def write_manifest(self, reference, data, media_type, expected_digest):
+        if self.access != 'write':
+            raise PublicationError('Read-only GHCR transport cannot publish manifests')
         path = self._manifest_path(reference)
         digest = manifest_identity(data, media_type)
         if expected_digest != digest or (reference.startswith('sha256:') and reference != digest):
@@ -121,19 +129,29 @@ class GHCR:
         return digest
 
 
+    def replace_release_alias(self, reference, data, expected_digest, previous):
+        if reference != 'latest' and not matches(r'(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*))?', reference):
+            raise PublicationError('Image release alias must be latest, major or major.minor')
+        return self._replace_alias(reference, data, expected_digest, previous)
+
     def replace_nightly(self, data, expected_digest, previous):
         """Caller proves ancestry under the workflow queue; this is not registry CAS."""
+        return self._replace_alias('nightly', data, expected_digest, previous)
+
+    def _replace_alias(self, reference, data, expected_digest, previous):
+        if self.access != 'write':
+            raise PublicationError('Read-only GHCR transport cannot change aliases')
         media_type = 'application/vnd.oci.image.index.v1+json'
         digest = manifest_identity(data, media_type)
         if digest != expected_digest:
-            raise PublicationError('Nightly bytes differ from the authorized digest')
+            raise PublicationError('Alias bytes differ from the authorized digest')
         expected = {'digest': digest, 'media_type': media_type, 'bytes': data}
-        observed = self.read_manifest('nightly')
+        observed = self.read_manifest(reference)
         if observed != previous:
-            raise PublicationError('Nightly changed after its provenance was checked')
+            raise PublicationError('Alias changed after its provenance was checked')
         if observed == expected:
             return digest
-        status, headers, _ = self._request('PUT', self._manifest_path('nightly'), self.authorization, data, media_type, JSON_LIMIT)
-        if status != 201 or headers.get('Docker-Content-Digest') != digest or self.read_manifest('nightly') != expected:
-            raise PublicationError('Nightly write or exact readback failed')
+        status, headers, _ = self._request('PUT', self._manifest_path(reference), self.authorization, data, media_type, JSON_LIMIT)
+        if status != 201 or headers.get('Docker-Content-Digest') != digest or self.read_manifest(reference) != expected:
+            raise PublicationError('Alias write or exact readback failed')
         return digest

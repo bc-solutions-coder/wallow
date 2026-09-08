@@ -7,7 +7,7 @@ The publication migration remains in progress in [issue #283](https://github.com
 Keep each production publisher disabled until its acceptance and first-target cutover checks pass.
 Images publish immutable full-SHA tags and `nightly`. Authenticated releases also have an immutable version-image path with separate durable receipts; hosted acceptance of that path remains pending.
 Packages currently publish immutable versions with a `validated-<hash>` staging tag.
-Stable release aliases and historical artifact recovery are not yet available.
+Stable release alias promotion is implemented behind the same capability flags; hosted acceptance remains pending. Historical artifact recovery is not yet available.
 
 ## Configure validation
 
@@ -80,6 +80,20 @@ Existing versions must match the validated tarball bytes. A version conflict sto
 
 For an existing Pages site or legacy image tags, complete the reviewed migration recorded in issue #283 before enabling the writer.
 Unknown existing content is not accepted as publication authority.
+
+## Stable release aliases
+
+After immutable publication and its durable receipt succeed, image releases can advance `latest`, `X`, and `X.Y`.
+Packages use `latest`, `major-X`, and `minor-X.Y`; [npm rejects dist-tags that parse as version ranges](https://docs.npmjs.com/cli/v11/commands/npm-dist-tag/).
+Prereleases publish immutable versions only. Build-metadata versions are rejected explicitly.
+
+Promotion checks the component version and source ancestry on `main`. An older retry can complete missing aliases in its own version line but cannot roll newer aliases backward.
+Existing aliases must match an authenticated immutable receipt and exact registry bytes. Unknown legacy aliases require a separately reviewed migration.
+All images belonging to a component are verified before any alias changes. Updates across aliases are sequential, so a failure can leave partial progress; retrying rechecks the actual registry state.
+
+Changing targets need current-policy scans. Images can be scanned from their exact retained registry blobs.
+Package targets also need the selected producer's resolved dependency inputs; expired inputs require explicit recovery, not a replacement producer or new lockfile.
+An identical alias or an older skipped target causes no mutation. Append-only Release assets retain successful alias observations; immutable publication receipts remain the authority.
 
 ## Configure Release Please
 

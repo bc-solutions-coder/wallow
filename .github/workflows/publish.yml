@@ -661,6 +661,305 @@ jobs:
           if-no-files-found: ${{ steps.operation.outcome == 'success' && 'error' || 'ignore' }}
           retention-days: 30
 
+  prepare-image-aliases:
+    name: Prepare image aliases
+    needs: [authorize, record-image-publication]
+    if: >-
+      always() && needs.authorize.result == 'success' && (needs.record-image-publication.result == 'success' || needs.record-image-publication.result == 'skipped') &&
+      github.ref == 'refs/heads/main' && vars.ENABLE_IMAGE_PUBLISH == 'true'
+    outputs:
+      eligible: ${{ steps.operation.outputs.eligible }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      pull-requests: read
+      packages: read
+    steps:
+      - name: Check out protected controller revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Prepare exact stable image aliases
+        id: operation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ENABLE_IMAGE_PUBLISH: ${{ vars.ENABLE_IMAGE_PUBLISH }}
+          PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
+          PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
+          RELEASE_ID: ${{ inputs.release_id }}
+        run: python3 scripts/ci/publication_promote_aliases.py prepare --kind image --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --output .ci-aliases/plan.json
+      - name: Seal alias evidence
+        if: always()
+        run: |
+          if [[ -f .ci-aliases/plan.json ]]; then
+            python3 scripts/ci/validation.py seal --file .ci-aliases/plan.json --manifest .ci-aliases/plan.json.json --kind alias-plan --variant image
+          fi
+      - name: Retain exact alias evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: image-alias-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-aliases/plan.json*
+          include-hidden-files: true
+          if-no-files-found: ${{ steps.operation.outcome == 'success' && 'error' || 'ignore' }}
+          retention-days: 30
+      - name: Retain fresh alias target scans
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: image-alias-scans-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-aliases/scans/*
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 30
+  promote-image-aliases:
+    name: Promote image aliases
+    needs: prepare-image-aliases
+    if: >-
+      needs.prepare-image-aliases.result == 'success' && needs.prepare-image-aliases.outputs.eligible == 'true' &&
+      github.ref == 'refs/heads/main' && vars.ENABLE_IMAGE_PUBLISH == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    environment:
+      name: image-publish
+      deployment: false
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      pull-requests: read
+      packages: write
+    steps:
+      - name: Check out protected controller revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Promote exact stable image aliases
+        id: operation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ENABLE_IMAGE_PUBLISH: ${{ vars.ENABLE_IMAGE_PUBLISH }}
+          PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
+          PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
+          RELEASE_ID: ${{ inputs.release_id }}
+        run: python3 scripts/ci/publication_promote_aliases.py promote --kind image --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --output .ci-aliases/progress.json
+      - name: Seal alias evidence
+        if: always()
+        run: |
+          if [[ -f .ci-aliases/progress.json ]]; then
+            python3 scripts/ci/validation.py seal --file .ci-aliases/progress.json --manifest .ci-aliases/progress.json.json --kind alias-progress --variant image
+          fi
+      - name: Retain exact alias evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: image-alias-progress-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-aliases/progress.json*
+          include-hidden-files: true
+          if-no-files-found: ${{ steps.operation.outcome == 'success' && 'error' || 'ignore' }}
+          retention-days: 30
+  record-image-aliases:
+    name: Record image aliases
+    needs: promote-image-aliases
+    if: >-
+      needs.promote-image-aliases.result == 'success' &&
+      github.ref == 'refs/heads/main' && vars.ENABLE_IMAGE_PUBLISH == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: write
+      actions: read
+      checks: read
+      pull-requests: read
+    steps:
+      - name: Check out protected controller revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Record exact stable image aliases
+        id: operation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ENABLE_IMAGE_PUBLISH: ${{ vars.ENABLE_IMAGE_PUBLISH }}
+          PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
+          PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
+          RELEASE_ID: ${{ inputs.release_id }}
+        run: python3 scripts/ci/publication_promote_aliases.py record --kind image --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --output .ci-aliases/progress.json
+      - name: Seal alias evidence
+        if: always()
+        run: |
+          if [[ -f .ci-aliases/progress.json ]]; then
+            python3 scripts/ci/validation.py seal --file .ci-aliases/progress.json --manifest .ci-aliases/progress.json.json --kind alias-receipts --variant image
+          fi
+      - name: Retain exact alias evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: image-alias-receipts-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-aliases/progress.json*
+          include-hidden-files: true
+          if-no-files-found: ${{ steps.operation.outcome == 'success' && 'error' || 'ignore' }}
+          retention-days: 30
+  prepare-package-aliases:
+    name: Prepare package aliases
+    needs: [authorize, record-package-publication]
+    if: >-
+      always() && needs.authorize.result == 'success' && (needs.record-package-publication.result == 'success' || needs.record-package-publication.result == 'skipped') &&
+      github.ref == 'refs/heads/main' && vars.ENABLE_PACKAGE_PUBLISH == 'true'
+    outputs:
+      eligible: ${{ steps.operation.outputs.eligible }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      pull-requests: read
+      packages: read
+    steps:
+      - name: Check out protected controller revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Set up fixed Node and npm toolchain
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: .nvmrc
+      - name: Prepare exact stable package aliases
+        id: operation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ENABLE_PACKAGE_PUBLISH: ${{ vars.ENABLE_PACKAGE_PUBLISH }}
+          PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
+          PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
+          RELEASE_ID: ${{ inputs.release_id }}
+        run: python3 scripts/ci/publication_promote_aliases.py prepare --kind package --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --output .ci-aliases/plan.json
+      - name: Seal alias evidence
+        if: always()
+        run: |
+          if [[ -f .ci-aliases/plan.json ]]; then
+            python3 scripts/ci/validation.py seal --file .ci-aliases/plan.json --manifest .ci-aliases/plan.json.json --kind alias-plan --variant package
+          fi
+      - name: Retain exact alias evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: package-alias-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-aliases/plan.json*
+          include-hidden-files: true
+          if-no-files-found: ${{ steps.operation.outcome == 'success' && 'error' || 'ignore' }}
+          retention-days: 30
+      - name: Retain fresh alias target scans
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: package-alias-scans-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-aliases/scans/*
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 30
+  promote-package-aliases:
+    name: Promote package aliases
+    needs: prepare-package-aliases
+    if: >-
+      needs.prepare-package-aliases.result == 'success' && needs.prepare-package-aliases.outputs.eligible == 'true' &&
+      github.ref == 'refs/heads/main' && vars.ENABLE_PACKAGE_PUBLISH == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment:
+      name: package-publish
+      deployment: false
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      pull-requests: read
+      packages: write
+    steps:
+      - name: Check out protected controller revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Set up fixed Node and npm toolchain
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: .nvmrc
+      - name: Promote exact stable package aliases
+        id: operation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ENABLE_PACKAGE_PUBLISH: ${{ vars.ENABLE_PACKAGE_PUBLISH }}
+          PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
+          PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
+          RELEASE_ID: ${{ inputs.release_id }}
+        run: python3 scripts/ci/publication_promote_aliases.py promote --kind package --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --output .ci-aliases/progress.json
+      - name: Seal alias evidence
+        if: always()
+        run: |
+          if [[ -f .ci-aliases/progress.json ]]; then
+            python3 scripts/ci/validation.py seal --file .ci-aliases/progress.json --manifest .ci-aliases/progress.json.json --kind alias-progress --variant package
+          fi
+      - name: Retain exact alias evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: package-alias-progress-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-aliases/progress.json*
+          include-hidden-files: true
+          if-no-files-found: ${{ steps.operation.outcome == 'success' && 'error' || 'ignore' }}
+          retention-days: 30
+  record-package-aliases:
+    name: Record package aliases
+    needs: promote-package-aliases
+    if: >-
+      needs.promote-package-aliases.result == 'success' &&
+      github.ref == 'refs/heads/main' && vars.ENABLE_PACKAGE_PUBLISH == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      actions: read
+      checks: read
+      pull-requests: read
+    steps:
+      - name: Check out protected controller revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Record exact stable package aliases
+        id: operation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ENABLE_PACKAGE_PUBLISH: ${{ vars.ENABLE_PACKAGE_PUBLISH }}
+          PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
+          PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
+          RELEASE_ID: ${{ inputs.release_id }}
+        run: python3 scripts/ci/publication_promote_aliases.py record --kind package --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --output .ci-aliases/progress.json
+      - name: Seal alias evidence
+        if: always()
+        run: |
+          if [[ -f .ci-aliases/progress.json ]]; then
+            python3 scripts/ci/validation.py seal --file .ci-aliases/progress.json --manifest .ci-aliases/progress.json.json --kind alias-receipts --variant package
+          fi
+      - name: Retain exact alias evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: package-alias-receipts-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-aliases/progress.json*
+          include-hidden-files: true
+          if-no-files-found: ${{ steps.operation.outcome == 'success' && 'error' || 'ignore' }}
+          retention-days: 30
+
 defaults:
   run:
     shell: bash
