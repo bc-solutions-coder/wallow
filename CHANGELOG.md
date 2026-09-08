@@ -1,5 +1,39 @@
 # Changelog
 
+## [6.0.0](https://github.com/bc-solutions-coder/wallow/compare/v5.0.0...v6.0.0) (2026-09-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* **announcements:** remove announcements and changelogs ([#257](https://github.com/bc-solutions-coder/wallow/issues/257))
+* **notifications:** implement standards-compliant browser push
+* **notifications:** the public push-send request no longer accepts recipientId; it always targets the signed-in user.
+
+### Features
+
+* **announcements:** remove announcements and changelogs ([#257](https://github.com/bc-solutions-coder/wallow/issues/257)) ([0b96ae1](https://github.com/bc-solutions-coder/wallow/commit/0b96ae111883de3013336b9866545f65687a8021)), closes [#256](https://github.com/bc-solutions-coder/wallow/issues/256)
+* **auth:** animate and style the logout experience ([a8cacb9](https://github.com/bc-solutions-coder/wallow/commit/a8cacb9dee727eb2c22b9078c6e589b65fb75190))
+* **ci:** promote authenticated stable release aliases ([#290](https://github.com/bc-solutions-coder/wallow/issues/290)) ([a65e967](https://github.com/bc-solutions-coder/wallow/commit/a65e967a51ba428dd4e0f1401b53c1094f0ca93c))
+* **ci:** recover historical release artifacts with current validation ([#293](https://github.com/bc-solutions-coder/wallow/issues/293)) ([8904315](https://github.com/bc-solutions-coder/wallow/commit/89043153fcc841b4cf97c0a3a0ea3df15ef8c8ca))
+* **identity:** provision observability from client registration ([93bcb75](https://github.com/bc-solutions-coder/wallow/commit/93bcb753cf0a145d816c31b8e8fa70455e6299a3))
+* **observability:** authenticate and attribute telemetry ingestion ([3259763](https://github.com/bc-solutions-coder/wallow/commit/325976312e73a9df5a5bd101bf06dc3aa0229af2))
+* **observability:** enforce operator access and expose capacity ([467738a](https://github.com/bc-solutions-coder/wallow/commit/467738adc18f069db16f7844a39d49b5457c853c))
+* **telemetry:** capture browser signals through a session relay ([e8739be](https://github.com/bc-solutions-coder/wallow/commit/e8739be89794dd73de9d467c241f6ada180cf00a))
+* **telemetry:** correlate API failures and Grafana investigations ([d2389fd](https://github.com/bc-solutions-coder/wallow/commit/d2389fd315e5f88884b15901911f69dd612bee7f))
+* **telemetry:** prepare independent package releases ([8b1a46c](https://github.com/bc-solutions-coder/wallow/commit/8b1a46c422dc29085dacd81811510e8ce7ed8baa))
+* **telemetry:** ship installable node logs and request tracing ([4b5bbbe](https://github.com/bc-solutions-coder/wallow/commit/4b5bbbe655c6f4de1519c6ada265a1a6a6e302fb))
+
+
+### Bug Fixes
+
+* **ci:** hydrate production secrets in reusable main validation ([#285](https://github.com/bc-solutions-coder/wallow/issues/285)) ([7c32c63](https://github.com/bc-solutions-coder/wallow/commit/7c32c6324ff00d657332993bfeb49506970c9e2a))
+* **ci:** report untracked releases outside main ancestry ([#292](https://github.com/bc-solutions-coder/wallow/issues/292)) ([f02bbe1](https://github.com/bc-solutions-coder/wallow/commit/f02bbe135426b55d9d96798ca73b0c28e604292e))
+* **identity:** serialize telemetry mutations with reconciliation ([#294](https://github.com/bc-solutions-coder/wallow/issues/294)) ([2ed078d](https://github.com/bc-solutions-coder/wallow/commit/2ed078d590fe27d47c7d8920e011ac7324d1b66d))
+* **identity:** validate protected external registration state ([#287](https://github.com/bc-solutions-coder/wallow/issues/287)) ([bcf6a80](https://github.com/bc-solutions-coder/wallow/commit/bcf6a802173af1aef1d9b8f13d1c0ebf7df07052))
+* **notifications:** enforce push ownership and self-test sending ([a704634](https://github.com/bc-solutions-coder/wallow/commit/a704634f44e5d5767e75a82a044cd6843e086f6b)), closes [#222](https://github.com/bc-solutions-coder/wallow/issues/222)
+* **notifications:** implement standards-compliant browser push ([3d36327](https://github.com/bc-solutions-coder/wallow/commit/3d36327b71d68dd596b1f396d5d07be3615d59a9))
+* **styles:** add Safari-compatible site icons ([72203c7](https://github.com/bc-solutions-coder/wallow/commit/72203c762228a1d61b33d204e5e8e0bf9ef2fa04))
+
 ## [5.0.0](https://github.com/bc-solutions-coder/wallow/compare/v4.0.0...v5.0.0) (2026-09-06)
 
 
