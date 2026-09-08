@@ -103,6 +103,8 @@ class NpmTests(unittest.TestCase):
                 destination = Path(arguments[arguments.index('--pack-destination') + 1])
                 shutil.copyfile(self.path, destination / 'example-sdk-1.0.0.tgz')
                 return subprocess.CompletedProcess(arguments, 0, '[{"filename":"example-sdk-1.0.0.tgz"}]', '')
+            if arguments[-1] == 'dist-tags' and arguments[arguments.index('view') + 1] == self.package.name and 'latest' not in tags:
+                return subprocess.CompletedProcess(arguments, 0, '', '')
             return subprocess.CompletedProcess(arguments, 0, json.dumps(tags if arguments[-1] == 'dist-tags' else self.metadata), '')
         with PackageRegistry('@example', 'dummy-token', runner) as registry:
             self.assertEqual(registry.replace_dist_tag(self.package, 'latest', None), 'verified')
