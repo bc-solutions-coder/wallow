@@ -19,7 +19,8 @@ import security
 from validation import artifact, artifact_identity
 
 
-SKOPEO = 'quay.io/skopeo/stable@sha256:e5d9c4af8ec327785c7ca938d1e4f8452c6a05014850e58e2ff9456899ebd97c'
+# v1.22.2-immutable retains its digest; the upstream stable stream is rebuilt daily.
+SKOPEO = 'quay.io/containers/skopeo@sha256:ca4fd94dba8cab15cf79c4c156bfc26d28e2265411294e9bba87756942e739ad'
 
 
 def inspect_scan(document, expected, tag, source):
