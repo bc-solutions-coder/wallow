@@ -154,7 +154,12 @@ def plan_aliases(client, records, kind, registry, target=None):
                     elif kind == 'image' and any(image['repository'] == output['repository'] and image['index_digest'] == current for image in record['outputs']['images']):
                         prior.append(record)
                 if len(prior) != 1:
-                    raise PublicationError('Existing alias has unknown or ambiguous durable release provenance')
+                    identity = output['name'] if kind == 'package' else output['repository']
+                    raise PublicationError(
+                        f'Existing alias has unknown or ambiguous durable release provenance: '
+                        f'{kind} {identity!r}, alias {alias!r}, target {current!r}, '
+                        f'{len(prior)} matching release receipts'
+                    )
             previous = prior[0] if prior else None
             comparison = client.get('/compare/' + previous['release']['commit_sha'] + '...' + candidate['release']['commit_sha']) if previous and previous != candidate else None
             action = alias_action(alias, kind, previous, candidate, comparison)
