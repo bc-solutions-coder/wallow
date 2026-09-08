@@ -14,6 +14,7 @@ from publication_verify_images import verify_images
 from publication_verify_packages import verify_packages
 from publication_verify_dependencies import verify_dependencies
 from publication_prepare_images import ImagePreparation
+from publication_image_authorization import image_environment
 
 
 def candidate_artifacts(producer, jobs, artifacts):
@@ -69,6 +70,8 @@ def main():
     try:
         client = GitHub(context['repository'], os.environ.get('GH_TOKEN'))
         plan = resolve(client, context, int(args.run_id), int(args.attempt))
+        if os.environ.get('ENABLE_IMAGE_PUBLISH') == 'true':
+            image_environment(client)
         catalog = load_catalog(Path(__file__).resolve().parents[2])
         plan['verified_packages'] = verify_packages(client, plan, catalog)
         reports = Path(args.output).parent

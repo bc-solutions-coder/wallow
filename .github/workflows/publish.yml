@@ -44,6 +44,7 @@ jobs:
         id: inspect
         env:
           GH_TOKEN: ${{ github.token }}
+          ENABLE_IMAGE_PUBLISH: ${{ vars.ENABLE_IMAGE_PUBLISH }}
           PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
           PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
         run: |
@@ -93,6 +94,50 @@ jobs:
           path: .ci-prepared/docs/*
           if-no-files-found: error
           compression-level: 0
+          retention-days: 30
+  publish-images:
+    name: Publish main images
+    needs: authorize
+    if: >-
+      needs.authorize.result == 'success' &&
+      github.ref == 'refs/heads/main' &&
+      vars.ENABLE_IMAGE_PUBLISH == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    environment:
+      name: image-publish
+      deployment: false
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      packages: write
+    steps:
+      - name: Check out protected controller revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Reauthorize prepared artifacts and publish exact main images
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ENABLE_IMAGE_PUBLISH: ${{ vars.ENABLE_IMAGE_PUBLISH }}
+          PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
+          PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
+        run: python3 scripts/ci/publication_publish_images.py --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --output .ci-image-publication/progress.json
+      - name: Seal completed or partial main image progress
+        if: always()
+        run: |
+          if [[ -f .ci-image-publication/progress.json ]]; then
+            python3 scripts/ci/validation.py seal --file .ci-image-publication/progress.json --manifest .ci-image-publication/progress.json.json --kind image-progress --variant main
+          fi
+      - name: Retain main image progress
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: image-progress-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-image-publication/*
+          if-no-files-found: ignore
           retention-days: 30
   release-please:
     name: Release automation

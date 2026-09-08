@@ -12,7 +12,8 @@ from publication import PublicationError, matches
 
 
 MEDIA_TYPES = ('application/vnd.docker.distribution.manifest.v2+json',
-               'application/vnd.docker.distribution.manifest.list.v2+json')
+               'application/vnd.docker.distribution.manifest.list.v2+json',
+               'application/vnd.oci.image.index.v1+json')
 MANIFEST_LIMIT = 4 * 1024 * 1024
 JSON_LIMIT = 64 * 1024
 
@@ -117,4 +118,22 @@ class GHCR:
             raise PublicationError('GHCR did not acknowledge the exact manifest digest')
         if self.read_manifest(reference) != expected:
             raise PublicationError('GHCR manifest readback differs from the authorized bytes')
+        return digest
+
+
+    def replace_nightly(self, data, expected_digest, previous):
+        """Caller proves ancestry under the workflow queue; this is not registry CAS."""
+        media_type = 'application/vnd.oci.image.index.v1+json'
+        digest = manifest_identity(data, media_type)
+        if digest != expected_digest:
+            raise PublicationError('Nightly bytes differ from the authorized digest')
+        expected = {'digest': digest, 'media_type': media_type, 'bytes': data}
+        observed = self.read_manifest('nightly')
+        if observed != previous:
+            raise PublicationError('Nightly changed after its provenance was checked')
+        if observed == expected:
+            return digest
+        status, headers, _ = self._request('PUT', self._manifest_path('nightly'), self.authorization, data, media_type, JSON_LIMIT)
+        if status != 201 or headers.get('Docker-Content-Digest') != digest or self.read_manifest('nightly') != expected:
+            raise PublicationError('Nightly write or exact readback failed')
         return digest

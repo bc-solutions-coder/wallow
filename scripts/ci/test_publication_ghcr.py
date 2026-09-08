@@ -144,6 +144,25 @@ class GHCRTests(unittest.TestCase):
                 client.write_manifest('v1', self.data, MEDIA_TYPES[1], self.digest)
             self.assertNotIn('registry-bearer', str(error.exception))
 
+    def test_oci_nightly_replacement_requires_observed_state_and_exact_readback(self):
+        client = self.client()
+        data = json.dumps({'schemaVersion': 2, 'mediaType': MEDIA_TYPES[2], 'manifests': [], 'annotations': {'source': 'fixture'}}).encode()
+        digest = 'sha256:' + hashlib.sha256(data).hexdigest()
+        response = (200, {'Content-Type': MEDIA_TYPES[2], 'Docker-Content-Digest': digest}, data)
+        current = {'digest': digest, 'media_type': MEDIA_TYPES[2], 'bytes': data}
+        self.responses = [self.missing(), (201, {'Docker-Content-Digest': digest}, b''), response]
+        self.assertEqual(client.replace_nightly(data, digest, None), digest)
+        self.responses = [response]
+        before = len(self.requests)
+        self.assertEqual(client.replace_nightly(data, digest, current), digest)
+        self.assertEqual(len(self.requests), before + 1)
+        self.responses = [response]
+        with self.assertRaisesRegex(PublicationError, 'changed'):
+            client.replace_nightly(data, digest, None)
+        self.responses = [self.missing(), (201, {'Docker-Content-Digest': digest}, b''), self.missing()]
+        with self.assertRaisesRegex(PublicationError, 'readback'):
+            client.replace_nightly(data, digest, None)
+
     def test_transport_errors_are_sanitized(self):
         class FailedOpener:
             def open(self, request, timeout):

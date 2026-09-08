@@ -313,3 +313,60 @@ Independent review approved this preparation slice. All 131 helper tests pass; t
 focused preparation tests also pass after the final scope-alignment adjustment.
 Actionlint, immutable action policy and formatting checks pass. Hosted complete image
 preparation remains the next acceptance step.
+
+## Main image publication and nightly ordering
+
+The controller now has a real image writer behind literal `ENABLE_IMAGE_PUBLISH=true`.
+It uses the separate `image-publish` environment with no production secrets. Enabled
+configuration requires an existing custom deployment policy permitting exactly the `main`
+branch; the read-only controller checks that policy before starting the privileged job.
+The writer repeats the environment, protected controller, successful registered producer,
+current preparation run/attempt/job, sealed plan and immutable artifact API checks. Its
+GitHub token has package-write plus repository/Actions/checks read permissions only.
+No project build, dependency installation, Dockerfile or application execution occurs.
+
+Prepared archives are extracted into dedicated temporary directories only after their
+GitHub ZIP identity, producer seal, exact plan digest, USTAR members, catalog/platform
+coverage, configuration/layer digests, prepared manifests and indexes match. Skopeo uses
+the pinned image and a temporary mode-0600 auth file for fixed GHCR digest-addressed copies.
+Each child is read back by digest, including all blobs, and rechecked against its original
+configuration and decompressed layers. Credentials and extracted data are removed after
+success or failure. Completed and partial progress are retained independently of CI.
+
+All immutable full-SHA indexes publish before any nightly update. The writer uses OCI
+indexes with standard
+[annotations](https://github.com/opencontainers/image-spec/blob/v1.1.1/image-index.md)
+and unchanged Docker-v2 children. The canonical index binds source repository, full SHA,
+catalog image ID, both child digests and the exact prepared Docker index digest. It omits
+controller, preparation run and artifact IDs so a new preparation of identical source
+bytes remains an identical retry. Those invocation identities stay in the sealed plan
+and progress record. Differing immutable bytes fail; identical results are reverified.
+
+Before advancing `nightly`, the writer checks strict index/provenance structure, exact
+byte equality with the recorded source's full-SHA immutable reference, known catalog
+identity and both platform descriptors, and GitHub main ancestry. Unknown legacy targets,
+missing immutable evidence and incomparable history fail. An older retry may finish its
+missing immutable output but leaves nightly unchanged. The alias transport immediately
+rechecks the observed previous value before PUT and verifies exact readback. The shared
+non-cancelling workflow queue serializes these writers; this does not claim registry CAS
+against external writers. Repository package-write authorities can alter registry state.
+Annotations alone are not authority, and this main-image progress mechanism does not
+replace release authorization or durable release receipts.
+
+Independent hosted proofs now cover OCI indexes with Docker children, exact tag/digest
+readback, Skopeo selected-platform pulls, Docker Engine pulls on both architectures, and
+digest-addressed Skopeo pushes. They used synthetic images; application publication is
+still a separate acceptance step. The full hosted preparation run `34176316160` passed
+all sixteen real variants, and docs-only run `34176637603` passed exactly two docs variants.
+Evidence includes `/tmp/wallow-hosted-image-preparation/evidence.json` and
+`/tmp/wallow-hosted-docs-preparation/evidence.json`. Job-token reads of environment/policy
+metadata passed with Actions read access, and a non-main job was rejected by the actual
+`image-publish` environment even with `deployment: false`.
+
+All 145 helper tests pass, including real sealed archive writer fixtures, exact retry and
+conflict handling, older/unknown alias cases, partial cleanup, current invocation API
+checks, and HTTP alias state/readback tests. Independent review approved the code and
+updated exact Zizmor privilege rationale. The real repository remains opted out; hosted
+image writer acceptance will start in the disposable private repository.
+A fresh pinned Zizmor scan reports eight findings and zero unexcepted blockers; Actionlint,
+immutable action policy, formatting and diff checks also pass.
