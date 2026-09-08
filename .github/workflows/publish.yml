@@ -99,6 +99,15 @@ jobs:
           if-no-files-found: error
           compression-level: 0
           retention-days: 30
+      - name: Retain exact prepared Pages archive
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: prepared-site-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-prepared/site/artifact.tar
+          include-hidden-files: true
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
   publish-images:
     name: Publish main images
     needs: authorize

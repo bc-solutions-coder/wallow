@@ -15,6 +15,7 @@ from publication_verify_packages import verify_packages
 from publication_verify_dependencies import verify_dependencies
 from publication_prepare_images import ImagePreparation
 from publication_image_authorization import image_environment
+from publication_verify_site import verify_site
 
 
 def candidate_artifacts(producer, jobs, artifacts):
@@ -79,6 +80,7 @@ def main():
         database = reports / 'dependency-scan/trivy-database.json' if plan['verified_dependencies'] else None
         preparation = ImagePreparation(plan, catalog, '.ci-prepared', reports / 'image-scan', database=database)
         plan['verified_images'] = verify_images(client, plan, catalog, prepare=preparation)
+        plan['verified_site'] = verify_site(client, plan, '.ci-prepared/site')
         with Path(args.output).open('x') as output:
             json.dump(plan, output, indent=2)
             output.write('\n')
