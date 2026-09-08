@@ -5,6 +5,7 @@ import json
 
 from publication import PublicationError, main_ancestor, matches
 from publication_image_index import image_index
+from publication_legacy_nightly import legacy_source
 
 
 OCI_INDEX = 'application/vnd.oci.image.index.v1+json'
@@ -45,12 +46,14 @@ def prior_source(value, repository, image_id):
         raise PublicationError('Nightly has unknown or invalid main image provenance') from None
 
 
-def nightly_action(registry, client, current, repository, image_id, source):
+def nightly_action(registry, client, current, repository, image_id, source, legacy=None):
     if current is None:
         return 'advance'
-    previous = prior_source(current, repository, image_id)
-    if registry.read_manifest('sha-' + previous) != current:
-        raise PublicationError('Nightly does not match its exact immutable main image')
+    previous = legacy_source(client, registry, current, repository, image_id, legacy)
+    if previous is None:
+        previous = prior_source(current, repository, image_id)
+        if registry.read_manifest('sha-' + previous) != current:
+            raise PublicationError('Nightly does not match its exact immutable main image')
     if not main_ancestor(client.main_comparison(previous), previous):
         raise PublicationError('Nightly source is not on current main history')
     comparison = client.get(f'/compare/{previous}...{source}')

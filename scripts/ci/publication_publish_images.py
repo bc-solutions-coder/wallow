@@ -54,7 +54,7 @@ class SkopeoRegistry:
             self.runner(['docker', 'rm', '--force', name], check=False, timeout=30, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
-def publish_images(client, plan, preparation, artifacts, catalog, username, credential, output, transport_factory=SkopeoRegistry, registry_factory=GHCR):
+def publish_images(client, plan, preparation, artifacts, catalog, username, credential, output, transport_factory=SkopeoRegistry, registry_factory=GHCR, legacy=None):
     progress = {'schema': 1, 'mode': 'main-images', 'producer': plan['producer'], 'controller_sha': plan['controller_sha'],
                 'preparation': asdict(preparation), 'artifacts': {key: asdict(value) for key, value in artifacts.items()}, 'images': [],
                 'release_authorized': False, 'durable_release_receipt': False}
@@ -114,7 +114,9 @@ def publish_images(client, plan, preparation, artifacts, catalog, username, cred
                     aliases.append((registry, image['id'], data, digest, entry))
         for registry, image_id, data, digest, entry in aliases:
             previous = registry.read_manifest('nightly')
-            action = nightly_action(registry, client, previous, client.repository, image_id, source)
+            action = nightly_action(registry, client, previous, client.repository, image_id, source, legacy=legacy)
+            if legacy and previous and previous['digest'] == legacy.get('images', {}).get(image_id) and legacy.get('repository') == client.repository:
+                entry['legacy_cutover'] = {'previous_digest': previous['digest'], 'source_sha': legacy['source_sha'], 'evidence': legacy['evidence']}
             if action == 'advance':
                 registry.replace_nightly(data, digest, previous)
                 entry['nightly'] = 'verified'
@@ -144,7 +146,11 @@ def main():
             raise PublicationError('Current catalog differs from authorized prepared inputs')
         Path(args.output).parent.mkdir()
         Path(args.output).with_name('authorization.json').write_text(json.dumps(evidence, indent=2) + '\n')
-        publish_images(client, plan, preparation, artifacts, catalog, os.environ.get('GITHUB_ACTOR'), os.environ.get('GH_TOKEN'), Path(args.output))
+        legacy_path = Path(__file__).resolve().parents[2] / '.github/ci/legacy-nightly.json'
+        legacy = json.loads(legacy_path.read_text()) if legacy_path.is_file() else None
+        if legacy is not None and not isinstance(legacy, dict):
+            raise PublicationError('Legacy nightly cutover snapshot must be an object')
+        publish_images(client, plan, preparation, artifacts, catalog, os.environ.get('GITHUB_ACTOR'), os.environ.get('GH_TOKEN'), Path(args.output), legacy=legacy)
     except (ValueError, OSError) as error:
         parser.exit(1, f'Image publication failed: {error}\n')
 
