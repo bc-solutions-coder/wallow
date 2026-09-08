@@ -116,7 +116,7 @@ def publish_images(client, plan, preparation, artifacts, catalog, username, cred
             previous = registry.read_manifest('nightly')
             action = nightly_action(registry, client, previous, client.repository, image_id, source, legacy=legacy)
             if legacy and previous and previous['digest'] == legacy.get('images', {}).get(image_id) and legacy.get('repository') == client.repository:
-                entry['legacy_cutover'] = {'previous_digest': previous['digest'], 'source_sha': legacy['source_sha'], 'evidence': legacy['evidence']}
+                entry['legacy_cutover'] = {'previous_digest': previous['digest'], 'source_sha': legacy['source_sha'].removeprefix('sha1:'), 'evidence': legacy['evidence']}
             if action == 'advance':
                 registry.replace_nightly(data, digest, previous)
                 entry['nightly'] = 'verified'
