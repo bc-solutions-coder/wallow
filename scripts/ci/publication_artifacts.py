@@ -9,6 +9,7 @@ import stat
 import zipfile
 
 from publication import PublicationError, matches, positive_integer
+from publication_identity import invocation_sha, payload_identity
 
 
 @dataclass(frozen=True)
@@ -39,7 +40,7 @@ def select_artifact(artifacts, producer, prefix, now=None):
         or run['id'] != producer.run_id
         or run['repository_id'] != producer.repository_id
         or run['head_repository_id'] != producer.repository_id
-        or run.get('head_sha') != producer.source_sha
+        or run.get('head_sha') != invocation_sha(producer)
         or run.get('head_branch') != 'main'
     ):
         raise PublicationError('Artifact identity, digest or retention metadata is invalid')
@@ -74,12 +75,7 @@ def unpack_payload(archive, destination, artifact, producer, payload, kind, vari
                 if member.is_dir() or file_type not in (0, stat.S_IFREG) or member.flag_bits & 1 or member.file_size > limit:
                     raise PublicationError('Artifact contains an unsafe or oversized member')
             manifest = json.loads(bundle.read(payload + '.json'))
-            expected = {
-                'schema': 1, 'repository': producer.repository, 'sha': producer.source_sha,
-                'run_id': str(producer.run_id), 'run_attempt': str(producer.run_attempt),
-                'workflow_ref': producer.workflow_ref, 'kind': kind, 'variant': variant,
-                'file': payload,
-            }
+            expected = {**payload_identity(producer, kind, variant), 'file': payload}
             if not isinstance(manifest, dict) or set(manifest) != set(expected) | {'sha256'} or any(manifest[key] != value or type(manifest[key]) is not type(value) for key, value in expected.items()) or not matches(r'[0-9a-f]{64}', manifest.get('sha256')):
                 raise PublicationError('Payload seal does not match the authorized producer')
             destination.mkdir(parents=False)

@@ -14,9 +14,22 @@ PACKAGE = 'wallow-package-publication-v1.json'
 PACKAGE_JOB = 'Record package publication'
 IMAGE = 'wallow-image-publication-v1.json'
 IMAGE_JOB = 'Record image publication'
+RECOVERY_JOB = 'Record recovered producer'
+
+
+def recovery_receipt(name):
+    return matches(r'wallow-recovery-v1-[1-9][0-9]*-[1-9][0-9]*\.json', name)
+
+
+def recovery_identity(name, payload):
+    recovery = payload.get('recovery') if isinstance(payload, dict) else None
+    producer = recovery.get('producer') if isinstance(recovery, dict) else None
+    return isinstance(producer, dict) and all(positive_integer(producer.get(key)) for key in ('run_id', 'run_attempt')) and name == f"wallow-recovery-v1-{producer['run_id']}-{producer['run_attempt']}.json"
 
 
 def receipt_job(name, release_id=None):
+    if recovery_receipt(name) or name.startswith('wallow-recovery-endorsement-v1-'):
+        return RECOVERY_JOB
     if matches(r'wallow-alias-(?:image|package)-[1-9][0-9]*-[1-9][0-9]*\.json', name):
         return 'Record ' + name.split('-')[2] + ' aliases'
     if name == IMAGE or name.startswith('wallow-image-endorsement-v1-'):
@@ -25,6 +38,8 @@ def receipt_job(name, release_id=None):
 
 
 def endorsement_prefix(name):
+    if recovery_receipt(name) or name.startswith('wallow-recovery-endorsement-v1-'):
+        return 'wallow-recovery-endorsement-v1-'
     if name == IMAGE or name.startswith('wallow-image-endorsement-v1-'):
         return 'wallow-image-endorsement-v1-'
     return 'wallow-package-endorsement-v1-' if name == PACKAGE else 'wallow-release-endorsement-v1-'
@@ -45,7 +60,10 @@ def inspect_asset(client, asset, release_id, name, current=None):
     if not isinstance(record, dict) or set(record) != {'schema', 'type', 'publication_authorized', 'release_id', 'recorder', 'payload'} or record.get('schema') != 1 or record.get('type') != name or record.get('publication_authorized') is not False or record.get('release_id') != release_id or not isinstance(record.get('payload'), dict):
         raise PublicationError('Release receipt identity differs from its requested release')
     alias = matches(r'wallow-alias-(?:image|package)-[1-9][0-9]*-[1-9][0-9]*\.json', name)
-    if alias:
+    if recovery_receipt(name):
+        if not recovery_identity(name, record['payload']):
+            raise PublicationError('Recovery receipt name differs from its exact validated producer')
+    elif alias:
         if name != f"wallow-alias-{name.split('-')[2]}-{record['recorder'].get('run_id')}-{record['recorder'].get('run_attempt')}.json":
             raise PublicationError('Alias progress name differs from its exact invocation')
     else:
@@ -76,8 +94,10 @@ def inspect_receipt(client, release_id, name):
 
 
 def retain(client, release_id, name, payload, current):
-    if not positive_integer(release_id) or name not in (ORIGIN, SELECTION, PACKAGE, IMAGE) or not isinstance(payload, dict):
+    if not positive_integer(release_id) or not (name in (ORIGIN, SELECTION, PACKAGE, IMAGE) or recovery_receipt(name)) or not isinstance(payload, dict):
         raise PublicationError('Invalid immutable release receipt request')
+    if recovery_receipt(name) and not recovery_identity(name, payload):
+        raise PublicationError('Recovery receipt must name its exact validated producer')
     existing = inspect_receipt(client, release_id, name)
     if existing:
         if existing['record']['payload'] != payload:

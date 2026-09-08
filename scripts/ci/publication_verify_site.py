@@ -3,7 +3,8 @@
 from pathlib import Path
 import tempfile
 
-from publication import Producer, PublicationError
+from publication import PublicationError
+from publication_identity import producer_from_record
 from publication_artifacts import Artifact, unpack_payload
 from publication_site import prepare_site
 
@@ -14,7 +15,7 @@ def verify_site(client, plan, destination):
         raise PublicationError('Authorized producer requires one exact DocFX site artifact')
     item = selected[0]
     artifact = Artifact(**{key: item[key] for key in ('id', 'name', 'digest', 'size')})
-    producer = Producer(**plan['producer'])
+    producer = producer_from_record(plan['producer'])
     destination = Path(destination)
     if destination.exists() or destination.is_symlink():
         raise PublicationError('Site preparation directory must be new')

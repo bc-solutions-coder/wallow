@@ -37,6 +37,10 @@ def source_inputs(root, catalog, paths):
     return {'component_versions': versions, 'input_sha256': files, 'catalog': catalog}
 
 
+def tracked_inputs(root):
+    return subprocess.check_output(['git', 'ls-files', '-z', '--', 'global.json', '**/global.json', '.nvmrc', '.node-version', '.npmrc', 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'turbo.jsonc', '.github/workflows', '.github/ci', '.github/actions', 'docker', 'packages/*/package.json', 'apps/*/package.json', '*.csproj', '*.props', '*.targets', '**/packages.lock.json', '**/[Nn]u[Gg]et.[Cc]onfig'], cwd=root, text=True).rstrip('\0').split('\0')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--route', choices=['docs', 'full'], required=True)
@@ -58,7 +62,7 @@ def main():
         artifacts = client.list(f'/actions/runs/{producer.run_id}/artifacts', 'artifacts')
         _, selected = candidate_artifacts(producer, [{'name': 'build', 'conclusion': 'success' if args.route == 'full' else 'skipped'}], artifacts)
         catalog = load_catalog('.')
-        paths = subprocess.check_output(['git', 'ls-files', '-z', '--', 'global.json', '**/global.json', '.nvmrc', '.node-version', '.npmrc', 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'turbo.jsonc', '.github/workflows', '.github/ci', '.github/actions', 'docker', 'packages/*/package.json', 'apps/*/package.json', '*.csproj', '*.props', '*.targets', '**/packages.lock.json', '**/[Nn]u[Gg]et.[Cc]onfig'], text=True).rstrip('\0').split('\0')
+        paths = tracked_inputs('.')
         inputs = source_inputs('.', catalog, paths)
         record = {'schema': 1, 'producer': asdict(producer), 'route': args.route, 'artifacts': selected, **inputs}
         with Path(args.output).open('x') as output:

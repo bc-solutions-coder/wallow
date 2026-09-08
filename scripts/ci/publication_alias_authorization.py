@@ -2,12 +2,12 @@
 
 from dataclasses import asdict
 
-from publication import PublicationError, image_repository
+from publication import PublicationError, image_repository, positive_integer
 from publication_image_provenance import main_index
 from publication_package_records import published_package
 from publication_release_authorization import release_identity
 from publication_release_candidates import authorized_selection
-from publication_release_image_authorization import WRITER_JOB, job_name
+from publication_release_image_authorization import WRITER_JOB, job_name, verify_recovery_lineage
 from publication_release_origin import verify_frame
 from publication_release_receipts import IMAGE, ORIGIN, PACKAGE, SELECTION, endorsed, find_receipt, inspect_receipt
 
@@ -30,9 +30,14 @@ def publication_records(client, context, catalog, kind, target=None, explicit=No
         component = next((item for item in catalog['components'] if isinstance(value.get('tag_name'), str) and value['tag_name'].startswith(item['tag_prefix'])), None)
         if component is None or component['id'] not in components or value.get('draft') is not False:
             continue
+        identity = value.get('id')
+        if not positive_integer(identity):
+            raise PublicationError('Alias release has no exact API identity')
+        receipt = inspect_receipt(client, identity, IMAGE if kind == 'image' else PACKAGE)
+        if receipt is None:
+            continue
         release = release_identity(client, value, catalog)
-        receipt = inspect_receipt(client, release['id'], IMAGE if kind == 'image' else PACKAGE)
-        if receipt is None or not endorsed(client, release['id'], receipt):
+        if not endorsed(client, release['id'], receipt):
             continue
         origin, selection = find_receipt(client, release['id'], ORIGIN), find_receipt(client, release['id'], SELECTION)
         if origin is None or selection is None:
@@ -47,8 +52,9 @@ def publication_records(client, context, catalog, kind, target=None, explicit=No
             outputs = {'package': asdict(package)}
         else:
             payload = receipt['record']['payload']
-            if set(payload) != {'release', 'origin', 'selection', 'images', 'writer'} or payload['release'] != release or payload['origin'] != {'asset_id': origin['asset_id'], 'sha256': origin['sha256']} or payload['selection'] != {'asset_id': selection['asset_id'], 'sha256': selection['sha256']}:
+            if set(payload) not in ({'release', 'origin', 'selection', 'images', 'writer'}, {'release', 'origin', 'selection', 'images', 'writer', 'recovery'}) or payload['release'] != release or payload['origin'] != {'asset_id': origin['asset_id'], 'sha256': origin['sha256']} or payload['selection'] != {'asset_id': selection['asset_id'], 'sha256': selection['sha256']}:
                 raise PublicationError('Image publication differs from exact release receipt identities')
+            verify_recovery_lineage(client, payload)
             verify_frame(client, payload['writer']['frame'], job_name(WRITER_JOB, release['id']))
             images = {image['id']: image for image in catalog['images'] if image['component'] == release['component']}
             if not isinstance(payload['images'], list) or len(payload['images']) != len(images) or {item.get('image') for item in payload['images']} != images.keys():

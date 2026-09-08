@@ -9,6 +9,7 @@ from publication import PublicationError, load_catalog, matches
 from publication_alias_pipeline import prepare, promote
 from publication_alias_progress import finalize
 from publication_release_github import ReleaseGitHub
+from publication_selection import recovery_selector
 
 
 def main():
@@ -18,6 +19,8 @@ def main():
     parser.add_argument('--producer-run', required=True)
     parser.add_argument('--producer-attempt', required=True)
     parser.add_argument('--release-id', default='')
+    parser.add_argument('--recovery-run', default='')
+    parser.add_argument('--recovery-attempt', default='')
     parser.add_argument('--output', required=True)
     args = parser.parse_args()
     progress = {'schema': 1, 'kind': args.kind, 'entries': []}
@@ -28,6 +31,7 @@ def main():
         flag = 'ENABLE_IMAGE_PUBLISH' if args.kind == 'image' else 'ENABLE_PACKAGE_PUBLISH'
         if os.environ.get(flag) != 'true' or not all(matches(r'[1-9][0-9]*', value) for value in values) or args.release_id and not matches(r'[1-9][0-9]*', args.release_id):
             raise PublicationError('Alias jobs require literal capability enablement and exact invocation identities')
+        recovery = recovery_selector(args.recovery_run, args.recovery_attempt, args.release_id)
         target = int(args.release_id) if args.release_id else None
         context = {key: os.environ.get('GITHUB_' + key.upper(), '') for key in ('repository', 'ref', 'workflow_ref', 'workflow_sha', 'event_name')}
         token = os.environ.get('GH_TOKEN')
@@ -36,13 +40,13 @@ def main():
         catalog = load_catalog(root)
         identifiers = [int(value) for value in values]
         if args.mode == 'prepare':
-            progress = prepare(client, context, *identifiers, args.kind, catalog, root, output.parent, token, os.environ.get('GITHUB_ACTOR'), target)
+            progress = prepare(client, context, *identifiers, args.kind, catalog, root, output.parent, token, os.environ.get('GITHUB_ACTOR'), target, recovery=recovery)
         elif args.mode == 'promote':
             output.parent.mkdir(parents=True, exist_ok=True)
             promote(client, context, *identifiers, args.kind, catalog, root, token, os.environ.get('GITHUB_ACTOR'), progress,
-                    lambda: output.write_text(json.dumps(progress, indent=2) + '\n'), target)
+                    lambda: output.write_text(json.dumps(progress, indent=2) + '\n'), target, recovery=recovery)
         else:
-            progress = finalize(client, context, *identifiers, args.kind, catalog, root, target)
+            progress = finalize(client, context, *identifiers, args.kind, catalog, root, target, recovery=recovery)
     except PublicationError as failure:
         error = str(failure)
     except (OSError, ValueError, TypeError, KeyError, RecursionError):

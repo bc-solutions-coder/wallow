@@ -116,6 +116,41 @@ class ReceiptTests(unittest.TestCase):
         with self.assertRaises(PublicationError):
             inspect_receipt(self.client, 5, ORIGIN)
 
+    def test_recovery_receipt_retry_preserves_original_selection_and_failed_writer_bytes(self):
+        names = []
+        name = 'wallow-recovery-v1-70-2.json'
+        payload = {'origin': {'asset_id': 1}, 'selection': {'asset_id': 2},
+                   'recovery': {'producer': {'run_id': 70, 'run_attempt': 2}}}
+        retain(self.client, 5, ORIGIN, {'original': 'origin'}, (FRAME, JOB))
+        retain(self.client, 5, SELECTION, {'original': 'selection'}, (FRAME, JOB))
+        with patch('publication_release_receipts.recorded_job', side_effect=lambda client, frame, job_name: names.append(job_name) or self.jobs[frame['run_id']]):
+            first = retain(self.client, 5, name, payload, (FRAME, JOB))
+            originals = copy.deepcopy(self.client.bodies)
+            self.jobs[10] = {**JOB, 'conclusion': 'failure'}
+            with self.assertRaises(PublicationError):
+                find_receipt(self.client, 5, name)
+            self.jobs[11] = JOB
+            retain(self.client, 5, name, payload, ({**FRAME, 'run_id': 11}, JOB))
+            accepted = find_receipt(self.client, 5, name)
+            self.assertEqual(accepted['sha256'], first['sha256'])
+            self.assertEqual({key: self.client.bodies[key] for key in originals}, originals)
+            self.assertEqual(self.client.assets[-1]['name'], 'wallow-recovery-endorsement-v1-3-11-1.json')
+            count = len(self.client.writes)
+            retain(self.client, 5, name, payload, ({**FRAME, 'run_id': 11}, JOB))
+            self.assertEqual(len(self.client.writes), count)
+        self.assertEqual(set(names), {'Record recovered producer'})
+
+    def test_recovery_receipt_rejects_wrong_producer_name_and_immutable_conflict(self):
+        name = 'wallow-recovery-v1-70-2.json'
+        payload = {'recovery': {'producer': {'run_id': 70, 'run_attempt': 2}}}
+        with self.assertRaises(PublicationError):
+            retain(self.client, 5, 'wallow-recovery-v1-70-1.json', payload, (FRAME, JOB))
+        self.assertEqual(self.client.writes, [])
+        retain(self.client, 5, name, payload, (FRAME, JOB))
+        with self.assertRaises(PublicationError):
+            retain(self.client, 5, name, payload | {'changed': True}, (FRAME, JOB))
+        self.assertEqual(len(self.client.writes), 1)
+
     def test_failed_readback_does_not_claim_success(self):
         self.client.corrupt = True
         with self.assertRaises(PublicationError):

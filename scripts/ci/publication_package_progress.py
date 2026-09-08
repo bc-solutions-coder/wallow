@@ -29,7 +29,7 @@ def writer_progress(client, invocation):
         raise PublicationError('Package writer progress is not exact successful immutable-version evidence')
     identities = []
     for entry in document['entries']:
-        if not isinstance(entry, dict) or set(entry) != {'release', 'origin', 'selection', 'package', 'readback'} or not isinstance(entry.get('release'), dict) or not positive_integer(entry['release'].get('id')):
+        if not isinstance(entry, dict) or set(entry) not in ({'release', 'origin', 'selection', 'package', 'readback'}, {'release', 'origin', 'selection', 'package', 'readback', 'recovery'}) or not isinstance(entry.get('release'), dict) or not positive_integer(entry['release'].get('id')):
             raise PublicationError('Package writer progress contains an invalid release entry')
         identities.append(entry['release']['id'])
     if len(identities) != len(set(identities)):

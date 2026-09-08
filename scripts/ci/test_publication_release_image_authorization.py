@@ -4,7 +4,8 @@ import unittest
 from unittest.mock import Mock, patch
 
 from publication import PublicationError
-from publication_release_image_authorization import discover, job_name, release_authority
+from publication_release_image_authorization import authorize_prepared, discover, job_name, release_authority, verify_recovery_lineage
+import test_publication_release_image_preparation as preparation_fixtures
 from publication_release_receipts import ORIGIN
 
 
@@ -53,6 +54,90 @@ class DiscoveryTests(unittest.TestCase):
         self.receipt['record']['payload']['selection'] = {'asset_id': 99}
         with self.assertRaises(PublicationError):
             self.run_discovery()
+
+
+    def test_recovered_authority_keeps_original_refs_and_uses_effective_inputs(self):
+        original = {'producer': {'run_id': 20, 'run_attempt': 1}}
+        recovery = {'release_id': 5, 'run_id': 70, 'run_attempt': 2}
+        plan = {'route': 'full', 'producer': {'run_id': 70, 'run_attempt': 2},
+                'recovery': {'original': original, 'receipt': {'asset_id': 90}}}
+        with patch('publication_release_image_authorization.image_environment'), \
+             patch('publication_release_image_authorization.release_identity', return_value=self.release), \
+             patch('publication_release_image_authorization.find_receipt', side_effect=lambda client, release_id, name: self.origin if name == ORIGIN else self.selection), \
+             patch('publication_release_image_authorization.authorized_selection', return_value=original) as selected, \
+             patch('publication_release_image_authorization.resolve', side_effect=AssertionError('Expired original input must not be fetched')), \
+             patch('publication_release_image_authorization.resolve_selection', return_value=plan) as recovered, \
+             patch('publication_release_image_authorization.validate_candidate', return_value={'producer': plan['producer']}):
+            result = release_authority(self.client, self.context, self.catalog, 5, (20, 1), recovery=recovery)
+            self.assertEqual(result['plan'], plan)
+            self.assertEqual(result['selection'], self.selection)
+            self.assertEqual(result['origin'], self.origin)
+            selected.assert_called_once_with(self.client, self.release, self.origin, self.selection, (20, 1))
+            recovered.assert_called_once_with(self.client, self.context, 20, 1, self.catalog, recovery=recovery)
+            plan['recovery']['original'] = {'producer': {'run_id': 21, 'run_attempt': 1}}
+            with self.assertRaises(PublicationError): release_authority(self.client, self.context, self.catalog, 5, (20, 1), recovery=recovery)
+
+    def test_invalid_recovery_is_rejected_before_environment_or_api(self):
+        for recovery in ({}, {'release_id': 6, 'run_id': 70, 'run_attempt': 1}, {'release_id': 5, 'run_id': True, 'run_attempt': 1}):
+            with self.subTest(recovery=recovery), self.assertRaises(PublicationError):
+                discover(self.client, self.context, self.catalog, 5, (20, 1), recovery=recovery)
+        recovery = {'release_id': 5, 'run_id': 70, 'run_attempt': 1}
+        with self.assertRaises(PublicationError): release_authority(self.client, {'event_name': 'workflow_run'}, self.catalog, 5, (20, 1), recovery=recovery)
+        with self.assertRaises(PublicationError): discover(self.client, self.context, self.catalog, 5, recovery=recovery)
+        self.client.controller.assert_not_called()
+
+    def test_sealed_preparation_reauthenticates_same_recovery_receipt(self):
+        fixture = preparation_fixtures.PreparationTests()
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        recovery = {'release_id': 5, 'run_id': 70, 'run_attempt': 2}
+        metadata = {'original': {'producer': {'run_id': 20, 'run_attempt': 2}}, 'receipt': {'asset_id': 90}}
+        fixture.plan['authority']['plan']['recovery'] = copy.deepcopy(metadata)
+        fixture.plan['source']['recovery'] = copy.deepcopy(metadata)
+        fixture.authority = copy.deepcopy(fixture.plan['authority'])
+        artifacts = fixture.artifacts(fixture.plan)
+        with patch('publication_release_image_authorization.authorize_preparation', return_value=({}, fixture.preparation, artifacts, {})) as shared, \
+             patch('publication_release_image_authorization.frame', return_value=({'job_id': 100}, {})), \
+             patch('publication_release_image_authorization.release_authority', return_value=fixture.authority) as authority:
+            result = authorize_prepared(fixture.client, self.context, 20, 2, 30, 1, 5, fixture.client.catalog, fixture.client.root, (20, 2), recovery=recovery)
+            self.assertEqual(result[0]['authority']['plan']['recovery'], metadata)
+            shared.assert_called_once_with(fixture.client, self.context, 20, 2, 30, 1, recovery=recovery, catalog=fixture.client.catalog)
+            authority.assert_called_once_with(fixture.client, self.context, fixture.client.catalog, 5, (20, 2), recovery=recovery)
+            fixture.authority['plan']['recovery']['receipt']['asset_id'] = 91
+            with self.assertRaises(PublicationError):
+                authorize_prepared(fixture.client, self.context, 20, 2, 30, 1, 5, fixture.client.catalog, fixture.client.root, (20, 2), recovery=recovery)
+
+
+    def test_completed_recovery_lineage_verifies_durable_reference_without_build_inputs(self):
+        binding = {'receipt': {'asset_id': 90}, 'producer': {'run_id': 70}}
+        self.receipt = {'record': {'payload': {'release': self.release, 'origin': self.origin, 'selection': self.selection, 'recovery': binding}}}
+        durable = {'record': {'payload': {'recovery': {'producer': {'run_id': 70}}}}}
+        with patch('publication_release_image_authorization.verify_reference', return_value=durable) as reference, \
+             patch('publication_release_image_authorization.resolve', side_effect=AssertionError('Expired build artifacts')), \
+             patch('publication_release_image_authorization.resolve_selection', side_effect=AssertionError('Expired recovery artifacts')):
+            (matrix, _), calls = self.run_discovery()
+            self.assertEqual(matrix['include'], [])
+            self.assertEqual(calls, 0)
+            reference.assert_called_once_with(self.client, binding['receipt'], self.release, self.origin, self.selection)
+            binding['producer'] = {'run_id': 71}
+            with self.assertRaises(PublicationError): self.run_discovery()
+        with patch('publication_release_image_authorization.verify_reference', side_effect=PublicationError('Changed recovery asset')):
+            with self.assertRaises(PublicationError): self.run_discovery()
+        with self.assertRaises(PublicationError): verify_recovery_lineage(self.client, {'recovery': None})
+
+
+    def test_untracked_legacy_release_stays_pending_but_partial_evidence_is_strict(self):
+        with patch('publication_release_image_authorization.image_environment'), \
+             patch('publication_release_image_authorization.find_receipt', return_value=None) as receipts, \
+             patch('publication_release_image_authorization.release_identity', side_effect=PublicationError('Unsupported historical source')) as identity:
+            matrix, pending = discover(self.client, self.context, self.catalog)
+            self.assertEqual((matrix, pending), ({'include': []}, [5]))
+            identity.assert_not_called()
+            with self.assertRaises(PublicationError): discover(self.client, self.context, self.catalog, 5, (20, 1))
+            receipts.side_effect = [self.origin, None]
+            with self.assertRaises(PublicationError): discover(self.client, self.context, self.catalog)
+            receipts.side_effect = PublicationError('Malformed provenance asset')
+            with self.assertRaises(PublicationError): discover(self.client, self.context, self.catalog)
 
     def test_exact_matrix_job_names_reject_untrusted_ids(self):
         self.assertEqual(job_name('Prepare release images', 5), 'Prepare release images (5)')

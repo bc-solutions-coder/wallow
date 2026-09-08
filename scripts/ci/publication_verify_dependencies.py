@@ -10,7 +10,8 @@ import subprocess
 import tarfile
 import tempfile
 
-from publication import Producer, PublicationError, matches
+from publication import PublicationError, matches
+from publication_identity import producer_from_record
 from publication_archives import bounded_tar
 from publication_artifacts import Artifact, unpack_payload
 import security
@@ -106,7 +107,7 @@ def verify_dependencies(client, plan, reports, controller=None, runner=subproces
     fingerprints = plan['inputs']['input_sha256']
     expected_inputs(fingerprints)
     artifact = Artifact(**{key: item[key] for key in ('id', 'name', 'digest', 'size')})
-    producer = Producer(**plan['producer'])
+    producer = producer_from_record(plan['producer'])
     controller = Path(controller or Path(__file__).resolve().parents[2])
     reports = Path(reports).resolve()
     reports.mkdir()

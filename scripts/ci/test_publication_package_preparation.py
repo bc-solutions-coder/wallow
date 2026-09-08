@@ -51,13 +51,27 @@ class AuthorizationTests(unittest.TestCase):
                 'workflow_run': {'id': 20, 'repository_id': 1, 'head_repository_id': 1, 'head_sha': self.producer.source_sha, 'head_branch': 'main'}}
         return [base, base | {'id': 51, 'name': 'prepared-packages-20-2'}]
 
-    def authorize(self, plan=None, bad_seal=False):
+    def authorize(self, plan=None, bad_seal=False, recovery=None):
         artifacts = self.artifact(plan or self.plan, bad_seal)
         with patch('publication_package_preparation.package_configuration'), patch('publication_package_preparation.package_environment'), \
-             patch('publication_package_preparation.authorize_preparation', return_value=({'producer': asdict(self.producer)}, self.producer, artifacts, {})), \
+             patch('publication_package_preparation.authorize_preparation', return_value=({'producer': asdict(self.producer)}, self.producer, artifacts, {})) as trigger, \
              patch('publication_package_preparation.frame', return_value=(self.invocation, {})), \
-             patch('publication_package_preparation.package_releases', return_value=self.authority):
-            return authorize_packages(self.client, {}, 1, 1, 20, 2, self.fixture.catalog, self.root)
+             patch('publication_package_preparation.package_releases', return_value=self.authority) as releases:
+            result = authorize_packages(self.client, {}, 1, 1, 20, 2, self.fixture.catalog, self.root, recovery=recovery)
+            self.trigger_call, self.releases_call = trigger.call_args, releases.call_args
+            return result
+
+    def test_recovery_receipt_is_reauthorized_and_bound_into_sealed_package_plan(self):
+        recovery = {'release_id': 5, 'run_id': 70, 'run_attempt': 2}
+        self.authority['recovery'] = {'original': {'producer': {'run_id': 1, 'run_attempt': 1}},
+                                      'receipt': {'asset_id': 90, 'sha256': 'sha256:' + 'd' * 64}}
+        self.plan['authority'] = copy.deepcopy(snapshot(self.authority))
+        self.authorize(recovery=recovery)
+        self.assertEqual(self.trigger_call.kwargs, {'recovery': recovery, 'catalog': self.fixture.catalog})
+        self.assertEqual(self.releases_call.kwargs, {'recovery': recovery})
+        self.plan['authority']['recovery']['receipt']['asset_id'] = 91
+        with self.assertRaises(PublicationError):
+            self.authorize(recovery=recovery)
 
     def test_exact_sealed_plan_preserves_producer_and_selected_artifact(self):
         plan, producer, artifact, evidence = self.authorize()

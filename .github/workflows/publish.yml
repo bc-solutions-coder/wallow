@@ -6,7 +6,7 @@ name: Publish
   workflow_dispatch:
     inputs:
       run_id:
-        description: Exact successful main CI run ID
+        description: Exact successful CI run ID (main push, or recovery when recording)
         required: true
         type: string
       run_attempt:
@@ -17,6 +17,19 @@ name: Publish
         description: Optional exact GitHub release ID for retry with the selected producer
         required: false
         type: string
+      recovery_run:
+        description: Optional recorded recovery CI run for the exact release_id
+        required: false
+        type: string
+      recovery_attempt:
+        description: Exact attempt of recovery_run; requires release_id
+        required: false
+        type: string
+      record_recovery:
+        description: Record a verified historical recovery for release_id without publishing
+        required: false
+        default: false
+        type: boolean
 permissions:
   contents: read
 concurrency:
@@ -24,9 +37,43 @@ concurrency:
   cancel-in-progress: false
   queue: max
 jobs:
+  record-recovery:
+    name: Record recovered producer
+    if: github.event_name == 'workflow_dispatch' && inputs.record_recovery && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: read
+      checks: read
+      pull-requests: read
+    steps:
+      - name: Check out protected recovery recorder
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Reauthenticate and record exact recovered producer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RECOVERY_RUN: ${{ inputs.run_id }}
+          RECOVERY_ATTEMPT: ${{ inputs.run_attempt }}
+          RELEASE_ID: ${{ inputs.release_id }}
+        run: |
+          mkdir .ci-recovery-receipt
+          python3 scripts/ci/record_recovery.py --producer-run "$RECOVERY_RUN" --producer-attempt "$RECOVERY_ATTEMPT" --release-id "$RELEASE_ID" --output .ci-recovery-receipt/result.json
+          python3 scripts/ci/validation.py seal --file .ci-recovery-receipt/result.json --manifest .ci-recovery-receipt/result.json.json --kind recovery-receipt --variant recorded
+      - name: Retain recovery receipt result
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: recovery-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-recovery-receipt/*
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
   authorize:
     if: >-
-      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_dispatch' && !inputs.record_recovery) ||
       (github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.head_branch == 'main' &&
@@ -38,6 +85,7 @@ jobs:
       contents: read
       actions: read
       checks: read
+      pull-requests: read
     steps:
       - name: Check out protected controller revision
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -51,9 +99,12 @@ jobs:
           ENABLE_IMAGE_PUBLISH: ${{ vars.ENABLE_IMAGE_PUBLISH }}
           PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
           PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
+          RECOVERY_RUN: ${{ inputs.recovery_run }}
+          RECOVERY_ATTEMPT: ${{ inputs.recovery_attempt }}
+          RELEASE_ID: ${{ inputs.release_id }}
         run: |
           mkdir .ci-publication
-          python3 scripts/ci/publication_plan.py --run-id "$PRODUCER_RUN" --attempt "$PRODUCER_ATTEMPT" --output .ci-publication/plan.json
+          python3 scripts/ci/publication_plan.py --run-id "$PRODUCER_RUN" --attempt "$PRODUCER_ATTEMPT" --recovery-run "$RECOVERY_RUN" --recovery-attempt "$RECOVERY_ATTEMPT" --release-id "$RELEASE_ID" --output .ci-publication/plan.json
           python3 scripts/ci/validation.py seal --file .ci-publication/plan.json --manifest .ci-publication/plan.json.json --kind publication-plan --variant authorized
       - name: Retain sealed authorized publication plan
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -113,6 +164,7 @@ jobs:
     needs: authorize
     if: >-
       needs.authorize.result == 'success' &&
+      !inputs.recovery_run && !inputs.recovery_attempt &&
       github.ref == 'refs/heads/main' &&
       vars.ENABLE_IMAGE_PUBLISH == 'true'
     runs-on: ubuntu-latest
@@ -159,6 +211,7 @@ jobs:
     needs: authorize
     if: >-
       needs.authorize.result == 'success' &&
+      !inputs.recovery_run && !inputs.recovery_attempt &&
       github.ref == 'refs/heads/main' &&
       vars.ENABLE_DOCS_DEPLOY == 'true'
     uses: ./.github/workflows/docs.yml
@@ -177,6 +230,7 @@ jobs:
     needs: authorize
     if: >-
       needs.authorize.result == 'success' &&
+      !inputs.recovery_run && !inputs.recovery_attempt &&
       github.ref == 'refs/heads/main' &&
       vars.ENABLE_RELEASE_AUTOMATION == 'true'
     uses: ./.github/workflows/release-please.yml
@@ -306,9 +360,11 @@ jobs:
           ENABLE_PACKAGE_PUBLISH: ${{ vars.ENABLE_PACKAGE_PUBLISH }}
           PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
           PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
+          RECOVERY_RUN: ${{ inputs.recovery_run }}
+          RECOVERY_ATTEMPT: ${{ inputs.recovery_attempt }}
           RELEASE_ID: ${{ inputs.release_id }}
         run: |
-          python3 scripts/ci/publication_package_preparation.py --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --output .ci-package-preparation/plan.json
+          python3 scripts/ci/publication_package_preparation.py --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --recovery-run "$RECOVERY_RUN" --recovery-attempt "$RECOVERY_ATTEMPT" --output .ci-package-preparation/plan.json
           python3 scripts/ci/validation.py seal --file .ci-package-preparation/plan.json --manifest .ci-package-preparation/plan.json.json --kind package-plan --variant release
           if [[ -f .ci-package-preparation/bytes/packages.tar ]]; then
             python3 scripts/ci/validation.py seal --file .ci-package-preparation/bytes/packages.tar --manifest .ci-package-preparation/bytes/packages.tar.json --kind prepared-packages --variant release
@@ -374,8 +430,10 @@ jobs:
           ENABLE_PACKAGE_PUBLISH: ${{ vars.ENABLE_PACKAGE_PUBLISH }}
           PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
           PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
+          RECOVERY_RUN: ${{ inputs.recovery_run }}
+          RECOVERY_ATTEMPT: ${{ inputs.recovery_attempt }}
           RELEASE_ID: ${{ inputs.release_id }}
-        run: python3 scripts/ci/publication_publish_packages.py --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --output .ci-package-publication/progress.json
+        run: python3 scripts/ci/publication_publish_packages.py --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --recovery-run "$RECOVERY_RUN" --recovery-attempt "$RECOVERY_ATTEMPT" --output .ci-package-publication/progress.json
       - name: Seal completed or partial package publication progress
         if: always()
         run: |
@@ -417,8 +475,10 @@ jobs:
           ENABLE_PACKAGE_PUBLISH: ${{ vars.ENABLE_PACKAGE_PUBLISH }}
           PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
           PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
+          RECOVERY_RUN: ${{ inputs.recovery_run }}
+          RECOVERY_ATTEMPT: ${{ inputs.recovery_attempt }}
           RELEASE_ID: ${{ inputs.release_id }}
-        run: python3 scripts/ci/publication_record_packages.py --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --output .ci-package-receipts/progress.json
+        run: python3 scripts/ci/publication_record_packages.py --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --recovery-run "$RECOVERY_RUN" --recovery-attempt "$RECOVERY_ATTEMPT" --output .ci-package-receipts/progress.json
       - name: Seal completed or partial package receipt progress
         if: always()
         run: |
@@ -465,8 +525,10 @@ jobs:
           ENABLE_IMAGE_PUBLISH: ${{ vars.ENABLE_IMAGE_PUBLISH }}
           PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
           PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
+          RECOVERY_RUN: ${{ inputs.recovery_run }}
+          RECOVERY_ATTEMPT: ${{ inputs.recovery_attempt }}
           MANUAL_RELEASE_ID: ${{ inputs.release_id }}
-        run: python3 scripts/ci/publication_release_images.py discover --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --manual-release-id "$MANUAL_RELEASE_ID" --output .ci-release-image-discovery/result.json
+        run: python3 scripts/ci/publication_release_images.py discover --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --manual-release-id "$MANUAL_RELEASE_ID" --recovery-run "$RECOVERY_RUN" --recovery-attempt "$RECOVERY_ATTEMPT" --output .ci-release-image-discovery/result.json
   prepare-release-images:
     name: Prepare release images (${{ matrix.release_id }})
     needs: [discover-image-releases]
@@ -497,10 +559,12 @@ jobs:
           ENABLE_IMAGE_PUBLISH: ${{ vars.ENABLE_IMAGE_PUBLISH }}
           PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
           PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
+          RECOVERY_RUN: ${{ inputs.recovery_run }}
+          RECOVERY_ATTEMPT: ${{ inputs.recovery_attempt }}
           MANUAL_RELEASE_ID: ${{ inputs.release_id }}
           RELEASE_ID: ${{ matrix.release_id }}
         run: |
-          python3 scripts/ci/publication_release_images.py prepare --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --manual-release-id "$MANUAL_RELEASE_ID" --release-id "$RELEASE_ID" --output .ci-release-images/plan.json
+          python3 scripts/ci/publication_release_images.py prepare --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --manual-release-id "$MANUAL_RELEASE_ID" --release-id "$RELEASE_ID" --recovery-run "$RECOVERY_RUN" --recovery-attempt "$RECOVERY_ATTEMPT" --output .ci-release-images/plan.json
       - name: Seal image release evidence
         if: always()
         env:
@@ -588,10 +652,12 @@ jobs:
           ENABLE_IMAGE_PUBLISH: ${{ vars.ENABLE_IMAGE_PUBLISH }}
           PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
           PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
+          RECOVERY_RUN: ${{ inputs.recovery_run }}
+          RECOVERY_ATTEMPT: ${{ inputs.recovery_attempt }}
           MANUAL_RELEASE_ID: ${{ inputs.release_id }}
           RELEASE_ID: ${{ matrix.release_id }}
         run: |
-          python3 scripts/ci/publication_release_images.py publish --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --manual-release-id "$MANUAL_RELEASE_ID" --release-id "$RELEASE_ID" --output .ci-release-images/progress.json
+          python3 scripts/ci/publication_release_images.py publish --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --manual-release-id "$MANUAL_RELEASE_ID" --release-id "$RELEASE_ID" --recovery-run "$RECOVERY_RUN" --recovery-attempt "$RECOVERY_ATTEMPT" --output .ci-release-images/progress.json
       - name: Seal image release evidence
         if: always()
         env:
@@ -639,10 +705,12 @@ jobs:
           ENABLE_IMAGE_PUBLISH: ${{ vars.ENABLE_IMAGE_PUBLISH }}
           PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
           PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
+          RECOVERY_RUN: ${{ inputs.recovery_run }}
+          RECOVERY_ATTEMPT: ${{ inputs.recovery_attempt }}
           MANUAL_RELEASE_ID: ${{ inputs.release_id }}
           RELEASE_ID: ${{ matrix.release_id }}
         run: |
-          python3 scripts/ci/publication_release_images.py record --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --manual-release-id "$MANUAL_RELEASE_ID" --release-id "$RELEASE_ID" --output .ci-release-images/progress.json
+          python3 scripts/ci/publication_release_images.py record --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --manual-release-id "$MANUAL_RELEASE_ID" --release-id "$RELEASE_ID" --recovery-run "$RECOVERY_RUN" --recovery-attempt "$RECOVERY_ATTEMPT" --output .ci-release-images/progress.json
       - name: Seal image release evidence
         if: always()
         env:
@@ -690,8 +758,10 @@ jobs:
           ENABLE_IMAGE_PUBLISH: ${{ vars.ENABLE_IMAGE_PUBLISH }}
           PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
           PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
+          RECOVERY_RUN: ${{ inputs.recovery_run }}
+          RECOVERY_ATTEMPT: ${{ inputs.recovery_attempt }}
           RELEASE_ID: ${{ inputs.release_id }}
-        run: python3 scripts/ci/publication_promote_aliases.py prepare --kind image --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --output .ci-aliases/plan.json
+        run: python3 scripts/ci/publication_promote_aliases.py prepare --kind image --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --recovery-run "$RECOVERY_RUN" --recovery-attempt "$RECOVERY_ATTEMPT" --output .ci-aliases/plan.json
       - name: Seal alias evidence
         if: always()
         run: |
@@ -746,8 +816,10 @@ jobs:
           ENABLE_IMAGE_PUBLISH: ${{ vars.ENABLE_IMAGE_PUBLISH }}
           PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
           PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
+          RECOVERY_RUN: ${{ inputs.recovery_run }}
+          RECOVERY_ATTEMPT: ${{ inputs.recovery_attempt }}
           RELEASE_ID: ${{ inputs.release_id }}
-        run: python3 scripts/ci/publication_promote_aliases.py promote --kind image --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --output .ci-aliases/progress.json
+        run: python3 scripts/ci/publication_promote_aliases.py promote --kind image --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --recovery-run "$RECOVERY_RUN" --recovery-attempt "$RECOVERY_ATTEMPT" --output .ci-aliases/progress.json
       - name: Seal alias evidence
         if: always()
         run: |
@@ -789,8 +861,10 @@ jobs:
           ENABLE_IMAGE_PUBLISH: ${{ vars.ENABLE_IMAGE_PUBLISH }}
           PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
           PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
+          RECOVERY_RUN: ${{ inputs.recovery_run }}
+          RECOVERY_ATTEMPT: ${{ inputs.recovery_attempt }}
           RELEASE_ID: ${{ inputs.release_id }}
-        run: python3 scripts/ci/publication_promote_aliases.py record --kind image --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --output .ci-aliases/progress.json
+        run: python3 scripts/ci/publication_promote_aliases.py record --kind image --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --recovery-run "$RECOVERY_RUN" --recovery-attempt "$RECOVERY_ATTEMPT" --output .ci-aliases/progress.json
       - name: Seal alias evidence
         if: always()
         run: |
@@ -839,8 +913,10 @@ jobs:
           ENABLE_PACKAGE_PUBLISH: ${{ vars.ENABLE_PACKAGE_PUBLISH }}
           PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
           PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
+          RECOVERY_RUN: ${{ inputs.recovery_run }}
+          RECOVERY_ATTEMPT: ${{ inputs.recovery_attempt }}
           RELEASE_ID: ${{ inputs.release_id }}
-        run: python3 scripts/ci/publication_promote_aliases.py prepare --kind package --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --output .ci-aliases/plan.json
+        run: python3 scripts/ci/publication_promote_aliases.py prepare --kind package --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --recovery-run "$RECOVERY_RUN" --recovery-attempt "$RECOVERY_ATTEMPT" --output .ci-aliases/plan.json
       - name: Seal alias evidence
         if: always()
         run: |
@@ -899,8 +975,10 @@ jobs:
           ENABLE_PACKAGE_PUBLISH: ${{ vars.ENABLE_PACKAGE_PUBLISH }}
           PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
           PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
+          RECOVERY_RUN: ${{ inputs.recovery_run }}
+          RECOVERY_ATTEMPT: ${{ inputs.recovery_attempt }}
           RELEASE_ID: ${{ inputs.release_id }}
-        run: python3 scripts/ci/publication_promote_aliases.py promote --kind package --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --output .ci-aliases/progress.json
+        run: python3 scripts/ci/publication_promote_aliases.py promote --kind package --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --recovery-run "$RECOVERY_RUN" --recovery-attempt "$RECOVERY_ATTEMPT" --output .ci-aliases/progress.json
       - name: Seal alias evidence
         if: always()
         run: |
@@ -942,8 +1020,10 @@ jobs:
           ENABLE_PACKAGE_PUBLISH: ${{ vars.ENABLE_PACKAGE_PUBLISH }}
           PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
           PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
+          RECOVERY_RUN: ${{ inputs.recovery_run }}
+          RECOVERY_ATTEMPT: ${{ inputs.recovery_attempt }}
           RELEASE_ID: ${{ inputs.release_id }}
-        run: python3 scripts/ci/publication_promote_aliases.py record --kind package --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --output .ci-aliases/progress.json
+        run: python3 scripts/ci/publication_promote_aliases.py record --kind package --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --recovery-run "$RECOVERY_RUN" --recovery-attempt "$RECOVERY_ATTEMPT" --output .ci-aliases/progress.json
       - name: Seal alias evidence
         if: always()
         run: |

@@ -54,6 +54,8 @@ def prepare_packages(client, authority, catalog, destination, reports, scan=veri
                 candidates.append({'release': release['release'], 'origin': release['origin'], 'selection': release['selection'],
                                    'producer': producer, 'registration': plan['registration'], 'package': asdict(captured[0]),
                                    'file': target.name, 'size': target.stat().st_size, 'dependency_scan': scans[key]})
+                if 'recovery' in plan:
+                    candidates[-1]['recovery'] = {'receipt': plan['recovery']['receipt'], 'producer': producer}
                 if sum(item['size'] + 1024 for item in candidates) > 1024 * 1024 * 1024 - 10240:
                     raise PublicationError('Prepared package batch exceeds its archive size limit')
             archive_path = destination / 'packages.tar'

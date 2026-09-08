@@ -10,19 +10,20 @@ from publication import PublicationError, load_catalog, matches
 from publication_preparation_authorization import authorize_preparation
 from publication_prepare_images import ImagePreparation
 from publication_release_github import ReleaseGitHub
-from publication_release_image_authorization import PREPARE_JOB, WRITER_JOB, authorize_prepared, discover, job_name, policy_digest, release_authority
+from publication_release_image_authorization import PREPARE_JOB, WRITER_JOB, authorize_prepared, discover, job_name, policy_digest, publication_identity, release_authority
 from publication_release_image_writer import finalize, publish_release_images
 from publication_release_origin import frame
+from publication_selection import recovery_selector
 from publication_verify_images import verify_images
 
 DISCOVERY_JOB = 'Discover image releases'
 
 
-def prepare(client, context, producer_run, producer_attempt, run_id, attempt, release_id, catalog, root, output, explicit=None):
-    authorize_preparation(client, context, producer_run, producer_attempt, run_id, attempt)
+def prepare(client, context, producer_run, producer_attempt, run_id, attempt, release_id, catalog, root, output, explicit=None, *, recovery=None):
+    authorize_preparation(client, context, producer_run, producer_attempt, run_id, attempt, recovery=recovery, catalog=catalog)
     frame(client, context, run_id, attempt, DISCOVERY_JOB, 'success')
     invocation, _ = frame(client, context, run_id, attempt, job_name(PREPARE_JOB, release_id))
-    authority = release_authority(client, context, catalog, release_id, explicit)
+    authority = release_authority(client, context, catalog, release_id, explicit, recovery=recovery)
     source = copy.deepcopy(authority['plan'])
     output = Path(output)
     output.mkdir(parents=True)
@@ -39,6 +40,8 @@ def main():
     parser.add_argument('--producer-attempt', required=True)
     parser.add_argument('--release-id', default='')
     parser.add_argument('--manual-release-id', default='')
+    parser.add_argument('--recovery-run', default='')
+    parser.add_argument('--recovery-attempt', default='')
     parser.add_argument('--output', required=True)
     args = parser.parse_args()
     output = Path(args.output)
@@ -56,32 +59,33 @@ def main():
         context = {key: os.environ.get('GITHUB_' + key.upper(), '') for key in ('repository', 'ref', 'workflow_ref', 'workflow_sha', 'event_name')}
         if manual is not None and (context['event_name'] != 'workflow_dispatch' or args.mode != 'discover' and manual != release_id):
             raise PublicationError('Manual image retry differs from its requested release')
+        recovery = recovery_selector(args.recovery_run, args.recovery_attempt, args.manual_release_id)
         explicit = (producer_run, producer_attempt) if manual else None
         root = Path(__file__).resolve().parents[2]
         catalog = load_catalog(root)
         token = os.environ.get('GH_TOKEN')
         client = ReleaseGitHub(context['repository'], token)
         if args.mode == 'discover':
-            authorize_preparation(client, context, producer_run, producer_attempt, run_id, attempt)
+            authorize_preparation(client, context, producer_run, producer_attempt, run_id, attempt, recovery=recovery, catalog=catalog)
             frame(client, context, run_id, attempt, DISCOVERY_JOB)
-            matrix, pending = discover(client, context, catalog, manual, explicit)
+            matrix, pending = discover(client, context, catalog, manual, explicit, recovery=recovery)
             progress = {'schema': 1, 'matrix': matrix, 'pending': pending}
             with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
                 stream.write('matrix=' + json.dumps(matrix, separators=(',', ':')) + '\n')
                 stream.write('count=' + str(len(matrix['include'])) + '\n')
         elif args.mode == 'prepare':
-            progress = prepare(client, context, producer_run, producer_attempt, run_id, attempt, release_id, catalog, root, output.parent, explicit)
+            progress = prepare(client, context, producer_run, producer_attempt, run_id, attempt, release_id, catalog, root, output.parent, explicit, recovery=recovery)
         elif args.mode == 'publish':
             invocation, _ = frame(client, context, run_id, attempt, job_name(WRITER_JOB, release_id))
             progress['invocation'] = invocation
-            plan, preparation, artifacts, evidence = authorize_prepared(client, context, producer_run, producer_attempt, run_id, attempt, release_id, catalog, root, explicit)
-            progress['authority'] = {key: plan['authority'][key] for key in ('release', 'origin', 'selection')}
+            plan, preparation, artifacts, evidence = authorize_prepared(client, context, producer_run, producer_attempt, run_id, attempt, release_id, catalog, root, explicit, recovery=recovery)
+            progress['authority'] = publication_identity(plan['authority'])
             progress['preparation'] = evidence
             output.parent.mkdir(parents=True)
             publish_release_images(client, plan, preparation, artifacts, catalog, os.environ.get('GITHUB_ACTOR'), token, progress,
                                    lambda: output.write_text(json.dumps(progress, indent=2) + '\n'))
         else:
-            progress = finalize(client, context, producer_run, producer_attempt, run_id, attempt, release_id, catalog, root, explicit)
+            progress = finalize(client, context, producer_run, producer_attempt, run_id, attempt, release_id, catalog, root, explicit, recovery=recovery)
     except (PublicationError, OSError, ValueError, TypeError, KeyError, RecursionError) as failure:
         error = str(failure) if isinstance(failure, PublicationError) else 'Image release operation failed; verify retained evidence before retry.'
         progress['error'] = error

@@ -5,6 +5,8 @@ mkdir -p .ci-reports/security .ci-tools
 export PATH="$PWD/.ci-tools/bin:$PWD/.ci-tools/python/bin:$PATH"
 reports="$PWD/.ci-reports/security"
 mode="${1:?security mode is required}"
+control_scripts="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+control_policy="$control_scripts/../../.github/ci/security-exceptions.json"
 
 install_trivy() {
     mkdir -p .ci-tools/bin
@@ -34,7 +36,7 @@ case "$mode" in
     ;;
   devskim)
     stage="${RUNNER_TEMP:-/tmp}/security-source-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}"
-    python3 scripts/ci/security.py stage --destination "$stage" --inventory "$reports/source-inventory.json"
+    python3 "$control_scripts/security.py" stage --destination "$stage" --inventory "$reports/source-inventory.json"
     devskim analyze -I "$stage" -O "$reports/devskim.sarif" --confidence High,Medium,Low \
       --disable-supression --disable-console -v Debug -l "$reports/devskim-execution.log"
     python3 - "$reports" <<'PY'
@@ -47,7 +49,7 @@ skipped = re.findall(r'Files skipped: (\d+)', log)
 if analyzed != [str(len(inventory))] or skipped != ['0']:
     raise SystemExit('DevSkim did not analyze every staged source input; inspect inventory and debug log')
 PY
-    python3 scripts/ci/security.py gate --scanner devskim --report "$reports/devskim.sarif" \
+    python3 "$control_scripts/security.py" gate --exceptions "$control_policy" --scanner devskim --report "$reports/devskim.sarif" \
       --inventory "$reports/source-inventory.json" --output "$reports/devskim-gate.json"
     ;;
   zizmor)
@@ -61,7 +63,7 @@ expected = [p for p in tracked if (p.startswith('.github/workflows/') and p.ends
 if not expected or any('completed ' + p not in log for p in expected):
     raise SystemExit('zizmor workflow/action collection was incomplete; inspect execution log')
 PYCODE
-    python3 scripts/ci/security.py gate --scanner zizmor --report "$reports/zizmor.json" --output "$reports/zizmor-gate.json"
+    python3 "$control_scripts/security.py" gate --exceptions "$control_policy" --scanner zizmor --report "$reports/zizmor.json" --output "$reports/zizmor-gate.json"
     ;;
   dependencies)
     dotnet restore api/Wallow.slnx -p:RestorePackagesWithLockFile=true
@@ -98,7 +100,7 @@ missing = [p for p in expected if not any(t == p or t.endswith('/' + p) for t in
 if missing:
     raise SystemExit(f'Trivy did not report all resolved dependency inputs: {missing}')
 PY
-    python3 scripts/ci/security.py gate --scanner trivy --report "$reports/dependencies.json" --output "$reports/dependencies-gate.json"
+    python3 "$control_scripts/security.py" gate --exceptions "$control_policy" --scanner trivy --report "$reports/dependencies.json" --output "$reports/dependencies-gate.json"
     ;;
   images)
     kind="${2:?image kind is required}"
@@ -109,7 +111,7 @@ PY
       *) echo "Unknown image kind: $kind" >&2; exit 2 ;;
     esac
     archive=".ci-artifacts/images-$kind/images.tar.gz"
-    python3 scripts/ci/validation.py verify --file "$archive" --manifest "$archive.json" --kind images --variant "$kind-amd64-arm64"
+    python3 "$control_scripts/validation.py" verify --file "$archive" --manifest "$archive.json" --kind images --variant "$kind-amd64-arm64"
     docker load --input "$archive"
     failed=0
     for tag in "${tags[@]}"; do
@@ -121,7 +123,7 @@ PY
       docker image inspect "$tag" > "$reports/$filename-image.json"
       trivy --config .ci-tools/trivy.yaml image --scanners vuln --list-all-pkgs --image-src docker \
         --ignorefile /dev/null --format json --output "$reports/$filename-trivy.json" "$tag"
-      if ! python3 scripts/ci/security.py gate --scanner trivy --report "$reports/$filename-trivy.json" --scope-prefix "$tag" --output "$reports/$filename-gate.json"; then
+      if ! python3 "$control_scripts/security.py" gate --exceptions "$control_policy" --scanner trivy --report "$reports/$filename-trivy.json" --scope-prefix "$tag" --output "$reports/$filename-gate.json"; then
         failed=1
       fi
     done

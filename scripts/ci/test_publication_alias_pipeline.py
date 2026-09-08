@@ -1,4 +1,8 @@
 import copy
+import hashlib
+import io
+import json
+import zipfile
 from dataclasses import asdict
 from pathlib import Path
 from types import SimpleNamespace
@@ -6,7 +10,8 @@ import unittest
 from unittest.mock import patch
 
 from publication import PublicationError
-from publication_alias_pipeline import prepare, promote
+from publication_alias_pipeline import authorize_plan, prepare, promote
+import test_publication_alias_authorization as authorization_fixtures
 from publication_alias_registry import plan_aliases, registry_source
 import test_publication_npm as package_fixtures
 import test_publication_release_image_writer as image_fixtures
@@ -85,7 +90,7 @@ class PipelineTests(unittest.TestCase):
 
     def test_changing_package_target_requires_fresh_selected_inputs(self):
         self.record['selected'] = {'producer': {'run_id': 7, 'run_attempt': 1}}
-        with patch('publication_alias_pipeline.authorize_preparation'), patch('publication_alias_pipeline.frame', return_value=({}, {})), \
+        with patch('publication_alias_pipeline.authorize_preparation', return_value=({}, None, [], {})), patch('publication_alias_pipeline.frame', return_value=({}, {})), \
              patch('publication_alias_pipeline.publication_records', return_value=([self.record], False)), \
              patch('publication_alias_pipeline.configuration'), patch('publication_alias_pipeline.policy_digest', return_value='current'), \
              patch('publication_alias_pipeline.Registry', return_value=self.registry), \
@@ -98,6 +103,72 @@ class PipelineTests(unittest.TestCase):
             self.assertEqual(unchanged['scans'], {})
             resolve.assert_not_called()
         self.assertFalse(any(event == 'write' for event, _ in self.registry.events))
+
+
+    def test_explicit_recovery_scans_effective_inputs_without_replacing_original_selection(self):
+        self.record['selected'] = {'producer': {'run_id': 7, 'run_attempt': 1}}
+        original = copy.deepcopy(self.record['selected'])
+        recovery = {'release_id': 1, 'run_id': 70, 'run_attempt': 2}
+        metadata = {'original': original, 'receipt': {'asset_id': 90}}
+        effective = {'producer': {'run_id': 70, 'run_attempt': 2}, 'recovery': metadata}
+        with patch('publication_alias_pipeline.authorize_preparation', return_value=({'recovery': metadata}, None, [], {})) as shared, \
+             patch('publication_alias_pipeline.frame', return_value=({}, {})), \
+             patch('publication_alias_pipeline.publication_records', return_value=([self.record], False)), \
+             patch('publication_alias_pipeline.configuration'), patch('publication_alias_pipeline.policy_digest', return_value='current'), \
+             patch('publication_alias_pipeline.Registry', return_value=self.registry), \
+             patch('publication_alias_pipeline.resolve', side_effect=AssertionError('Expired original inputs')), \
+             patch('publication_alias_pipeline.resolve_selection', return_value=effective) as selected, \
+             patch('publication_alias_pipeline.validate_candidate', return_value={'producer': effective['producer']}), \
+             patch('publication_alias_pipeline.verify_dependencies', return_value={'verified': True}) as scan, \
+             patch('publication_alias_pipeline.Path.mkdir'):
+            plan = prepare(self.client, {'event_name': 'workflow_dispatch'}, 7, 1, 2, 1, 'package', self.catalog, '.', '/unused', 'fixture', 'example', 1, recovery=recovery)
+            self.assertEqual(plan['recovery'], metadata)
+            self.assertEqual(self.record['selected'], original)
+            self.assertEqual(selected.call_args.args[2:5], (7, 1, self.catalog))
+            self.assertEqual(selected.call_args.kwargs, {'recovery': recovery})
+            self.assertIs(scan.call_args.args[1], effective)
+            effective['recovery'] = {'original': original, 'receipt': {'asset_id': 91}}
+            with self.assertRaises(PublicationError):
+                prepare(self.client, {'event_name': 'workflow_dispatch'}, 7, 1, 2, 1, 'package', self.catalog, '.', '/unused', 'fixture', 'example', 1, recovery=recovery)
+
+    def test_recovery_requires_matching_explicit_manual_target_before_api(self):
+        recovery = {'release_id': 1, 'run_id': 70, 'run_attempt': 2}
+        with patch('publication_alias_pipeline.authorize_preparation') as shared:
+            for context, target, selector in [({}, 1, recovery), ({'event_name': 'workflow_dispatch'}, None, recovery), ({'event_name': 'workflow_dispatch'}, 2, recovery), ({'event_name': 'workflow_dispatch'}, 1, recovery | {'run_id': True})]:
+                with self.subTest(target=target), self.assertRaises(PublicationError):
+                    prepare(self.client, context, 7, 1, 2, 1, 'package', self.catalog, '.', '/unused', 'fixture', 'example', target, recovery=selector)
+        shared.assert_not_called()
+
+
+    def test_sealed_plan_requires_same_explicit_recovery_and_rejects_implicit_use(self):
+        fixture = authorization_fixtures.AuthorizationTests()
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        fixture.authorize()
+        with zipfile.ZipFile(io.BytesIO(fixture.archive)) as archive:
+            seal = json.loads(archive.read('plan.json.json'))
+        metadata = {'original': {'producer': {'run_id': 7, 'run_attempt': 1}}, 'receipt': {'asset_id': 90}}
+        body = json.dumps(fixture.plan | {'target': 5, 'recovery': metadata}).encode()
+        seal['sha256'] = hashlib.sha256(body).hexdigest()
+        output = io.BytesIO()
+        with zipfile.ZipFile(output, 'w') as archive:
+            archive.writestr('plan.json', body)
+            archive.writestr('plan.json.json', json.dumps(seal))
+        fixture.archive = output.getvalue()
+        artifact = {'id': 90, 'name': 'image-alias-plan-30-1', 'size_in_bytes': len(fixture.archive), 'digest': 'sha256:' + hashlib.sha256(fixture.archive).hexdigest(),
+                    'expired': False, 'expires_at': '2030-01-01T00:00:00Z', 'workflow_run': {'id': 30, 'repository_id': 1, 'head_repository_id': 1, 'head_sha': fixture.producer.source_sha, 'head_branch': 'main'}}
+        recovery = {'release_id': 5, 'run_id': 70, 'run_attempt': 2}
+        with patch('publication_alias_pipeline.authorize_preparation', return_value=({'recovery': metadata}, fixture.producer, [artifact], {})) as shared, \
+             patch('publication_alias_pipeline.frame', return_value=({'job_id': 100}, {})), \
+             patch('publication_alias_pipeline.publication_records', return_value=(fixture.records, False)), patch('publication_alias_pipeline.configuration'):
+            plan = authorize_plan(fixture.client, {'event_name': 'workflow_dispatch'}, 7, 1, 30, 1, 'image', {}, fixture.root, 5, recovery=recovery)
+            self.assertEqual(plan['recovery'], metadata)
+            self.assertEqual(shared.call_args.kwargs, {'recovery': recovery, 'catalog': {}})
+            with self.assertRaises(PublicationError):
+                authorize_plan(fixture.client, {'event_name': 'workflow_dispatch'}, 7, 1, 30, 1, 'image', {}, fixture.root, 5)
+            metadata['receipt']['asset_id'] = 91
+            with self.assertRaises(PublicationError):
+                authorize_plan(fixture.client, {'event_name': 'workflow_dispatch'}, 7, 1, 30, 1, 'image', {}, fixture.root, 5, recovery=recovery)
 
     def test_old_run_cannot_move_current_alias_backward(self):
         old = copy.deepcopy(self.record)

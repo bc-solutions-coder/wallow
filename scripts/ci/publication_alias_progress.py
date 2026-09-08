@@ -12,7 +12,7 @@ from publication_release_origin import frame
 from publication_release_receipts import inspect_receipt, write_receipt
 
 
-def finalize(client, context, producer_run, producer_attempt, run_id, attempt, kind, catalog, root, target=None):
+def finalize(client, context, producer_run, producer_attempt, run_id, attempt, kind, catalog, root, target=None, *, recovery=None):
     current = frame(client, context, run_id, attempt, job(kind, 'Record'))
     invocation, _ = frame(client, context, run_id, attempt, job(kind, 'Promote'), 'success')
     producer = Producer(client.repository, invocation['repository_id'], invocation['controller_sha'], run_id, attempt, invocation['workflow_id'], invocation['workflow_ref'])
@@ -24,7 +24,7 @@ def finalize(client, context, producer_run, producer_attempt, run_id, attempt, k
         archive = client.download(selected, temporary / 'progress.zip')
         path = unpack_payload(archive, temporary / 'verified', selected, producer, 'progress.json', 'alias-progress', kind, 16 * 1024 * 1024)
         document = json.loads(path.read_text())
-    plan = authorize_plan(client, context, producer_run, producer_attempt, run_id, attempt, kind, catalog, root, target)
+    plan = authorize_plan(client, context, producer_run, producer_attempt, run_id, attempt, kind, catalog, root, target, recovery=recovery)
     if not isinstance(document, dict) or document.get('schema') != 1 or document.get('kind') != kind or document.get('invocation') != invocation or document.get('records') != plan['records'] or 'error' in document or not isinstance(document.get('entries'), list) or len(document['entries']) != len(plan['entries']):
         raise PublicationError('Alias progress differs from the successful exact writer and preparation')
     for observed, expected in zip(document['entries'], plan['entries'], strict=True):

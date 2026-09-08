@@ -20,6 +20,7 @@ from publication_prepare_packages import prepare_packages
 from publication_release_github import ReleaseGitHub
 from publication_release_origin import frame
 from publication_release_authorization import release_identity
+from publication_selection import recovery_selector
 
 
 def snapshot(authority):
@@ -50,7 +51,7 @@ def dependency_preflight(plan, repository, registry):
     return ordered
 
 
-def prepare(client, context, producer_run, producer_attempt, run_id, attempt, catalog, root, destination, token, release_id=None):
+def prepare(client, context, producer_run, producer_attempt, run_id, attempt, catalog, root, destination, token, release_id=None, *, recovery=None):
     if release_id is not None:
         client.controller(context)
         target = release_identity(client, client.get('/releases/' + str(release_id)), catalog)
@@ -62,8 +63,8 @@ def prepare(client, context, producer_run, producer_attempt, run_id, attempt, ca
     package_configuration(client.repository, catalog, root)
     package_environment(client)
     invocation, _ = frame(client, context, run_id, attempt, PREPARE_JOB)
-    trigger, _, _, _ = authorize_preparation(client, context, producer_run, producer_attempt, run_id, attempt)
-    authority = package_releases(client, context, catalog, release_id, (producer_run, producer_attempt) if release_id else None)
+    trigger, _, _, _ = authorize_preparation(client, context, producer_run, producer_attempt, run_id, attempt, recovery=recovery, catalog=catalog)
+    authority = package_releases(client, context, catalog, release_id, (producer_run, producer_attempt) if release_id else None, recovery=recovery)
     destination = Path(destination)
     destination.mkdir(parents=True)
     prepared = prepare_packages(client, authority, catalog, destination / 'bytes', destination / 'scans')
@@ -91,6 +92,9 @@ def validate_prepared(plan, authority, repository):
             raise PublicationError('Prepared package candidate has an unexpected release identity')
         seen.add(release_id)
         source = expected[release_id]
+        recovery = {'receipt': source['plan']['recovery']['receipt'], 'producer': source['plan']['producer']} if 'recovery' in source['plan'] else None
+        if item.get('recovery') != recovery or ('recovery' in item and recovery is None):
+            raise PublicationError('Prepared package recovery differs from its authenticated producer and receipt')
         for key in ('release', 'origin', 'selection'):
             if item.get(key) != source[key]:
                 raise PublicationError('Prepared package differs from its exact durable release receipt')
@@ -106,10 +110,10 @@ def validate_prepared(plan, authority, repository):
         raise PublicationError('Prepared package archive lacks exact bounded identity')
 
 
-def authorize_packages(client, context, producer_run, producer_attempt, run_id, attempt, catalog, root, release_id=None):
+def authorize_packages(client, context, producer_run, producer_attempt, run_id, attempt, catalog, root, release_id=None, *, recovery=None):
     package_configuration(client.repository, catalog, root)
     package_environment(client)
-    trigger, producer, artifacts, _ = authorize_preparation(client, context, producer_run, producer_attempt, run_id, attempt)
+    trigger, producer, artifacts, _ = authorize_preparation(client, context, producer_run, producer_attempt, run_id, attempt, recovery=recovery, catalog=catalog)
     invocation, _ = frame(client, context, run_id, attempt, PREPARE_JOB, 'success')
     selected = select_artifact(artifacts, producer, 'package-plan')
     if selected.size > 17 * 1024 * 1024:
@@ -119,7 +123,7 @@ def authorize_packages(client, context, producer_run, producer_attempt, run_id, 
         archive = client.download(selected, temporary / 'plan.zip')
         path = unpack_payload(archive, temporary / 'verified', selected, producer, 'plan.json', 'package-plan', 'release', 16 * 1024 * 1024)
         plan = json.loads(path.read_text())
-    authority = package_releases(client, context, catalog, release_id, (producer_run, producer_attempt) if release_id else None)
+    authority = package_releases(client, context, catalog, release_id, (producer_run, producer_attempt) if release_id else None, recovery=recovery)
     if not isinstance(plan, dict) or plan.get('schema') != 1 or plan.get('invocation') != invocation or plan.get('trigger_producer') != trigger['producer'] or plan.get('catalog') != catalog or plan.get('authority') != snapshot(authority) or plan.get('policy_sha256') != policy_digest(root) or plan.get('publication_authorized') is not False:
         raise PublicationError('Prepared package plan differs from current exact release authorization and policy')
     validate_prepared(plan, authority, client.repository)
@@ -135,8 +139,11 @@ def main():
     parser.add_argument('--producer-attempt', required=True)
     parser.add_argument('--release-id', default='')
     parser.add_argument('--output', required=True)
+    parser.add_argument('--recovery-run', default='')
+    parser.add_argument('--recovery-attempt', default='')
     args = parser.parse_args()
     try:
+        recovery = recovery_selector(args.recovery_run, args.recovery_attempt, args.release_id)
         values = (args.producer_run, args.producer_attempt, os.environ.get('GITHUB_RUN_ID'), os.environ.get('GITHUB_RUN_ATTEMPT'))
         if os.environ.get('ENABLE_PACKAGE_PUBLISH') != 'true' or not all(matches(r'[1-9][0-9]*', value) for value in values) or (args.release_id and not matches(r'[1-9][0-9]*', args.release_id)):
             raise PublicationError('Package preparation requires literal enablement and exact invocation identities')
@@ -145,7 +152,7 @@ def main():
         token = os.environ.get('GH_TOKEN')
         client = ReleaseGitHub(context['repository'], token)
         output = Path(args.output)
-        plan = prepare(client, context, *(int(value) for value in values), load_catalog(root), root, output.parent, token, int(args.release_id) if args.release_id else None)
+        plan = prepare(client, context, *(int(value) for value in values), load_catalog(root), root, output.parent, token, int(args.release_id) if args.release_id else None, recovery=recovery)
         output.parent.mkdir(parents=True, exist_ok=True)
         with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
             stream.write('eligible=' + ('false' if 'unrelated_release_id' in plan else 'true') + '\n')

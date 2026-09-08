@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import tempfile
 
-from publication import PublicationError
+from publication import PublicationError, positive_integer
 from publication_alias_authorization import publication_records
 from publication_alias_registry import Registry, plan_aliases
 from publication_artifacts import select_artifact, unpack_payload
@@ -13,6 +13,7 @@ from publication_package_configuration import package_configuration, package_env
 from publication_package_dependencies import publication_order
 from publication_package_records import package_record
 from publication_plan import resolve
+from publication_selection import resolve_selection
 from publication_preparation_authorization import authorize_preparation
 from publication_prepare_images import ImagePreparation
 from publication_release_image_authorization import policy_digest
@@ -41,12 +42,20 @@ def dependencies(client, records, registry, catalog, targets):
     return publication_order([], published, catalog, registry.packages, selected)['dependencies']
 
 
-def prepare(client, context, producer_run, producer_attempt, run_id, attempt, kind, catalog, root, output, token, username, target=None):
-    authorize_preparation(client, context, producer_run, producer_attempt, run_id, attempt)
+def recovery_target(context, target, recovery):
+    if recovery is not None and (not isinstance(recovery, dict) or set(recovery) != {'release_id', 'run_id', 'run_attempt'} or not all(positive_integer(value) for value in recovery.values()) or recovery['release_id'] != target or not isinstance(context, dict) or context.get('event_name') != 'workflow_dispatch'):
+        raise PublicationError('Alias recovery requires an exact explicit manual release target')
+
+
+def prepare(client, context, producer_run, producer_attempt, run_id, attempt, kind, catalog, root, output, token, username, target=None, *, recovery=None):
+    recovery_target(context, target, recovery)
+    initial, _, _, _ = authorize_preparation(client, context, producer_run, producer_attempt, run_id, attempt, recovery=recovery, catalog=catalog)
     invocation, _ = frame(client, context, run_id, attempt, job(kind, 'Prepare'))
     records, unrelated = publication_records(client, context, catalog, kind, target, (producer_run, producer_attempt) if target else None)
     plan = {'schema': 1, 'kind': kind, 'invocation': invocation, 'records': records, 'target': target, 'unrelated': unrelated,
             'policy_sha256': policy_digest(root), 'entries': [], 'scans': {}, 'dependencies': [], 'publication_authorized': False}
+    if recovery is not None:
+        plan['recovery'] = initial['recovery']
     if unrelated:
         return plan
     configuration(client, catalog, root, kind)
@@ -62,8 +71,16 @@ def prepare(client, context, producer_run, producer_attempt, run_id, attempt, ki
                     continue
                 identity = record['selected']['producer']
                 try:
-                    source = resolve(client, context, identity['run_id'], identity['run_attempt'])
-                    if validate_candidate(source, record['release'], catalog) != record['selected']:
+                    if recovery is not None and record['release']['id'] == target:
+                        source = resolve_selection(client, context, identity['run_id'], identity['run_attempt'], catalog, recovery=recovery)
+                        validate_candidate(source, record['release'], catalog)
+                        selected = source.get('recovery', {}).get('original')
+                        if source.get('recovery') != plan['recovery']:
+                            raise PublicationError('Alias recovery receipt changed during preparation')
+                    else:
+                        source = resolve(client, context, identity['run_id'], identity['run_attempt'])
+                        selected = validate_candidate(source, record['release'], catalog)
+                    if selected != record['selected']:
                         raise PublicationError('Selected alias producer changed')
                 except PublicationError:
                     raise PublicationError('Package alias target inputs are unavailable or changed; explicit recovery of the selected source is required') from None
@@ -87,8 +104,9 @@ def prepare(client, context, producer_run, producer_attempt, run_id, attempt, ki
     return plan
 
 
-def authorize_plan(client, context, producer_run, producer_attempt, run_id, attempt, kind, catalog, root, target=None):
-    _, producer, artifacts, _ = authorize_preparation(client, context, producer_run, producer_attempt, run_id, attempt)
+def authorize_plan(client, context, producer_run, producer_attempt, run_id, attempt, kind, catalog, root, target=None, *, recovery=None):
+    recovery_target(context, target, recovery)
+    initial, producer, artifacts, _ = authorize_preparation(client, context, producer_run, producer_attempt, run_id, attempt, recovery=recovery, catalog=catalog)
     invocation, _ = frame(client, context, run_id, attempt, job(kind, 'Prepare'), 'success')
     selected = select_artifact(artifacts, producer, kind + '-alias-plan')
     if selected.size > 17 * 1024 * 1024:
@@ -101,15 +119,17 @@ def authorize_plan(client, context, producer_run, producer_attempt, run_id, atte
     records, unrelated = publication_records(client, context, catalog, kind, target, (producer_run, producer_attempt) if target else None)
     if not isinstance(plan, dict) or plan.get('schema') != 1 or plan.get('kind') != kind or plan.get('invocation') != invocation or plan.get('records') != records or plan.get('target') != target or plan.get('unrelated') != unrelated or plan.get('policy_sha256') != policy_digest(root) or plan.get('publication_authorized') is not False:
         raise PublicationError('Alias preparation differs from current exact release authority or policy')
+    if ('recovery' in plan) != (recovery is not None) or (recovery is not None and plan['recovery'] != initial.get('recovery')):
+        raise PublicationError('Alias preparation differs from the explicitly selected recovery receipt')
     if not unrelated:
         configuration(client, catalog, root, kind)
     return plan
 
 
-def promote(client, context, producer_run, producer_attempt, run_id, attempt, kind, catalog, root, token, username, progress, record, target=None):
+def promote(client, context, producer_run, producer_attempt, run_id, attempt, kind, catalog, root, token, username, progress, record, target=None, *, recovery=None):
     invocation, _ = frame(client, context, run_id, attempt, job(kind, 'Promote'))
     progress['invocation'] = invocation
-    plan = authorize_plan(client, context, producer_run, producer_attempt, run_id, attempt, kind, catalog, root, target)
+    plan = authorize_plan(client, context, producer_run, producer_attempt, run_id, attempt, kind, catalog, root, target, recovery=recovery)
     progress['records'] = plan['records']
     if plan['unrelated']:
         return progress
