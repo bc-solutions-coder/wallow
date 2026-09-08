@@ -55,3 +55,11 @@ cache outputs, but the endpoint probe returns unavailable, so this is not remote
 acceptance. The endpoint responds HTTP 200 from the owner's machine. Probe diagnostics
 now report only HTTP status or error category, without endpoint or exception text, to
 distinguish malformed configuration from hosted transport failure on the next main run.
+
+The next probe reported an SSL transport failure. Production `TURBO_API` was corrected
+to the owner-provided HTTP endpoint on September 7 at 23:44 UTC. Hosted verification
+remains pending. Build/typecheck now generates a fresh Turbo summary and emits only
+remote-hit, local-hit and miss counts; old run summaries are cleared before the build.
+Actual Turbo 2.10.8 local execution reported one local hit and zero remote hits through
+the reporter. These counts will distinguish remote acceptance from restored GitHub
+cache outputs without exposing task or environment metadata.

@@ -59,7 +59,10 @@ jobs:
       - name: Install Playwright browser
         run: pnpm --filter ./packages/testing exec playwright install --with-deps chromium
       - name: Build and typecheck
-        run: pnpm exec turbo run build typecheck
+        run: |
+          rm -rf .turbo/runs
+          pnpm exec turbo run build typecheck --summarize
+          python3 scripts/ci/cache_summary.py
       - name: Check route trees
         run: git diff --exit-code -- apps/wallow-auth/src/app/routeTree.gen.ts apps/wallow-web/src/app/routeTree.gen.ts apps/minimal-app/src/routeTree.gen.ts
       - name: Test
