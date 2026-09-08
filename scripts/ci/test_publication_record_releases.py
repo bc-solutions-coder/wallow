@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from publication import PublicationError
 from publication_record_releases import reconcile
+from publication_release_authorization import ReleaseOutsideMain
 
 
 class Client:
@@ -39,6 +40,22 @@ class ReconciliationTests(unittest.TestCase):
 
     def run_reconcile(self, release_id=None, result=None):
         return reconcile(self.client, self.context, 30, 1, 20, 1, self.catalog, release_id, result)
+
+    def test_untracked_non_main_release_is_reported_without_writes(self):
+        self.release_identity.side_effect = ReleaseOutsideMain('Outside main')
+        self.assertEqual(self.run_reconcile()['releases'][0]['state'], 'unsupported-ancestry')
+        self.assertEqual(self.retained, [])
+        self.authenticate_origin.assert_not_called()
+        with self.assertRaises(ReleaseOutsideMain):
+            self.run_reconcile(5)
+        self.inspect_receipt.return_value = {'asset_id': 7}
+        with self.assertRaises(ReleaseOutsideMain):
+            self.run_reconcile()
+
+    def test_other_identity_failures_are_not_skipped(self):
+        self.release_identity.side_effect = PublicationError('API failure')
+        with self.assertRaises(PublicationError):
+            self.run_reconcile()
 
     def test_origin_is_retained_before_selection_and_no_publication_authority_claim(self):
         result = self.run_reconcile()

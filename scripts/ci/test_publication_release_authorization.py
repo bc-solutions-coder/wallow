@@ -4,7 +4,7 @@ import json
 import unittest
 
 from publication import PublicationError
-from publication_release_authorization import authenticate_origin, release_identity
+from publication_release_authorization import ReleaseOutsideMain, authenticate_origin, release_identity
 from publication_release_origin import COMMENT_PREFIX, COMMENT_SUFFIX, canonical, comment_record, record_pr_origins
 import test_publication_release_origin as fixtures
 
@@ -30,6 +30,19 @@ class AuthorizationTests(unittest.TestCase):
         self.identity = release_identity(self.fixture, self.release, self.catalog)
         self.fixture.document['releases'] = [self.identity | {'matches_producer_sha': True}]
         self.fixture.make_artifact()
+
+    def test_non_main_ancestry_is_distinct_from_invalid_comparison(self):
+        for status in ('behind', 'diverged'):
+            self.fixture.main_comparison = lambda sha: {'status': status, 'merge_base_commit': {'sha': 'b' * 40}}
+            with self.assertRaises(ReleaseOutsideMain):
+                release_identity(self.fixture, self.release, self.catalog)
+        for comparison in ({}, {'status': 'unknown'}, {'status': 'behind'},
+                           {'status': 'ahead', 'merge_base_commit': {'sha': 'b' * 40}},
+                           {'status': 'behind', 'merge_base_commit': {'sha': 'a' * 40}}):
+            self.fixture.main_comparison = lambda sha: comparison
+            with self.assertRaises(PublicationError) as failure:
+                release_identity(self.fixture, self.release, self.catalog)
+            self.assertNotIsInstance(failure.exception, ReleaseOutsideMain)
 
     def test_build_metadata_release_fails_without_registry_normalization(self):
         with self.assertRaisesRegex(PublicationError, 'build metadata is unsupported'):
