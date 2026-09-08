@@ -141,5 +141,39 @@
       "platform": "linux/amd64",
       "tag": "wallow-bff-example:test"
     }
+  ],
+  "validation_only_packages": [
+    {
+      "name": "@bc-solutions-coder/auth",
+      "tarball": "auth.tgz"
+    },
+    {
+      "name": "@bc-solutions-coder/env",
+      "tarball": "env.tgz"
+    },
+    {
+      "name": "@bc-solutions-coder/logger",
+      "tarball": "logger.tgz"
+    },
+    {
+      "name": "@bc-solutions-coder/navigation",
+      "tarball": "navigation.tgz"
+    },
+    {
+      "name": "@bc-solutions-coder/query",
+      "tarball": "query.tgz"
+    },
+    {
+      "name": "@bc-solutions-coder/styles",
+      "tarball": "styles.tgz"
+    },
+    {
+      "name": "@bc-solutions-coder/testing",
+      "tarball": "testing.tgz"
+    },
+    {
+      "name": "@bc-solutions-coder/utils",
+      "tarball": "utils.tgz"
+    }
   ]
 }

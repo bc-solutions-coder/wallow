@@ -9,7 +9,7 @@ import unittest
 
 from publication import PublicationError
 from publication_archives import bounded_tar
-from publication_packages import Package, dependency_order, inspect_package
+from publication_packages import Package, dependency_order, inspect_candidate, inspect_package
 
 
 class PackageTests(unittest.TestCase):
@@ -41,6 +41,14 @@ class PackageTests(unittest.TestCase):
         self.assertEqual(package.dependencies, {'@example/errors': '^1.0.0'})
         self.assertEqual(package.sha256, hashlib.sha256(self.path.read_bytes()).hexdigest())
         self.assertEqual(package.integrity, 'sha512-' + base64.b64encode(hashlib.sha512(self.path.read_bytes()).digest()).decode())
+
+    def test_source_candidate_is_portable_but_destination_binding_remains_required(self):
+        self.pack()
+        candidate = inspect_candidate(self.path, '@example/sdk', '2.0.0', 'https://npm.pkg.github.com')
+        self.assertEqual(candidate.repository, {'type': 'git', 'url': 'https://github.com/example/repo.git'})
+        for repository in ('example/unconfigured-fork', 'other/repo'):
+            with self.subTest(repository=repository), self.assertRaises(PublicationError):
+                inspect_package(self.path, '@example/sdk', '2.0.0', 'https://npm.pkg.github.com', repository)
 
     def test_rejects_wrong_name_version_privacy_and_registry(self):
         for change in [{'name': '@foreign/sdk'}, {'version': '2.1.0'}, {'private': True}, {'publishConfig': {'registry': 'https://registry.npmjs.org'}}, {'repository': {'type': 'git', 'url': 'https://github.com/foreign/upstream.git'}}]:
