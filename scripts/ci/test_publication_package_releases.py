@@ -34,6 +34,20 @@ class ReleaseTests(unittest.TestCase):
             result = package_releases(self.client, {'event_name': 'workflow_dispatch'}, self.catalog, 5 if explicit else None, explicit)
             return result, recovery.call_count
 
+    def test_untracked_release_waits_without_resolving_historical_source(self):
+        with patch('publication_package_releases.release_identity', side_effect=PublicationError('Unsupported old source')) as identity, \
+             patch('publication_package_releases.find_receipt', return_value=None):
+            result = package_releases(self.client, {'event_name': 'workflow_dispatch'}, self.catalog)
+            self.assertEqual(result['pending'], [{'release_id': 5, 'state': 'pending-origin'}])
+            self.assertEqual(result['ready'], [])
+            identity.assert_not_called()
+            with self.assertRaises(PublicationError):
+                package_releases(self.client, {'event_name': 'workflow_dispatch'}, self.catalog, 5, (20, 2))
+        with patch('publication_package_releases.release_identity', side_effect=PublicationError('Changed tracked source')), \
+             patch('publication_package_releases.find_receipt', return_value=self.origin):
+            with self.assertRaises(PublicationError):
+                package_releases(self.client, {'event_name': 'workflow_dispatch'}, self.catalog)
+
     def test_successful_durable_publication_does_not_require_original_artifact(self):
         result, recoveries = self.discover()
         self.assertEqual(result['published'], [{'release': self.release, 'needs_endorsement': False}])

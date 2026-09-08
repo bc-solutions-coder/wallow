@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 from publication import PublicationError
-from publication_release_image_authorization import authorize_prepared, discover, job_name, release_authority
+from publication_release_image_authorization import authorize_prepared, discover, job_name, release_authority, verify_recovery_lineage
 import test_publication_release_image_preparation as preparation_fixtures
 from publication_release_receipts import ORIGIN
 
@@ -106,6 +106,38 @@ class DiscoveryTests(unittest.TestCase):
             fixture.authority['plan']['recovery']['receipt']['asset_id'] = 91
             with self.assertRaises(PublicationError):
                 authorize_prepared(fixture.client, self.context, 20, 2, 30, 1, 5, fixture.client.catalog, fixture.client.root, (20, 2), recovery=recovery)
+
+
+    def test_completed_recovery_lineage_verifies_durable_reference_without_build_inputs(self):
+        binding = {'receipt': {'asset_id': 90}, 'producer': {'run_id': 70}}
+        self.receipt = {'record': {'payload': {'release': self.release, 'origin': self.origin, 'selection': self.selection, 'recovery': binding}}}
+        durable = {'record': {'payload': {'recovery': {'producer': {'run_id': 70}}}}}
+        with patch('publication_release_image_authorization.verify_reference', return_value=durable) as reference, \
+             patch('publication_release_image_authorization.resolve', side_effect=AssertionError('Expired build artifacts')), \
+             patch('publication_release_image_authorization.resolve_selection', side_effect=AssertionError('Expired recovery artifacts')):
+            (matrix, _), calls = self.run_discovery()
+            self.assertEqual(matrix['include'], [])
+            self.assertEqual(calls, 0)
+            reference.assert_called_once_with(self.client, binding['receipt'], self.release, self.origin, self.selection)
+            binding['producer'] = {'run_id': 71}
+            with self.assertRaises(PublicationError): self.run_discovery()
+        with patch('publication_release_image_authorization.verify_reference', side_effect=PublicationError('Changed recovery asset')):
+            with self.assertRaises(PublicationError): self.run_discovery()
+        with self.assertRaises(PublicationError): verify_recovery_lineage(self.client, {'recovery': None})
+
+
+    def test_untracked_legacy_release_stays_pending_but_partial_evidence_is_strict(self):
+        with patch('publication_release_image_authorization.image_environment'), \
+             patch('publication_release_image_authorization.find_receipt', return_value=None) as receipts, \
+             patch('publication_release_image_authorization.release_identity', side_effect=PublicationError('Unsupported historical source')) as identity:
+            matrix, pending = discover(self.client, self.context, self.catalog)
+            self.assertEqual((matrix, pending), ({'include': []}, [5]))
+            identity.assert_not_called()
+            with self.assertRaises(PublicationError): discover(self.client, self.context, self.catalog, 5, (20, 1))
+            receipts.side_effect = [self.origin, None]
+            with self.assertRaises(PublicationError): discover(self.client, self.context, self.catalog)
+            receipts.side_effect = PublicationError('Malformed provenance asset')
+            with self.assertRaises(PublicationError): discover(self.client, self.context, self.catalog)
 
     def test_exact_matrix_job_names_reject_untrusted_ids(self):
         self.assertEqual(job_name('Prepare release images', 5), 'Prepare release images (5)')

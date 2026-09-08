@@ -32,9 +32,15 @@ def package_releases(client, context, catalog, release_id=None, explicit=None, *
             if api_release.get('id') == release_id:
                 raise PublicationError('Requested release is not a published package component')
             continue
+        identity = api_release.get('id')
+        if not positive_integer(identity):
+            raise PublicationError('Package release has no exact API identity')
+        origin = find_receipt(client, identity, ORIGIN)
+        selection = find_receipt(client, identity, SELECTION)
+        if identity != release_id and origin is None and selection is None:
+            pending.append({'release_id': identity, 'state': 'pending-origin'})
+            continue
         release = release_identity(client, api_release, catalog)
-        origin = find_receipt(client, release['id'], ORIGIN)
-        selection = find_receipt(client, release['id'], SELECTION)
         if selection is not None and origin is None:
             raise PublicationError('Package selection has no immutable release origin')
         if origin is None or selection is None:

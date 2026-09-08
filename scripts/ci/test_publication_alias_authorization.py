@@ -7,7 +7,7 @@ from pathlib import Path
 import tempfile
 from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 import zipfile
 
 from publication import Producer, PublicationError
@@ -52,6 +52,20 @@ class AuthorizationTests(unittest.TestCase):
              patch('publication_alias_pipeline.publication_records', return_value=(self.records, False)), patch('publication_alias_pipeline.configuration'):
             return authorize_plan(self.client, {}, 1, 1, 30, 1, 'image', {}, self.root)
 
+    def test_unpublished_legacy_release_is_not_an_alias_candidate(self):
+        client = SimpleNamespace(controller=Mock(), array=Mock(return_value=[{'id': 5, 'tag_name': 'sdk-v1.0.0', 'draft': False}]), get=Mock(return_value={'id': 5}))
+        catalog = {'components': [{'id': 'sdk', 'tag_prefix': 'sdk-v', 'package': {}}]}
+        with patch('publication_alias_authorization.inspect_receipt', return_value=None), \
+             patch('publication_alias_authorization.release_identity', side_effect=PublicationError('Unsupported old source')) as identity:
+            self.assertEqual(publication_records(client, {}, catalog, 'package'), ([], False))
+            identity.assert_not_called()
+            with self.assertRaises(PublicationError):
+                publication_records(client, {'event_name': 'workflow_dispatch'}, catalog, 'package', 5)
+        with patch('publication_alias_authorization.inspect_receipt', return_value={'asset_id': 7}), \
+             patch('publication_alias_authorization.release_identity', side_effect=PublicationError('Changed published source')):
+            with self.assertRaises(PublicationError):
+                publication_records(client, {}, catalog, 'package')
+
     def test_exact_sealed_plan_requires_current_policy_receipts_and_job(self):
         self.assertEqual(self.authorize(), self.plan)
         for key, value in [('kind', 'package'), ('invocation', {'job_id': 101}), ('records', []), ('policy_sha256', 'sha256:' + '0' * 64)]:
@@ -85,6 +99,36 @@ class AuthorizationTests(unittest.TestCase):
             self.assertEqual(records[0]['outputs']['package'], asdict(fixture.package))
             selected['producer'] = selected['producer'] | {'run_attempt': 2}
             with self.assertRaises(PublicationError): publication_records(client, {}, catalog, 'package')
+
+    def test_recovered_image_alias_requires_durable_lineage(self):
+        release = {'id': 5, 'component': 'app', 'version': '1.0.0', 'commit_sha': self.producer.source_sha}
+        selected = {'producer': asdict(self.producer), 'component_versions': {'.': '1.0.0'}}
+        pointer = {'asset_id': 51, 'sha256': 'sha256:' + 'c' * 64}
+        binding = {'receipt': {'asset_id': 90}, 'producer': {'run_id': 70}}
+        image = {'image': 'api', 'repository': 'example/api', 'version': '1.0.0', 'source_sha': self.producer.source_sha,
+                 'index_digest': 'sha256:' + 'd' * 64, 'platforms': {'linux/amd64': {}}, 'readback': 'verified'}
+        payload = {'release': release, 'origin': pointer, 'selection': pointer, 'images': [image], 'writer': {'frame': {}}, 'recovery': binding}
+        receipt = {'asset_id': 50, 'sha256': 'sha256:' + 'b' * 64, 'record': {'payload': payload}}
+        catalog = {'components': [{'id': 'app', 'path': '.', 'tag_prefix': 'v'}],
+                   'images': [{'id': 'api', 'component': 'app', 'tags': {'linux/amd64': 'amd64'}}]}
+        client = SimpleNamespace(repository='example/repo', controller=Mock(),
+                                 array=Mock(return_value=[{'id': 5, 'tag_name': 'v1.0.0', 'draft': False}]),
+                                 producer=Mock(return_value=(self.producer, {})))
+        with patch('publication_alias_authorization.release_identity', return_value=release), \
+             patch('publication_alias_authorization.inspect_receipt', return_value=receipt), \
+             patch('publication_alias_authorization.endorsed', return_value=True), \
+             patch('publication_alias_authorization.find_receipt', return_value=pointer), \
+             patch('publication_alias_authorization.authorized_selection', return_value=selected), \
+             patch('publication_alias_authorization.verify_frame'), \
+             patch('publication_alias_authorization.image_repository', return_value='example/api'), \
+             patch('publication_alias_authorization.main_index'), \
+             patch('publication_release_image_authorization.verify_reference', return_value={'record': {'payload': {'recovery': {'producer': binding['producer']}}}}) as verify:
+            records, _ = publication_records(client, {}, catalog, 'image')
+            self.assertEqual(records[0]['outputs']['images'], [image])
+            verify.assert_called_once_with(client, binding['receipt'], release, pointer, pointer)
+            verify.side_effect = PublicationError('Recovery receipt changed')
+            with self.assertRaises(PublicationError):
+                publication_records(client, {}, catalog, 'image')
 
     def test_unrelated_prepare_cli_emits_false_eligibility_without_destination_access(self):
         output = self.root / 'output.json'

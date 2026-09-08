@@ -10,7 +10,7 @@ from publication import PublicationError, load_catalog, matches
 from publication_preparation_authorization import authorize_preparation
 from publication_prepare_images import ImagePreparation
 from publication_release_github import ReleaseGitHub
-from publication_release_image_authorization import PREPARE_JOB, WRITER_JOB, authorize_prepared, discover, job_name, policy_digest, release_authority
+from publication_release_image_authorization import PREPARE_JOB, WRITER_JOB, authorize_prepared, discover, job_name, policy_digest, publication_identity, release_authority
 from publication_release_image_writer import finalize, publish_release_images
 from publication_release_origin import frame
 from publication_selection import recovery_selector
@@ -79,7 +79,7 @@ def main():
             invocation, _ = frame(client, context, run_id, attempt, job_name(WRITER_JOB, release_id))
             progress['invocation'] = invocation
             plan, preparation, artifacts, evidence = authorize_prepared(client, context, producer_run, producer_attempt, run_id, attempt, release_id, catalog, root, explicit, recovery=recovery)
-            progress['authority'] = {key: plan['authority'][key] for key in ('release', 'origin', 'selection')}
+            progress['authority'] = publication_identity(plan['authority'])
             progress['preparation'] = evidence
             output.parent.mkdir(parents=True)
             publish_release_images(client, plan, preparation, artifacts, catalog, os.environ.get('GITHUB_ACTOR'), token, progress,

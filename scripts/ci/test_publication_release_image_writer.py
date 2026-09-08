@@ -96,6 +96,33 @@ class ReleaseImageTests(unittest.TestCase):
         self.assertEqual(retained, [payload])
         self.assertEqual(result['asset_id'], 99)
 
+
+    def test_recovered_progress_and_receipt_bind_exact_input_lineage(self):
+        self.plan['authority']['plan'] = {'producer': {'run_id': 70, 'run_attempt': 2}, 'recovery': {'receipt': {'asset_id': 90}}}
+        identity = self.plan['authority'].copy()
+        identity.pop('plan')
+        identity['recovery'] = {'receipt': {'asset_id': 90}, 'producer': {'run_id': 70, 'run_attempt': 2}}
+        images = expected_images(self.plan, self.fixture.catalog, self.fixture.repository)
+        document = {'authority': copy.deepcopy(identity), 'images': images}
+        retained = []
+        with patch('publication_release_image_writer.frame', return_value=({}, {})), \
+             patch('publication_release_image_writer.writer_progress', return_value=(document, {'frame': {}})), \
+             patch('publication_release_image_writer.authorize_prepared', return_value=(self.plan, None, None, None)), \
+             patch('publication_release_image_writer.inspect_receipt', return_value=None) as previous, \
+             patch('publication_release_image_writer.retain', side_effect=lambda client, release_id, name, value, current: retained.append(value) or {'asset_id': 99, 'sha256': 'exact'}):
+            finalize(self.fixture, {}, 1, 1, 30, 1, 5, self.fixture.catalog, self.fixture.root)
+            self.assertEqual(retained[0]['recovery'], identity['recovery'])
+            document['authority']['recovery']['receipt']['asset_id'] = 91
+            with self.assertRaises(PublicationError): finalize(self.fixture, {}, 1, 1, 30, 1, 5, self.fixture.catalog, self.fixture.root)
+            document['authority'] = copy.deepcopy(identity)
+            prior = copy.deepcopy(retained[0])
+            prior['recovery']['receipt']['asset_id'] = 91
+            previous.return_value = {'record': {'payload': prior}}
+            with self.assertRaises(PublicationError): finalize(self.fixture, {}, 1, 1, 30, 1, 5, self.fixture.catalog, self.fixture.root)
+            del prior['recovery']
+            with self.assertRaises(PublicationError): finalize(self.fixture, {}, 1, 1, 30, 1, 5, self.fixture.catalog, self.fixture.root)
+        self.assertEqual(len(retained), 1)
+
     def test_incomplete_writer_cannot_create_durable_receipt(self):
         with patch('publication_release_image_writer.frame', return_value=({}, {})), \
              patch('publication_release_image_writer.writer_progress', return_value=({'authority': self.plan['authority'], 'images': []}, {})), \

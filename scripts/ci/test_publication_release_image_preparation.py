@@ -71,6 +71,7 @@ class PreparationTests(unittest.TestCase):
     def test_cli_forwards_explicit_recovery_in_all_four_modes(self):
         recovery = {'release_id': 5, 'run_id': 70, 'run_attempt': 2}
         environment = {'ENABLE_IMAGE_PUBLISH': 'true', 'GITHUB_RUN_ID': '30', 'GITHUB_RUN_ATTEMPT': '1', 'GITHUB_EVENT_NAME': 'workflow_dispatch', 'GITHUB_OUTPUT': str(self.client.root / 'outputs')}
+        self.plan['authority']['plan']['recovery'] = {'receipt': {'asset_id': 90}}
         for mode, target in [('discover', 'discover'), ('prepare', 'prepare'), ('publish', 'authorize_prepared'), ('record', 'finalize')]:
             output = self.client.root / ('cli-' + mode) / 'result.json'
             with self.subTest(mode=mode), patch.dict(os.environ, environment), \
@@ -86,7 +87,10 @@ class PreparationTests(unittest.TestCase):
                 self.assertEqual(called.call_args.kwargs['recovery'], recovery)
                 if mode == 'discover':
                     self.assertEqual(shared.call_args.kwargs, {'recovery': recovery, 'catalog': self.client.catalog})
-                self.assertNotIn('error', json.loads(output.read_text()))
+                saved = json.loads(output.read_text())
+                self.assertNotIn('error', saved)
+                if mode == 'publish':
+                    self.assertEqual(saved['authority']['recovery'], {'receipt': {'asset_id': 90}, 'producer': self.plan['authority']['plan']['producer']})
 
     def test_cli_rejects_incomplete_or_mismatched_recovery_before_api(self):
         environment = {'ENABLE_IMAGE_PUBLISH': 'true', 'GITHUB_RUN_ID': '30', 'GITHUB_RUN_ATTEMPT': '1', 'GITHUB_EVENT_NAME': 'workflow_dispatch'}

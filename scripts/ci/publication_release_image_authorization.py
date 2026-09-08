@@ -17,6 +17,7 @@ from publication_release_candidates import authorized_selection
 from publication_release_origin import frame
 from publication_release_receipts import IMAGE, ORIGIN, SELECTION, endorsed, find_receipt, inspect_receipt
 from publication_release_selection import validate_candidate
+from recovery_reference import verify_reference
 
 PREPARE_JOB = 'Prepare release images'
 WRITER_JOB = 'Publish release images'
@@ -31,6 +32,25 @@ def job_name(name, release_id):
 
 def policy_digest(root):
     return 'sha256:' + hashlib.sha256((Path(root) / '.github/ci/security-exceptions.json').read_bytes()).hexdigest()
+
+
+def publication_identity(authority):
+    identity = {key: authority[key] for key in ('release', 'origin', 'selection')}
+    plan = authority.get('plan', {})
+    if 'recovery' in plan:
+        identity['recovery'] = {'receipt': plan['recovery']['receipt'], 'producer': plan['producer']}
+    return identity
+
+
+def verify_recovery_lineage(client, payload):
+    if 'recovery' not in payload:
+        return
+    binding = payload['recovery']
+    if not isinstance(binding, dict) or set(binding) != {'receipt', 'producer'}:
+        raise PublicationError('Published image recovery lineage is malformed')
+    recovered = verify_reference(client, binding['receipt'], payload['release'], payload['origin'], payload['selection'])
+    if binding['producer'] != recovered['record']['payload']['recovery']['producer']:
+        raise PublicationError('Published image producer differs from its durable recovery receipt')
 
 
 def recovery_request(context, release_id, explicit, recovery):
@@ -95,8 +115,11 @@ def discover(client, context, catalog, release_id=None, explicit=None, *, recove
             if value.get('id') == release_id:
                 raise PublicationError('Requested release does not own catalog images')
             continue
+        origin, selection = find_receipt(client, value['id'], ORIGIN), find_receipt(client, value['id'], SELECTION)
+        if release_id is None and origin is None and selection is None:
+            pending.append(value['id'])
+            continue
         release = release_identity(client, value, catalog)
-        origin, selection = find_receipt(client, release['id'], ORIGIN), find_receipt(client, release['id'], SELECTION)
         if origin is None or selection is None:
             pending.append(release['id'])
             continue
@@ -107,6 +130,7 @@ def discover(client, context, catalog, release_id=None, explicit=None, *, recove
             payload = receipt['record']['payload']
             if payload.get('release') != release or payload.get('origin') != {'asset_id': origin['asset_id'], 'sha256': origin['sha256']} or payload.get('selection') != {'asset_id': selection['asset_id'], 'sha256': selection['sha256']}:
                 raise PublicationError('Completed image receipt conflicts with its live release')
+            verify_recovery_lineage(client, payload)
             continue
         release_authority(client, context, catalog, release['id'], explicit if release_id else None, recovery=recovery)
         selected.append(release['id'])

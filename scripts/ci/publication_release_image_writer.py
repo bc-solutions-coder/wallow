@@ -12,7 +12,7 @@ from publication_ghcr import GHCR
 from publication_image_provenance import OCI_INDEX, main_index
 from publication_prepared_bundle import extract_prepared
 from publication_publish_images import SkopeoRegistry, copy_verified_image
-from publication_release_image_authorization import RECEIPT_JOB, WRITER_JOB, authorize_prepared, job_name
+from publication_release_image_authorization import RECEIPT_JOB, WRITER_JOB, authorize_prepared, job_name, publication_identity, verify_recovery_lineage
 from publication_release_origin import frame, verify_frame
 from publication_release_receipts import IMAGE, endorsed, inspect_receipt, retain
 
@@ -90,7 +90,7 @@ def finalize(client, context, producer_run, producer_attempt, run_id, attempt, r
     writer, _ = frame(client, context, run_id, attempt, job_name(WRITER_JOB, release_id), 'success')
     document, reference = writer_progress(client, writer, release_id)
     plan, _, _, _ = authorize_prepared(client, context, producer_run, producer_attempt, run_id, attempt, release_id, catalog, root, explicit, recovery=recovery)
-    identity = {key: plan['authority'][key] for key in ('release', 'origin', 'selection')}
+    identity = publication_identity(plan['authority'])
     images = expected_images(plan, catalog, client.repository)
     if document.get('authority') != identity or sorted(document['images'], key=lambda item: item['image']) != sorted(images, key=lambda item: item['image']):
         raise PublicationError('Image writer progress differs from exact release preparation')
@@ -98,8 +98,9 @@ def finalize(client, context, producer_run, producer_attempt, run_id, attempt, r
     previous = inspect_receipt(client, release_id, IMAGE)
     if previous is not None:
         original = previous['record']['payload']
-        if set(original) != set(payload) or any(original.get(key) != payload[key] for key in ('release', 'origin', 'selection', 'images')):
+        if set(original) != set(payload) or any(original.get(key) != payload.get(key) for key in ('release', 'origin', 'selection', 'images', 'recovery')):
             raise PublicationError('Immutable image publication conflicts with its prior receipt')
+        verify_recovery_lineage(client, original)
         verify_frame(client, original['writer']['frame'], job_name(WRITER_JOB, release_id))
         if not endorsed(client, release_id, previous):
             old, old_reference = writer_progress(client, original['writer']['frame'], release_id)
