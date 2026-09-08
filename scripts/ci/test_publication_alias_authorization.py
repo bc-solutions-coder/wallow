@@ -130,6 +130,23 @@ class AuthorizationTests(unittest.TestCase):
             with self.assertRaises(PublicationError):
                 publication_records(client, {}, catalog, 'image')
 
+    def test_recovery_cli_forwards_exact_selector_in_each_mode(self):
+        environment = {'ENABLE_IMAGE_PUBLISH': 'true', 'GITHUB_RUN_ID': '30', 'GITHUB_RUN_ATTEMPT': '1', 'GITHUB_OUTPUT': str(self.root / 'outputs')}
+        for mode, operation in (('prepare', 'prepare'), ('promote', 'promote'), ('record', 'finalize')):
+            output = self.root / (mode + '.json')
+            argv = ['aliases', mode, '--kind', 'image', '--producer-run', '20', '--producer-attempt', '2', '--release-id', '5',
+                    '--recovery-run', '70', '--recovery-attempt', '1', '--output', str(output)]
+            with patch.dict(os.environ, environment), patch('sys.argv', argv), \
+                 patch('publication_promote_aliases.ReleaseGitHub'), patch('publication_promote_aliases.load_catalog', return_value={}), \
+                 patch('publication_promote_aliases.' + operation, return_value={'unrelated': False, 'entries': []}) as call:
+                main()
+                self.assertEqual(call.call_args.kwargs['recovery'], {'release_id': 5, 'run_id': 70, 'run_attempt': 1})
+            with patch.dict(os.environ, environment), patch('sys.argv', argv[:-4] + ['--output', str(output)]), \
+                 patch('publication_promote_aliases.ReleaseGitHub') as client:
+                with self.assertRaises(SystemExit):
+                    main()
+                client.assert_not_called()
+
     def test_unrelated_prepare_cli_emits_false_eligibility_without_destination_access(self):
         output = self.root / 'output.json'
         environment = {'ENABLE_IMAGE_PUBLISH': 'true', 'GITHUB_RUN_ID': '30', 'GITHUB_RUN_ATTEMPT': '1', 'GITHUB_OUTPUT': str(self.root / 'outputs')}

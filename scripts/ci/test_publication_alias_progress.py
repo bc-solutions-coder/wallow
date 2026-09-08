@@ -29,7 +29,7 @@ class ProgressTests(unittest.TestCase):
         self.plan = {'records': self.records, 'entries': [self.entry]}
         self.document = {'schema': 1, 'kind': 'image', 'invocation': self.writer, 'records': self.records, 'entries': [self.entry | {'outcome': 'verified'}]}
 
-    def run_finalizer(self, document=None):
+    def run_finalizer(self, document=None, recovery=None):
         body = json.dumps(document or self.document).encode()
         seal = {'schema': 1, 'repository': self.client.repository, 'sha': self.writer['controller_sha'], 'run_id': '30', 'run_attempt': '1',
                 'workflow_ref': self.writer['workflow_ref'], 'kind': 'alias-progress', 'variant': 'image', 'file': 'progress.json', 'sha256': hashlib.sha256(body).hexdigest()}
@@ -43,9 +43,15 @@ class ProgressTests(unittest.TestCase):
         self.client.list = lambda path, key: [artifact]
         self.client.download = lambda selected, destination: destination.write_bytes(data) and destination
         with patch('publication_alias_progress.frame', side_effect=[(self.recorder, JOB), (self.writer, JOB)]), \
-             patch('publication_alias_progress.authorize_plan', return_value=self.plan), \
+             patch('publication_alias_progress.authorize_plan', return_value=self.plan) as authorize, \
              patch('publication_release_receipts.recorded_job', return_value=JOB):
-            return finalize(self.client, {}, 1, 1, 30, 1, 'image', {}, self.root)
+            result = finalize(self.client, {}, 1, 1, 30, 1, 'image', {}, self.root, recovery=recovery)
+            self.assertEqual(authorize.call_args.kwargs['recovery'], recovery)
+            return result
+
+    def test_recovery_selector_reaches_final_authorization(self):
+        self.run_finalizer(recovery={'release_id': 5, 'run_id': 70, 'run_attempt': 1})
+        self.assertEqual(len(self.client.writes), 1)
 
     def test_successful_sealed_progress_retained_and_identical_retry_has_no_write(self):
         first = self.run_finalizer()
