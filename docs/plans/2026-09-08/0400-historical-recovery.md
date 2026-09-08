@@ -45,3 +45,13 @@ Remaining acceptance includes the actual current-controller historical checkout 
 Recovery rejection checks passed on the merged controller: run 34193297084 rejected a mismatched release source, 34193388359 rejected missing authenticated origin evidence, and 34193522268 rejected a non-main dispatch. Each failed before application validation or production jobs could execute. These expected failures establish refusal behavior only.
 
 Main CI run 34193191714 exposed a telemetry deletion concurrency failure. PR #294 addresses it with row locking and state refresh. Its deterministic regression failed before the fix; all 284 Identity integration tests passed locally after the fix. Hosted CI run 34196298415 passed for commit `96f963a0`, including the original failing deletion test and the deterministic concurrency regression. PR #294 merged at `2ed078d5`. Main validation and a fresh Release Please update remain required before release acceptance continues.
+
+## Genuine release checkpoint
+
+Release PR #291 merged at `c078b1aa` after full secretless PR CI run 34198746556 passed on head `0c629393`. Release-source CI run 34200366770 passed and registered the full artifact route. Publish run 34201810102 succeeded, creating platform 6.0.0, api-errors 2.0.0, SDK 3.0.0, and telemetry 0.2.0 from that exact commit.
+
+All four releases have original origin and producer-selection receipts. The recorder selected CI run 34200366770, attempt 1, for each release. Readback verified all eight receipt digests, release IDs, recorder bindings, and bot uploaders. These receipts preserve provenance; they do not establish registry publication.
+
+Recovery CI run 34203762578 targets platform release ID 384544928 and source `c078b1aa2b7c311c6d2c7b267dcec5501e0e0018`. Its request accepted the existing origin and selection pointers, selected the full route, ran `js / local`, and skipped `js / main`. Full validation remains pending at this checkpoint. The source and controller commits are equal in this run; a later controller revision must also validate the unchanged release source before cross-revision recovery is established.
+
+Only release automation is enabled. Genuine package/image publication, recovered publication, alias and Pages cutovers, and cache storage persistence remain pending. Do not interpret successful Release Please or provenance recording as completion of those checks.
