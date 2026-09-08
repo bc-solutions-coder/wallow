@@ -55,3 +55,45 @@ def current_aliases(release, history, kind):
     return [alias for alias in aliases(release, kind)
             if not any(other['component'] == release['component'] and alias in aliases(other, kind)
                        and stable_version(other) > version for other in history)]
+
+
+def release_producer(client, catalog, release_id):
+    release = client.get('/releases/' + str(release_id))
+    if release.get('id') != release_id or release.get('draft') is not False:
+        raise PublicationError('Requested release is not published')
+    tag = release.get('tag_name', '')
+    if not any(tag.startswith(component['tag_prefix']) for component in catalog['components']):
+        raise PublicationError('Release is outside the component catalog')
+    source = tag_commit(client, tag)
+    runs = client.get('/actions/workflows/ci.yml/runs?event=push&branch=main&status=success&head_sha=' + source + '&per_page=100')
+    for run in runs.get('workflow_runs', []):
+        if run.get('head_sha') == source and run.get('event') == 'push' and run.get('head_branch') == 'main' and run.get('conclusion') == 'success':
+            producer, _ = client.producer(run['id'], run['run_attempt'])
+            if producer.source_sha == source:
+                return producer
+    raise PublicationError('Release commit has no successful main CI run; complete its CI before publishing')
+
+
+def main():
+    import argparse
+    import os
+    from pathlib import Path
+    import subprocess
+    from publication import load_catalog
+    from publication_github import GitHub
+
+    parser = argparse.ArgumentParser(description='Dispatch normal publication for a newly published release')
+    parser.add_argument('--release-id', type=int, required=True)
+    args = parser.parse_args()
+    try:
+        client = GitHub(os.environ['GITHUB_REPOSITORY'], os.environ['GH_TOKEN'])
+        producer = release_producer(client, load_catalog(Path(__file__).resolve().parents[2]), args.release_id)
+        subprocess.run(['gh', 'workflow', 'run', 'publish.yml', '--repo', client.repository, '--ref', 'main',
+                        '-f', 'run_id=' + str(producer.run_id), '-f', 'run_attempt=' + str(producer.run_attempt),
+                        '-f', 'release_id=' + str(args.release_id)], check=True)
+    except (PublicationError, OSError, KeyError, ValueError, subprocess.CalledProcessError) as error:
+        parser.exit(1, f'Release publication dispatch failed: {error}\n')
+
+
+if __name__ == '__main__':
+    main()

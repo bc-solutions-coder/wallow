@@ -31,9 +31,9 @@ def publish(client, plan, catalog, token, release_id=None):
                     raise PublicationError('Release tag version differs from the validated package')
                 candidate = inspect_package(directory / tarball, package.name, package.version,
                                             catalog['package_registry'], client.repository)
-                for dependency in packages:
-                    if dependency.name in package.dependencies and not registry.read(dependency):
-                        raise PublicationError('Required internal dependency has not been published')
+                for dependency, requirement in [*package.dependencies.items(), *package.peer_dependencies.items()]:
+                    if dependency.startswith(catalog['package_scope'] + '/') and not registry.satisfies(dependency, requirement):
+                        raise PublicationError('Required internal dependency range has not been published')
                 entry = registry.publish(directory / tarball, candidate)
                 entry['aliases'] = {}
                 for alias in current_aliases(release, history, 'package'):

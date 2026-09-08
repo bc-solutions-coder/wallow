@@ -1,0 +1,25 @@
+name: Publish released version
+"on":
+  release:
+    types: [published]
+permissions:
+  contents: read
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write
+      checks: read
+    steps:
+      - name: Check out protected publication controls
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Publish the release from its successful main CI build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ github.event.release.id }}
+        run: python3 scripts/ci/publication_releases.py --release-id "$RELEASE_ID"

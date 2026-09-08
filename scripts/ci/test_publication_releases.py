@@ -1,11 +1,26 @@
 import unittest
 from unittest.mock import Mock
 
-from publication import PublicationError
-from publication_releases import current_aliases, selected_releases
+from publication import Producer, PublicationError
+from publication_releases import current_aliases, release_producer, selected_releases
 
 
 class ReleaseTests(unittest.TestCase):
+    def test_release_handoff_selects_its_own_successful_ci_after_main_advances(self):
+        client = Mock()
+        source = 'a' * 40
+        producer = Producer('example/repo', 1, source, 20, 2, 10, 'example/repo/.github/workflows/ci.yml@refs/heads/main')
+        client.get.side_effect = [
+            {'id': 5, 'draft': False, 'tag_name': 'sdk-v1.0.0'},
+            {'object': {'type': 'commit', 'sha': source}},
+            {'workflow_runs': [{'id': 21, 'head_sha': 'b' * 40, 'event': 'push', 'head_branch': 'main', 'conclusion': 'success', 'run_attempt': 1},
+                               {'id': 20, 'head_sha': source, 'event': 'push', 'head_branch': 'main', 'conclusion': 'success', 'run_attempt': 2}]},
+        ]
+        client.producer.return_value = (producer, [])
+        actual = release_producer(client, {'components': [{'tag_prefix': 'sdk-v'}]}, 5)
+        self.assertEqual(actual, producer)
+        client.producer.assert_called_once_with(20, 2)
+
     def test_explicit_release_must_match_validated_commit(self):
         client = Mock()
         client.get.side_effect = [[{'id': 1, 'tag_name': 'sdk-v1.0.0', 'draft': False}], {'object': {'type': 'commit', 'sha': 'a' * 40}}]

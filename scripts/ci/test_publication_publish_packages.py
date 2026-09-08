@@ -23,6 +23,9 @@ class Registry:
             raise PublicationError('Conflicting immutable version')
         return digest is not None
 
+    def satisfies(self, name, requirement):
+        return name in self.present
+
     def publish(self, path, package):
         assert hashlib.sha256(path.read_bytes()).hexdigest() == package.sha256
         if not self.read(package):

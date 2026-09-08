@@ -57,7 +57,7 @@ Package and image writers use job-scoped GitHub tokens. Pages uses its job token
 
 Publish verifies a successful main-push CI run from this repository, its exact attempt, required CI result and artifact identities. Downloads retain digest and safe-archive checks. Package lifecycle scripts do not run during publishing.
 
-Release Please runs when the validated commit is still current main. Its token stays in `production`. Its release branch goes through normal secretless PR checks. After the release PR merges and main CI succeeds, Release Please creates releases, and publishers match the release tags to that validated commit.
+Release Please runs when the validated commit is still current main. Its token stays in `production`. Its release branch goes through normal secretless PR checks. After the release PR merges and main CI succeeds, Release Please creates releases, and publishers match the release tags to that validated commit. A release-event workflow also dispatches publication from the release commit’s successful CI run, so another merge advancing main cannot cause a release to be missed.
 
 ## Package and image tags
 
