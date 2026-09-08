@@ -119,6 +119,7 @@ jobs:
           ref: ${{ github.workflow_sha }}
           persist-credentials: false
       - name: Reauthorize prepared artifacts and publish exact main images
+        id: publish
         env:
           GH_TOKEN: ${{ github.token }}
           ENABLE_IMAGE_PUBLISH: ${{ vars.ENABLE_IMAGE_PUBLISH }}
@@ -137,7 +138,8 @@ jobs:
         with:
           name: image-progress-${{ github.run_id }}-${{ github.run_attempt }}
           path: .ci-image-publication/*
-          if-no-files-found: ignore
+          include-hidden-files: true
+          if-no-files-found: ${{ steps.publish.outcome == 'success' && 'error' || 'ignore' }}
           retention-days: 30
   release-please:
     name: Release automation
