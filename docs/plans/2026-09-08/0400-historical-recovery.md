@@ -28,12 +28,14 @@ Recovery preserves existing release origins and selection receipts. A separate a
 - No new registry credential, production token, privileged build, or blanket bypass is introduced.
 - Keep mutable alias decisions separate from recovering immutable outputs.
 
-## Initial verification
+## Verification checkpoint
 
-The isolated `ci/historical-recovery` worktree starts at `be0f9a3e`. Request authorization, distinct schema-2 source/controller identity, current scanner controls, and sealed recovery registration are implemented and independently reviewed. The registration checkpoint is `c6c38578`.
+The recovery branch is based on main `a65e967a`. Current-controller checkout, full secretless historical validation, schema-2 registration, completed-run authorization, durable recovery recording, and explicit publication selection are implemented. Package and image writers retain recovery lineage without replacing original origin or selection receipts. Alias preparation can use explicitly recovered package dependency inputs while preserving immutable published outputs as authority.
 
-The workflow integration preserves current helper files, security exceptions, Actionlint configuration, and the OpenAPI action before historical checkout. CI contract tests run against the current controller first. Recovery selects local JS execution and the full validation route. Four Git-backed snapshot tests cover historical checkout, modified control files, controller mismatch, and tracked symlink rejection.
+Independent reviews cover the request and registration boundaries, completed-run authorization, receipt retention and endorsements, preparation and writer forwarding, durable package/image lineage, alias verification, and workflow routing. The combined helper suite passes 367 tests at the alias pipeline checkpoint `35b5259f`. Actionlint passes for the recovery Publish routing. Zizmor 1.30.0 reports four findings in that workflow with zero unexcepted blockers after independent review renewed its exact dangerous-trigger fingerprint. The exception retains its original owner, tracking issue and expiration.
 
-The combined helper suite passes 276 tests. Actionlint, immutable action policy, and whitespace checks pass. Zizmor 1.30.0 reports 27 findings with no blocking findings under existing policy; no new exception was added. Independent review resolved historical OpenAPI action loading, historical Actionlint configuration, and historical CI contract test selection.
+The operator guide contains the three dispatches: historical CI validation, recovery receipt recording, and publication using separate original and recovery producer inputs. It identifies the flow as awaiting merge and hosted acceptance. Recovery publication excludes main/nightly images, Pages and Release Please.
 
-These checks establish local implementation evidence only. Completed-run recovery authorization, recovery receipts, explicit publication selection, and hosted positive/negative acceptance remain pending. Schema-2 registration alone does not authorize publication.
+A separate main-based PR #292 addresses legacy release enumeration outside main ancestry, discovered by real Release Please run 34188348962. That run created release PR #291; its required CI run 34190178773 succeeded. Provenance reconciliation still awaits the fix and a successful hosted retry.
+
+Remaining acceptance includes the actual current-controller historical checkout and full CI, recording and explicitly publishing recovered artifacts, negative source/tag/workflow/receipt cases, unchanged-byte retries and immutable conflicts, and genuine package/image/alias publication readback. Local tests do not establish hosted completion. Schema-2 registration or a recovery receipt alone does not authorize publication.

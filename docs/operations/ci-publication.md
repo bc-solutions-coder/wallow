@@ -7,7 +7,7 @@ The publication migration remains in progress in [issue #283](https://github.com
 Keep each production publisher disabled until its acceptance and first-target cutover checks pass.
 Images publish immutable full-SHA tags and `nightly`. Authenticated releases also have an immutable version-image path with separate durable receipts; hosted acceptance of that path remains pending.
 Packages currently publish immutable versions with a `validated-<hash>` staging tag.
-Stable release alias promotion is implemented behind the same capability flags; hosted acceptance remains pending. Historical artifact recovery is not yet available.
+Stable release alias promotion is implemented behind the same capability flags; hosted acceptance remains pending. Historical artifact recovery is implemented on the recovery branch; merge and hosted acceptance remain pending.
 
 ## Configure validation
 
@@ -132,7 +132,42 @@ The finalizer records durable release receipts separately from registry writes.
 
 If required producer artifacts or incomplete-publication evidence have expired, ordinary retry stops.
 Do not rebuild under publication credentials or substitute artifacts from another source.
-Historical recovery remains an open migration task in issue #283.
+Historical recovery requires an existing authenticated release origin and original producer-selection receipt. It cannot authorize an arbitrary old tag or manufacture missing release provenance.
+
+## Recover expired release artifacts
+
+This flow is implemented on the recovery branch and still awaits merge and hosted acceptance in issue #283. Use it only after that controller is available on `main`.
+
+First dispatch current CI with the exact commit named by the release tag and its numeric release ID:
+
+```bash
+gh workflow run ci.yml --repo OWNER/REPOSITORY --ref main \
+  -f recovery_source_sha=EXACT_RELEASE_COMMIT_SHA \
+  -f recovery_release_id=GITHUB_RELEASE_ID
+```
+
+Wait for the complete CI run to succeed. It checks out the historical application source under current validation controls, uses the secretless JavaScript path, and retains sealed recovery artifacts. An incompatible historical source must fail validation; do not change its source or skip required checks to make it pass.
+
+Record that successful recovery using its CI run ID and attempt:
+
+```bash
+gh workflow run publish.yml --repo OWNER/REPOSITORY --ref main \
+  -f record_recovery=true -f release_id=GITHUB_RELEASE_ID \
+  -f run_id=RECOVERY_CI_RUN_ID -f run_attempt=RECOVERY_CI_ATTEMPT
+```
+
+Wait for `Record recovered producer` to succeed. Recording adds a durable receipt; it does not publish anything. Then dispatch publication with the **original selected producer** in `run_id`/`run_attempt` and the newly recorded recovery in the separate inputs:
+
+```bash
+gh workflow run publish.yml --repo OWNER/REPOSITORY --ref main \
+  -f release_id=GITHUB_RELEASE_ID \
+  -f run_id=ORIGINAL_SELECTED_CI_RUN_ID -f run_attempt=ORIGINAL_SELECTED_CI_ATTEMPT \
+  -f recovery_run=RECOVERY_CI_RUN_ID -f recovery_attempt=RECOVERY_CI_ATTEMPT
+```
+
+This dispatch can publish the enabled release packages, immutable release images, and their aliases. It does not run main/nightly image publication, Pages deployment, or Release Please. Every writer rechecks the selected recovery and current policy; original origin and selection receipts remain unchanged.
+
+Recovery does not permit replacing an existing version with different bytes. A conflicting immutable receipt also stops the operation, including adding different recovery lineage to a prior image receipt. Keep successful publication receipts and inspect retained progress before choosing a retry.
 
 ## Verify enablement
 
