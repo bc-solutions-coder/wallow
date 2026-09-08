@@ -63,3 +63,7 @@ remote-hit, local-hit and miss counts; old run summaries are cleared before the 
 Actual Turbo 2.10.8 local execution reported one local hit and zero remote hits through
 the reporter. These counts will distinguish remote acceptance from restored GitHub
 cache outputs without exposing task or environment metadata.
+
+## Verified main cache outcome
+
+Main run `34172463275`, attempt 2, at `aa359e6249b8e5c87ca90c7d1c392b08a51e7832`, passed JS job `101897858735` with 34 remote hits, zero local hits and zero misses, without restored GitHub Turbo outputs. Main run `34174774273` at `bcf6a802173af1aef1d9b8f13d1c0ebf7df07052` passed the complete CI graph; its cache probe returned HTTP 200 and JS reported 34 local hits from the optional GitHub cache. These results supersede the pending endpoint/remote-hit notes above. Main retains the production environment and private remote cache; PR jobs retain their environment-free local/GitHub-cache path. Tailnet grant scope and an explicit server-restart persistence check remain open. Publication acceptance is tracked separately in #283.
