@@ -12,7 +12,7 @@ from publication import PublicationError
 from publication_identity import producer_from_record
 from publication_archives import bounded_plain_tar, bounded_tar
 from publication_artifacts import Artifact, unpack_payload
-from publication_packages import dependency_order, inspect_candidate, inspect_validation_package
+from publication_packages import dependency_order, inspect_candidate, inspect_validation_package, packed_manifest
 
 
 PACKAGE_LIMIT = 100 * 1024 * 1024
@@ -51,8 +51,6 @@ def _read_candidates(payload, destination, expected, reader):
 
 def verify_packages(client, plan, catalog, prepare=None):
     """The caller provides an API-authorized plan and the validated controller catalog."""
-    if json.dumps(catalog, sort_keys=True) != json.dumps(plan['inputs']['catalog'], sort_keys=True):
-        raise PublicationError('Registered package catalog differs from the controller catalog')
     selected = [item for item in plan['artifacts'] if item['kind'] == 'packages']
     if plan['route'] == 'docs' and not selected:
         return None
@@ -61,9 +59,6 @@ def verify_packages(client, plan, catalog, prepare=None):
     item = selected[0]
     if item['payload'] != 'packages.tar.gz' or item['variant'] != 'pnpm':
         raise PublicationError('Unexpected authorized package artifact layout')
-    versions = plan['inputs']['component_versions']
-    if not isinstance(versions, dict) or set(versions) != {component['path'] for component in catalog['components']}:
-        raise PublicationError('Registered component versions do not cover the trusted catalog')
     candidates = {component['package']['tarball']: component for component in catalog['components'] if 'package' in component}
     companions = {package['tarball']: package for package in catalog['validation_only_packages']}
     expected = candidates.keys() | companions.keys()
@@ -80,7 +75,7 @@ def verify_packages(client, plan, catalog, prepare=None):
         extract_candidates(payload, packed, expected)
         packages = []
         for tarball, component in candidates.items():
-            packages.append(inspect_candidate(packed / tarball, component['package']['name'], versions[component['path']], catalog['package_registry']))
+            packages.append(inspect_candidate(packed / tarball, component['package']['name'], packed_manifest(packed / tarball).get('version'), catalog['package_registry']))
         for tarball, package in companions.items():
             inspect_validation_package(packed / tarball, package['name'])
         ordered = dependency_order(packages)

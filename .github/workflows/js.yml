@@ -1,16 +1,6 @@
 name: JS validation
 "on":
   workflow_call:
-    inputs:
-      recovery-source:
-        type: string
-        default: ''
-      recovery-request:
-        type: string
-        default: ''
-      recovery-release:
-        type: string
-        default: ''
 permissions:
   contents: read
 defaults:
@@ -24,12 +14,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - name: Prepare validation source and controls
-        uses: ./.github/actions/validation-checkout
-        with:
-          recovery-source: ${{ inputs.recovery-source }}
-          recovery-request: ${{ inputs.recovery-request }}
-          recovery-release: ${{ inputs.recovery-release }}
       - name: Enable corepack
         run: corepack enable
       - name: Set up Node.js
@@ -55,7 +39,7 @@ jobs:
       - name: Select available cache
         env:
           TAILNET_RESULT: ${{ steps.tailnet.outcome }}
-        run: python3 "$CI_CONTROL_ROOT/scripts/ci/cache.py"
+        run: python3 "$GITHUB_WORKSPACE/scripts/ci/cache.py"
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Lint
@@ -78,7 +62,7 @@ jobs:
         run: |
           rm -rf .turbo/runs
           pnpm exec turbo run build typecheck --summarize
-          python3 "$CI_CONTROL_ROOT/scripts/ci/cache_summary.py"
+          python3 "$GITHUB_WORKSPACE/scripts/ci/cache_summary.py"
       - name: Check route trees
         run: git diff --exit-code -- apps/wallow-auth/src/app/routeTree.gen.ts apps/wallow-web/src/app/routeTree.gen.ts apps/minimal-app/src/routeTree.gen.ts
       - name: Test
@@ -94,7 +78,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
       - name: Pack validation candidates once
-        run: bash "$CI_CONTROL_ROOT/scripts/ci/pack.sh"
+        run: bash "$GITHUB_WORKSPACE/scripts/ci/pack.sh"
       - name: Check package export surface
         run: pnpm check:exports
         env:
@@ -115,7 +99,7 @@ jobs:
       - name: Archive validated packages
         run: |-
           tar -czf .ci-artifacts/packages.tar.gz -C .ci-artifacts/packages .
-          python3 "$CI_CONTROL_ROOT/scripts/ci/validation.py" seal --file .ci-artifacts/packages.tar.gz --manifest .ci-artifacts/packages.tar.gz.json --kind packages --variant pnpm
+          python3 "$GITHUB_WORKSPACE/scripts/ci/validation.py" seal --file .ci-artifacts/packages.tar.gz --manifest .ci-artifacts/packages.tar.gz.json --kind packages --variant pnpm
       - name: Upload js-packages
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -138,7 +122,8 @@ jobs:
           retention-days: 7
           include-hidden-files: true
         if: failure()
-    if: ${{ !(github.event_name == 'push' && github.ref == 'refs/heads/main' && (github.repository == 'bc-solutions-coder/wallow' || vars.ENABLE_MAIN_CACHE ==
+    if:
+      ${{ !(github.event_name == 'push' && github.ref == 'refs/heads/main' && (github.repository == 'bc-solutions-coder/wallow' || vars.ENABLE_MAIN_CACHE ==
       'true')) }}
     env:
       TURBO_CACHE: local:rw
@@ -146,7 +131,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps: *id001
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && (github.repository == 'bc-solutions-coder/wallow' || vars.ENABLE_MAIN_CACHE ==
+    if:
+      ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && (github.repository == 'bc-solutions-coder/wallow' || vars.ENABLE_MAIN_CACHE ==
       'true') }}
     environment:
       name: production
@@ -171,7 +157,8 @@ jobs:
     steps:
       - name: Verify selected JS execution
         env:
-          MAIN_SELECTED: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && (github.repository == 'bc-solutions-coder/wallow' ||
+          MAIN_SELECTED:
+            ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && (github.repository == 'bc-solutions-coder/wallow' ||
             vars.ENABLE_MAIN_CACHE == 'true') }}
           LOCAL_RESULT: ${{ needs.local.result }}
           MAIN_RESULT: ${{ needs.main.result }}
@@ -181,5 +168,3 @@ jobs:
           else
             test "$LOCAL_RESULT" = success && test "$MAIN_RESULT" = skipped
           fi
-env:
-  CI_CONTROL_ROOT: ${{ github.workspace }}

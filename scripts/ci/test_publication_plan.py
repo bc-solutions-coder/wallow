@@ -1,23 +1,23 @@
 import unittest
+from unittest.mock import Mock
 from dataclasses import asdict
 
 from publication import Producer, PublicationError
-from publication_plan import candidate_artifacts, validate_registration
+from publication_plan import candidate_artifacts, resolve
 
 
 class PlanTests(unittest.TestCase):
     def setUp(self):
         self.producer = Producer('example/repo', 1, 'a' * 40, 20, 2, 10, 'example/repo/.github/workflows/ci.yml@refs/heads/main')
         self.artifacts = []
-        for number, prefix in enumerate(('docfx-site', 'images-docs', 'js-packages', 'images-app', 'images-infra', 'dependency-inputs'), start=1):
+        for number, prefix in enumerate(('docfx-site', 'images-docs', 'js-packages', 'images-app', 'images-infra'), start=1):
             self.artifacts.append({'id': number, 'name': prefix + '-20-2', 'size_in_bytes': 100, 'digest': 'sha256:' + 'b' * 64, 'expired': False, 'expires_at': '2099-01-01T00:00:00Z', 'workflow_run': {'id': 20, 'repository_id': 1, 'head_repository_id': 1, 'head_sha': 'a' * 40, 'head_branch': 'main'}})
 
     def test_full_route_requires_every_publication_bundle(self):
         route, artifacts = candidate_artifacts(self.producer, [{'name': 'build', 'conclusion': 'success'}], self.artifacts)
         self.assertEqual(route, 'full')
-        self.assertEqual(len(artifacts), 6)
-        self.assertEqual([item['id'] for item in artifacts], [1, 2, 3, 4, 5, 6])
-        self.assertEqual((artifacts[-1]['kind'], artifacts[-1]['variant'], artifacts[-1]['payload']), ('dependencies', 'resolved-locks', 'dependencies.tar.gz'))
+        self.assertEqual(len(artifacts), 5)
+        self.assertEqual([item['id'] for item in artifacts], [1, 2, 3, 4, 5])
         with self.assertRaises(PublicationError):
             candidate_artifacts(self.producer, [{'name': 'build', 'conclusion': 'success'}], self.artifacts[:-1])
 
@@ -31,13 +31,18 @@ class PlanTests(unittest.TestCase):
             with self.assertRaises(PublicationError):
                 candidate_artifacts(self.producer, jobs, self.artifacts)
 
-    def test_registration_binds_exact_artifact_ids_and_digests(self):
-        route, artifacts = candidate_artifacts(self.producer, [{'name': 'build', 'conclusion': 'success'}], self.artifacts)
-        record = {'schema': 1, 'producer': asdict(self.producer), 'route': route, 'artifacts': artifacts, 'component_versions': {'.': '1.0.0'}, 'input_sha256': {'pnpm-lock.yaml': 'a' * 64}, 'catalog': {}}
-        validate_registration(record, self.producer, route, artifacts)
-        for changes in ({'artifacts': artifacts[:-1]}, {'route': 'docs'}, {'producer': asdict(self.producer) | {'run_attempt': 1}}, {'input_sha256': {'../escape': 'a' * 64}}):
-            with self.subTest(changes=changes), self.assertRaises(PublicationError):
-                validate_registration(record | changes, self.producer, route, artifacts)
+    def test_successful_main_build_resolves_without_registration_receipts(self):
+        client = Mock()
+        client.controller.return_value = 'c' * 40
+        client.producer.return_value = (self.producer, [{'name': 'build', 'conclusion': 'success'}])
+        client.list.return_value = self.artifacts
+        plan = resolve(client, {}, 20, 2)
+        self.assertEqual(plan['producer'], asdict(self.producer))
+        self.assertEqual(plan['route'], 'full')
+        self.assertEqual([item['id'] for item in plan['artifacts']], [1, 2, 3, 4, 5])
+        client.producer.assert_called_once_with(20, 2)
+        client.download.assert_not_called()
+
 
 
 if __name__ == '__main__':

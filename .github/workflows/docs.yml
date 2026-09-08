@@ -2,59 +2,36 @@ name: Publish validated documentation
 "on":
   workflow_call:
     inputs:
-      producer_run:
-        required: true
-        type: string
-      producer_attempt:
+      source_sha:
         required: true
         type: string
 permissions:
   contents: read
 jobs:
   deploy:
-    name: Publish validated Pages
-    if: >-
-      vars.ENABLE_DOCS_DEPLOY == 'true' &&
-      github.ref == 'refs/heads/main' &&
-      (github.event_name == 'workflow_run' || github.event_name == 'workflow_dispatch')
+    if: github.ref == 'refs/heads/main' && vars.ENABLE_DOCS_DEPLOY == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:
       name: github-pages
-      deployment: false
+      url: ${{ steps.deploy.outputs.page_url }}
     permissions:
       contents: read
-      actions: read
-      checks: read
       pages: write
       id-token: write
-      deployments: write
     steps:
-      - name: Check out protected controller revision
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ github.workflow_sha }}
-          persist-credentials: false
-      - name: Reauthorize and deploy exact validated Pages artifact
-        id: publish
+      - name: Skip an older main build
+        id: current
         env:
           GH_TOKEN: ${{ github.token }}
-          ENABLE_DOCS_DEPLOY: ${{ vars.ENABLE_DOCS_DEPLOY }}
-          PRODUCER_RUN: ${{ inputs.producer_run }}
-          PRODUCER_ATTEMPT: ${{ inputs.producer_attempt }}
-        run: python3 scripts/ci/publication_publish_pages.py --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --output .ci-pages-publication/progress.json
-      - name: Seal completed or partial Pages progress
-        if: always()
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          REPOSITORY: ${{ github.repository }}
         run: |
-          if [[ -f .ci-pages-publication/progress.json ]]; then
-            python3 scripts/ci/validation.py seal --file .ci-pages-publication/progress.json --manifest .ci-pages-publication/progress.json.json --kind pages-progress --variant main
-          fi
-      - name: Retain Pages progress
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+          current=$(gh api "repos/$REPOSITORY/git/ref/heads/main" --jq .object.sha)
+          if [[ "$current" == "$SOURCE_SHA" ]]; then echo 'deploy=true' >> "$GITHUB_OUTPUT"; fi
+      - name: Deploy validated site
+        id: deploy
+        if: steps.current.outputs.deploy == 'true'
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
         with:
-          name: pages-progress-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .ci-pages-publication/*
-          include-hidden-files: true
-          if-no-files-found: ${{ steps.publish.outcome == 'success' && 'error' || 'ignore' }}
-          retention-days: 30
+          artifact_name: prepared-site-${{ github.run_id }}-${{ github.run_attempt }}

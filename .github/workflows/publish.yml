@@ -6,7 +6,7 @@ name: Publish
   workflow_dispatch:
     inputs:
       run_id:
-        description: Exact successful CI run ID (main push, or recovery when recording)
+        description: Successful main CI run to publish
         required: true
         type: string
       run_attempt:
@@ -14,22 +14,9 @@ name: Publish
         required: true
         type: string
       release_id:
-        description: Optional exact GitHub release ID for retry with the selected producer
+        description: Optional release ID matching that CI commit
         required: false
         type: string
-      recovery_run:
-        description: Optional recorded recovery CI run for the exact release_id
-        required: false
-        type: string
-      recovery_attempt:
-        description: Exact attempt of recovery_run; requires release_id
-        required: false
-        type: string
-      record_recovery:
-        description: Record a verified historical recovery for release_id without publishing
-        required: false
-        default: false
-        type: boolean
 permissions:
   contents: read
 concurrency:
@@ -37,43 +24,9 @@ concurrency:
   cancel-in-progress: false
   queue: max
 jobs:
-  record-recovery:
-    name: Record recovered producer
-    if: github.event_name == 'workflow_dispatch' && inputs.record_recovery && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: write
-      actions: read
-      checks: read
-      pull-requests: read
-    steps:
-      - name: Check out protected recovery recorder
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ github.workflow_sha }}
-          persist-credentials: false
-      - name: Reauthenticate and record exact recovered producer
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RECOVERY_RUN: ${{ inputs.run_id }}
-          RECOVERY_ATTEMPT: ${{ inputs.run_attempt }}
-          RELEASE_ID: ${{ inputs.release_id }}
-        run: |
-          mkdir .ci-recovery-receipt
-          python3 scripts/ci/record_recovery.py --producer-run "$RECOVERY_RUN" --producer-attempt "$RECOVERY_ATTEMPT" --release-id "$RELEASE_ID" --output .ci-recovery-receipt/result.json
-          python3 scripts/ci/validation.py seal --file .ci-recovery-receipt/result.json --manifest .ci-recovery-receipt/result.json.json --kind recovery-receipt --variant recorded
-      - name: Retain recovery receipt result
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: recovery-receipt-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .ci-recovery-receipt/*
-          include-hidden-files: true
-          if-no-files-found: error
-          retention-days: 30
   authorize:
     if: >-
-      (github.event_name == 'workflow_dispatch' && !inputs.record_recovery) ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
       (github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.head_branch == 'main' &&
@@ -85,7 +38,10 @@ jobs:
       contents: read
       actions: read
       checks: read
-      pull-requests: read
+    outputs:
+      current: ${{ steps.inspect.outputs.current }}
+      route: ${{ steps.inspect.outputs.route }}
+      source: ${{ steps.inspect.outputs.source }}
     steps:
       - name: Check out protected controller revision
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -99,12 +55,9 @@ jobs:
           ENABLE_IMAGE_PUBLISH: ${{ vars.ENABLE_IMAGE_PUBLISH }}
           PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
           PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
-          RECOVERY_RUN: ${{ inputs.recovery_run }}
-          RECOVERY_ATTEMPT: ${{ inputs.recovery_attempt }}
-          RELEASE_ID: ${{ inputs.release_id }}
         run: |
           mkdir .ci-publication
-          python3 scripts/ci/publication_plan.py --run-id "$PRODUCER_RUN" --attempt "$PRODUCER_ATTEMPT" --recovery-run "$RECOVERY_RUN" --recovery-attempt "$RECOVERY_ATTEMPT" --release-id "$RELEASE_ID" --output .ci-publication/plan.json
+          python3 scripts/ci/publication_plan.py --run-id "$PRODUCER_RUN" --attempt "$PRODUCER_ATTEMPT" --output .ci-publication/plan.json
           python3 scripts/ci/validation.py seal --file .ci-publication/plan.json --manifest .ci-publication/plan.json.json --kind publication-plan --variant authorized
       - name: Retain sealed authorized publication plan
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -159,13 +112,60 @@ jobs:
           if-no-files-found: error
           compression-level: 0
           retention-days: 30
-  publish-images:
-    name: Publish main images
+  release-please:
     needs: authorize
+    if: needs.authorize.outputs.current == 'true' && vars.ENABLE_RELEASE_AUTOMATION == 'true'
+    uses: ./.github/workflows/release-please.yml
+    permissions:
+      contents: read
+    with:
+      source_sha: ${{ needs.authorize.outputs.source }}
+  publish-packages:
+    needs: [authorize, release-please]
     if: >-
-      needs.authorize.result == 'success' &&
-      !inputs.recovery_run && !inputs.recovery_attempt &&
-      github.ref == 'refs/heads/main' &&
+      always() && needs.authorize.result == 'success' &&
+      (needs.release-please.result == 'success' || needs.release-please.result == 'skipped') &&
+      vars.ENABLE_PACKAGE_PUBLISH == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    environment:
+      name: package-publish
+      deployment: false
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      packages: write
+    steps:
+      - name: Check out protected controller revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Publish validated packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ENABLE_PACKAGE_PUBLISH: ${{ vars.ENABLE_PACKAGE_PUBLISH }}
+          PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
+          PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
+          RELEASE_ID: ${{ inputs.release_id }}
+        run: |
+          release_args=()
+          if [[ -n "$RELEASE_ID" ]]; then release_args=(--release-id "$RELEASE_ID"); fi
+          python3 scripts/ci/publication_publish_packages.py --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" "${release_args[@]}" --output .ci-packages/progress.json
+      - name: Retain publishing result
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: packages-result-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-packages/*.json
+          include-hidden-files: true
+          if-no-files-found: ignore
+  publish-images:
+    needs: [authorize, release-please]
+    if: >-
+      always() && needs.authorize.result == 'success' &&
+      (needs.release-please.result == 'success' || needs.release-please.result == 'skipped') &&
       vars.ENABLE_IMAGE_PUBLISH == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -183,863 +183,32 @@ jobs:
         with:
           ref: ${{ github.workflow_sha }}
           persist-credentials: false
-      - name: Reauthorize prepared artifacts and publish exact main images
-        id: publish
+      - name: Publish validated images
         env:
           GH_TOKEN: ${{ github.token }}
           ENABLE_IMAGE_PUBLISH: ${{ vars.ENABLE_IMAGE_PUBLISH }}
           PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
           PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
-        run: python3 scripts/ci/publication_publish_images.py --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --output .ci-image-publication/progress.json
-      - name: Seal completed or partial main image progress
-        if: always()
+          RELEASE_ID: ${{ inputs.release_id }}
         run: |
-          if [[ -f .ci-image-publication/progress.json ]]; then
-            python3 scripts/ci/validation.py seal --file .ci-image-publication/progress.json --manifest .ci-image-publication/progress.json.json --kind image-progress --variant main
-          fi
-      - name: Retain main image progress
+          release_args=()
+          if [[ -n "$RELEASE_ID" ]]; then release_args=(--release-id "$RELEASE_ID"); fi
+          python3 scripts/ci/publication_publish_images.py --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" "${release_args[@]}" --output .ci-images/progress.json
+      - name: Retain publishing result
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: image-progress-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .ci-image-publication/*
+          name: images-result-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-images/*.json
           include-hidden-files: true
-          if-no-files-found: ${{ steps.publish.outcome == 'success' && 'error' || 'ignore' }}
-          retention-days: 30
+          if-no-files-found: ignore
   publish-pages:
-    name: Pages publication
     needs: authorize
-    if: >-
-      needs.authorize.result == 'success' &&
-      !inputs.recovery_run && !inputs.recovery_attempt &&
-      github.ref == 'refs/heads/main' &&
-      vars.ENABLE_DOCS_DEPLOY == 'true'
+    if: needs.authorize.outputs.current == 'true' && vars.ENABLE_DOCS_DEPLOY == 'true'
     uses: ./.github/workflows/docs.yml
     permissions:
       contents: read
-      actions: read
-      checks: read
       pages: write
       id-token: write
-      deployments: write
     with:
-      producer_run: ${{ inputs.run_id || format('{0}', github.event.workflow_run.id) }}
-      producer_attempt: ${{ inputs.run_attempt || format('{0}', github.event.workflow_run.run_attempt) }}
-  release-please:
-    name: Release automation
-    needs: authorize
-    if: >-
-      needs.authorize.result == 'success' &&
-      !inputs.recovery_run && !inputs.recovery_attempt &&
-      github.ref == 'refs/heads/main' &&
-      vars.ENABLE_RELEASE_AUTOMATION == 'true'
-    uses: ./.github/workflows/release-please.yml
-    permissions:
-      contents: read
-      actions: read
-      checks: read
-      pull-requests: read
-    secrets: inherit
-    with:
-      producer_run: ${{ inputs.run_id || format('{0}', github.event.workflow_run.id) }}
-      producer_attempt: ${{ inputs.run_attempt || format('{0}', github.event.workflow_run.run_attempt) }}
-
-  record-release-pr-origins:
-    name: Record release PR origins
-    needs: release-please
-    if: >-
-      needs.release-please.result == 'success' &&
-      github.ref == 'refs/heads/main' &&
-      vars.ENABLE_RELEASE_AUTOMATION == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      actions: read
-      checks: read
-      pull-requests: write
-    steps:
-      - name: Check out protected controller revision
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ github.workflow_sha }}
-          persist-credentials: false
-      - name: Preserve exact release PR origins before artifact expiry
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ENABLE_RELEASE_AUTOMATION: ${{ vars.ENABLE_RELEASE_AUTOMATION }}
-        run: |
-          python3 scripts/ci/publication_release_origin.py --output .ci-release-origins/origins.json
-          python3 scripts/ci/validation.py seal --file .ci-release-origins/origins.json --manifest .ci-release-origins/origins.json.json --kind release-origins --variant pull-requests
-      - name: Retain sealed PR origin evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: release-origins-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .ci-release-origins/*
-          include-hidden-files: true
-          if-no-files-found: error
-          retention-days: 30
-  record-release-provenance:
-    name: Record release provenance
-    needs: [authorize, release-please, record-release-pr-origins]
-    if: >-
-      needs.authorize.result == 'success' &&
-      needs.release-please.result == 'success' &&
-      needs.record-release-pr-origins.result == 'success' &&
-      github.ref == 'refs/heads/main' &&
-      vars.ENABLE_RELEASE_AUTOMATION == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: write
-      actions: read
-      checks: read
-      pull-requests: read
-    steps:
-      - name: Check out protected controller revision
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ github.workflow_sha }}
-          persist-credentials: false
-      - name: Reauthorize release origins and retain immutable producer selections
-        id: record
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ENABLE_RELEASE_AUTOMATION: ${{ vars.ENABLE_RELEASE_AUTOMATION }}
-          PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
-          PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
-          RELEASE_ID: ${{ inputs.release_id }}
-        run: python3 scripts/ci/publication_record_releases.py --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --output .ci-release-provenance/progress.json
-      - name: Seal completed or partial release provenance evidence
-        if: always()
-        run: |
-          if [[ -f .ci-release-provenance/progress.json ]]; then
-            python3 scripts/ci/validation.py seal --file .ci-release-provenance/progress.json --manifest .ci-release-provenance/progress.json.json --kind release-provenance --variant receipts
-          fi
-      - name: Retain release provenance progress
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: release-provenance-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .ci-release-provenance/*
-          include-hidden-files: true
-          if-no-files-found: ${{ steps.record.outcome == 'success' && 'error' || 'ignore' }}
-          retention-days: 30
-
-  prepare-packages:
-    name: Prepare release packages
-    needs: [authorize, record-release-provenance]
-    if: >-
-      always() && needs.authorize.result == 'success' &&
-      (needs.record-release-provenance.result == 'success' || needs.record-release-provenance.result == 'skipped') &&
-      github.ref == 'refs/heads/main' && vars.ENABLE_PACKAGE_PUBLISH == 'true'
-    outputs:
-      eligible: ${{ steps.prepare.outputs.eligible }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    permissions:
-      contents: read
-      actions: read
-      checks: read
-      pull-requests: read
-      packages: read
-    steps:
-      - name: Check out protected controller revision
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ github.workflow_sha }}
-          persist-credentials: false
-      - name: Set up fixed Node and npm toolchain
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version-file: .nvmrc
-      - name: Reauthorize releases and freshly scan exact package inputs
-        id: prepare
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ENABLE_PACKAGE_PUBLISH: ${{ vars.ENABLE_PACKAGE_PUBLISH }}
-          PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
-          PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
-          RECOVERY_RUN: ${{ inputs.recovery_run }}
-          RECOVERY_ATTEMPT: ${{ inputs.recovery_attempt }}
-          RELEASE_ID: ${{ inputs.release_id }}
-        run: |
-          python3 scripts/ci/publication_package_preparation.py --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --recovery-run "$RECOVERY_RUN" --recovery-attempt "$RECOVERY_ATTEMPT" --output .ci-package-preparation/plan.json
-          python3 scripts/ci/validation.py seal --file .ci-package-preparation/plan.json --manifest .ci-package-preparation/plan.json.json --kind package-plan --variant release
-          if [[ -f .ci-package-preparation/bytes/packages.tar ]]; then
-            python3 scripts/ci/validation.py seal --file .ci-package-preparation/bytes/packages.tar --manifest .ci-package-preparation/bytes/packages.tar.json --kind prepared-packages --variant release
-          fi
-      - name: Retain sealed package release plan
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: package-plan-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .ci-package-preparation/plan.json*
-          include-hidden-files: true
-          if-no-files-found: error
-          retention-days: 30
-      - name: Retain exact prepared package tarballs
-        if: steps.prepare.outputs.eligible == 'true'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: prepared-packages-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .ci-package-preparation/bytes/*
-          include-hidden-files: true
-          if-no-files-found: error
-          compression-level: 0
-          retention-days: 30
-      - name: Retain fresh package dependency scan reports
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: package-scan-reports-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .ci-package-preparation/scans/*
-          include-hidden-files: true
-          if-no-files-found: ignore
-          retention-days: 30
-  publish-packages:
-    name: Publish release packages
-    needs: prepare-packages
-    if: >-
-      needs.prepare-packages.result == 'success' && needs.prepare-packages.outputs.eligible == 'true' &&
-      github.ref == 'refs/heads/main' && vars.ENABLE_PACKAGE_PUBLISH == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    environment:
-      name: package-publish
-      deployment: false
-    permissions:
-      contents: read
-      actions: read
-      checks: read
-      pull-requests: read
-      packages: write
-    steps:
-      - name: Check out protected controller revision
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ github.workflow_sha }}
-          persist-credentials: false
-      - name: Set up fixed Node and npm toolchain
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version-file: .nvmrc
-      - name: Reauthorize exact releases and publish dependency-ordered immutable versions
-        id: publish
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ENABLE_PACKAGE_PUBLISH: ${{ vars.ENABLE_PACKAGE_PUBLISH }}
-          PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
-          PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
-          RECOVERY_RUN: ${{ inputs.recovery_run }}
-          RECOVERY_ATTEMPT: ${{ inputs.recovery_attempt }}
-          RELEASE_ID: ${{ inputs.release_id }}
-        run: python3 scripts/ci/publication_publish_packages.py --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --recovery-run "$RECOVERY_RUN" --recovery-attempt "$RECOVERY_ATTEMPT" --output .ci-package-publication/progress.json
-      - name: Seal completed or partial package publication progress
-        if: always()
-        run: |
-          if [[ -f .ci-package-publication/progress.json ]]; then
-            python3 scripts/ci/validation.py seal --file .ci-package-publication/progress.json --manifest .ci-package-publication/progress.json.json --kind package-progress --variant releases
-          fi
-      - name: Retain exact package publication progress
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: package-progress-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .ci-package-publication/*
-          include-hidden-files: true
-          if-no-files-found: ${{ steps.publish.outcome == 'success' && 'error' || 'ignore' }}
-          retention-days: 30
-  record-package-publication:
-    name: Record package publication
-    needs: [prepare-packages, publish-packages]
-    if: >-
-      needs.publish-packages.result == 'success' &&
-      github.ref == 'refs/heads/main' && vars.ENABLE_PACKAGE_PUBLISH == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: write
-      actions: read
-      checks: read
-      pull-requests: read
-    steps:
-      - name: Check out protected controller revision
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ github.workflow_sha }}
-          persist-credentials: false
-      - name: Retain exact successful package writer receipts on their Releases
-        id: record
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ENABLE_PACKAGE_PUBLISH: ${{ vars.ENABLE_PACKAGE_PUBLISH }}
-          PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
-          PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
-          RECOVERY_RUN: ${{ inputs.recovery_run }}
-          RECOVERY_ATTEMPT: ${{ inputs.recovery_attempt }}
-          RELEASE_ID: ${{ inputs.release_id }}
-        run: python3 scripts/ci/publication_record_packages.py --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --recovery-run "$RECOVERY_RUN" --recovery-attempt "$RECOVERY_ATTEMPT" --output .ci-package-receipts/progress.json
-      - name: Seal completed or partial package receipt progress
-        if: always()
-        run: |
-          if [[ -f .ci-package-receipts/progress.json ]]; then
-            python3 scripts/ci/validation.py seal --file .ci-package-receipts/progress.json --manifest .ci-package-receipts/progress.json.json --kind package-receipts --variant releases
-          fi
-      - name: Retain package receipt progress
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: package-receipts-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .ci-package-receipts/*
-          include-hidden-files: true
-          if-no-files-found: ${{ steps.record.outcome == 'success' && 'error' || 'ignore' }}
-          retention-days: 30
-
-  discover-image-releases:
-    name: Discover image releases
-    needs: [authorize, record-release-provenance]
-    if: >-
-      always() && needs.authorize.result == 'success' &&
-      (needs.record-release-provenance.result == 'success' || needs.record-release-provenance.result == 'skipped') &&
-      github.ref == 'refs/heads/main' && vars.ENABLE_IMAGE_PUBLISH == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    outputs:
-      matrix: ${{ steps.discover.outputs.matrix }}
-      count: ${{ steps.discover.outputs.count }}
-    permissions:
-      contents: read
-      actions: read
-      checks: read
-      pull-requests: read
-    steps:
-      - name: Check out protected controller revision
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ github.workflow_sha }}
-          persist-credentials: false
-      - name: Discover exact authenticated pending image releases
-        id: discover
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ENABLE_IMAGE_PUBLISH: ${{ vars.ENABLE_IMAGE_PUBLISH }}
-          PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
-          PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
-          RECOVERY_RUN: ${{ inputs.recovery_run }}
-          RECOVERY_ATTEMPT: ${{ inputs.recovery_attempt }}
-          MANUAL_RELEASE_ID: ${{ inputs.release_id }}
-        run: python3 scripts/ci/publication_release_images.py discover --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --manual-release-id "$MANUAL_RELEASE_ID" --recovery-run "$RECOVERY_RUN" --recovery-attempt "$RECOVERY_ATTEMPT" --output .ci-release-image-discovery/result.json
-  prepare-release-images:
-    name: Prepare release images (${{ matrix.release_id }})
-    needs: [discover-image-releases]
-    if: >-
-      needs.discover-image-releases.outputs.count != '0' &&
-      github.ref == 'refs/heads/main' && vars.ENABLE_IMAGE_PUBLISH == 'true'
-    strategy:
-      fail-fast: false
-      max-parallel: 1
-      matrix: ${{ fromJSON(needs.discover-image-releases.outputs.matrix) }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-    permissions:
-      contents: read
-      actions: read
-      checks: read
-      pull-requests: read
-    steps:
-      - name: Check out protected controller revision
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ github.workflow_sha }}
-          persist-credentials: false
-      - name: Prepare release images from exact authenticated evidence
-        id: operation
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ENABLE_IMAGE_PUBLISH: ${{ vars.ENABLE_IMAGE_PUBLISH }}
-          PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
-          PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
-          RECOVERY_RUN: ${{ inputs.recovery_run }}
-          RECOVERY_ATTEMPT: ${{ inputs.recovery_attempt }}
-          MANUAL_RELEASE_ID: ${{ inputs.release_id }}
-          RELEASE_ID: ${{ matrix.release_id }}
-        run: |
-          python3 scripts/ci/publication_release_images.py prepare --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --manual-release-id "$MANUAL_RELEASE_ID" --release-id "$RELEASE_ID" --recovery-run "$RECOVERY_RUN" --recovery-attempt "$RECOVERY_ATTEMPT" --output .ci-release-images/plan.json
-      - name: Seal image release evidence
-        if: always()
-        env:
-          RELEASE_ID: ${{ matrix.release_id }}
-        run: |
-          if [[ -f .ci-release-images/plan.json ]]; then
-            python3 scripts/ci/validation.py seal --file .ci-release-images/plan.json --manifest .ci-release-images/plan.json.json --kind release-image-plan --variant "$RELEASE_ID"
-          fi
-      - name: Retain exact image release evidence
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: release-image-plan-${{ matrix.release_id }}-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .ci-release-images/plan.json*
-          include-hidden-files: true
-          if-no-files-found: ${{ steps.operation.outcome == 'success' && 'error' || 'ignore' }}
-          retention-days: 30
-      - name: Retain exact release app images
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: release-images-${{ matrix.release_id }}-app-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .ci-release-images/images/app/*
-          include-hidden-files: true
-          if-no-files-found: error
-          compression-level: 0
-          retention-days: 30
-      - name: Retain exact release infra images
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: release-images-${{ matrix.release_id }}-infra-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .ci-release-images/images/infra/*
-          include-hidden-files: true
-          if-no-files-found: error
-          compression-level: 0
-          retention-days: 30
-      - name: Retain exact release docs images
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: release-images-${{ matrix.release_id }}-docs-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .ci-release-images/images/docs/*
-          include-hidden-files: true
-          if-no-files-found: error
-          compression-level: 0
-          retention-days: 30
-      - name: Retain fresh release image scan reports
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: release-image-scans-${{ matrix.release_id }}-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .ci-release-images/scans/*
-          include-hidden-files: true
-          if-no-files-found: ignore
-          retention-days: 30
-  publish-release-images:
-    name: Publish release images (${{ matrix.release_id }})
-    needs: [discover-image-releases, prepare-release-images]
-    if: >-
-      needs.discover-image-releases.outputs.count != '0' &&
-      github.ref == 'refs/heads/main' && vars.ENABLE_IMAGE_PUBLISH == 'true'
-    strategy:
-      fail-fast: false
-      max-parallel: 1
-      matrix: ${{ fromJSON(needs.discover-image-releases.outputs.matrix) }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-    environment:
-      name: image-publish
-      deployment: false
-    permissions:
-      contents: read
-      actions: read
-      checks: read
-      pull-requests: read
-      packages: write
-    steps:
-      - name: Check out protected controller revision
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ github.workflow_sha }}
-          persist-credentials: false
-      - name: Publish release images from exact authenticated evidence
-        id: operation
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ENABLE_IMAGE_PUBLISH: ${{ vars.ENABLE_IMAGE_PUBLISH }}
-          PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
-          PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
-          RECOVERY_RUN: ${{ inputs.recovery_run }}
-          RECOVERY_ATTEMPT: ${{ inputs.recovery_attempt }}
-          MANUAL_RELEASE_ID: ${{ inputs.release_id }}
-          RELEASE_ID: ${{ matrix.release_id }}
-        run: |
-          python3 scripts/ci/publication_release_images.py publish --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --manual-release-id "$MANUAL_RELEASE_ID" --release-id "$RELEASE_ID" --recovery-run "$RECOVERY_RUN" --recovery-attempt "$RECOVERY_ATTEMPT" --output .ci-release-images/progress.json
-      - name: Seal image release evidence
-        if: always()
-        env:
-          RELEASE_ID: ${{ matrix.release_id }}
-        run: |
-          if [[ -f .ci-release-images/progress.json ]]; then
-            python3 scripts/ci/validation.py seal --file .ci-release-images/progress.json --manifest .ci-release-images/progress.json.json --kind release-image-progress --variant "$RELEASE_ID"
-          fi
-      - name: Retain exact image release evidence
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: release-image-progress-${{ matrix.release_id }}-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .ci-release-images/progress.json*
-          include-hidden-files: true
-          if-no-files-found: ${{ steps.operation.outcome == 'success' && 'error' || 'ignore' }}
-          retention-days: 30
-  record-image-publication:
-    name: Record image publication (${{ matrix.release_id }})
-    needs: [discover-image-releases, publish-release-images]
-    if: >-
-      needs.discover-image-releases.outputs.count != '0' &&
-      github.ref == 'refs/heads/main' && vars.ENABLE_IMAGE_PUBLISH == 'true'
-    strategy:
-      fail-fast: false
-      max-parallel: 1
-      matrix: ${{ fromJSON(needs.discover-image-releases.outputs.matrix) }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: write
-      actions: read
-      checks: read
-      pull-requests: read
-    steps:
-      - name: Check out protected controller revision
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ github.workflow_sha }}
-          persist-credentials: false
-      - name: Record image publication from exact authenticated evidence
-        id: operation
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ENABLE_IMAGE_PUBLISH: ${{ vars.ENABLE_IMAGE_PUBLISH }}
-          PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
-          PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
-          RECOVERY_RUN: ${{ inputs.recovery_run }}
-          RECOVERY_ATTEMPT: ${{ inputs.recovery_attempt }}
-          MANUAL_RELEASE_ID: ${{ inputs.release_id }}
-          RELEASE_ID: ${{ matrix.release_id }}
-        run: |
-          python3 scripts/ci/publication_release_images.py record --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --manual-release-id "$MANUAL_RELEASE_ID" --release-id "$RELEASE_ID" --recovery-run "$RECOVERY_RUN" --recovery-attempt "$RECOVERY_ATTEMPT" --output .ci-release-images/progress.json
-      - name: Seal image release evidence
-        if: always()
-        env:
-          RELEASE_ID: ${{ matrix.release_id }}
-        run: |
-          if [[ -f .ci-release-images/progress.json ]]; then
-            python3 scripts/ci/validation.py seal --file .ci-release-images/progress.json --manifest .ci-release-images/progress.json.json --kind release-image-receipts --variant "$RELEASE_ID"
-          fi
-      - name: Retain exact image release evidence
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: release-image-receipts-${{ matrix.release_id }}-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .ci-release-images/progress.json*
-          include-hidden-files: true
-          if-no-files-found: ${{ steps.operation.outcome == 'success' && 'error' || 'ignore' }}
-          retention-days: 30
-
-  prepare-image-aliases:
-    name: Prepare image aliases
-    needs: [authorize, record-image-publication]
-    if: >-
-      always() && needs.authorize.result == 'success' && (needs.record-image-publication.result == 'success' || needs.record-image-publication.result == 'skipped') &&
-      github.ref == 'refs/heads/main' && vars.ENABLE_IMAGE_PUBLISH == 'true'
-    outputs:
-      eligible: ${{ steps.operation.outputs.eligible }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-    permissions:
-      contents: read
-      actions: read
-      checks: read
-      pull-requests: read
-      packages: read
-    steps:
-      - name: Check out protected controller revision
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ github.workflow_sha }}
-          persist-credentials: false
-      - name: Prepare exact stable image aliases
-        id: operation
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ENABLE_IMAGE_PUBLISH: ${{ vars.ENABLE_IMAGE_PUBLISH }}
-          PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
-          PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
-          RECOVERY_RUN: ${{ inputs.recovery_run }}
-          RECOVERY_ATTEMPT: ${{ inputs.recovery_attempt }}
-          RELEASE_ID: ${{ inputs.release_id }}
-        run: python3 scripts/ci/publication_promote_aliases.py prepare --kind image --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --recovery-run "$RECOVERY_RUN" --recovery-attempt "$RECOVERY_ATTEMPT" --output .ci-aliases/plan.json
-      - name: Seal alias evidence
-        if: always()
-        run: |
-          if [[ -f .ci-aliases/plan.json ]]; then
-            python3 scripts/ci/validation.py seal --file .ci-aliases/plan.json --manifest .ci-aliases/plan.json.json --kind alias-plan --variant image
-          fi
-      - name: Retain exact alias evidence
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: image-alias-plan-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .ci-aliases/plan.json*
-          include-hidden-files: true
-          if-no-files-found: ${{ steps.operation.outcome == 'success' && 'error' || 'ignore' }}
-          retention-days: 30
-      - name: Retain fresh alias target scans
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: image-alias-scans-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .ci-aliases/scans/*
-          include-hidden-files: true
-          if-no-files-found: ignore
-          retention-days: 30
-  promote-image-aliases:
-    name: Promote image aliases
-    needs: prepare-image-aliases
-    if: >-
-      needs.prepare-image-aliases.result == 'success' && needs.prepare-image-aliases.outputs.eligible == 'true' &&
-      github.ref == 'refs/heads/main' && vars.ENABLE_IMAGE_PUBLISH == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-    environment:
-      name: image-publish
-      deployment: false
-    permissions:
-      contents: read
-      actions: read
-      checks: read
-      pull-requests: read
-      packages: write
-    steps:
-      - name: Check out protected controller revision
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ github.workflow_sha }}
-          persist-credentials: false
-      - name: Promote exact stable image aliases
-        id: operation
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ENABLE_IMAGE_PUBLISH: ${{ vars.ENABLE_IMAGE_PUBLISH }}
-          PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
-          PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
-          RECOVERY_RUN: ${{ inputs.recovery_run }}
-          RECOVERY_ATTEMPT: ${{ inputs.recovery_attempt }}
-          RELEASE_ID: ${{ inputs.release_id }}
-        run: python3 scripts/ci/publication_promote_aliases.py promote --kind image --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --recovery-run "$RECOVERY_RUN" --recovery-attempt "$RECOVERY_ATTEMPT" --output .ci-aliases/progress.json
-      - name: Seal alias evidence
-        if: always()
-        run: |
-          if [[ -f .ci-aliases/progress.json ]]; then
-            python3 scripts/ci/validation.py seal --file .ci-aliases/progress.json --manifest .ci-aliases/progress.json.json --kind alias-progress --variant image
-          fi
-      - name: Retain exact alias evidence
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: image-alias-progress-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .ci-aliases/progress.json*
-          include-hidden-files: true
-          if-no-files-found: ${{ steps.operation.outcome == 'success' && 'error' || 'ignore' }}
-          retention-days: 30
-  record-image-aliases:
-    name: Record image aliases
-    needs: promote-image-aliases
-    if: >-
-      needs.promote-image-aliases.result == 'success' &&
-      github.ref == 'refs/heads/main' && vars.ENABLE_IMAGE_PUBLISH == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-    permissions:
-      contents: write
-      actions: read
-      checks: read
-      pull-requests: read
-    steps:
-      - name: Check out protected controller revision
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ github.workflow_sha }}
-          persist-credentials: false
-      - name: Record exact stable image aliases
-        id: operation
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ENABLE_IMAGE_PUBLISH: ${{ vars.ENABLE_IMAGE_PUBLISH }}
-          PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
-          PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
-          RECOVERY_RUN: ${{ inputs.recovery_run }}
-          RECOVERY_ATTEMPT: ${{ inputs.recovery_attempt }}
-          RELEASE_ID: ${{ inputs.release_id }}
-        run: python3 scripts/ci/publication_promote_aliases.py record --kind image --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --recovery-run "$RECOVERY_RUN" --recovery-attempt "$RECOVERY_ATTEMPT" --output .ci-aliases/progress.json
-      - name: Seal alias evidence
-        if: always()
-        run: |
-          if [[ -f .ci-aliases/progress.json ]]; then
-            python3 scripts/ci/validation.py seal --file .ci-aliases/progress.json --manifest .ci-aliases/progress.json.json --kind alias-receipts --variant image
-          fi
-      - name: Retain exact alias evidence
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: image-alias-receipts-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .ci-aliases/progress.json*
-          include-hidden-files: true
-          if-no-files-found: ${{ steps.operation.outcome == 'success' && 'error' || 'ignore' }}
-          retention-days: 30
-  prepare-package-aliases:
-    name: Prepare package aliases
-    needs: [authorize, record-package-publication]
-    if: >-
-      always() && needs.authorize.result == 'success' && (needs.record-package-publication.result == 'success' || needs.record-package-publication.result == 'skipped') &&
-      github.ref == 'refs/heads/main' && vars.ENABLE_PACKAGE_PUBLISH == 'true'
-    outputs:
-      eligible: ${{ steps.operation.outputs.eligible }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    permissions:
-      contents: read
-      actions: read
-      checks: read
-      pull-requests: read
-      packages: read
-    steps:
-      - name: Check out protected controller revision
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ github.workflow_sha }}
-          persist-credentials: false
-      - name: Set up fixed Node and npm toolchain
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version-file: .nvmrc
-      - name: Prepare exact stable package aliases
-        id: operation
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ENABLE_PACKAGE_PUBLISH: ${{ vars.ENABLE_PACKAGE_PUBLISH }}
-          PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
-          PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
-          RECOVERY_RUN: ${{ inputs.recovery_run }}
-          RECOVERY_ATTEMPT: ${{ inputs.recovery_attempt }}
-          RELEASE_ID: ${{ inputs.release_id }}
-        run: python3 scripts/ci/publication_promote_aliases.py prepare --kind package --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --recovery-run "$RECOVERY_RUN" --recovery-attempt "$RECOVERY_ATTEMPT" --output .ci-aliases/plan.json
-      - name: Seal alias evidence
-        if: always()
-        run: |
-          if [[ -f .ci-aliases/plan.json ]]; then
-            python3 scripts/ci/validation.py seal --file .ci-aliases/plan.json --manifest .ci-aliases/plan.json.json --kind alias-plan --variant package
-          fi
-      - name: Retain exact alias evidence
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: package-alias-plan-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .ci-aliases/plan.json*
-          include-hidden-files: true
-          if-no-files-found: ${{ steps.operation.outcome == 'success' && 'error' || 'ignore' }}
-          retention-days: 30
-      - name: Retain fresh alias target scans
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: package-alias-scans-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .ci-aliases/scans/*
-          include-hidden-files: true
-          if-no-files-found: ignore
-          retention-days: 30
-  promote-package-aliases:
-    name: Promote package aliases
-    needs: prepare-package-aliases
-    if: >-
-      needs.prepare-package-aliases.result == 'success' && needs.prepare-package-aliases.outputs.eligible == 'true' &&
-      github.ref == 'refs/heads/main' && vars.ENABLE_PACKAGE_PUBLISH == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    environment:
-      name: package-publish
-      deployment: false
-    permissions:
-      contents: read
-      actions: read
-      checks: read
-      pull-requests: read
-      packages: write
-    steps:
-      - name: Check out protected controller revision
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ github.workflow_sha }}
-          persist-credentials: false
-      - name: Set up fixed Node and npm toolchain
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version-file: .nvmrc
-      - name: Promote exact stable package aliases
-        id: operation
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ENABLE_PACKAGE_PUBLISH: ${{ vars.ENABLE_PACKAGE_PUBLISH }}
-          PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
-          PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
-          RECOVERY_RUN: ${{ inputs.recovery_run }}
-          RECOVERY_ATTEMPT: ${{ inputs.recovery_attempt }}
-          RELEASE_ID: ${{ inputs.release_id }}
-        run: python3 scripts/ci/publication_promote_aliases.py promote --kind package --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --recovery-run "$RECOVERY_RUN" --recovery-attempt "$RECOVERY_ATTEMPT" --output .ci-aliases/progress.json
-      - name: Seal alias evidence
-        if: always()
-        run: |
-          if [[ -f .ci-aliases/progress.json ]]; then
-            python3 scripts/ci/validation.py seal --file .ci-aliases/progress.json --manifest .ci-aliases/progress.json.json --kind alias-progress --variant package
-          fi
-      - name: Retain exact alias evidence
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: package-alias-progress-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .ci-aliases/progress.json*
-          include-hidden-files: true
-          if-no-files-found: ${{ steps.operation.outcome == 'success' && 'error' || 'ignore' }}
-          retention-days: 30
-  record-package-aliases:
-    name: Record package aliases
-    needs: promote-package-aliases
-    if: >-
-      needs.promote-package-aliases.result == 'success' &&
-      github.ref == 'refs/heads/main' && vars.ENABLE_PACKAGE_PUBLISH == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    permissions:
-      contents: write
-      actions: read
-      checks: read
-      pull-requests: read
-    steps:
-      - name: Check out protected controller revision
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ github.workflow_sha }}
-          persist-credentials: false
-      - name: Record exact stable package aliases
-        id: operation
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ENABLE_PACKAGE_PUBLISH: ${{ vars.ENABLE_PACKAGE_PUBLISH }}
-          PRODUCER_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
-          PRODUCER_ATTEMPT: ${{ inputs.run_attempt || github.event.workflow_run.run_attempt }}
-          RECOVERY_RUN: ${{ inputs.recovery_run }}
-          RECOVERY_ATTEMPT: ${{ inputs.recovery_attempt }}
-          RELEASE_ID: ${{ inputs.release_id }}
-        run: python3 scripts/ci/publication_promote_aliases.py record --kind package --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --release-id "$RELEASE_ID" --recovery-run "$RECOVERY_RUN" --recovery-attempt "$RECOVERY_ATTEMPT" --output .ci-aliases/progress.json
-      - name: Seal alias evidence
-        if: always()
-        run: |
-          if [[ -f .ci-aliases/progress.json ]]; then
-            python3 scripts/ci/validation.py seal --file .ci-aliases/progress.json --manifest .ci-aliases/progress.json.json --kind alias-receipts --variant package
-          fi
-      - name: Retain exact alias evidence
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: package-alias-receipts-${{ github.run_id }}-${{ github.run_attempt }}
-          path: .ci-aliases/progress.json*
-          include-hidden-files: true
-          if-no-files-found: ${{ steps.operation.outcome == 'success' && 'error' || 'ignore' }}
-          retention-days: 30
-
-defaults:
-  run:
-    shell: bash
+      source_sha: ${{ needs.authorize.outputs.source }}

@@ -94,8 +94,8 @@ class VerifyImagesTests(unittest.TestCase):
             self.assertEqual(len(client.downloads), 1)
             self.assert_cleaned(client)
 
-    def test_rejects_incomplete_extra_duplicate_bundles_and_catalog_drift_before_download(self):
-        for change in ('missing', 'extra', 'duplicate', 'catalog', 'catalog_type'):
+    def test_rejects_incomplete_extra_duplicate_bundles_before_download(self):
+        for change in ('missing', 'extra', 'duplicate'):
             plan, client = self.plan()
             if change == 'missing':
                 plan['artifacts'].pop()
@@ -103,10 +103,6 @@ class VerifyImagesTests(unittest.TestCase):
                 plan['artifacts'].append(plan['artifacts'][0] | {'variant': 'other-amd64-arm64'})
             elif change == 'duplicate':
                 plan['artifacts'].append(plan['artifacts'][0])
-            elif change == 'catalog':
-                plan['inputs']['catalog']['images'][0]['tags']['linux/amd64'] = 'other:amd64'
-            else:
-                plan['inputs']['catalog']['schema'] = True
             with self.subTest(change=change), self.assertRaises(PublicationError):
                 verify_images(client, plan, self.catalog)
             self.assertEqual(client.downloads, [])

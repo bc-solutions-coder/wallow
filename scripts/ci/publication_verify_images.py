@@ -12,8 +12,6 @@ from publication_images import inspect_images
 
 def verify_images(client, plan, catalog, prepare=None):
     """Inputs are the resolved API-authorized plan and the trusted loaded catalog."""
-    if json.dumps(catalog, sort_keys=True) != json.dumps(plan['inputs']['catalog'], sort_keys=True):
-        raise PublicationError('Registered publication catalog differs from the controller catalog')
     required = {'full': ('app', 'infra', 'docs'), 'docs': ('docs',)}.get(plan['route'])
     if required is None:
         raise PublicationError('Unknown image publication route')
