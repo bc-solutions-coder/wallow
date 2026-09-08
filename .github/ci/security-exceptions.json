@@ -106,7 +106,7 @@
       "scanner": "zizmor",
       "id": "dangerous-triggers",
       "scope": ".github/workflows/publish.yml",
-      "feature_sha256": "sha256:7bbd0571b6b8a1efa7d47d715a1c39ac905a1ca0b6fa9d49b9170cfb3f9e05f7",
+      "feature_sha256": "sha256:b30fc5f971e89203269081ff6e0afe1b2ae8031b4070ffdac87fe99cba3f2387",
       "owner": "bc-solutions-coder",
       "reason": "Protected workflow_run publisher checks same-repository successful main CI, exact attempt, required check and artifact identities. Read-only preparation verifies artifact digests and safe archives. Separate package/image/Pages jobs use minimal job permissions and main-only environments. Production secrets are limited to main Turbo and Release Please. Package lifecycle scripts remain disabled, immutable conflicts fail, and older builds cannot advance current main outputs. Custom receipts and historical recovery are removed under the user-approved simplified scope. Trigger or privilege changes require renewed review.",
       "tracking": "https://github.com/bc-solutions-coder/wallow/issues/283",
