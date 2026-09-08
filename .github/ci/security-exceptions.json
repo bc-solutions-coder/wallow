@@ -112,6 +112,16 @@
       "tracking": "https://github.com/bc-solutions-coder/wallow/issues/283",
       "created": "2026-09-08T00:02:03Z",
       "expires": "2026-10-08T00:02:03Z"
+    },
+    {
+      "scanner": "devskim",
+      "id": "DS173237",
+      "scope": ".github/ci/legacy-package-aliases.json",
+      "owner": "bc-solutions-coder",
+      "reason": "The commit_sha values are public Git identifiers for SDK 2.0.0 and 3.0.0, not credentials. Remove this exact-file exception with the consumed migration entry.",
+      "tracking": "https://github.com/bc-solutions-coder/wallow/issues/283",
+      "created": "2026-09-08T14:36:40Z",
+      "expires": "2026-10-08T00:00:00Z"
     }
   ]
 }
