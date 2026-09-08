@@ -57,8 +57,24 @@ jobs:
         if: ${{ !cancelled() && steps.tools.outcome == 'success' && !inputs.docs-only }}
         run: bash scripts/ci/run-security.sh zizmor
       - name: Scan resolved dependencies including build dependencies
+        id: dependencies
         if: ${{ !cancelled() && steps.tools.outcome == 'success' && !inputs.docs-only }}
         run: bash scripts/ci/run-security.sh dependencies
+      - name: Seal resolved dependency inputs for later policy scans
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
+        run: |
+          mkdir -p .ci-artifacts/dependency-inputs
+          cp .ci-reports/security/dependency-inventory.json .ci-tools/dependencies/inventory.json
+          tar -czf .ci-artifacts/dependency-inputs/dependencies.tar.gz -C .ci-tools/dependencies .
+          python3 scripts/ci/validation.py seal --file .ci-artifacts/dependency-inputs/dependencies.tar.gz --manifest .ci-artifacts/dependency-inputs/dependencies.tar.gz.json --kind dependencies --variant resolved-locks
+      - name: Retain exact resolved dependency inputs
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: dependency-inputs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-artifacts/dependency-inputs/*
+          if-no-files-found: error
+          retention-days: 30
       - name: Download exact application images
         id: app
         if: ${{ !cancelled() && steps.tools.outcome == 'success' && !inputs.docs-only }}

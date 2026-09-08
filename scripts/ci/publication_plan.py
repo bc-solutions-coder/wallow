@@ -21,7 +21,7 @@ def candidate_artifacts(producer, jobs, artifacts):
     full = builds[0]['conclusion'] == 'success'
     outputs = [('docfx-site', 'site.tar.gz', 'docs', 'docfx'), ('images-docs', 'images.tar.gz', 'images', 'docs-amd64-arm64')]
     if full:
-        outputs += [('js-packages', 'packages.tar.gz', 'packages', 'pnpm'), ('images-app', 'images.tar.gz', 'images', 'app-amd64-arm64'), ('images-infra', 'images.tar.gz', 'images', 'infra-amd64-arm64')]
+        outputs += [('js-packages', 'packages.tar.gz', 'packages', 'pnpm'), ('images-app', 'images.tar.gz', 'images', 'app-amd64-arm64'), ('images-infra', 'images.tar.gz', 'images', 'infra-amd64-arm64'), ('dependency-inputs', 'dependencies.tar.gz', 'dependencies', 'resolved-locks')]
     selected = [asdict(select_artifact(artifacts, producer, prefix)) | {'payload': payload, 'kind': kind, 'variant': variant} for prefix, payload, kind, variant in outputs]
     return 'full' if full else 'docs', selected
 

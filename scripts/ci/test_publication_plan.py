@@ -9,14 +9,15 @@ class PlanTests(unittest.TestCase):
     def setUp(self):
         self.producer = Producer('example/repo', 1, 'a' * 40, 20, 2, 10, 'example/repo/.github/workflows/ci.yml@refs/heads/main')
         self.artifacts = []
-        for number, prefix in enumerate(('docfx-site', 'images-docs', 'js-packages', 'images-app', 'images-infra'), start=1):
+        for number, prefix in enumerate(('docfx-site', 'images-docs', 'js-packages', 'images-app', 'images-infra', 'dependency-inputs'), start=1):
             self.artifacts.append({'id': number, 'name': prefix + '-20-2', 'size_in_bytes': 100, 'digest': 'sha256:' + 'b' * 64, 'expired': False, 'expires_at': '2099-01-01T00:00:00Z', 'workflow_run': {'id': 20, 'repository_id': 1, 'head_repository_id': 1, 'head_sha': 'a' * 40, 'head_branch': 'main'}})
 
     def test_full_route_requires_every_publication_bundle(self):
         route, artifacts = candidate_artifacts(self.producer, [{'name': 'build', 'conclusion': 'success'}], self.artifacts)
         self.assertEqual(route, 'full')
-        self.assertEqual(len(artifacts), 5)
-        self.assertEqual([item['id'] for item in artifacts], [1, 2, 3, 4, 5])
+        self.assertEqual(len(artifacts), 6)
+        self.assertEqual([item['id'] for item in artifacts], [1, 2, 3, 4, 5, 6])
+        self.assertEqual((artifacts[-1]['kind'], artifacts[-1]['variant'], artifacts[-1]['payload']), ('dependencies', 'resolved-locks', 'dependencies.tar.gz'))
         with self.assertRaises(PublicationError):
             candidate_artifacts(self.producer, [{'name': 'build', 'conclusion': 'success'}], self.artifacts[:-1])
 
