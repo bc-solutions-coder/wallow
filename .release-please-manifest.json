@@ -1,6 +1,6 @@
 {
-  ".": "5.0.0",
-  "packages/api-errors": "1.0.0",
-  "packages/sdk": "2.0.0",
-  "packages/telemetry": "0.1.0"
+  ".": "6.0.0",
+  "packages/api-errors": "2.0.0",
+  "packages/sdk": "3.0.0",
+  "packages/telemetry": "0.2.0"
 }

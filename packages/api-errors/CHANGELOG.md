@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.0.0](https://github.com/bc-solutions-coder/wallow/compare/api-errors-v1.0.0...api-errors-v2.0.0) (2026-09-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* **announcements:** remove announcements and changelogs ([#257](https://github.com/bc-solutions-coder/wallow/issues/257))
+* **notifications:** implement standards-compliant browser push
+* **notifications:** the public push-send request no longer accepts recipientId; it always targets the signed-in user.
+
+### Features
+
+* **announcements:** remove announcements and changelogs ([#257](https://github.com/bc-solutions-coder/wallow/issues/257)) ([0b96ae1](https://github.com/bc-solutions-coder/wallow/commit/0b96ae111883de3013336b9866545f65687a8021)), closes [#256](https://github.com/bc-solutions-coder/wallow/issues/256)
+* **identity:** provision observability from client registration ([93bcb75](https://github.com/bc-solutions-coder/wallow/commit/93bcb753cf0a145d816c31b8e8fa70455e6299a3))
+
+
+### Bug Fixes
+
+* **notifications:** enforce push ownership and self-test sending ([a704634](https://github.com/bc-solutions-coder/wallow/commit/a704634f44e5d5767e75a82a044cd6843e086f6b)), closes [#222](https://github.com/bc-solutions-coder/wallow/issues/222)
+* **notifications:** implement standards-compliant browser push ([3d36327](https://github.com/bc-solutions-coder/wallow/commit/3d36327b71d68dd596b1f396d5d07be3615d59a9))
+
 ## 1.0.0 (2026-09-06)
 
 
