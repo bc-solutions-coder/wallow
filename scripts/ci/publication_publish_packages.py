@@ -16,13 +16,14 @@ from publication_package_records import WRITER_JOB
 from publication_packages import inspect_package
 from publication_release_github import ReleaseGitHub
 from publication_release_origin import frame
+from publication_selection import recovery_selector
 from publication_verify_packages import extract_prepared_candidates
 
 
-def publish(client, context, producer_run, producer_attempt, run_id, attempt, catalog, root, token, result, release_id=None):
+def publish(client, context, producer_run, producer_attempt, run_id, attempt, catalog, root, token, result, release_id=None, *, recovery=None):
     invocation, _ = frame(client, context, run_id, attempt, WRITER_JOB)
     result['invocation'] = invocation
-    plan, preparation, artifact, evidence = authorize_packages(client, context, producer_run, producer_attempt, run_id, attempt, catalog, root, release_id)
+    plan, preparation, artifact, evidence = authorize_packages(client, context, producer_run, producer_attempt, run_id, attempt, catalog, root, release_id, recovery=recovery)
     result['preparation'] = evidence
     with tempfile.TemporaryDirectory(prefix='wallow-package-writer-') as directory:
         temporary = Path(directory)
@@ -70,10 +71,13 @@ def main():
     parser.add_argument('--producer-attempt', required=True)
     parser.add_argument('--release-id', default='')
     parser.add_argument('--output', required=True)
+    parser.add_argument('--recovery-run', default='')
+    parser.add_argument('--recovery-attempt', default='')
     args = parser.parse_args()
     result = {'schema': 1, 'scope': 'immutable-package-versions', 'entries': []}
     error = None
     try:
+        recovery = recovery_selector(args.recovery_run, args.recovery_attempt, args.release_id)
         values = (args.producer_run, args.producer_attempt, os.environ.get('GITHUB_RUN_ID'), os.environ.get('GITHUB_RUN_ATTEMPT'))
         if os.environ.get('ENABLE_PACKAGE_PUBLISH') != 'true' or not all(matches(r'[1-9][0-9]*', value) for value in values) or (args.release_id and not matches(r'[1-9][0-9]*', args.release_id)):
             raise PublicationError('Package writer requires literal enablement and exact invocation identities')
@@ -81,7 +85,7 @@ def main():
         root = Path(__file__).resolve().parents[2]
         token = os.environ.get('GH_TOKEN')
         client = ReleaseGitHub(context['repository'], token)
-        publish(client, context, *(int(value) for value in values), load_catalog(root), root, token, result, int(args.release_id) if args.release_id else None)
+        publish(client, context, *(int(value) for value in values), load_catalog(root), root, token, result, int(args.release_id) if args.release_id else None, recovery=recovery)
     except (PublicationError, OSError, ValueError, TypeError, KeyError, RecursionError):
         error = 'Immutable package publication failed; preserved progress must be verified before retry.'
         result['error'] = error

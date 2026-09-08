@@ -90,10 +90,12 @@ class WriterTests(unittest.TestCase):
         client.repository = 'example/repo'
         return client, plan, producer, artifact
 
-    def run_writer(self, fixture):
+    def run_writer(self, fixture, recovery=None):
         client, plan, producer, artifact = fixture
-        with patch('publication_publish_packages.frame', return_value=({'job_id': 100}, {})), patch('publication_publish_packages.authorize_packages', return_value=(plan, producer, artifact, {})), patch('publication_publish_packages.PackageRegistry', return_value=self.registry):
-            return publish(client, {}, 1, 1, 2, 1, self.catalog, self.root, 'fixture', {'entries': []})
+        with patch('publication_publish_packages.frame', return_value=({'job_id': 100}, {})), patch('publication_publish_packages.authorize_packages', return_value=(plan, producer, artifact, {})) as authorization, patch('publication_publish_packages.PackageRegistry', return_value=self.registry):
+            result = publish(client, {}, 1, 1, 2, 1, self.catalog, self.root, 'fixture', {'entries': []}, recovery=recovery)
+            self.authorization_call = authorization.call_args
+            return result
 
     def test_real_sealed_tarballs_are_preflighted_then_published_in_dependency_order(self):
         fixture = self.prepared()
@@ -101,7 +103,9 @@ class WriterTests(unittest.TestCase):
         order = dependency_preflight(fixture[1], 'example/repo', self.registry)
         fixture[1]['dependency_readiness'] = order['dependencies']
         self.registry.operations.clear()
-        result = self.run_writer(fixture)
+        selector = {'release_id': 1, 'run_id': 70, 'run_attempt': 2}
+        result = self.run_writer(fixture, recovery=selector)
+        self.assertEqual(self.authorization_call.kwargs, {'recovery': selector})
         self.assertEqual([entry['release']['id'] for entry in result['entries']], [2, 1])
         self.assertEqual(self.registry.operations, [('read', '@example/base'), ('read', '@example/sdk'), ('write', '@example/base'), ('write', '@example/sdk')])
         self.assertTrue(all(not path.parent.exists() for path in fixture[0].paths))

@@ -28,22 +28,26 @@ class FinalizerTests(unittest.TestCase):
         self.retained = []
         self.revalidated = []
 
-    def run_finalizer(self):
+    def run_finalizer(self, recovery=None):
         def retain(client, release_id, name, payload, current):
             self.retained.append((release_id, copy.deepcopy(payload)))
             return {'asset_id': release_id + 1000, 'sha256': 'sha256:' + '2' * 64}
         with patch('publication_record_packages.frame', return_value=({'job_id': 101}, {})), \
              patch('publication_record_packages.writer_progress', return_value=({'entries': self.entries}, self.reference)), \
-             patch('publication_record_packages.authorize_packages', return_value=(self.plan, None, None, None)), \
+             patch('publication_record_packages.authorize_packages', return_value=(self.plan, None, None, None)) as authorization, \
              patch('publication_record_packages.inspect_receipt', side_effect=lambda client, release_id, name: self.previous if release_id == 1 else None), \
              patch('publication_record_packages.published_package'), \
              patch('publication_record_packages.endorsed', return_value=False), \
              patch('publication_record_packages.revalidate_partial_receipt', side_effect=lambda client, receipt: self.revalidated.append(receipt)), \
              patch('publication_record_packages.retain', side_effect=retain):
-            return finalize(self.client, {}, 1, 1, 2, 1, self.catalog, self.root, {'receipts': []})
+            result = finalize(self.client, {}, 1, 1, 2, 1, self.catalog, self.root, {'receipts': []}, recovery=recovery)
+            self.authorization_call = authorization.call_args
+            return result
 
     def test_exact_readback_receipts_cover_all_authorized_versions(self):
-        result = self.run_finalizer()
+        selector = {'release_id': 1, 'run_id': 70, 'run_attempt': 2}
+        result = self.run_finalizer(recovery=selector)
+        self.assertEqual(self.authorization_call.kwargs, {'recovery': selector})
         self.assertEqual([item['release_id'] for item in result['receipts']], [1, 2])
         self.assertEqual(self.retained[0][1], self.entries[0] | {'writer': self.reference})
 

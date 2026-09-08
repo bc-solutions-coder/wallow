@@ -11,15 +11,16 @@ from publication_package_progress import revalidate_partial_receipt, writer_prog
 from publication_package_records import WRITER_JOB, package_record, published_package, validate_readback
 from publication_release_github import ReleaseGitHub
 from publication_release_origin import frame
+from publication_selection import recovery_selector
 from publication_release_receipts import PACKAGE, PACKAGE_JOB, endorsed, inspect_receipt, retain
 
 
-def finalize(client, context, producer_run, producer_attempt, run_id, attempt, catalog, root, result, release_id=None):
+def finalize(client, context, producer_run, producer_attempt, run_id, attempt, catalog, root, result, release_id=None, *, recovery=None):
     current = frame(client, context, run_id, attempt, PACKAGE_JOB)
     result['invocation'] = current[0]
     writer, _ = frame(client, context, run_id, attempt, WRITER_JOB, 'success')
     document, reference = writer_progress(client, writer)
-    plan, _, _, _ = authorize_packages(client, context, producer_run, producer_attempt, run_id, attempt, catalog, root, release_id)
+    plan, _, _, _ = authorize_packages(client, context, producer_run, producer_attempt, run_id, attempt, catalog, root, release_id, recovery=recovery)
     expected = {item['release']['id']: item for item in plan['prepared']['candidates'] + plan['prepared']['published']}
     required = set(plan['ordered_release_ids'])
     target = plan['prepared']['target_release_id']
@@ -59,17 +60,20 @@ def main():
     parser.add_argument('--producer-attempt', required=True)
     parser.add_argument('--release-id', default='')
     parser.add_argument('--output', required=True)
+    parser.add_argument('--recovery-run', default='')
+    parser.add_argument('--recovery-attempt', default='')
     args = parser.parse_args()
     result = {'schema': 1, 'scope': 'immutable-package-publication-receipts', 'receipts': []}
     error = None
     try:
+        recovery = recovery_selector(args.recovery_run, args.recovery_attempt, args.release_id)
         values = (args.producer_run, args.producer_attempt, os.environ.get('GITHUB_RUN_ID'), os.environ.get('GITHUB_RUN_ATTEMPT'))
         if os.environ.get('ENABLE_PACKAGE_PUBLISH') != 'true' or not all(matches(r'[1-9][0-9]*', value) for value in values) or (args.release_id and not matches(r'[1-9][0-9]*', args.release_id)):
             raise PublicationError('Package finalization requires literal enablement and exact invocation identities')
         context = {key: os.environ.get('GITHUB_' + key.upper(), '') for key in ('repository', 'ref', 'workflow_ref', 'workflow_sha', 'event_name')}
         root = Path(__file__).resolve().parents[2]
         client = ReleaseGitHub(context['repository'], os.environ.get('GH_TOKEN'))
-        finalize(client, context, *(int(value) for value in values), load_catalog(root), root, result, int(args.release_id) if args.release_id else None)
+        finalize(client, context, *(int(value) for value in values), load_catalog(root), root, result, int(args.release_id) if args.release_id else None, recovery=recovery)
     except (PublicationError, OSError, ValueError, TypeError, KeyError, RecursionError):
         error = 'Package publication receipt finalization failed; preserved immutable bytes require successful endorsement.'
         result['error'] = error
