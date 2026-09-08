@@ -1,0 +1,10 @@
+paths:
+  .github/workflows/publish.yml:
+    ignore:
+      # GitHub supports this key; Actionlint 1.7.12 awaits rhysd/actionlint#654.
+      # action_policy.py validates its value and cancellation compatibility.
+      - '^unexpected key "queue" for "concurrency" section\. expected one of "cancel-in-progress", "group"$'
+  .github/workflows/release-please.yml:
+    ignore:
+      # Same supported queue key; action_policy.py enforces its value.
+      - '^unexpected key "queue" for "concurrency" section\. expected one of "cancel-in-progress", "group"$'

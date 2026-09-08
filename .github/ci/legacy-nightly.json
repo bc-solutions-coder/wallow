@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "repository": "bc-solutions-coder/wallow",
+  "source_sha": "git:5c6aada60c85321b6d97e66fa76d62d12932e699",
+  "run_id": 34066236541,
+  "run_attempt": 1,
+  "workflow_id": 255082277,
+  "tag": "5c6aada",
+  "expires": "2026-10-08T00:00:00Z",
+  "evidence": "https://github.com/bc-solutions-coder/wallow/issues/283#issuecomment-5577824516",
+  "images": {
+    "api": "sha256:9d0bf14057e808fcc9f404b387b673f750fdfd2f1cbc9c52e0bb6f51865cb739",
+    "auth": "sha256:2efa2189c09f7731840a70efa52ae8e75cabf6e9af0d7543f2be17e6db8d78f0",
+    "web": "sha256:c24d59214ebbd809eef2f27dd24e1d4ca9bf55e19c568b0e46abbecc65f67e54",
+    "migrations": "sha256:199ca3625f77aeab698a02b8edf472811bf6df693b4f04f808d9609eda7acbf2",
+    "seeder": "sha256:e1c54b92c656deb8c1a8e2052a7f70c0e7dcf70d8c09648318167ca79799c91c",
+    "garage": "sha256:3581d128a050d68705bcd312ab317e9f9b5ec6745f805c8b4b411fe1dad5e59b",
+    "postgres-replica": "sha256:0c4b4264b2d3a30b6782a43098b06680371b80866ddab94cfcaecc8b1603e210"
+  },
+  "created": "2026-09-08T00:00:00Z"
+}

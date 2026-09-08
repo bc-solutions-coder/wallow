@@ -24,6 +24,8 @@ wallow (upstream)          your-product (fork)
 
 ## Prerequisites
 
+For repository validation, main Turbo caching, and publication credentials, follow [Configure CI and publication](../operations/ci-publication.md).
+
 - .NET 10 SDK
 - Node 24 (see `.nvmrc`) and pnpm 11.24.0 — the React apps and every shared package live in a pnpm workspace, and Approach A's very first customization step edits a file inside it
 - Docker and Docker Compose

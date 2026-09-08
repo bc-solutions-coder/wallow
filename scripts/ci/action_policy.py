@@ -1,4 +1,4 @@
-"""Require immutable external action references in workflows and local actions."""
+"""Validate immutable action references and supported workflow queue settings."""
 
 from pathlib import Path
 import re
@@ -26,6 +26,16 @@ def validate_reference(reference):
 def validate_document(document):
     if not isinstance(document, dict):
         raise ValueError('workflow or action must be a mapping')
+    owners = [document]
+    if isinstance(document.get('jobs'), dict):
+        owners.extend(job for job in document['jobs'].values() if isinstance(job, dict))
+    for owner in owners:
+        concurrency = owner.get('concurrency')
+        if isinstance(concurrency, dict) and 'queue' in concurrency:
+            if concurrency['queue'] not in ('max', 'single'):
+                raise ValueError('concurrency queue must be max or single')
+            if concurrency['queue'] == 'max' and concurrency.get('cancel-in-progress', False) is not False:
+                raise ValueError('queued workflows must not cancel runs in progress')
 
     def visit(value):
         if isinstance(value, dict):
@@ -59,7 +69,7 @@ def main():
         try:
             validate_document(yaml.safe_load(path.read_text()))
         except (ValueError, OSError, yaml.YAMLError):
-            print(f'{path}: invalid document or unpinned action reference', file=sys.stderr)
+            print(f'{path}: invalid workflow/action policy configuration', file=sys.stderr)
             failed = True
     if failed:
         return 1

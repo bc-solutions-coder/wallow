@@ -37,7 +37,8 @@ def validate_exceptions(document, now=None):
     fields = {'scanner', 'id', 'scope', 'owner', 'reason', 'tracking', 'created', 'expires'}
     for entry in entries:
         require(isinstance(entry, dict), 'exception must be an object')
-        expected = fields | ({'primary_location_line_hash', 'message_sha256'} if entry.get('scanner') == 'codeql' else set())
+        selectors = {'codeql': {'primary_location_line_hash', 'message_sha256'}, 'zizmor': {'feature_sha256'}}
+        expected = fields | selectors.get(entry.get('scanner'), set())
         require(set(entry) == expected, 'exception fields must match policy')
         require(all(isinstance(v, str) and v.strip() == v and v for v in entry.values()), 'exception fields must be nonempty text')
         require(entry['scanner'] in SCANNERS, 'unknown exception scanner')
@@ -52,6 +53,8 @@ def validate_exceptions(document, now=None):
         if entry['scanner'] == 'codeql':
             require(bool(re.fullmatch(r'[a-fA-F0-9]+:[1-9][0-9]*', entry['primary_location_line_hash'])), 'CodeQL exception needs an exact primary location line hash')
             require(bool(re.fullmatch(r'sha256:[a-f0-9]{64}', entry['message_sha256'])), 'CodeQL exception needs an exact message SHA-256 digest')
+        if entry['scanner'] == 'zizmor':
+            require(bool(re.fullmatch(r'sha256:[a-f0-9]{64}', entry['feature_sha256'])), 'Zizmor exception needs an exact feature SHA-256')
         identity = finding_identity(entry)
         require(identity not in seen, 'duplicate exception')
         seen.add(identity)
@@ -115,9 +118,13 @@ def zizmor(document):
         require(confidence in ('Low', 'Medium', 'High'), 'invalid zizmor confidence')
         locations = result.get('locations')
         require(isinstance(locations, list) and locations, 'zizmor location missing')
-        path = locations[0].get('symbolic', {}).get('key', {}).get('Local', {}).get('verbatim_path')
+        primary = [item for item in locations if item.get('symbolic', {}).get('kind') == 'Primary']
+        selected = primary[0] if len(primary) == 1 else locations[0]
+        path = selected.get('symbolic', {}).get('key', {}).get('Local', {}).get('verbatim_path')
+        feature = selected.get('concrete', {}).get('feature') if len(primary) == 1 else None
         require(isinstance(path, str) and path and not path.startswith('/') and '..' not in PurePosixPath(path).parts, 'zizmor location must be local and relative')
-        findings.append(finding('zizmor', result.get('ident'), path, severity == 'High' and confidence in ('Medium', 'High'), severity=severity, confidence=confidence))
+        findings.append(finding('zizmor', result.get('ident'), path, severity == 'High' and confidence in ('Medium', 'High'), severity=severity, confidence=confidence,
+                                feature_sha256='sha256:' + hashlib.sha256(feature.encode()).hexdigest() if isinstance(feature, str) and feature else None))
     return findings
 
 
@@ -176,6 +183,8 @@ def finding_identity(item):
     identity = (item['scanner'], item['id'], item['scope'])
     if item['scanner'] == 'codeql':
         identity += (item.get('primary_location_line_hash'), item.get('message_sha256'))
+    if item['scanner'] == 'zizmor':
+        identity += (item.get('feature_sha256'),)
     return identity
 
 
@@ -184,6 +193,8 @@ def apply_exceptions(findings, exceptions):
         if entry['scanner'] == 'codeql':
             require(bool(entry.get('primary_location_line_hash')) and bool(entry.get('message_sha256')),
                     'CodeQL exceptions require finding selectors')
+        if entry['scanner'] == 'zizmor':
+            require(bool(entry.get('feature_sha256')), 'Zizmor exceptions require an exact feature selector')
     allowed = {finding_identity(e) for e in exceptions}
     for result in findings:
         result['excepted'] = finding_identity(result) in allowed

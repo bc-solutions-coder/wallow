@@ -1,0 +1,60 @@
+name: Publish validated documentation
+"on":
+  workflow_call:
+    inputs:
+      producer_run:
+        required: true
+        type: string
+      producer_attempt:
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  deploy:
+    name: Publish validated Pages
+    if: >-
+      vars.ENABLE_DOCS_DEPLOY == 'true' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_run' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      deployment: false
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      pages: write
+      id-token: write
+      deployments: write
+    steps:
+      - name: Check out protected controller revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Reauthorize and deploy exact validated Pages artifact
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ENABLE_DOCS_DEPLOY: ${{ vars.ENABLE_DOCS_DEPLOY }}
+          PRODUCER_RUN: ${{ inputs.producer_run }}
+          PRODUCER_ATTEMPT: ${{ inputs.producer_attempt }}
+        run: python3 scripts/ci/publication_publish_pages.py --producer-run "$PRODUCER_RUN" --producer-attempt "$PRODUCER_ATTEMPT" --output .ci-pages-publication/progress.json
+      - name: Seal completed or partial Pages progress
+        if: always()
+        run: |
+          if [[ -f .ci-pages-publication/progress.json ]]; then
+            python3 scripts/ci/validation.py seal --file .ci-pages-publication/progress.json --manifest .ci-pages-publication/progress.json.json --kind pages-progress --variant main
+          fi
+      - name: Retain Pages progress
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: pages-progress-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .ci-pages-publication/*
+          include-hidden-files: true
+          if-no-files-found: ${{ steps.publish.outcome == 'success' && 'error' || 'ignore' }}
+          retention-days: 30
