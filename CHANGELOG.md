@@ -1,5 +1,19 @@
 # Changelog
 
+## [6.1.0](https://github.com/bc-solutions-coder/wallow/compare/v6.0.0...v6.1.0) (2026-09-09)
+
+
+### Features
+
+* **ci:** migrate the legacy API Errors latest alias ([#298](https://github.com/bc-solutions-coder/wallow/issues/298)) ([8e4308d](https://github.com/bc-solutions-coder/wallow/commit/8e4308dd23784aa8966e3d2777dc4a562d06bd3a))
+
+
+### Bug Fixes
+
+* **ci:** authorize exact legacy SDK alias migration ([#302](https://github.com/bc-solutions-coder/wallow/issues/302)) ([e2bdbc5](https://github.com/bc-solutions-coder/wallow/commit/e2bdbc54fa45ec9cbaf905ceaf67224c71a44930))
+* **ci:** read aliases without requiring a latest tag ([#301](https://github.com/bc-solutions-coder/wallow/issues/301)) ([0ec35a8](https://github.com/bc-solutions-coder/wallow/commit/0ec35a8821f05f1042a1f41ef77c59eef9aa56ec))
+* **ci:** restore Release Please secret inheritance ([#305](https://github.com/bc-solutions-coder/wallow/issues/305)) ([b4f4fdb](https://github.com/bc-solutions-coder/wallow/commit/b4f4fdb25966df4129b690eb4d0df973cd38cbbb))
+
 ## [6.0.0](https://github.com/bc-solutions-coder/wallow/compare/v5.0.0...v6.0.0) (2026-09-08)
 
 
