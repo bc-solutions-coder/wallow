@@ -39,11 +39,11 @@
     <PackageVersion Include="Hangfire.AspNetCore" Version="1.8.25" />
     <PackageVersion Include="Hangfire.PostgreSql" Version="1.21.1" />
     <!-- CQRS & Messaging (Wolverine) -->
-    <PackageVersion Include="WolverineFx" Version="6.33.0" />
-    <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.33.0" />
-    <PackageVersion Include="WolverineFx.FluentValidation" Version="6.33.0" />
-    <PackageVersion Include="WolverineFx.EntityFrameworkCore" Version="6.33.0" />
-    <PackageVersion Include="WolverineFx.Postgresql" Version="6.33.0" />
+    <PackageVersion Include="WolverineFx" Version="6.35.0" />
+    <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.35.0" />
+    <PackageVersion Include="WolverineFx.FluentValidation" Version="6.35.0" />
+    <PackageVersion Include="WolverineFx.EntityFrameworkCore" Version="6.35.0" />
+    <PackageVersion Include="WolverineFx.Postgresql" Version="6.35.0" />
     <PackageVersion Include="FluentValidation" Version="12.1.1" />
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
     <!-- Entity Framework Core -->
