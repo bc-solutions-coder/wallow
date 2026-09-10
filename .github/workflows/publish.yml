@@ -85,7 +85,7 @@ jobs:
           path: .ci-prepared/app/*
           if-no-files-found: error
           compression-level: 0
-          retention-days: 30
+          retention-days: 3
       - name: Retain prepared infrastructure images
         if: steps.inspect.outputs.route == 'full'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -94,7 +94,7 @@ jobs:
           path: .ci-prepared/infra/*
           if-no-files-found: error
           compression-level: 0
-          retention-days: 30
+          retention-days: 3
       - name: Retain prepared documentation images
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -102,7 +102,7 @@ jobs:
           path: .ci-prepared/docs/*
           if-no-files-found: error
           compression-level: 0
-          retention-days: 30
+          retention-days: 3
       - name: Retain exact prepared Pages archive
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -111,7 +111,7 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
           compression-level: 0
-          retention-days: 30
+          retention-days: 3
   release-please:
     needs: authorize
     if: needs.authorize.outputs.current == 'true' && vars.ENABLE_RELEASE_AUTOMATION == 'true'

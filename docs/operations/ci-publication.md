@@ -79,7 +79,9 @@ A retry checks the registry, reuses identical immutable outputs and publishes mi
 
 Logs and result artifacts provide diagnostics. Publication does not depend on custom receipts attached to Releases; existing receipt assets can remain as historical records.
 
-CI artifacts are retained for 30 days. After expiry, the workflow cannot retry those original bytes. Validate a new main commit and publish a new release version as needed. Historical build reconstruction is outside this pipeline.
+Large CI publication candidates and prepared publication payloads are retained for three days. The .NET build handoff is retained for one day; rerun all CI jobs if that handoff has expired. Coverage and failure diagnostics remain available for seven days, and publication plans and scan reports for 30 days. Keeping a plan does not extend its payloads' lifetime.
+
+Complete publication approvals and retries within three days of the original CI upload. Prepared copies expire three days after their own upload, but a fresh publication attempt still needs the original CI candidates. After expiry, the workflow cannot retry those original bytes. Validate a new main commit and publish a new release version as needed. Historical build reconstruction is outside this pipeline.
 
 ## Fork configuration
 

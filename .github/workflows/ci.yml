@@ -88,7 +88,7 @@ jobs:
           name: dotnet-build-${{ github.run_id }}-${{ github.run_attempt }}
           path: .ci-artifacts/dotnet
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1
           include-hidden-files: true
     timeout-minutes: 30
   unit-tests:
@@ -387,7 +387,7 @@ jobs:
           name: images-app-${{ github.run_id }}-${{ github.run_attempt }}
           path: .ci-artifacts/images-app
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 3
           include-hidden-files: true
     if: needs.changes.outputs.route == 'full'
   docker-images-infra:
@@ -426,7 +426,7 @@ jobs:
           name: images-infra-${{ github.run_id }}-${{ github.run_attempt }}
           path: .ci-artifacts/images-infra
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 3
           include-hidden-files: true
     timeout-minutes: 30
     if: needs.changes.outputs.route == 'full'
@@ -612,7 +612,7 @@ jobs:
           name: docfx-site-${{ github.run_id }}-${{ github.run_attempt }}
           path: .ci-artifacts/docs
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 3
       - name: Set up QEMU for docs package updates
         uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a
         with:
@@ -630,7 +630,7 @@ jobs:
           name: images-docs-${{ github.run_id }}-${{ github.run_attempt }}
           path: .ci-artifacts/images-docs
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 3
           include-hidden-files: true
     needs: changes
     timeout-minutes: 30

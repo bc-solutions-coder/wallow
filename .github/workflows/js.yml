@@ -106,7 +106,7 @@ jobs:
           name: js-packages-${{ github.run_id }}-${{ github.run_attempt }}
           path: .ci-artifacts/packages.tar.gz*
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 3
           include-hidden-files: true
       - name: Save generated-file patch
         if: failure()
