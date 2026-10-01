@@ -121,7 +121,7 @@
     <!-- TOTP (Time-based One-Time Password) -->
     <PackageVersion Include="Otp.NET" Version="1.4.1" />
     <!-- Code Coverage -->
-    <PackageVersion Include="coverlet.collector" Version="10.0.1" />
+    <PackageVersion Include="coverlet.collector" Version="10.1.0" />
     <!-- Architecture Testing -->
     <PackageVersion Include="NetArchTest.Rules" Version="1.3.2" />
     <!-- Annotations -->
