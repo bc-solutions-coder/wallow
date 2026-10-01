@@ -79,7 +79,7 @@
     <PackageVersion Include="Lib.Net.Http.WebPush" Version="3.3.1" />
     <PackageVersion Include="MailKit" Version="4.17.0" />
     <!-- Cloud Storage (AWS S3) -->
-    <PackageVersion Include="AWSSDK.S3" Version="4.0.102.5" />
+    <PackageVersion Include="AWSSDK.S3" Version="4.0.104" />
     <!-- Microsoft.Extensions.* -->
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="$(MicrosoftExtensionsVersion)" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="$(MicrosoftExtensionsVersion)" />
