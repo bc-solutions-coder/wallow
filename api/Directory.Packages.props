@@ -129,7 +129,7 @@
     <!-- Code Analysis -->
     <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="10.0.302" />
     <PackageVersion Include="StyleCop.Analyzers" Version="1.2.0-beta.556" />
-    <PackageVersion Include="Meziantou.Analyzer" Version="3.0.123" />
+    <PackageVersion Include="Meziantou.Analyzer" Version="3.0.290" />
     <PackageVersion Include="Roslynator.Analyzers" Version="4.15.0" />
     <!-- Keep Roslyn assemblies on one version to avoid type-loading conflicts in EF tooling. -->
     <PackageVersion Include="Microsoft.CodeAnalysis" Version="5.0.0" />
