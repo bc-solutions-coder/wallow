@@ -83,7 +83,7 @@ jobs:
           find api -type d \( -path '*/bin/Release' -o -name obj \) -prune -print0 | tar --null -T - -czf .ci-artifacts/dotnet/output.tar.gz
           python3 "$GITHUB_WORKSPACE/scripts/ci/validation.py" seal --file .ci-artifacts/dotnet/output.tar.gz --manifest .ci-artifacts/dotnet/output.tar.gz.json --kind dotnet --variant release
       - name: Upload dotnet-build
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: dotnet-build-${{ github.run_id }}-${{ github.run_attempt }}
           path: .ci-artifacts/dotnet
@@ -113,7 +113,7 @@ jobs:
           restore-keys: |
             nuget-${{ runner.os }}-
       - name: Download dotnet-build
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: dotnet-build-${{ github.run_id }}-${{ github.run_attempt }}
           path: .ci-artifacts/dotnet
@@ -129,7 +129,7 @@ jobs:
           --blame-hang-timeout 60s --collect "XPlat Code Coverage" --settings api/tests/coverage.runsettings --results-directory ./TestResults
       - name: Upload unit test coverage
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: coverage-unit-${{ github.run_id }}-${{ github.run_attempt }}
           path: ./TestResults/**/coverage.cobertura.xml
@@ -184,7 +184,7 @@ jobs:
           restore-keys: |
             nuget-${{ runner.os }}-
       - name: Download dotnet-build
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: dotnet-build-${{ github.run_id }}-${{ github.run_attempt }}
           path: .ci-artifacts/dotnet
@@ -203,7 +203,7 @@ jobs:
           Redis__ConnectionString: localhost:6379,password=WallowTestValkey123!,abortConnect=false
       - name: Upload integration test coverage
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: coverage-integration-${{ github.run_id }}-${{ github.run_attempt }}
           path: ./TestResults/**/coverage.cobertura.xml
@@ -258,7 +258,7 @@ jobs:
           restore-keys: |
             nuget-${{ runner.os }}-
       - name: Download dotnet-build
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: dotnet-build-${{ github.run_id }}-${{ github.run_attempt }}
           path: .ci-artifacts/dotnet
@@ -300,7 +300,7 @@ jobs:
           restore-keys: |
             nuget-${{ runner.os }}-
       - name: Download dotnet-build
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: dotnet-build-${{ github.run_id }}-${{ github.run_attempt }}
           path: .ci-artifacts/dotnet
@@ -311,7 +311,7 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore api/Wallow.slnx
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1
         with:
           platforms: arm64
       - name: Publish app container images
@@ -382,7 +382,7 @@ jobs:
 
           python3 "$GITHUB_WORKSPACE/scripts/ci/validation.py" seal --file .ci-artifacts/images-app/images.tar.gz --manifest .ci-artifacts/images-app/images.tar.gz.json --kind images --variant app-amd64-arm64
       - name: Upload images-app
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: images-app-${{ github.run_id }}-${{ github.run_attempt }}
           path: .ci-artifacts/images-app
@@ -402,7 +402,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1
         with:
           platforms: arm64
       - name: Build infra images
@@ -421,7 +421,7 @@ jobs:
 
           python3 "$GITHUB_WORKSPACE/scripts/ci/validation.py" seal --file .ci-artifacts/images-infra/images.tar.gz --manifest .ci-artifacts/images-infra/images.tar.gz.json --kind images --variant infra-amd64-arm64
       - name: Upload images-infra
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: images-infra-${{ github.run_id }}-${{ github.run_attempt }}
           path: .ci-artifacts/images-infra
@@ -443,12 +443,12 @@ jobs:
         with:
           persist-credentials: false
       - name: Download images-app
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: images-app-${{ github.run_id }}-${{ github.run_attempt }}
           path: .ci-artifacts/images-app
       - name: Download images-infra
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: images-infra-${{ github.run_id }}-${{ github.run_attempt }}
           path: .ci-artifacts/images-infra
@@ -461,7 +461,7 @@ jobs:
       - name: Enable corepack
         run: corepack enable
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -476,7 +476,7 @@ jobs:
         run: ./scripts/e2e.sh
       - name: Upload wallow-auth Playwright report
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: playwright-report-wallow-auth-${{ github.run_id }}-${{ github.run_attempt }}
           path: apps/wallow-auth/playwright-report
@@ -484,7 +484,7 @@ jobs:
           retention-days: 7
       - name: Upload wallow-web Playwright report
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: playwright-report-wallow-web-${{ github.run_id }}-${{ github.run_attempt }}
           path: apps/wallow-web/playwright-report
@@ -507,12 +507,12 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Download unit test coverage
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: coverage-unit-${{ github.run_id }}-${{ github.run_attempt }}
           path: ./coverage/unit
       - name: Download integration test coverage
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: coverage-integration-${{ github.run_id }}-${{ github.run_attempt }}
           path: ./coverage/integration
@@ -530,7 +530,7 @@ jobs:
         run: python3 "$GITHUB_WORKSPACE/scripts/ci/coverage_gate.py" ./coverage/merged/Cobertura.xml
       - name: Upload merged coverage report
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: coverage-report-${{ github.run_id }}-${{ github.run_attempt }}
           path: ./coverage/merged
@@ -582,7 +582,7 @@ jobs:
       - name: Enable corepack
         run: corepack enable
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -607,14 +607,14 @@ jobs:
           tar -czf .ci-artifacts/docs/site.tar.gz -C .docfx/_site .
           python3 "$GITHUB_WORKSPACE/scripts/ci/validation.py" seal --file .ci-artifacts/docs/site.tar.gz --manifest .ci-artifacts/docs/site.tar.gz.json --kind docs --variant docfx
       - name: Upload site artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: docfx-site-${{ github.run_id }}-${{ github.run_attempt }}
           path: .ci-artifacts/docs
           if-no-files-found: error
           retention-days: 30
       - name: Set up QEMU for docs package updates
-        uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1
         with:
           platforms: arm64
       - name: Package validated docs site
@@ -625,7 +625,7 @@ jobs:
           docker save wallow-docs:test wallow-docs:test-arm64 | gzip > .ci-artifacts/images-docs/images.tar.gz
           python3 "$GITHUB_WORKSPACE/scripts/ci/validation.py" seal --file .ci-artifacts/images-docs/images.tar.gz --manifest .ci-artifacts/images-docs/images.tar.gz.json --kind images --variant docs-amd64-arm64
       - name: Upload images-docs
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: images-docs-${{ github.run_id }}-${{ github.run_attempt }}
           path: .ci-artifacts/images-docs
@@ -668,7 +668,7 @@ jobs:
           DOCUMENT: ${{ steps.openapi.outputs.document }}
         run: python3 "$GITHUB_WORKSPACE/scripts/ci/openapi_patch.py" "$DOCUMENT"
       - name: Upload openapi-patch
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: openapi-patch-${{ github.run_id }}-${{ github.run_attempt }}
           path: .ci-artifacts/openapi.patch

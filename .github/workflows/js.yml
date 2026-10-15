@@ -17,7 +17,7 @@ jobs:
       - name: Enable corepack
         run: corepack enable
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -31,7 +31,7 @@ jobs:
         id: tailnet
         if: env.MAIN_CACHE == 'true' && env.TAILNET_CONFIGURED == 'true'
         continue-on-error: true
-        uses: tailscale/github-action@306e68a486fd2350f2bfc3b19fcd143891a4a2d8
+        uses: tailscale/github-action@d1b6cd204f8dceda5b3eaad7f1f767be390056cd
         with:
           oauth-client-id: ${{ env.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ env.TS_OAUTH_SECRET }}
@@ -69,7 +69,7 @@ jobs:
         run: pnpm test
       - name: Upload browser failure screenshots
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: browser-failures-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
@@ -101,7 +101,7 @@ jobs:
           tar -czf .ci-artifacts/packages.tar.gz -C .ci-artifacts/packages .
           python3 "$GITHUB_WORKSPACE/scripts/ci/validation.py" seal --file .ci-artifacts/packages.tar.gz --manifest .ci-artifacts/packages.tar.gz.json --kind packages --variant pnpm
       - name: Upload js-packages
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: js-packages-${{ github.run_id }}-${{ github.run_attempt }}
           path: .ci-artifacts/packages.tar.gz*
@@ -114,7 +114,7 @@ jobs:
           mkdir -p .ci-artifacts
           git diff --binary -- packages/sdk/src/generated packages/api-errors/src/generated packages/sdk/openapi apps/wallow-auth/src/app/routeTree.gen.ts apps/wallow-web/src/app/routeTree.gen.ts apps/minimal-app/src/routeTree.gen.ts > .ci-artifacts/generated.patch
       - name: Upload generated-patch
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: generated-patch-${{ github.run_id }}-${{ github.run_attempt }}
           path: .ci-artifacts/generated.patch
